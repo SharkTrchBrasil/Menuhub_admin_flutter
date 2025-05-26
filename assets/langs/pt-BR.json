@@ -1,0 +1,44 @@
+{
+  "sign_up_for_account": "Cadastre-se para uma conta",
+  "send_spend_and_save_smarter": "Envie, gaste e economize de forma mais inteligente",
+  "by_creating_account_agreeing_to": "Ao criar uma conta, você concorda com nossa",
+  "privacy_policy": "Política de Privacidade",
+  "electronics_communication_policy": "e Política de Comunicação Eletrônica.",
+  "already_have_account": "Já tem uma conta?",
+  "sign_in": "Entrar",
+  "forgot_pass": "Esqueceu a senha ?",
+  "sign_up": "Cadastrar-se",
+  "dont_have_account_yet": "Ainda não tem uma conta?",
+
+  "email": "E-mail",
+  "enter_your_email": "Digite seu e-mail",
+  "invalid_email": "E-mail inválido",
+
+  "phone": "Whatsapp",
+  "enter_your_phone": "Digite seu whatsapp",
+  "invalid_phone": "Celular inválido",
+
+  "password": "Senha",
+  "enter_your_password": "Digite sua senha",
+  "field_required": "Campo obrigatório",
+  "sign_in_to_pdvix": "Acesse o PDVix",
+  "send_spend_and_save_smarter_pdvix": "Venda, receba e economize com mais inteligência",
+
+  "name": "Seu nome",
+  "enter_your_full_name": "Digite seu nome completo",
+  "name_required": "Nome obrigatório",
+  "enter_valid_full_name": "Digite seu nome completo",
+
+  "password_too_short": "Senha muito curta",
+
+  "by_creating_account_you_agree": "Ao criar uma conta, você concorda com nossa",
+  "and": "e",
+  "electronic_communication_policy": "Política de Comunicação Eletrônica.",
+
+  "user_already_exists": "Usuário já existe. Por favor, faça login.",
+  "failed_to_create_account": "Falha ao criar conta! Por favor, tente novamente.",
+  "account_created_successfully": "Conta criada com sucesso! Faça seu login para continuar.",
+  "welcome": "Bem-vindo(a)!",
+  "sign_up_for_account_pdvix": "Crie sua conta no PDVix",
+  "sign_up_send_spend_and_save_smarter_pdvix":  "PDV, gerencie seu estoque e atenda com delivery inteligente"
+}

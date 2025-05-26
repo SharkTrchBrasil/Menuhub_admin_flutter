@@ -1,0 +1,107 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+
+//import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+
+import 'package:provider/provider.dart';
+
+import 'package:easy_localization/easy_localization.dart';
+import 'package:bot_toast/bot_toast.dart';
+import 'package:totem_pro_admin/repositories/chatbot_repository.dart';
+
+
+import 'core/chatbot_config_provider.dart';
+import 'core/di.dart';
+import 'core/router.dart';
+import 'core/store_provider.dart';
+import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+
+  if (kIsWeb) {
+ // usePathUrlStrategy();
+  }
+
+
+  configureDependencies();
+
+  await EasyLocalization.ensureInitialized();
+
+  runApp(
+    EasyLocalization(
+      supportedLocales: const [
+        Locale('en', 'US'),
+        Locale('pt', 'BR'),
+        Locale('es', 'ES'),
+      ],
+      path: 'assets/langs',
+      fallbackLocale: const Locale('pt', 'BR'),
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+
+          ChangeNotifierProvider(
+            create: (_) => ChatBotConfigController(getIt<ChatBotConfigRepository>()),
+
+          ),
+
+       //   ChangeNotifierProvider(create: (_) =>  StoreProvider()),
+
+        ],
+        child: ScrollConfiguration(
+
+             behavior: MyCustomScrollBehavior(),
+            child: const MyApp()),
+      ),
+    ),
+  );
+}
+
+class MyCustomScrollBehavior extends ScrollBehavior {
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics();
+  }
+}
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+
+    return MaterialApp.router(
+      title: 'PDVix - Admin',
+
+      scrollBehavior: CleanScrollBehavior(),
+      debugShowCheckedModeBanner: false,
+      builder: BotToastInit(),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      locale: context.locale,
+      supportedLocales: context.supportedLocales,
+      localizationsDelegates: context.localizationDelegates,
+      routerConfig: router,
+    );
+  }
+}
+
+
+class CleanScrollBehavior extends ScrollBehavior {
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const ClampingScrollPhysics();
+  }
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.stylus,
+  };
+}

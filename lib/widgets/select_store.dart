@@ -1,0 +1,87 @@
+import 'package:flutter/material.dart';
+
+import '../models/store.dart';
+import '../models/store_with_role.dart';
+
+class StorePopupMenu extends StatelessWidget {
+  final List<StoreWithRole> stores;
+  final int? selectedStoreId;
+  final ValueChanged<int> onStoreSelected;
+  final VoidCallback onAddStore;
+
+  const StorePopupMenu({
+    super.key,
+    required this.stores,
+    required this.selectedStoreId,
+    required this.onStoreSelected,
+    required this.onAddStore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedStore = stores.firstWhere(
+          (s) => s.store.id == selectedStoreId,
+      orElse: () => stores.first,
+    );
+
+    return PopupMenuButton<int>(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      tooltip: '',
+      offset: const Offset(0, 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+
+      child: Row(
+        children: [
+           CircleAvatar(
+            backgroundImage: NetworkImage(selectedStore.store.image!.url!), // você pode personalizar isso
+            radius: 12,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            selectedStore.store.name,
+            style: Theme.of(context).textTheme.labelLarge,
+                    ),
+          Icon(Icons.arrow_drop_down, size: 15, color: Theme.of(context).iconTheme.color),
+          const SizedBox(width: 10),
+        ],
+      ),
+      onSelected: (int storeId) {
+        if (storeId == -1) {
+          onAddStore();
+        } else {
+          onStoreSelected(storeId);
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<int>>[
+        for (final s in stores)
+          PopupMenuItem<int>(
+            value: s.store.id,
+            child: ListTile(
+              leading:  CircleAvatar(
+                backgroundImage: NetworkImage(s.store.image!.url!), // mesmo ícone ou imagem
+                radius: 18,
+              ),
+              title: Text(
+                s.store.name,
+                style: Theme.of(context).textTheme.labelLarge,
+                overflow: TextOverflow.ellipsis,
+
+              ),
+
+            ),
+          ),
+        const PopupMenuDivider(),
+        PopupMenuItem<int>(
+          value: -1,
+          child: Row(
+            children:  [
+              Icon(Icons.add, size: 18, color: Theme.of(context).iconTheme.color,),
+              SizedBox(width: 8),
+              Text('Adicionar loja',  style: Theme.of(context).textTheme.labelLarge),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

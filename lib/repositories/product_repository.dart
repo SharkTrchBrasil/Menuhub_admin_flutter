@@ -1,0 +1,183 @@
+import 'package:dio/dio.dart';
+import 'package:either_dart/either.dart';
+import 'package:flutter/foundation.dart';
+import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/variant.dart';
+
+import '../models/product_availability.dart';
+import '../models/variant_option.dart';
+
+class ProductRepository {
+  ProductRepository(this._dio);
+
+  final Dio _dio;
+
+  Future<Either<void, List<Product>>> getProducts(int storeId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/products');
+      return Right(
+        response.data.map<Product>((c) => Product.fromJson(c)).toList(),
+      );
+    } catch (e, s) {
+      debugPrint('$e $s');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, Product>> getProduct(int storeId, int id) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/products/$id');
+      return Right(Product.fromJson(response.data));
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, Product>> saveProduct(
+    int storeId,
+    Product product,
+  ) async {
+    try {
+      if (product.id != null) {
+        final response = await _dio.patch(
+          '/stores/$storeId/products/${product.id}',
+          data: await product.toFormData(),
+        );
+        return Right(Product.fromJson(response.data));
+      } else {
+        final response = await _dio.post(
+          '/stores/$storeId/products',
+          data: await product.toFormData(),
+        );
+        return Right(Product.fromJson(response.data));
+      }
+    } catch (e) {
+      debugPrint('$e');
+      return Left(null);
+    }
+  }
+
+  Future<Either<void, ProductAvailability>> saveProductAvailability(
+      int storeId,
+      int productId,
+      ProductAvailability availability,
+      ) async {
+    try {
+      final response = await _dio.post(
+        '/stores/$storeId/products/$productId/availabilities',
+        data: availability.toJson(),
+      );
+
+      return Right(ProductAvailability.fromJson(response.data));
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
+
+
+
+
+  Future<Either<void, Variant>> getVariant(
+    int storeId,
+
+    int id,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/stores/$storeId/variants/$id',
+      );
+      return Right(Variant.fromJson(response.data));
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, Variant>> saveVariant(
+    int storeId,
+
+    Variant variant,
+  ) async {
+    try {
+      if (variant.id != null) {
+        final response = await _dio.patch(
+          '/stores/$storeId/variants/${variant.id}',
+          data: variant.toJson(),
+        );
+
+        return Right(Variant.fromJson(response.data));
+      } else {
+        final response = await _dio.post(
+          '/stores/$storeId/variants',
+          data: variant.toJson(),
+        );
+
+        return Right(Variant.fromJson(response.data));
+      }
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, VariantOption>> getVariantOption(
+    int storeId,
+
+    int variantId,
+    int id,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/stores/$storeId/variants/$variantId/options/$id',
+      );
+      return Right(VariantOption.fromJson(response.data));
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
+
+
+
+  Future<Either<void, List<Variant>>> getVariantsByStore(int storeId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/variants');
+      final variants = (response.data as List)
+          .map((v) => Variant.fromJson(v))
+          .toList();
+      return Right(variants); // retorno de sucesso
+    } catch (e) {
+      return const Left(null); // retorno de erro
+    }
+  }
+
+  Future<Either<void, VariantOption>> saveVariantOption(
+    int storeId,
+
+    int variantId,
+    VariantOption option,
+  ) async {
+    try {
+      if (option.id != null) {
+        final response = await _dio.patch(
+          '/stores/$storeId/variants/$variantId/options/${option.id}',
+          data: option.toJson(),
+        );
+
+        return Right(VariantOption.fromJson(response.data));
+      } else {
+        final response = await _dio.post(
+          '/stores/$storeId/variants/$variantId/options',
+          data: option.toJson(),
+        );
+
+        return Right(VariantOption.fromJson(response.data));
+      }
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
+}
