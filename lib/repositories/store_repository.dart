@@ -6,6 +6,10 @@ import 'package:totem_pro_admin/models/store_access.dart';
 import 'package:totem_pro_admin/models/store_theme.dart';
 import 'package:totem_pro_admin/models/store_with_role.dart';
 
+
+
+import '../models/cash_session.dart';
+import '../models/cash_transaction.dart';
 import '../models/full_store_data_model.dart';
 import '../models/store_city.dart';
 import '../models/store_hour.dart';
@@ -464,4 +468,299 @@ class StoreRepository {
   }
 
 
+
+
+//// CAIXA ///
+
+
+
+  // SESSION //
+
+
+
+  Future<Either<void, CashierSession>> getSession(int storeId,int id) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/cashier-sessions/$id');
+      return Right(CashierSession.fromJson(response.data));
+    } catch (e) {
+      debugPrint('Error getSession: $e');
+      return const Left(null);
+    }
+  }
+
+
+  Future<Either<void, void>> deleteSession(int storeId, int id) async {
+    try {
+      await _dio.delete('/stores/$storeId/cashier-sessions/$id');
+      return const Right(null);
+    } catch (e) {
+      debugPrint('Error deleteSession: $e');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, CashierSession>> closeSession(int storeId, int sessionId, double expectedAmount , double informedAmount, double cashDifference,) async {
+    try {
+      final response = await _dio.post('/stores/$storeId/cashier-sessions/$sessionId/close',
+        data: {
+          "expected_amount": expectedAmount,
+          "informed_amount": informedAmount,
+          "cash_difference": cashDifference
+        },
+
+      );
+      return Right(CashierSession.fromJson(response.data));
+    } catch (e) {
+      debugPrint('Error closeSession: $e');
+      return const Left(null);
+    }
+  }
+  Future<Either<void, CashierTransaction>> addCash(int storeId, int sessionId, double amount, String description, int paymentMethodId,) async {
+    try {
+      final response = await _dio.post(
+        '/stores/$storeId/cashier-sessions/$sessionId/add-cash',
+        data: {
+          "amount": amount,
+          "description": description,
+          "payment_method_id": paymentMethodId
+        },
+      );
+      return Right(CashierTransaction.fromJson(response.data));
+    } catch (e) {
+      debugPrint('Error addCash: $e');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, CashierTransaction>> removeCash(int storeId, int sessionId, double amount, String description, int paymentMethodId) async {
+    try {
+      final response = await _dio.post(
+        '/stores/$storeId/cashier-sessions/$sessionId/remove-cash',
+        data: {
+          "amount": amount,
+          "description": description,
+          "payment_method_id": paymentMethodId
+        },
+      );
+      return Right(CashierTransaction.fromJson(response.data));
+    } catch (e) {
+      debugPrint('Error removeCash: $e');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, List<CashierSession>>> listCashierSessions(int storeId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/cashier-sessions');
+      final List<dynamic> data = response.data;
+      final sessions = data.map((json) => CashierSession.fromJson(json)).toList();
+      return Right(sessions);
+    } on DioException catch (e) {
+      debugPrint('Erro Dio listCashierSessions: $e');
+      return Left(null);
+    } catch (e) {
+      debugPrint('Erro inesperado listCashierSessions: $e');
+      return Left(null);
+    }
+  }
+
+  Future<Either<void, CashierSession>> getCurrentCashierSession(int storeId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/cashier-sessions/current');
+      final data = response.data;
+      final session = CashierSession.fromJson(data);
+      return Right(session);
+    } on DioException catch (e) {
+      debugPrint('Erro Dio getCurrentCashierSession: $e');
+      return Left(null); // Ou você pode usar alguma estrutura de erro customizado
+    } catch (e) {
+      debugPrint('Erro inesperado getCurrentCashierSession: $e');
+      return Left(null);
+    }
+  }
+
+
+
+
+  Future<Either<void, List<CashierTransaction>>> listCashierTransactions(
+      int storeId, int sessionId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/cashier-sessions/$sessionId/transactions');
+      final List<dynamic> data = response.data;
+      final transactions = data.map((json) => CashierTransaction.fromJson(json)).toList();
+      return Right(transactions);
+    } on DioException catch (e) {
+      debugPrint('Erro Dio listCashierTransactions: $e');
+      return Left(null);
+    } catch (e) {
+      debugPrint('Erro inesperado listCashierTransactions: $e');
+      return Left(null);
+    }
+  }
+
+
+
+  Future<Either<void, Map<String, double>>> getCashierSessionPaymentSummary(int storeId, int sessionId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/cashier-sessions/$sessionId/payment-summary');
+
+      // Assume-se que response.data é um Map<String, dynamic>
+      final Map<String, dynamic> rawSummary = response.data;
+
+      final Map<String, double> summary = rawSummary.map((key, value) {
+        // Garantir que o valor é um num e convertê-lo para double
+        if (value is num) {
+          return MapEntry(key, value.toDouble());
+        }
+        // Lidar com casos onde o valor pode não ser um número,
+        // embora seu backend deva garantir que seja.
+        // Poderia lançar um erro ou retornar um valor padrão.
+        throw FormatException('Valor inesperado para o resumo de pagamento: $value');
+      });
+
+      return Right(summary);
+    } catch (e) {
+      debugPrint('Error getCashierSessionPaymentSummary: $e');
+      // Para depuração, você pode querer retornar o erro como parte do Either
+      // return Left(e.toString()); // Se o tipo de Left for String
+      return const Left(null); // Conforme sua assinatura atual
+    }
+  }
+
+
+
+
+  Future<Either<void, CashierSession>> openCashierSession(int storeId,int paymentMethodId, double initialBalance) async {
+    try {
+      final response = await _dio.post(
+        '/stores/$storeId/cashier-sessions',
+        data: {'opening_amount': initialBalance, 'payment_method_id': paymentMethodId },
+      );
+
+      final openedSession = CashierSession.fromJson(response.data);
+
+
+      return Right(openedSession);
+    } on DioException catch (e) {
+      debugPrint('Erro Dio openCashierSession: $e');
+      return const Left(null);
+    } catch (e) {
+      debugPrint('Erro inesperado openCashierSession: $e');
+      return const Left(null);
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+  // FIM SESSION ///
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // TRANSACTIONS
+
+  Future<Either<void, List<CashierTransaction>>> listTransactions(int storeId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/cashier_transactions');
+      final list = (response.data as List)
+          .map((e) => CashierTransaction.fromJson(e))
+          .toList();
+      return Right(list);
+    } catch (e) {
+      debugPrint('Error listTransactions: $e');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, CashierTransaction>> getTransaction(int storeId,int id) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/cashier_transactions/$id');
+      return Right(CashierTransaction.fromJson(response.data));
+    } catch (e) {
+      debugPrint('Error getTransaction: $e');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, CashierTransaction>> saveTransaction(int storeId,CashierTransaction transaction) async {
+    try {
+      if (transaction.id != null) {
+        final response = await _dio.put(
+          '/stores/$storeId/cashier_transactions/${transaction.id}',
+          data: transaction.toJson(),
+        );
+        return Right(CashierTransaction.fromJson(response.data));
+      } else {
+        final response = await _dio.post(
+          '/stores/$storeId/cashier_transactions',
+          data: transaction.toJson(),
+        );
+        return Right(CashierTransaction.fromJson(response.data));
+      }
+    } catch (e) {
+      debugPrint('Error saveTransaction: $e');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, void>> deleteTransaction(int storeId,int id) async {
+    try {
+      await _dio.delete('/stores/$storeId/cashier_transactions/$id');
+      return const Right(null);
+    } catch (e) {
+      debugPrint('Error deleteTransaction: $e');
+      return const Left(null);
+    }
+  }
+
+
+
+  // FIM TRANSACTIONS ///
+
+
+
+
+
+// FIM DO CAIXA ///
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

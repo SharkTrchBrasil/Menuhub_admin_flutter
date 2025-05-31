@@ -204,12 +204,6 @@ class _EditPaymentMethodsDialogState extends State<EditPaymentMethodsDialog> {
                   isDense: true, // deixa mais compacto
                   items: const [
                     DropdownMenuItem(
-                      value: 'Cash',
-                      child: Row(
-                        children: [Icon(Icons.attach_money), SizedBox(width: 8), Text('Dinheiro')],
-                      ),
-                    ),
-                    DropdownMenuItem(
                       value: 'Card',
                       child: Row(
                         children: [Icon(Icons.credit_card), SizedBox(width: 8), Text('Cartão')],
@@ -397,8 +391,6 @@ class _EditPaymentMethodsDialogState extends State<EditPaymentMethodsDialog> {
   }
   String _getDefaultAssetName(String type) {
     switch (type.toLowerCase()) {
-      case 'cash':
-        return 'cash.svg';
       case 'card':
         return 'card.svg';
       case 'pix':

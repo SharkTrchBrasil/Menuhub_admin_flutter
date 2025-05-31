@@ -207,8 +207,8 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                                         ],
                                       ),
                                     ),
-        
-                                    // Ativo/desativado
+
+                                   if (method.paymentType != 'Cash')
                                     Row(
                                       children: [
 

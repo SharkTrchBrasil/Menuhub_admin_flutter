@@ -55,6 +55,7 @@ dependencies:
   shared_preferences:
   google_fonts:
   qr_flutter:
+  flutter_multi_formatter:
 
   lottie:
 

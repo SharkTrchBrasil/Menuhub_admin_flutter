@@ -5,6 +5,7 @@ import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
 import 'package:totem_pro_admin/core/guards/auth_guard.dart';
 import 'package:totem_pro_admin/core/guards/route_guard.dart';
+import 'package:totem_pro_admin/pages/cash/cash_page.dart';
 import 'package:totem_pro_admin/pages/categories/categories_page.dart';
 import 'package:totem_pro_admin/pages/create_store/create_store_page.dart';
 import 'package:totem_pro_admin/pages/edit_category/edit_category_page.dart';
@@ -453,6 +454,19 @@ final router = GoRouter(
                             key: UniqueKey(),
                             child: TotemsPage(storeId: state.storeId),
                           ),
+                    ),
+                  ],
+                ),
+
+                StatefulShellBranch(
+                  routes: [
+                    GoRoute(
+                      path: '/cash',
+                      pageBuilder:
+                          (_, state) => NoTransitionPage(
+                        key: UniqueKey(),
+                        child: CashPage(storeId: state.storeId),
+                      ),
                     ),
                   ],
                 ),
