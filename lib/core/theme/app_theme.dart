@@ -6,140 +6,26 @@ import '../extensions/colors.dart';
 class AppTheme {
   AppTheme._();
 
-  // static final ThemeData lightTheme = ThemeData(
-  //   useMaterial3: false,
-  //   bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Colors.transparent),
-  //   scaffoldBackgroundColor: whiteColor,
-  //   primaryColor: primaryColor,
-  //   iconTheme: const IconThemeData(color: Colors.black),
-  //   dividerColor: viewLineColor,
-  //   cardColor: cardLightColor,
-  //
-  //   //appbar
-  //   appBarTheme: AppBarTheme(
-  //     elevation: 0,
-  //     backgroundColor: Color(0xffFFFFFF)
-  //   ),
-  //
-  //
-  //
-  //   drawerTheme: const DrawerThemeData(
-  //     backgroundColor: cardLightColor, // Cor do fundo do Drawer no tema claro
-  //   ),
-  //   colorScheme: const ColorScheme(
-  //     primary: primaryColor,
-  //     secondary: primaryColor,
-  //     surface: Colors.white,
-  //     background: Colors.white,
-  //     error: Colors.red,
-  //     onPrimary: Colors.white,
-  //     onSecondary: Colors.black,
-  //     onSurface: Colors.black,
-  //     onBackground: Colors.black,
-  //     onError: Colors.redAccent,
-  //     brightness: Brightness.light,
-  //   ),
-  //   checkboxTheme: CheckboxThemeData(
-  //     shape: const RoundedRectangleBorder(side: BorderSide(width: 1, color: primaryColor)),
-  //     checkColor: MaterialStateProperty.all(Colors.white),
-  //     fillColor: MaterialStateProperty.all(primaryColor),
-  //     materialTapTargetSize: MaterialTapTargetSize.padded,
-  //   ),
-  //   textTheme: GoogleFonts.interTextTheme(
-  //     const TextTheme(
-  //       bodyLarge: TextStyle(color: textPrimaryColor), // Cor padrão do texto grande
-  //       bodyMedium: TextStyle(color: textSecondaryColor), // Cor padrão do texto médio
-  //       titleLarge: TextStyle(color: blackColor, fontWeight: FontWeight.bold), // Cor padrão do título grande
-  //       // Defina outras cores de texto padrão conforme necessário
-  //     ),
-  //   ),
-  //   pageTransitionsTheme: const PageTransitionsTheme(
-  //     builders: <TargetPlatform, PageTransitionsBuilder>{
-  //       TargetPlatform.android: OpenUpwardsPageTransitionsBuilder(),
-  //       TargetPlatform.linux: OpenUpwardsPageTransitionsBuilder(),
-  //       TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-  //     },
-  //   ),
-  // );
-  //
-  // static final ThemeData darkTheme = ThemeData(
-  //   useMaterial3: false,
-  //   bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Colors.transparent),
-  //   scaffoldBackgroundColor: scaffoldColorDark,
-  //   iconTheme: const IconThemeData(color: Colors.white),
-  //   cardColor: cardDarkColor,
-  //
-  //
-  //   //appbar
-  //   appBarTheme: AppBarTheme(
-  //       elevation: 0,
-  //       backgroundColor: Color(0xff1C1F2C)
-  //   ),
-  //
-  //
-  //
-  //   drawerTheme: DrawerThemeData(
-  //     backgroundColor: cardDarkColor, // Cor do fundo do Drawer no tema escuro
-  //   ),
-  //   colorScheme: const ColorScheme(
-  //     primary: primaryColor,
-  //     secondary: primaryColor,
-  //     surface: Colors.black,
-  //     background: Colors.black,
-  //     error: Colors.red,
-  //     onPrimary: Colors.black,
-  //     onSecondary: Colors.white,
-  //     onSurface: Colors.white,
-  //     onBackground: Colors.white,
-  //     onError: Colors.redAccent,
-  //     brightness: Brightness.dark,
-  //   ),
-  //   dividerColor: Colors.white24,
-  //   textTheme: GoogleFonts.interTextTheme(
-  //     const TextTheme(
-  //       bodyLarge: TextStyle(color: whiteColor), // Cor padrão do texto grande
-  //       bodyMedium: TextStyle(color: Colors.grey), // Cor padrão do texto médio
-  //       titleLarge: TextStyle(color: whiteColor, fontWeight: FontWeight.bold), // Cor padrão do título grande
-  //       // Defina outras cores de texto padrão conforme necessário
-  //     ),
-  //   ),
-  //   checkboxTheme: CheckboxThemeData(
-  //     shape: const RoundedRectangleBorder(side: BorderSide(width: 1, color: primaryColor)),
-  //     checkColor: MaterialStateProperty.all(Colors.white),
-  //     fillColor: MaterialStateProperty.all(primaryColor),
-  //     materialTapTargetSize: MaterialTapTargetSize.padded,
-  //   ),
-  //   pageTransitionsTheme: const PageTransitionsTheme(
-  //     builders: <TargetPlatform, PageTransitionsBuilder>{
-  //       TargetPlatform.android: OpenUpwardsPageTransitionsBuilder(),
-  //       TargetPlatform.linux: OpenUpwardsPageTransitionsBuilder(),
-  //       TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-  //     },
-  //   ),
-  // );
-  //
-  //
-
 
   static final ThemeData darkTheme = ThemeData(
-    useMaterial3: false,
+    useMaterial3: true,
     splashColor: Color(0xFF020B12),
     highlightColor: Colors.transparent,
     hoverColor: Colors.transparent,
 
-    scaffoldBackgroundColor: Color(0xFF020b12),
+    scaffoldBackgroundColor: Color(0xFF020B12),
 
-    primaryColor: Color(0xFFA85BF7),
+    primaryColor: Color(0xFFA347FF),
 
     colorScheme: ColorScheme.dark(
-      primary: Color(0xFFA85BF7),
+      primary: Color(0xFFA347FF),
       secondary: Color(0xFF73E325),
       error: Color(0xFFFC871D),
-      background: Color(0xFF060E19), // fundo geral
-      surface: Color(0xFF19212C), // containers e cartões
+      background: Color(0xFF020B12),
+      surface: Color(0xFF060e19),
       onPrimary: Colors.white,
       onBackground: Color(0xFFEBEBEB),
-      onSurface: Color(0xFF6D7588),
+      onSurface: Colors.white, // aqui é a cor do texto sobre surface
     ),
 
     disabledColor: Color(0xFF818795),
@@ -168,17 +54,17 @@ class AppTheme {
     ),
 
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF01070D), // mais escuro que scaffold
+      backgroundColor: Color(0xFF060e19), // mais escuro que scaffold
       foregroundColor: Colors.white,
-      surfaceTintColor: Color(0xFF060E19),
+      surfaceTintColor: Color(0xFF060e19),
       elevation: 0,
       scrolledUnderElevation: 0,
       shadowColor: Colors.transparent,
     ),
 
     drawerTheme: const DrawerThemeData(
-      backgroundColor: Color(0xFF01070D), // mais escuro que scaffold (personalizado)
-      surfaceTintColor: Color(0xFF01070D),
+      backgroundColor: Color(0xFF060e19), // mais escuro que scaffold (personalizado)
+      surfaceTintColor: Color(0xFF060e19),
       shadowColor: Colors.transparent,
     ),
 
@@ -205,10 +91,12 @@ class AppTheme {
       const TextTheme(
         bodyLarge: TextStyle(color: Color(0xFFB5B5B5)), // textPrimaryColor
         bodyMedium: TextStyle(color: Color(0xFFB5B5B5)),
+
         titleLarge: TextStyle(
           color: Color(0xFFB5B5B5),
           fontWeight: FontWeight.bold,
           fontSize: 14,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     ),
@@ -362,7 +250,7 @@ class AppTheme {
 
     textTheme: GoogleFonts.interTextTheme(
       const TextTheme(
-        bodyLarge: TextStyle(color: textPrimaryColor),
+        bodyLarge: TextStyle(color: Colors.black,),
         bodyMedium: TextStyle(color: Colors.black),
         titleLarge: TextStyle(color: blackColor, fontWeight: FontWeight.bold),
       ),

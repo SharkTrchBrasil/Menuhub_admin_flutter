@@ -1,22 +1,22 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
 import 'package:get_it/get_it.dart';
-import 'package:go_router/go_router.dart';
+
 import 'package:totem_pro_admin/models/payment_method.dart';
 import 'package:totem_pro_admin/repositories/payment_method_repository.dart';
 import 'package:totem_pro_admin/widgets/mobileappbar.dart';
 
-import '../../core/app_edit_controller.dart';
 import '../../core/app_list_controller.dart';
 import '../../core/di.dart';
-import '../../models/store_pix_config.dart';
+
 import '../../repositories/store_repository.dart';
 import '../../services/dialog_service.dart';
-import '../../widgets/app_file_form_field.dart';
+
 import '../../widgets/app_page_status_builder.dart';
 import '../../widgets/app_primary_button.dart';
-import '../../widgets/app_text_field.dart';
-import '../../widgets/app_toasts.dart';
+
 import '../../widgets/fixed_header.dart';
 import '../base/BasePage.dart';
 
@@ -30,7 +30,6 @@ class PaymentMethodsPage extends StatefulWidget {
 }
 
 class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
-
   final StoreRepository storeRepository = getIt();
   final paymentRepository = GetIt.I<StorePaymentMethodRepository>();
   final formKey = GlobalKey<FormState>();
@@ -42,9 +41,6 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
               widget.storeId,
             ),
       );
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -65,30 +61,25 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
               title: 'Pagamentos manuais',
 
               actions: [
-                AppPrimaryButton(label: 'Adicionar', onPressed: () async {
+                AppPrimaryButton(
+                  label: 'Adicionar',
+                  onPressed: () async {
+                    DialogService.showPaymentDialog(
+                      context,
+                      widget.storeId,
 
-                  DialogService.showPaymentDialog(
-                    context,
-                    widget.storeId,
-
-                    onSaved: (coupon) {
-                      categoriesController.refresh();
-                    },
-                  );
-
-
-                }),
+                      onSaved: (coupon) {
+                        categoriesController.refresh();
+                      },
+                    );
+                  },
+                ),
               ],
             ),
 
             Expanded(
               child: firstcontain(size: MediaQuery.of(context).size.width),
             ),
-
-
-
-
-
           ],
         );
       },
@@ -97,7 +88,6 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         padding: const EdgeInsets.only(bottom: 18.0),
         child: FloatingActionButton(
           onPressed: () {
-
             DialogService.showPaymentDialog(
               context,
               widget.storeId,
@@ -106,8 +96,6 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                 categoriesController.refresh();
               },
             );
-
-
           },
           tooltip: 'Novo',
           elevation: 0,
@@ -119,164 +107,231 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
   }
 
   Widget firstcontain({required double size}) {
+    int crossAxisCount = 1;
+    if (MediaQuery.of(context).size.width >= 1200) {
+      crossAxisCount = 3;
+    } else if (MediaQuery.of(context).size.width >= 800) {
+      crossAxisCount = 2;
+    } else if (MediaQuery.of(context).size.width >= 600) {
+      crossAxisCount = 1;
+    } else {
+      crossAxisCount = 1;
+    }
+
     return Padding(
       padding: const EdgeInsets.only(left: 0, right: 10),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-                // Layout para mobile
-                return AnimatedBuilder(
-                  animation: categoriesController,
-                  builder: (_, __) {
-                    return AppPageStatusBuilder<List<StorePaymentMethod>>(
-                      tryAgain: categoriesController.refresh,
-                      status: categoriesController.status,
-                      successBuilder: (coupons) {
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: coupons.length,
-                          itemBuilder: (context, index) {
-                            final method = coupons[index];
-        
-                            return Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                  horizontal: 16,
+      child: AnimatedBuilder(
+        animation: categoriesController,
+        builder: (_, __) {
+          return AppPageStatusBuilder<List<StorePaymentMethod>>(
+            tryAgain: categoriesController.refresh,
+            status: categoriesController.status,
+            successBuilder: (coupons) {
+              return Padding(
+                padding: const EdgeInsets.all(28.0),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  itemCount: coupons.length,
+                  physics: NeverScrollableScrollPhysics(),
+
+                  // evita conflito de rolagem
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    mainAxisExtent: 96,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemBuilder: (context, index) {
+                    final method = coupons[index];
+                    final color = _generateColorFromId(method.id.toString());
+
+                    return Container(
+                      height: 96,
+                    //  margin: const EdgeInsets.symmetric(vertical: 15),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.08), // Borda sutil
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: ListTile(
+                          dense: true,
+
+                          leading: CircleAvatar(
+                            backgroundColor:  Theme.of(context).colorScheme.onSurface,
+                            radius: 24,
+
+                            child: Icon(
+                              _getPaymentIcon(method.paymentType),
+                              color: color,
+                            ),
+                          ),
+                          title: Text(
+                            method.customName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          subtitle: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (method.taxRate != 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'Taxa: ${method.taxRate.toStringAsFixed(2)}%',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
                                 ),
-                                margin: const EdgeInsets.symmetric(vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 4,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
+                              if (method.paymentType.toLowerCase() == 'pix' &&
+                                  method.pixKey != null &&
+                                  method.pixKey!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    'Chave Pix: ${method.pixKey}',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    // Ícone baseado no tipo
-                                    CircleAvatar(
-                                      backgroundColor: Colors.grey.shade100,
-                                      child: Icon(
-                                        _getPaymentIcon(method.paymentType),
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-        
-                                    // Nome e info
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            method.customName,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          if (method.taxRate != 0)
-                                            Text(
-                                              '${method.taxRate.toStringAsFixed(2) }%',
-                                              style: TextStyle(
-                                                color: Colors.grey[600],
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          if (method.pixKey != null &&
-                                              method.pixKey!.isNotEmpty &&
-                                              method.customName.toLowerCase() ==
-                                                  "pix")
-                                            Text(
-                                              'Chave Pix: ${method.pixKey}',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: Colors.teal,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
 
-                                   if (method.paymentType != 'Cash')
-                                    Row(
-                                      children: [
-
-                                        IconButton(
-                                          icon: const Icon(Icons.delete),
-                                          onPressed: () async {
-                                            final result = await paymentRepository.deletePaymentMethod(widget.storeId, method.id!);
-
-                                            result.fold(
-                                                  (left) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Erro ao deletar')),
-                                                );
-                                              },
-                                                  (right) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Deletado com sucesso')),
-                                                );
-                                               categoriesController.refresh();
-                                              },
-                                            );
-                                          },
-                                        ),
-
-
-                                        SizedBox(width: 25),
-                                        IconButton(
-                                          icon:  Icon(
-                                            Icons.edit,
-                                            color: Theme.of(context).primaryColor
-                                          ),
-                                          onPressed: () {
-
-                                            DialogService.showPaymentDialog(
-                                              context,
-                                              paymentId: method.id!,
+                              // Row(
+                              //   mainAxisAlignment: MainAxisAlignment.end,
+                              //   children: [
+                              //
+                              //     Container(
+                              //       padding: const EdgeInsets.symmetric(
+                              //         horizontal: 8,
+                              //         vertical: 4,
+                              //       ),
+                              //       decoration: BoxDecoration(
+                              //         color:
+                              //         method.isActive
+                              //             ? Colors.green[100]
+                              //             : Colors.red[100],
+                              //         borderRadius: BorderRadius.circular(8),
+                              //       ),
+                              //       child: Text(
+                              //         method.isActive ? 'Ativo' : 'Inativo',
+                              //         style: TextStyle(
+                              //           color:
+                              //           method.isActive
+                              //               ? Colors.green[800]
+                              //               : Colors.red[800],
+                              //           fontSize: 12,
+                              //           fontWeight: FontWeight.bold,
+                              //         ),
+                              //       ),
+                              //     ),
+                              //   ],
+                              // ),
+                            ],
+                          ),
+                          trailing:
+                              method.paymentType != 'Cash'
+                                  ? PopupMenuButton<String>(
+                                    onSelected: (value) async {
+                                      if (value == 'edit') {
+                                        DialogService.showPaymentDialog(
+                                          context,
+                                          paymentId: method.id!,
+                                          widget.storeId,
+                                          onSaved:
+                                              (coupon) =>
+                                                  categoriesController
+                                                      .refresh(),
+                                        );
+                                      } else if (value == 'delete') {
+                                        final result = await paymentRepository
+                                            .deletePaymentMethod(
                                               widget.storeId,
-                                              onSaved: (coupon) {
-                                                categoriesController.refresh();
-                                              },
+                                              method.id!,
                                             );
 
-
+                                        result.fold(
+                                          (left) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Erro ao deletar',
+                                                ),
+                                              ),
+                                            );
                                           },
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
+                                          (right) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Deletado com sucesso',
+                                                ),
+                                              ),
+                                            );
+                                            categoriesController.refresh();
+                                          },
+                                        );
+                                      }
+                                    },
+                                    itemBuilder:
+                                        (BuildContext context) =>
+                                            <PopupMenuEntry<String>>[
+                                              const PopupMenuItem<String>(
+                                                value: 'edit',
+                                                child: Text('Editar'),
+                                              ),
+                                              const PopupMenuItem<String>(
+                                                value: 'delete',
+                                                child: Text('Excluir'),
+                                              ),
+                                            ],
+                                    icon: const Icon(Icons.more_vert),
+                                  )
+                                  : Text('Padrão'),
+                        ),
+                      ),
                     );
                   },
-                );
-              },
-            ),
-
-
-
-
-          ],
-        ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
+
+  Color _generateColorFromId(String id) {
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.cyan,
+      Colors.amber,
+    ];
+
+    final hash = id.hashCode;
+    final index = hash.abs() % colors.length;
+    return colors[index];
+  }
+
 
   IconData _getPaymentIcon(String type) {
     switch (type.toLowerCase()) {
@@ -289,7 +344,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
       case 'other':
         return Icons.currency_bitcoin;
       default:
-        return Icons.account_balance_wallet_outlined ;
+        return Icons.account_balance_wallet_outlined;
     }
   }
 }

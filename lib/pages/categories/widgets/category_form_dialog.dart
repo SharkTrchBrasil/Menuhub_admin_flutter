@@ -167,6 +167,7 @@ class _EditCategoryFormState extends State<EditCategoryForm> {
               ),
               title: widget.id == null ? 'Criar categoria' : 'Editar categoria',
               onSave:     () async {
+
               if (formKey.currentState!.validate()) {
                 final result = await controller.saveData();
                 if (result.isRight && context.mounted) {

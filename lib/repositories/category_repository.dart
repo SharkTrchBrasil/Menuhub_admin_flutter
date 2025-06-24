@@ -30,6 +30,19 @@ class CategoryRepository {
     }
   }
 
+  Future<Either<void, void>> deleteCategory( int storeId, int id) async {
+    try {
+      await _dio.delete('/stores/$storeId/categories/$id');
+      return const Right(null);
+    } catch (e) {
+      debugPrint('Error deleteNeighborhood: $e');
+      return const Left(null);
+    }
+  }
+
+
+
+
   Future<Either<void, Category>> saveCategory(
     int storeId,
     Category category,

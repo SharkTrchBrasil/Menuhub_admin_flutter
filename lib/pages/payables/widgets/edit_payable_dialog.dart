@@ -1,22 +1,26 @@
-// ignore_for_file: deprecated_member_use, depend_on_referenced_packages
+
 
 import 'package:brasil_fields/brasil_fields.dart';
+import 'package:easy_localization/easy_localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart'; // Mantenha se ainda usa Provider em outras partes
-import 'package:get/get.dart';         // Mantenha se ainda usa GetX
 import 'package:go_router/go_router.dart';
-import 'package:mobile_scanner/mobile_scanner.dart'; // <--- Importe este pacote AGORA!
+
 
 import '../../../core/app_edit_controller.dart';
 import '../../../core/di.dart';
-import '../../../models/page_status.dart';
-import '../../../models/store_payable.dart';
-import '../../../repositories/store_repository.dart';
-import '../../../widgets/app_text_field.dart';
-import '../../../widgets/base_dialog.dart';
-import '../../../widgets/app_page_status_builder.dart';
-import '../../../pages/base/BasePage.dart';
+import '../../../core/helpers/mask.dart';
+
+import '../../../models/store_payable.dart'; // Seu modelo de conta a pagar
+import '../../../repositories/store_repository.dart'; // Seu repositório de dados
+import '../../../widgets/app_text_field.dart'; // Seu widget de campo de texto
+import '../../../widgets/base_dialog.dart'; // Seu widget de diálogo base
+import '../../../widgets/app_page_status_builder.dart'; // Seu construtor de status de página
+import '../../../pages/base/BasePage.dart'; // Seu widget BasePage para responsividade
+
+
+
 
 class EditPayableDialog extends StatefulWidget {
   const EditPayableDialog({
@@ -42,119 +46,25 @@ class _EditPayableDialogState extends State<EditPayableDialog> {
   AppEditController(
     id: widget.id,
     fetch: (id) => repository.getPayable(widget.storeId, id),
-    save: (product) => repository.savePayable(widget.storeId, product),
-    empty: () => StorePayable(title: '', value: 0, dueDate: '', status: ''),
+    save: (payable) => repository.savePayable(widget.storeId, payable),
+    empty: () => StorePayable(
+      title: '',
+      amount: 0,
+      dueDate: '',
+      status: 'pending', // Define um status padrão
+      description: null, // Inicializa como nulo
+      barcode: null,     // Inicializa como nulo
+    ),
   );
 
-  final TextEditingController barcodeController = TextEditingController();
-  final TextEditingController valueController = TextEditingController();
-  final TextEditingController dueDateController = TextEditingController();
-
-  // MobileScanner não usa GlobalKey para o controlador da mesma forma que QRView.
-  // Você controlará a câmera com o MobileScannerController.
-  MobileScannerController mobileScannerController = MobileScannerController();
 
 
-  Map<String, dynamic> lerBoleto(String codigo) {
-    codigo = codigo.replaceAll(RegExp(r'[^0-9]'), '');
-    if (codigo.length != 47 && codigo.length != 48) {
-      throw FormatException('Código de barras inválido');
-    }
-    String barra;
-    if (codigo.length == 47) {
-      barra = codigo.substring(0, 4) +
-          codigo.substring(32, 33) +
-          codigo.substring(33, 47) +
-          codigo.substring(4, 9) +
-          codigo.substring(10, 20) +
-          codigo.substring(21, 31);
-    } else {
-      barra = codigo;
-    }
 
-    String fatorVencimento = barra.substring(5, 9);
-    String valor = barra.substring(9, 19);
-    DateTime base = DateTime(1997, 10, 7);
-    int dias = int.tryParse(fatorVencimento) ?? 0;
-    DateTime vencimento = base.add(Duration(days: dias));
-    double valorFinal = double.parse(valor) / 100;
-
-    return {
-      'valor': valorFinal.toStringAsFixed(2),
-      'vencimento': vencimento.toIso8601String().substring(0, 10),
-      'codigoBarras': barra,
-    };
-  }
-
-  void onBarcodeScanned(String code) {
-    try {
-      final data = lerBoleto(code);
-      barcodeController.text = data['codigoBarras'];
-      valueController.text = data['valor'];
-      dueDateController.text = data['vencimento'];
-
-      if (controller.status is PageStatusSuccess<StorePayable>) {
-        final currentProduct = (controller.status as PageStatusSuccess<StorePayable>).data;
-        controller.onChanged(
-          currentProduct.copyWith(
-            barcode: data['codigoBarras'],
-            value: (double.parse(data['valor']) * 100).toInt(),
-            dueDate: data['vencimento'],
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro: O estado do formulário não está pronto para atualização.')),
-        );
-        return;
-      }
-
-      // 'MobileScannerController' tem métodos para parar/pausar a câmera
-      mobileScannerController.stop(); // Ou .stop() para parar completamente
-      Navigator.of(context).pop();
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Falha ao ler boleto')),
-      );
-    }
-  }
-
-  void openQRScanner() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Escanear boleto'),
-        content: SizedBox(
-          width: 300,
-          height: 300,
-          child: MobileScanner(
-            // key: qrKey, // MobileScanner não precisa de GlobalKey aqui para o controller
-            controller: mobileScannerController, // Atribui o controller instanciado
-            onDetect: (capture) {
-              final List<Barcode> barcodes = capture.barcodes;
-              // final MobileScannerController cameraController = capture.controller; // Se precisar do controller da câmera
-
-              // Processa o primeiro código de barras detectado
-              if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-                onBarcodeScanned(barcodes.first.rawValue!);
-              }
-            },
-            // Você pode adicionar um overlay personalizado aqui se precisar
-            // Por padrão, mobile_scanner não tem um overlay como qr_code_scanner
-            // Se precisar de um, você pode empilhar um Container com bordas transparentes e um recorte no meio.
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              mobileScannerController.dispose(); // Dispose do controller ao fechar
-              Navigator.of(context).pop();
-            },
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    // O AppEditController.load() é gerenciado internamente pelo AppPageStatusBuilder
+    // e acionado quando o status é PageStatusLoading.
   }
 
   @override
@@ -164,36 +74,61 @@ class _EditPayableDialogState extends State<EditPayableDialog> {
       builder: (_, __) {
         return AppPageStatusBuilder<StorePayable>(
           status: controller.status,
-          successBuilder: (product) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              barcodeController.text = product.barcode ?? '';
-              valueController.text = (product.value / 100).toStringAsFixed(2);
-              dueDateController.text = product.dueDate ?? '';
-            });
+
+          successBuilder: (payable) {
 
             return Form(
               key: formKey,
               autovalidateMode: AutovalidateMode.onUserInteraction,
               child: BaseDialog(
-                title: widget.id == null ? 'Novo Pagamento' : 'Editar Pagamento', // Título dinâmico
+                title: widget.id == null ? 'Nova Conta a Pagar' : 'Editar Conta a Pagar',
                 saveText: 'Salvar',
                 onSave: () async {
                   if (formKey.currentState!.validate()) {
+
                     final result = await controller.saveData();
                     if (result.isRight && context.mounted) {
                       widget.onSaved?.call(result.right);
                       context.pop();
+                    } else if (result.isLeft) {
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erro ao salvar: ${''}')),
+                      );
                     }
                   }
                 },
                 content: SizedBox(
                   width: MediaQuery.of(context).size.width < 600
                       ? MediaQuery.of(context).size.width
-                      : MediaQuery.of(context).size.width * 0.5,
-                  height: 450,
-                  child: BasePage(
-                    mobileBuilder: (context) => _buildForm(product),
-                    desktopBuilder: (context) => _buildForm(product),
+                      : MediaQuery.of(context).size.width * 0.35, // Largura ajustada para desktop
+                  height: 550, // Altura fixa para o conteúdo do diálogo
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 500), // Max width para desktop
+                    child: BasePage(
+                      mobileBuilder: (BuildContext context) {
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          padding: const EdgeInsets.all(16.0), // Adiciona padding
+                          child: Column( // Usar Column para arranjar verticalmente no mobile
+                            children: [
+                              _buildFormFields(payable), // Chama o método que constrói os campos
+                            ],
+                          ),
+                        );
+                      },
+                      desktopBuilder: (BuildContext context) {
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          padding: const EdgeInsets.all(24.0), // Adiciona padding maior para desktop
+                          child: Column( // Usar Column para desktop, pois os campos já serão dispostos em Rows
+                            children: [
+                              _buildFormFields(payable), // Chama o método que constrói os campos
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -204,12 +139,14 @@ class _EditPayableDialogState extends State<EditPayableDialog> {
     );
   }
 
-  Widget _buildForm(StorePayable product) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
+  // Método auxiliar para construir os campos do formulário, reutilizável para mobile e desktop
+  Widget _buildFormFields(StorePayable payable) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Nome (Título)
         AppTextField(
-          initialValue: product.title,
+          initialValue: payable.title, // Usa initialValue diretamente do objeto
           title: 'Nome',
           hint: 'Ex: Conta de Luz',
           validator: (title) {
@@ -217,88 +154,166 @@ class _EditPayableDialogState extends State<EditPayableDialog> {
             if (title.length < 3) return 'Nome muito curto';
             return null;
           },
-          onChanged: (value) => controller.onChanged(product.copyWith(title: value)),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: AppTextField(
-                controller: barcodeController,
-                title: 'Código de barras',
-                hint: '00000000000000000000000000000000000000000000000',
-                onChanged: (value) => controller.onChanged(product.copyWith(barcode: value)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top:18.0),
-              child: IconButton(
-                icon: const Icon(Icons.qr_code_scanner),
-                onPressed: openQRScanner,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        AppTextField(
-          controller: valueController,
-          title: 'Valor',
-          hint: 'Ex: 125.50',
-          keyboardType: TextInputType.number,
-          formatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}$')),
-            CentavosInputFormatter(moeda: true),
-          ],
-          validator: (value) {
-            if (value == null || value.isEmpty) return 'Informe o valor';
-            final cleanValue = value.replaceAll(RegExp(r'[R$,.]'), '').replaceAll(',', '.');
-            if (double.tryParse(cleanValue) == null) return 'Valor inválido';
-            return null;
-          },
-          onChanged: (value) {
-            final cleanValue = value?.replaceAll(RegExp(r'[R$,.]'), '').replaceAll(',', '.');
+          onChanged: (name) {
             controller.onChanged(
-              product.copyWith(value: ((double.tryParse(cleanValue!) ?? 0) * 100).toInt()),
+              payable.copyWith(title: name), // Atualiza o nome no controller
             );
           },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+
+        // Valor
         AppTextField(
-          controller: dueDateController,
-          title: 'Vencimento',
-          hint: 'Ex: 2025-06-15',
-          keyboardType: TextInputType.datetime,
-          formatters:[
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
-            DataInputFormatter(),
+          initialValue:
+
+             UtilBrasilFields.obterReal(
+            payable.amount /
+                100,
+          ),
+
+          title: 'Preço',
+          hint: 'Ex: R\$ 5,00',
+          formatters: [
+            FilteringTextInputFormatter
+                .digitsOnly,
+            CentavosInputFormatter(
+              moeda: true,
+            ),
           ],
+          onChanged: (value) {
+            final money =
+            UtilBrasilFields.converterMoedaParaDouble(
+              value ?? '',
+            );
+
+            controller.onChanged(
+              payable.copyWith(
+                amount:
+                (money * 100)
+                    .floor(),
+              ),
+            );
+          },
           validator: (value) {
-            if (value == null || value.isEmpty) return 'Informe a data';
+            if (value == null ||
+                value.length < 7) {
+              return 'Campo obrigatório';
+            }
+
             return null;
           },
-          onChanged: (value) => controller.onChanged(product.copyWith(dueDate: value)),
         ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          value: product.status.isNotEmpty ? product.status : 'open',
-          decoration: const InputDecoration(labelText: 'Status'),
-          items: const [
-            DropdownMenuItem(value: 'open', child: Text('Aberto')),
-            DropdownMenuItem(value: 'paid', child: Text('Pago')),
-            DropdownMenuItem(value: 'cancelled', child: Text('Cancelado')),
+        const SizedBox(height: 20),
+
+        // Vencimento
+        // Vencimento
+        DatePickerField(
+          title: 'Vencimento',
+          initialValue: formatForDisplay(payable.dueDate),
+          onChanged: (value) {
+            final formatted = formatForSaving(value);
+            if (formatted != null) {
+              controller.onChanged(payable.copyWith(dueDate: formatted));
+            }
+          },
+        ),
+
+        const SizedBox(height: 20),
+
+        // Observação (Opcional)
+        AppTextField(
+          initialValue: payable.description, // Usa initialValue diretamente do objeto
+          title: 'Observação (Opcional)',
+          hint: 'Ex: Detalhes adicionais sobre a conta',
+
+          keyboardType: TextInputType.multiline,
+          onChanged: (value) => controller.onChanged(payable.copyWith(description: value!.isEmpty ? null : value)),
+        ),
+        const SizedBox(height: 20),
+
+        // Código de Barras (Opcional)
+        AppTextField(
+          initialValue: payable.barcode, // Usa initialValue diretamente do objeto
+          title: 'Código de Barras (Opcional)',
+          hint: 'Ex: 00099.99999 99999.999999 99999.999999 9 99999999999999',
+          keyboardType: TextInputType.number,
+          onChanged: (value) => controller.onChanged(payable.copyWith(barcode: value!.isEmpty ? null : value)),
+        ),
+        const SizedBox(height: 20),
+
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Status
+            DropdownButtonFormField<String>(
+              value: payable.status.isNotEmpty ? payable.status : 'pending',
+              decoration: const InputDecoration(
+                labelText: 'Status',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'pending', child: Text('Aberto')),
+                DropdownMenuItem(value: 'paid', child: Text('Pago')),
+                DropdownMenuItem(value: 'cancelled', child: Text('Cancelado')),
+              ],
+              onChanged: (status) {
+                controller.onChanged(payable.copyWith(status: status ?? 'pending'));
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Campo visível somente se status == 'paid'
+            if (payable.status == 'paid')
+            // Data de Pagamento
+              DatePickerField(
+                title: 'Data de Pagamento',
+                initialValue: formatForDisplay(payable.paymentDate),
+                onChanged: (value) {
+                  final formatted = formatForSaving(value);
+                  controller.onChanged(payable.copyWith(paymentDate: formatted));
+                },
+              ),
           ],
-          onChanged: (status) => controller.onChanged(product.copyWith(status: status ?? 'open')),
         ),
+
+        const SizedBox(height: 20), // Espaçamento extra no final
+
+
+
+
+
       ],
     );
   }
 
+  // Função auxiliar para converter de yyyy-MM-dd para dd/MM/yyyy
+  String formatForDisplay(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return '';
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('dd/MM/yyyy').format(date);
+    } catch (_) {
+      return '';
+    }
+  }
+
+// Função auxiliar para converter de dd/MM/yyyy para yyyy-MM-dd
+  String? formatForSaving(String? input) {
+    if (input == null || input.isEmpty) return null;
+    try {
+      final date = DateFormat('dd/MM/yyyy').parse(input);
+      return DateFormat('yyyy-MM-dd').format(date);
+    } catch (_) {
+      return null;
+    }
+  }
+
+
   @override
   void dispose() {
-    mobileScannerController.dispose(); // Dispose do mobileScannerController
-    barcodeController.dispose();
-    valueController.dispose();
-    dueDateController.dispose();
+
+    controller.dispose(); // Descarte o AppEditController
     super.dispose();
   }
 }

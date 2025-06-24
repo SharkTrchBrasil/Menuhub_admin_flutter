@@ -756,7 +756,7 @@ class _EditCouponPageDialogState extends State<EditCouponPageDialog> {
                                                 Flexible(
                                                   child: AppDateTimeFormField(
                                                     initialValue:
-                                                        coupon.startDate,
+                                                        coupon.endDate,
                                                     title:
                                                         'Fim da promoção *',
                                                     validator: (value) {

@@ -39,7 +39,7 @@ class _MorePageState extends State<MorePage> {
   final List<Map<String, String>> lojaItems = [
     {
       'title': 'Clientes',
-      'route': '/stores/{storeId}/users',
+      'route': '/stores/{storeId}/customers',
       'icon': 'assets/images/user.png'
     },
     {
@@ -93,7 +93,7 @@ class _MorePageState extends State<MorePage> {
       'icon': 'assets/images/box.png'
     },
     {
-      'title': 'Locais de Entrega',
+      'title': 'Cidades e Bairros',
       'route': '/stores/{storeId}/settings/locations',
       'icon': 'assets/images/location-pin.png'
     },

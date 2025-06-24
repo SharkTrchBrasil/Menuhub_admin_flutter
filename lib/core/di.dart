@@ -12,6 +12,7 @@ import 'package:totem_pro_admin/repositories/segment_repository.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 
 
+import '../repositories/banner_repository.dart';
 import '../repositories/chatbot_repository.dart';
 import '../repositories/delivery_options_repository.dart';
 
@@ -44,6 +45,7 @@ void configureDependencies() {
   getIt.registerFactory(() => UserRepository(getIt()));
   getIt.registerFactory(() => ChatBotConfigRepository(getIt()));
   getIt.registerFactory(() => DeliveryOptionRepository(getIt()));
+  getIt.registerFactory(() => BannerRepository(getIt()));
 
 
 

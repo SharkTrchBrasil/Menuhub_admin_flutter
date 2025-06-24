@@ -8,48 +8,42 @@ import 'package:provider/provider.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
 
 import '../ConstData/typography.dart';
+import '../core/responsive_builder.dart';
 
 
 class AppBarCustom extends StatefulWidget implements PreferredSizeWidget {
-
   final String title;
-  const AppBarCustom({super.key, required this.title,});
+  final List<Widget>? actions;
+  final bool showLeadingButton; // Novo parâmetro para controlar a exibição do leading
 
-
+  const AppBarCustom({
+    super.key,
+    required this.title,
+    this.actions,
+    this.showLeadingButton = false, // Valor padrão: não mostrar o leading
+  });
 
   @override
   State<AppBarCustom> createState() => _AppBarCustomState();
 
   @override
-  // TODO: implement preferredSize
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 
 class _AppBarCustomState extends State<AppBarCustom> {
-
-
-
-  bool tap = false;
-
-
-
-
+  bool tap = false; // Este 'tap' não está sendo usado, pode ser removido se não for necessário
 
   @override
   Widget build(BuildContext context) {
+    // Verifica se a tela é mobile usando seu método de responsividade
+    final bool isMobile = ResponsiveBuilder.isMobile(context);
 
     return AppBar(
-     // backgroundColor: notifire.getdrwer,
       scrolledUnderElevation: 0.0,
-      title: Text(widget.title,),
-      leading: BackButton(),
-
+      title: Text(widget.title),
+      leading: (isMobile || widget.showLeadingButton) ? const BackButton() : null,
       elevation: 0,
-
-      actions: [
-
-
-      ],
+      actions: widget.actions,
     );
   }
 }

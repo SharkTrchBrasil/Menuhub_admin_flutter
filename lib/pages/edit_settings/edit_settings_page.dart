@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:totem_pro_admin/pages/edit_settings/widgets/edit_theme_section.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 import 'package:totem_pro_admin/widgets/mobileappbar.dart';
 
@@ -819,13 +820,16 @@ class _EditSettingsPageState extends State<EditSettingsPage> {
                                 ),
                                 const SizedBox(height: 10),
 
-
+                                EditThemeSection(storeId: widget.storeId)
 
                               ],
                             ),
                           ),
                         ),
                       ),
+
+
+
                     ],
                   );
                 },

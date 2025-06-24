@@ -76,7 +76,7 @@ class _HomePageState extends State<HomePage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DrawerCode(storeId: widget.storeId),
+              DrawerCode(storeId: widget.storeId,),
 
               Expanded(
                 child: SizedBox(

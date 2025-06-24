@@ -1,10 +1,13 @@
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:either_dart/either.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:flutter_svg/svg.dart';
 
 import 'package:intl/intl.dart'; // Para formatar datas
+import 'package:lottie/lottie.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:totem_pro_admin/pages/base/BasePage.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
@@ -14,6 +17,7 @@ import '../../ConstData/staticdata.dart';
 import '../../ConstData/typography.dart';
 import '../../core/di.dart';
 
+import '../../core/responsive_builder.dart';
 import '../../models/cash_session.dart';
 import '../../models/cash_transaction.dart';
 
@@ -22,6 +26,7 @@ import '../../repositories/payment_method_repository.dart';
 import '../../repositories/store_repository.dart';
 import 'package:flutter_multi_formatter/flutter_multi_formatter.dart';
 
+import '../../widgets/app_primary_button.dart';
 import '../../widgets/base_dialog.dart';
 
 class CashPage extends StatefulWidget {
@@ -52,6 +57,9 @@ class _CashPageState extends State<CashPage> {
 
   late int _cashPaymentMethodId;
 
+  // Declare isso dentro da sua classe State
+  final ValueNotifier<bool> dialIsOpen = ValueNotifier<bool>(true);
+
   @override
   void initState() {
     super.initState();
@@ -66,18 +74,87 @@ class _CashPageState extends State<CashPage> {
     }
 
     return BasePage(
-      mobileAppBar: AppBarCustom(title: 'Caixa'),
+      mobileAppBar:
+          ResponsiveBuilder.isMobile(context)
+              ? AppBarCustom(
+                title:
+                    _cashierSession != null
+                        ? 'Resumo do Caixa: #${_cashierSession!.id}'
+                        : 'Caixa',
+                actions: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: SvgPicture.asset(
+                          "assets/images/plus-.svg",
+                          height: 20,
+                          width: 20,
+                          color: Colors.red,
+                        ),
+                        onPressed:
+                            _cashierSession != null
+                                ? () => _movementDialog('out')
+                                : null,
+                        tooltip: 'Retirar',
+                      ),
+                      const SizedBox(width: 10),
+                      IconButton(
+                        icon: SvgPicture.asset(
+                          "assets/images/plus+.svg",
+                          height: 20,
+                          width: 20,
+                          color: Colors.green,
+                        ),
+                        onPressed:
+                            _cashierSession != null
+                                ? () => _movementDialog('in')
+                                : null,
+                        tooltip: 'Adicionar',
+                      ),
+                    ],
+                  ),
+                ],
+              )
+              : null,
       mobileBuilder: (BuildContext context) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 15),
           child: SingleChildScrollView(
             child: Column(
               children: [
-                const SizedBox(height: 15),
-                _buildCompo1(width: MediaQuery.of(context).size.width),
-                const SizedBox(height: 15),
-                _buildCompo2(),
-                const SizedBox(height: 15),
+                if (_cashierSession == null)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Lottie.asset(
+                            'assets/animations/empty.json',
+                            width: 200,
+                            height: 200,
+                            fit: BoxFit.cover,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Nenhum caixa aberto',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Column(
+                    children: [
+                      const SizedBox(height: 15),
+                      _buildCompo1(width: MediaQuery.of(context).size.width),
+                      const SizedBox(height: 15),
+                      _buildCompo2(),
+                      const SizedBox(height: 15),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -86,93 +163,172 @@ class _CashPageState extends State<CashPage> {
       desktopBuilder: (BuildContext context) {
         return Column(
           children: [
-            Container(
-              height: MediaQuery.of(context).size.height,
-              width: MediaQuery.of(context).size.width,
-              //  color: notifire.getBgColor,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth < 1000) {
-                    return SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 15),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: _buildCompo1(
-                                    width: constraints.maxWidth,
-                                  ),
-                                ),
-                                const SizedBox(width: 15),
-                                Expanded(flex: 1, child: _buildCompo2()),
-                              ],
+            ResponsiveBuilder.isDesktop(context)
+                ? FixedHeader(
+                  title:
+                      _cashierSession != null
+                          ? 'Resumo do Caixa: #${_cashierSession!.id}'
+                          : 'Caixa',
+                  actions: [
+                    _cashierSession != null
+                        ?
+                    Row(
+                      children: [
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            elevation: 0,
+                            side: BorderSide(),
+                            //color: notifire.getBgPrimaryColor),
+                            fixedSize: const Size.fromHeight(40),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(),
                             ),
                           ),
-                          const SizedBox(height: 15),
-                        ],
-                      ),
-                    );
-                  } else {
-                    return SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 15),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: _buildCompo1(
-                                    width: constraints.maxWidth,
-                                  ),
+
+                          onPressed:
+                              _cashierSession != null
+                                  ? () => _movementDialog('out')
+                                  : null,
+
+                          child: Row(
+                            children: [
+                              Text(
+                                "Retirar",
+                                style: Typographyy.bodyMediumMedium.copyWith(
+                                  color: Theme.of(context).primaryColor,
                                 ),
-                                const SizedBox(width: 15),
-                                Expanded(flex: 1, child: _buildCompo2()),
-                              ],
-                            ),
+                              ),
+                              SizedBox(width: 10),
+                              SvgPicture.asset(
+                                "assets/images/plus-.svg",
+                                height: 20,
+                                width: 20,
+                                color: Colors.red,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 15),
-                        ],
+                        ),
+
+                        const SizedBox(width: 10),
+
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            fixedSize: const Size.fromHeight(40),
+                            backgroundColor: Theme.of(context).primaryColor,
+                          ),
+                          onPressed: () {
+                            _cashierSession != null
+                                ? _movementDialog('in')
+                                : null;
+                          },
+
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "Adicionar",
+                                style: Typographyy.bodyMediumMedium.copyWith(
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              SvgPicture.asset(
+                                "assets/images/plus+.svg",
+                                height: 20,
+                                width: 20,
+                                color: Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ) : SizedBox.shrink(),
+
+                    const SizedBox(width: 10),
+                    AppPrimaryButton(
+                      label:
+                          _cashierSession == null ||
+                                  _cashierSession!.status != 'open'
+                              ? "Abrir caixa"
+                              : "Fechar caixa",
+                      onPressed:
+                          _cashierSession == null ||
+                                  _cashierSession!.status != 'open'
+                              ? _openCashRegisterDialog
+                              : _closeCashRegister,
+                    ),
+                  ],
+                )
+                : SizedBox(),
+
+            if (_cashierSession == null)
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Lottie.asset(
+                          'assets/animations/empty.json',
+                          width: 200,
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Nenhum caixa aberto',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: _buildCompo1(
+                                width: MediaQuery.of(context).size.width,
+                              ),
+                            ),
+                            const SizedBox(width: 15),
+                            Expanded(flex: 1, child: _buildCompo2()),
+                          ],
+                        ),
                       ),
-                    );
-                  }
-                },
+                      const SizedBox(height: 15),
+                    ],
+                  ),
+                ),
               ),
-            ),
           ],
         );
       },
-      mobileBottomNavigationBar: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            child: ElevatedButton(
-              style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                fixedSize: const Size(180, 48),
-              ),
-              onPressed:
-                  _cashierSession == null || _cashierSession!.status != 'open'
-                      ? _openCashRegisterDialog
-                      : _closeCashRegister,
-              child: Text(
-                _cashierSession == null || _cashierSession!.status != 'open'
-                    ? "Abrir caixa"
-                    : "Fechar caixa",
-                style: Typographyy.bodyMediumExtraBold.copyWith(
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
+      mobileBottomNavigationBar: AppPrimaryButton(
+        label:
+            _cashierSession == null || _cashierSession!.status != 'open'
+                ? "Abrir caixa"
+                : "Fechar caixa",
+
+        onPressed:
+            _cashierSession == null || _cashierSession!.status != 'open'
+                ? _openCashRegisterDialog
+                : _closeCashRegister,
       ),
     );
   }
@@ -525,7 +681,7 @@ class _CashPageState extends State<CashPage> {
                   width:
                       MediaQuery.of(context).size.width < 600
                           ? MediaQuery.of(context).size.width
-                          : 700,
+                          : 500,
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.start,
@@ -648,7 +804,8 @@ class _CashPageState extends State<CashPage> {
                                       NumberFormat.simpleCurrency(
                                         locale: 'pt_BR',
                                       ).format(_cashierSession!.openingAmount),
-                                      style: Typographyy.bodyMediumExtraBold.copyWith(color: Colors.grey),
+                                      style: Typographyy.bodyMediumExtraBold
+                                          .copyWith(color: Colors.grey),
                                     ),
                                   ),
                                 ),
@@ -657,53 +814,54 @@ class _CashPageState extends State<CashPage> {
                               ],
                             ),
 
-                        if (totalSaidas > 0 )
-                            TableRow(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      "Retiradas",
-                                      style: Typographyy.bodyMediumMedium,
+                            if (totalSaidas > 0)
+                              TableRow(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        "Retiradas",
+                                        style: Typographyy.bodyMediumMedium,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      NumberFormat.simpleCurrency(
-                                        locale: 'pt_BR',
-                                      ).format(totalSaidas),
-                                      style: Typographyy.bodyMediumExtraBold,
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        NumberFormat.simpleCurrency(
+                                          locale: 'pt_BR',
+                                        ).format(totalSaidas),
+                                        style: Typographyy.bodyMediumExtraBold,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  child: Align(
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      NumberFormat.simpleCurrency(
-                                        locale: 'pt_BR',
-                                      ).format(totalSaidas),
-                                      style: Typographyy.bodyMediumExtraBold.copyWith(color: Colors.grey),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        NumberFormat.simpleCurrency(
+                                          locale: 'pt_BR',
+                                        ).format(totalSaidas),
+                                        style: Typographyy.bodyMediumExtraBold
+                                            .copyWith(color: Colors.grey),
+                                      ),
                                     ),
                                   ),
-                                ),
-                                if (MediaQuery.of(context).size.width >= 600)
-                                  const SizedBox(),
-                              ],
-                            ),
+                                  if (MediaQuery.of(context).size.width >= 600)
+                                    const SizedBox(),
+                                ],
+                              ),
 
                             // Espaço após saldo inicial/retirada
                             // Espaçamento
@@ -790,7 +948,7 @@ class _CashPageState extends State<CashPage> {
                                               isDense: true,
                                               contentPadding:
                                                   EdgeInsets.symmetric(
-                                                    vertical: 8.0,
+                                                    vertical: 12.0,
                                                     horizontal: 10.0,
                                                   ),
                                             ),
@@ -897,40 +1055,41 @@ class _CashPageState extends State<CashPage> {
                                   ),
                                 ],
                               );
-
-
-
-
-
-
                             }),
 
                             TableRow(
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text("Total Geral", style: Typographyy.bodyMediumExtraBold),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
                                   ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
                                   child: Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      NumberFormat.simpleCurrency(locale: 'pt_BR').format(totalEsperado),
+                                      "Total Geral",
+                                      style: Typographyy.bodyMediumExtraBold,
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      NumberFormat.simpleCurrency(
+                                        locale: 'pt_BR',
+                                      ).format(totalEsperado),
                                       style: Typographyy.bodyMediumExtraBold,
                                     ),
                                   ),
                                 ),
                                 const SizedBox(),
-                                if (MediaQuery.of(context).size.width >= 600) const SizedBox(),
+                                if (MediaQuery.of(context).size.width >= 600)
+                                  const SizedBox(),
                               ],
                             ),
-
-
-
                           ],
                         ),
                       ],
@@ -1051,7 +1210,6 @@ class _CashPageState extends State<CashPage> {
         const SnackBar(content: Text('Caixa fechado com sucesso!')),
       );
     }
-
   }
 
   Future<void> _movementDialog(String type) async {
@@ -1200,9 +1358,9 @@ class _CashPageState extends State<CashPage> {
 
     return summary.entries.map((entry) {
       final color = defaultColors[i % defaultColors.length];
-      final methodId = paymentMethodIdMap[entry.key] ?? -1;
+      // final methodId = paymentMethodIdMap[entry.key] ?? -1;
       i++;
-      return ChartData12(entry.key, entry.value, color, methodId);
+      return ChartData12(entry.key, entry.value, color);
     }).toList();
   }
 
@@ -1222,103 +1380,7 @@ class _CashPageState extends State<CashPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    width < 600
-                        ? Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _cashierSession != null
-                                    ? 'Resumo do Caixa: #${_cashierSession!.id}'
-                                    : '--',
-
-                                style: Typographyy.heading5.copyWith(),
-                              ),
-                            ),
-                          ],
-                        )
-                        : const SizedBox.shrink(),
-
-                    Row(
-                      children: [
-                        width > 800
-                            ? Expanded(
-                              child: Text(
-                                _cashierSession == null
-                                    ? 'Resumo do Caixa: #${_cashierSession!.id}'
-                                    : '--',
-                                style: Typographyy.heading5.copyWith(),
-                              ),
-                            )
-                            : const SizedBox(),
-
-                        OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            elevation: 0,
-                            side: BorderSide(),
-                            //color: notifire.getBgPrimaryColor),
-                            fixedSize: const Size.fromHeight(40),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(),
-                            ),
-                          ),
-                          onPressed: () {
-                            _cashierSession != null
-                                ? _movementDialog('out')
-                                : null;
-                          },
-                          child: Row(
-                            children: [
-                              Text(
-                                "Retirar",
-                                style: Typographyy.bodyMediumMedium.copyWith(),
-                              ),
-
-                              SizedBox(width: 8),
-                              SvgPicture.asset(
-                                "assets/images/plus-.svg",
-                                height: 20,
-                                width: 20,
-                                color: Colors.red,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            fixedSize: const Size.fromHeight(40),
-                          ),
-                          onPressed: () {
-                            _cashierSession != null
-                                ? _movementDialog('in')
-                                : null;
-                          },
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                "Adicionar",
-                                style: Typographyy.bodyMediumMedium.copyWith(
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SvgPicture.asset(
-                                "assets/images/plus+.svg",
-                                height: 20,
-                                width: 20,
-                                color: Colors.white,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    const SizedBox(height: 14),
 
                     width < 500 ? const SizedBox(height: 10) : const SizedBox(),
 
@@ -1474,9 +1536,12 @@ class _CashPageState extends State<CashPage> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          "Histórico de Movimentações",
-                          style: Typographyy.heading5.copyWith(),
+                        Expanded(
+                          child: Text(
+                            "Histórico de Movimentações",
+                            overflow: TextOverflow.ellipsis,
+                            style: Typographyy.heading5.copyWith(),
+                          ),
                         ),
                       ],
                     ),
@@ -1550,14 +1615,21 @@ class _CashPageState extends State<CashPage> {
       _paymentSummary ?? {},
       _paymentIdsSummary ?? {},
     );
+
     chartData12.removeWhere((data) => data.y == 0.0);
+
+    // Se todos os dados forem zero ou vazios
+    bool isEmptyData = chartData12.isEmpty;
+
+    if (isEmptyData) {
+      chartData12.add(
+        ChartData12('Sem dados', 1, Colors.grey.withOpacity(0.4)),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        //  color: Colors.grey,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -1568,9 +1640,9 @@ class _CashPageState extends State<CashPage> {
                 xValueMapper: (ChartData12 data, _) => data.x,
                 yValueMapper: (ChartData12 data, _) => data.y,
                 pointColorMapper: (ChartData12 data, _) => data.color,
-
-                dataLabelSettings: const DataLabelSettings(
-                  isVisible: true,
+                dataLabelSettings: DataLabelSettings(
+                  isVisible: !isEmptyData,
+                  // não mostra label se for "Sem dados"
                   labelPosition: ChartDataLabelPosition.outside,
                   connectorLineSettings: ConnectorLineSettings(
                     type: ConnectorType.curve,
@@ -1582,73 +1654,41 @@ class _CashPageState extends State<CashPage> {
           ),
 
           const SizedBox(height: 8),
-          ...chartData12.map(
-            (data) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _cashierSession != null ? data.x : '--',
-                      style: TextStyle(
-                        color: data.color,
-                        fontWeight: FontWeight.bold,
+
+          if (!isEmptyData)
+            ...chartData12.map(
+              (data) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        data.x,
+                        style: TextStyle(
+                          color: data.color,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-
-                  Text(
-                    _cashierSession != null
-                        ? NumberFormat.simpleCurrency(
-                          locale: 'pt_BR',
-                        ).format(data.y)
-                        : '',
-                    style: Typographyy.bodyLargeExtraBold.copyWith(),
-                  ),
-                ],
+                    Text(
+                      NumberFormat.simpleCurrency(
+                        locale: 'pt_BR',
+                      ).format(data.y),
+                      style: Typographyy.bodyLargeExtraBold.copyWith(),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
           const SizedBox(height: 12),
+
           Text(
-            _cashierSession != null
-                ? 'Total: ${NumberFormat.simpleCurrency(locale: 'pt_BR').format(_paymentSummary?.values.fold(0.0, (a, b) => a + b) ?? 0.0)}'
-                : " ",
+            isEmptyData
+                ? 'Nenhuma movimentação registrada'
+                : 'Total: ${NumberFormat.simpleCurrency(locale: 'pt_BR').format(_paymentSummary?.values.fold(0.0, (a, b) => a + b) ?? 0.0)}',
             style: Typographyy.bodyLargeExtraBold.copyWith(),
           ),
-
-          const SizedBox(height: 20),
-          if (MediaQuery.of(context).size.width >= 800)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      fixedSize: const Size(180, 48),
-                    ),
-                    onPressed:
-                        _cashierSession == null ||
-                                _cashierSession!.status != 'open'
-                            ? _openCashRegisterDialog
-                            : _closeCashRegister,
-                    child: Text(
-                      _cashierSession == null ||
-                              _cashierSession!.status != 'open'
-                          ? "Abrir caixa"
-                          : "Fechar caixa",
-                      style: Typographyy.bodyMediumExtraBold.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
         ],
       ),
     );
@@ -1676,15 +1716,12 @@ class _CashPageState extends State<CashPage> {
             Flexible(
               child: Text(
                 title,
-                style: Typographyy.bodyLargeExtraBold.copyWith(),
+                style: Typographyy.bodyXLargeExtraBold.copyWith(),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              pr,
-              style: Typographyy.bodyMediumMedium.copyWith(color: color),
-            ),
+
+
           ],
         ),
         const SizedBox(height: 8),
@@ -1693,11 +1730,8 @@ class _CashPageState extends State<CashPage> {
           text: TextSpan(
             children: [
               TextSpan(
-                text: precoFormatado,
-                style: Typographyy.heading4.copyWith(
-                  letterSpacing: 1.5,
-                  color: Theme.of(context).textTheme.titleSmall!.color,
-                ),
+                text: _cashierSession != null ? precoFormatado : '--',
+                style: Typographyy.bodyLargeExtraBold.copyWith(color: color),
               ),
             ],
           ),
@@ -1711,9 +1745,10 @@ class ChartData12 {
   final String x; // Nome do método (ex: 'Dinheiro', 'Pix')
   final double y; // Valor esperado
   final Color color;
-  final int methodId; // <-- Adicionado para verificar com id
 
-  ChartData12(this.x, this.y, this.color, this.methodId);
+  // final int methodId; // <-- Adicionado para verificar com id
+
+  ChartData12(this.x, this.y, this.color);
 }
 
 // Definição da classe ChartDataT

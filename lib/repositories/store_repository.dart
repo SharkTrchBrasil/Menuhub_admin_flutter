@@ -441,13 +441,13 @@ class StoreRepository {
       if (payable.id != null) {
         final response = await _dio.patch(
           '/stores/$storeId/payables/${payable.id}',
-          data: payable.toFormData(),
+          data: payable.toJson(),
         );
         return Right(StorePayable.fromJson(response.data));
       } else {
         final response = await _dio.post(
           '/stores/$storeId/payables',
-          data: payable.toFormData(),
+          data: payable.toJson(),
         );
         return Right(StorePayable.fromJson(response.data));
       }

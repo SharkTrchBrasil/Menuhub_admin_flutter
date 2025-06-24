@@ -38,7 +38,7 @@ class BaseDialog extends StatelessWidget {
             ); // Padding maior para web/desktop
 
     return AlertDialog(
-    //  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       insetPadding: EdgeInsets.symmetric(
         horizontal: MediaQuery.of(context).size.width < 600 ? 10 : 24,

@@ -23,10 +23,12 @@ import 'package:totem_pro_admin/pages/splash/splash_page.dart';
 
 import '../pages/accesses/accesses_page.dart';
 
+import '../pages/banners/banners_page.dart';
 import '../pages/catalog_page/catalog_page.dart';
 import '../pages/chatbot/qrcode.dart';
 import '../pages/coupons/coupons_page.dart';
 
+import '../pages/customers/customers_page.dart';
 import '../pages/delivery_options/delivery_options_page.dart';
 import '../pages/edit_coupon/edit_coupon_page.dart';
 import '../pages/edit_payment_methods/edit_payment_methods.dart';
@@ -37,11 +39,13 @@ import '../pages/edit_settings/edit_settings_page.dart';
 
 import '../pages/edit_variant/edit_variant_page.dart';
 import '../pages/integrations/integrations_page.dart';
+import '../pages/inventory/inventory_page.dart';
 import '../pages/kds/kds_page.dart';
 import '../pages/not_found/error_505_Page.dart';
 import '../pages/orders/orders_page.dart';
 
 import '../pages/payables/payables_page.dart';
+import '../pages/reports/reports_page.dart';
 import '../pages/totems/totems_page.dart';
 import '../pages/variants/variants_page.dart';
 import '../pages/verify_code/verify_code_page.dart';
@@ -136,6 +140,8 @@ final router = GoRouter(
         return VerifyCodePage(email: email, password: password);
       },
     ),
+
+
 
     GoRoute(
       path: '/stores',
@@ -363,6 +369,50 @@ final router = GoRouter(
                     ),
                   ],
                 ),
+
+
+
+                StatefulShellBranch(
+                  routes: [
+                    GoRoute(
+                      path: '/banners',
+                      pageBuilder:
+                          (_, state) => NoTransitionPage(
+                        key: UniqueKey(),
+                        child: BannersPage(storeId: state.storeId),
+                      ),
+                      routes: [
+                        // GoRoute(
+                        //   path: 'new',
+                        //   builder:
+                        //       (_, state) =>
+                        //       EditCategoryPage(storeId: state.storeId),
+                        // ),
+                        // GoRoute(
+                        //   path: ':id',
+                        //   pageBuilder: (_, state) {
+                        //     return NoTransitionPage(
+                        //       key: UniqueKey(),
+                        //       child: EditCategoryPage(
+                        //         storeId: state.storeId,
+                        //         id: state.id,
+                        //       ),
+                        //     );
+                        //   },
+                        // ),
+                      ],
+                    ),
+                  ],
+                ),
+
+
+
+
+
+
+
+
+
 
                 StatefulShellBranch(
                   routes: [
@@ -607,6 +657,56 @@ final router = GoRouter(
                           (_, state) => NoTransitionPage(
                         key: UniqueKey(),
                         child: MorePage(storeId: state.storeId),
+                      ),
+                      redirect:
+                          (_, state) =>
+                          RouteGuard.apply(state, [StoreOwnerGuard()]),
+                    ),
+                  ],
+                ),
+
+
+                StatefulShellBranch(
+                  routes: [
+                    GoRoute(
+                      path: '/reports',
+                      pageBuilder:
+                          (_, state) => NoTransitionPage(
+                        key: UniqueKey(),
+                        child: ReportsPage(storeId: state.storeId),
+                      ),
+                      redirect:
+                          (_, state) =>
+                          RouteGuard.apply(state, [StoreOwnerGuard()]),
+                    ),
+                  ],
+                ),
+
+
+                StatefulShellBranch(
+                  routes: [
+                    GoRoute(
+                      path: '/inventory',
+                      pageBuilder:
+                          (_, state) => NoTransitionPage(
+                        key: UniqueKey(),
+                        child: InventoryPage(storeId: state.storeId),
+                      ),
+                      redirect:
+                          (_, state) =>
+                          RouteGuard.apply(state, [StoreOwnerGuard()]),
+                    ),
+                  ],
+                ),
+
+                StatefulShellBranch(
+                  routes: [
+                    GoRoute(
+                      path: '/customers',
+                      pageBuilder:
+                          (_, state) => NoTransitionPage(
+                        key: UniqueKey(),
+                        child: CustomersPage(storeId: state.storeId),
                       ),
                       redirect:
                           (_, state) =>

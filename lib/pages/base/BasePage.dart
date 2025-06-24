@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:totem_pro_admin/ConstData/typography.dart';
+import '../../core/menu_app_controller.dart';
 import '../../core/responsive_builder.dart';
 
 class BasePage extends StatelessWidget {
@@ -39,7 +41,7 @@ class BasePage extends StatelessWidget {
     return SafeArea(
       child: Scaffold(
       // backgroundColor: backgroundColor,
-        key: scaffoldKey,
+      key: key,
 
         drawer: isDesktop ? desktopDrawer : null,
         appBar: isDesktop ? desktopAppBar : mobileAppBar,

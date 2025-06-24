@@ -7,10 +7,8 @@ class CashierSession {
   final DateTime openedAt;
   final DateTime? closedAt;
   final double openingAmount;
-  final double? cashAdded;
-  final double? cashRemoved;
-  final double? expectedAmount;
-  final double? informedAmount;
+  final double cashAdded;
+  final double cashRemoved;
 
 
 
@@ -25,8 +23,7 @@ class CashierSession {
 
        {
     this.id,
-   this.expectedAmount,
-    this.informedAmount,
+
          required this.userOpenedId,
 
     this.userClosedId,
@@ -50,8 +47,6 @@ class CashierSession {
 
       userOpenedId: json['user_opened_id'],
       userClosedId: json['user_closed_id'],
-      expectedAmount: json['expected_amount'],
-      informedAmount: json['informed_amount'],
       openedAt: DateTime.parse(json['opened_at']),
       closedAt: json['closed_at'] != null ? DateTime.parse(json['closed_at']) : null,
 

@@ -135,52 +135,54 @@ class AppSelectionDialog<T> extends StatelessWidget {
         child: AnimatedBuilder(
           animation: listController,
           builder: (_, __) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: const Text(
-                          'Selecione um item',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: const Text(
+                            'Selecione um item',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                      CloseButton(),
-                    ],
-                  ),
-                ),
-                AppPageStatusBuilder<List<T>>(
-                  status: listController.status,
-                  successBuilder: (items) {
-                    return AppTable<T>(
-                      items: items,
-                      columns: [
-                        ...columns,
-                        AppTableColumnWidget(
-                          title: '',
-                          width: FixedColumnWidth(48),
-                          dataSelector:
-                              (item) => IconButton(
-                            onPressed: () {
-                              context.pop(item);
-                            },
-                            icon: Icon(Icons.chevron_right),
-                          ),
-                        ),
+                        CloseButton(),
                       ],
-                      maxWidth: 500,
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-              ],
+                    ),
+                  ),
+                  AppPageStatusBuilder<List<T>>(
+                    status: listController.status,
+                    successBuilder: (items) {
+                      return AppTable<T>(
+                        items: items,
+                        columns: [
+                          ...columns,
+                          AppTableColumnWidget(
+                            title: '',
+                            width: FixedColumnWidth(48),
+                            dataSelector:
+                                (item) => IconButton(
+                              onPressed: () {
+                                context.pop(item);
+                              },
+                              icon: Icon(Icons.chevron_right),
+                            ),
+                          ),
+                        ],
+                        maxWidth: 500,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             );
           },
         ),

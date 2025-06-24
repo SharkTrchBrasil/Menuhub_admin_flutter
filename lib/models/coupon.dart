@@ -39,7 +39,7 @@ class Coupon {
 
 
 
-   product: json['product'] != null ? Product.fromJson(json['product']) : null,
+    product: json['product'] != null ? Product.fromJson(json['product']) : null,
     discountPercent: json['discount_percent'] as int?,
     discountFixed: json['discount_fixed'] as int?,
     maxUses: json['max_uses'] as int,

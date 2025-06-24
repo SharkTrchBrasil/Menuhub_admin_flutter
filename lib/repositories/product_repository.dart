@@ -153,6 +153,19 @@ class ProductRepository {
     }
   }
 
+
+  Future<Either<void, void>> deleteProduct( int storeId, int id) async {
+    try {
+      await _dio.delete('/stores/$storeId/products/$id');
+      return const Right(null);
+    } catch (e) {
+      debugPrint('Error deleteNeighborhood: $e');
+      return const Left(null);
+    }
+  }
+
+
+
   Future<Either<void, VariantOption>> saveVariantOption(
     int storeId,
 

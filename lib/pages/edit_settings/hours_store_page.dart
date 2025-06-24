@@ -287,54 +287,103 @@ class _OpeningHoursPageState extends State<OpeningHoursPage> {
 // ... código anterior ...
 
   Widget _buildOpeningHoursList() {
-    return Column(
-      children: List.generate(7, (weekday) {
-        final slots = _openingHours[weekday] ?? [];
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                days[weekday],
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16.0,
-                ),
-              ),
-              // Se não houver slots, mostra a mensagem.
-              // Esta mensagem é apenas informativa.
-              if (slots.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 4.0),
-                  child: Text('Sem turnos cadastrados'),
-                ),
-              // Sempre renderiza o ListView.builder, mesmo que vazio.
-              // Se estiver vazio, ele não mostrará nenhum item.
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: slots.length,
-                itemBuilder: (context, index) =>
-                    _buildSlotTile(slots[index], weekday, index),
-              ),
-              // ***** PONTO CHAVE DA ALTERAÇÃO *****
-              // O botão "Adicionar turno" é sempre exibido AQUI,
-              // independentemente se 'slots' está vazio ou não.
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: ElevatedButton.icon(
-                  onPressed: () => _addSlot(weekday),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Adicionar turno'),
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
+    int crossAxisCount = 1;
+    if (MediaQuery.of(context).size.width >= 1200) {
+      crossAxisCount = 3;
+    } else if (MediaQuery.of(context).size.width >= 800) {
+      crossAxisCount = 2;
+    } else if (MediaQuery.of(context).size.width >= 600) {
+      crossAxisCount = 1;
+    } else {
+      crossAxisCount = 1;
+    }
+
+
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 0, right: 10),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+
+
+                return Padding(
+                  padding: const EdgeInsets.all(28.0),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    itemCount: 7, // 7 dias da semana
+
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisExtent: 220,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                    ),
+                      itemBuilder: (context, weekday) {
+                        final slots = _openingHours[weekday] ?? [];
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                days[weekday],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16.0,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+
+                              // Aqui começa o scroll limitado dos slots
+                              Expanded(
+                                child: slots.isEmpty
+                                    ? const Center(child: Text('Sem turnos cadastrados'))
+                                    : ListView.builder(
+                                  itemCount: slots.length,
+                                  itemBuilder: (context, index) =>
+                                      _buildSlotTile(slots[index], weekday, index),
+                                ),
+                              ),
+
+                              const SizedBox(height: 6),
+
+                              Align(
+                                alignment: Alignment.bottomRight,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    backgroundColor: Colors.blue.shade50,
+                                    foregroundColor: Colors.blue.shade800,
+                                  ),
+                                  onPressed: () => _addSlot(weekday),
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('Adicionar'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
+
   }
 
 // ... restante do seu código ...

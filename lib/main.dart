@@ -13,6 +13,7 @@ import 'package:totem_pro_admin/repositories/chatbot_repository.dart';
 
 import 'core/chatbot_config_provider.dart';
 import 'core/di.dart';
+import 'core/menu_app_controller.dart';
 import 'core/router.dart';
 import 'core/store_provider.dart';
 import 'core/theme/app_theme.dart';
@@ -51,11 +52,11 @@ void main() async {
 
        //   ChangeNotifierProvider(create: (_) =>  StoreProvider()),
 
-        ],
-        child: ScrollConfiguration(
 
-             behavior: MyCustomScrollBehavior(),
-            child: const MyApp()),
+          ChangeNotifierProvider(create: (_) => DrawerControllerProvider()),
+
+        ],
+        child: const MyApp(),
       ),
     ),
   );
@@ -77,7 +78,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'PDVix - Admin',
 
-      scrollBehavior: CleanScrollBehavior(),
+      scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
       debugShowCheckedModeBanner: false,
       builder: BotToastInit(),
       theme: AppTheme.lightTheme,

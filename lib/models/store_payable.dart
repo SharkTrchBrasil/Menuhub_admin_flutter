@@ -5,22 +5,22 @@ class StorePayable {
   final String title;
   final String? description;
   final String? barcode;
-  final int value; // em centavos
+  final int amount; // em centavos
   final String dueDate; // formato ISO (yyyy-MM-dd)
   final String? paymentDate;
   final String status; // 'open', 'paid', 'cancelled'
-  final bool? isFixed;
+
 
   StorePayable( {
     this.id,
     required this.title,
     this.description,
     this.barcode,
-    required this.value,
+    required this.amount,
     required this.dueDate,
     this.paymentDate,
     required this.status,
-    this.isFixed,
+
   });
 
   StorePayable copyWith({
@@ -28,11 +28,11 @@ class StorePayable {
     String? title,
     String? description,
     String? barcode,
-    int? value,
+    int? amount,
     String? dueDate,
     String? paymentDate,
     String? status,
-    bool? isFixed,
+
   }) {
     return StorePayable(
       id: id ?? this.id,
@@ -40,11 +40,11 @@ class StorePayable {
 
       description: description ?? this.description,
       barcode: barcode ?? this.barcode,
-      value: value ?? this.value,
+      amount: amount ?? this.amount,
       dueDate: dueDate ?? this.dueDate,
       paymentDate: paymentDate ?? this.paymentDate,
       status: status ?? this.status,
-      isFixed: isFixed ?? this.isFixed,
+
     );
   }
 
@@ -54,12 +54,11 @@ class StorePayable {
       title: json['title'],
       description: json['description'],
       barcode: json['barcode'],
-      value: json['value'],
+      amount: json['amount'],
       dueDate: json['due_date'],
       paymentDate: json['payment_date'],
       status: json['status'],
-      isFixed: json['is_fixed'],
-    );
+        );
   }
 
   Map<String, dynamic> toJson() {
@@ -68,25 +67,13 @@ class StorePayable {
        'title': title,
       'description': description,
       'barcode': barcode,
-      'value': value,
+      'amount': amount,
       'due_date': dueDate,
       'payment_date': paymentDate,
       'status': status,
-      'is_fixed': isFixed,
+
     };
   }
 
-  FormData toFormData() {
-    return FormData.fromMap({
-      if (id != null) 'id': id.toString(),
-      'description': description,
-      'title': title,
-      if (barcode != null) 'barcode': barcode,
-      'value': value.toString(),
-      'due_date': dueDate,
-      if (paymentDate != null) 'payment_date': paymentDate,
-      'status': status,
-      'is_fixed': isFixed.toString(),
-    });
-  }
+
 }

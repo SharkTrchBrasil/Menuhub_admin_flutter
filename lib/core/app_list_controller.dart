@@ -53,4 +53,31 @@ class AppListController<T> extends ChangeNotifier {
     return [];
   }
 
+  // --- NOVO MÉTODO AQUI ---
+  /// Notifica os listeners de que a lista `items` foi atualizada localmente,
+  /// sem acionar uma nova busca ao backend.
+  void updateLocally() {
+    // Apenas chamamos notifyListeners() se o status atual já é de sucesso.
+    // Isso evita notificar se, por exemplo, o controller está em estado de erro ou carregando.
+    // Se o status for de sucesso, garantimos que a lista interna já contém os dados.
+    if (status is PageStatusSuccess<List<T>>) {
+      notifyListeners();
+    }
+  }
+
+  /// Remove um item da lista localmente com base em um teste e notifica os listeners.
+  /// Retorna true se o item foi encontrado e removido, false caso contrário.
+  bool removeLocally(bool Function(T) test) { // Changed Predicate<T> to bool Function(T)
+    if (status is PageStatusSuccess<List<T>>) {
+      final successStatus = status as PageStatusSuccess<List<T>>;
+      final initialLength = successStatus.data.length;
+      successStatus.data.removeWhere(test);
+      if (successStatus.data.length < initialLength) {
+        notifyListeners(); // Notifica apenas se algo foi realmente removido
+        return true;
+      }
+    }
+    return false;
+  }
+
 }

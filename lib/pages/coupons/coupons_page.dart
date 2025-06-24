@@ -177,20 +177,21 @@ class _CouponsPageState extends State<CouponsPage> {
   }
 
   Widget cardss({required Coupon coupon, required int storeId}) {
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final Color backgroundColor =
-        coupon.available
-            ? (isDark ? Color(0xFF064E3B) : Color(0xFFD1FAE5)) // Ativo
-            : (isDark ? Color(0xFF7F1D1D) : Color(0xFFFEE2E2)); // Inativo
+    final Color backgroundColor = coupon.available
+        ? _generateCouponBackground(coupon.id.toString(), isDark)
+        : (isDark ? Color(0xFF7F1D1D) : Color(0xFFFEE2E2)); // Inativo
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
         color: backgroundColor,
-        image: const DecorationImage(
-          image: AssetImage("assets/images/Group.png"),
-          fit: BoxFit.cover,
-        ),
+        // image: const DecorationImage(
+        //   image: AssetImage("assets/images/Group.png"),
+        //   fit: BoxFit.cover,
+        // ),
       ),
       child: Stack(
         children: [
@@ -302,6 +303,35 @@ class _CouponsPageState extends State<CouponsPage> {
       ),
     );
   }
+
+  Color _generateCouponBackground(String id, bool isDark) {
+    final List<Color> lightColors = [
+      Color(0xFFE0F7FA),
+      Color(0xFFFFF9C4),
+      Color(0xFFD1C4E9),
+      Color(0xFFE1F5FE),
+      Color(0xFFC8E6C9),
+      Color(0xFFFFE0B2),
+      Color(0xFFFFCDD2),
+    ];
+
+    final List<Color> darkColors = [
+      Color(0xFF004D40),
+      Color(0xFF3E2723),
+      Color(0xFF1A237E),
+      Color(0xFF263238),
+      Color(0xFF37474F),
+      Color(0xFF4A148C),
+      Color(0xFF880E4F),
+    ];
+
+    final hash = id.hashCode.abs();
+    final index = hash % lightColors.length;
+
+    return isDark ? darkColors[index] : lightColors[index];
+  }
+
+
 }
 
 class CouponCopyButton extends StatelessWidget {

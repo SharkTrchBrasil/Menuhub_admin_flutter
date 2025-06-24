@@ -97,7 +97,7 @@ class _EditProductDialogState extends State<EditProductDialog> {
                   mobileBuilder: (BuildContext context) {
                     return SingleChildScrollView(
                       scrollDirection: Axis.vertical,
-                      child: Wrap(
+                      child: Column(
                         children: [
                           Row(
                             children: [
@@ -624,276 +624,131 @@ class _EditProductDialogState extends State<EditProductDialog> {
                     );
                   },
                   desktopBuilder: (BuildContext context) {
-                    return DefaultTabController(
-                      length: 3,
-                      child: Column(
-                        children: [
-                          const TabBar(
-                            labelColor: Colors.black,
-                            indicatorColor: Colors.blue,
-                            tabs: [
-                              Tab(text: 'INFORMAÇÕES'),
-                              Tab(text: 'COMPLEMENTOS'),
-                              Tab(text: 'Imagens'),
-                            ],
-                          ),
-                          const Divider(height: 1),
-                          Expanded(
-                            child: TabBarView(
-                              children: [
-                                // Aba 1 - Geral
-                                SingleChildScrollView(
+                    return Column(
+                      children: [
 
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ESQUERDA: imagem ou outro conteúdo visual
+                            Container(
+                              width: 200,
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                children: [
+                                  // Aqui você pode colocar a imagem do produto ou outro conteúdo
+
+                              secoundecontain(product)
+
+                                ],
+                              ),
+                            ),
+
+                            // DIREITA: campos do formulário
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: SingleChildScrollView(
                                   child: Column(
                                     children: [
+                                      AppTextField(
+                                        initialValue: product.name,
+                                        title: 'Nome',
+                                        hint: 'Ex: Guaraná',
+                                        validator: (title) {
+                                          if (title == null || title.isEmpty) {
+                                            return 'Campo obrigatório';
+                                          } else if (title.length < 3) {
+                                            return 'Título muito curto';
+                                          }
+                                          return null;
+                                        },
+                                        onChanged: (name) {
+                                          controller.onChanged(product.copyWith(name: name));
+                                        },
+                                      ),
+                                      const SizedBox(height: 20),
+
+
                                       Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          // ESQUERDA: imagem ou outro conteúdo visual
-                                          Container(
-                                            width: 200,
-                                            padding: const EdgeInsets.all(12),
-                                            child: Column(
-                                              children: [
-                                                // Aqui você pode colocar a imagem do produto ou outro conteúdo
+                                          Flexible(
+                                            child:
 
-                                            secoundecontain(product)
-
-                                              ],
-                                            ),
-                                          ),
-
-                                          // DIREITA: campos do formulário
-                                          Expanded(
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(12),
-                                              child: SingleChildScrollView(
-                                                child: Column(
-                                                  children: [
-                                                    AppTextField(
-                                                      initialValue: product.name,
-                                                      title: 'Nome',
-                                                      hint: 'Ex: Guaraná',
-                                                      validator: (title) {
-                                                        if (title == null || title.isEmpty) {
-                                                          return 'Campo obrigatório';
-                                                        } else if (title.length < 3) {
-                                                          return 'Título muito curto';
-                                                        }
-                                                        return null;
-                                                      },
-                                                      onChanged: (name) {
-                                                        controller.onChanged(product.copyWith(name: name));
-                                                      },
-                                                    ),
-                                                    const SizedBox(height: 20),
-
-
-                                                    Row(
-                                                      children: [
-                                                        Flexible(
-                                                          child:
-
-                                                          AppSelectionFormField<Category>(
-                                                            title: 'Categoria',
-                                                            initialValue: product.category,
-                                                            fetch:
-                                                                () => getIt<CategoryRepository>()
-                                                                .getCategories(widget.storeId),
-                                                            validator: (category) {
-                                                              if (category == null) {
-                                                                return 'Campo obrigatório';
-                                                              }
-                                                              return null;
-                                                            },
-                                                            onChanged:
-                                                                (category) => controller.onChanged(
-                                                              product.copyWith(
-                                                                category: () => category,
-                                                              ),
-                                                            ),
-                                                            columns: [
-                                                              AppTableColumnString(
-                                                                title: 'Nome',
-                                                                dataSelector: (c) => c.name,
-                                                              ),
-                                                            ],
-                                                          ),
-
-
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 20),
-
-
-                                                    Row(
-                                                      children: [
-                                                        Flexible(
-                                                          child: AppTextField(
-                                                            initialValue: product.basePrice != null
-                                                                ? UtilBrasilFields.obterReal(product.basePrice! / 100)
-                                                                : '',
-                                                            title: 'Preço',
-                                                            hint: 'Ex: R\$ 5,00',
-                                                            formatters: [
-                                                              FilteringTextInputFormatter.digitsOnly,
-                                                              CentavosInputFormatter(moeda: true),
-                                                            ],
-                                                            onChanged: (value) {
-                                                              final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
-                                                              controller.onChanged(product.copyWith(basePrice: (money * 100).floor()));
-                                                            },
-                                                            validator: (value) {
-                                                              if (value == null || value.length < 7) {
-                                                                return 'Campo obrigatório';
-                                                              }
-                                                              return null;
-                                                            },
-                                                          ),
-                                                        ),
-                                                        const SizedBox(width: 20),
-                                                        Flexible(
-                                                          child: AppTextField(
-                                                            initialValue: product.costPrice != null
-                                                                ? UtilBrasilFields.obterReal(product.costPrice! / 100)
-                                                                : '',
-                                                            title: 'Custo do produto',
-                                                            hint: 'Ex: R\$ 1,00',
-                                                            formatters: [
-                                                              FilteringTextInputFormatter.digitsOnly,
-                                                              CentavosInputFormatter(moeda: true),
-                                                            ],
-                                                            onChanged: (value) {
-                                                              final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
-                                                              controller.onChanged(product.copyWith(costPrice: (money * 100).floor()));
-                                                            },
-                                                          ),
-                                                        ),
-
-
-                                                      ],
-                                                    ),
-
-
-
-
-
-                                                    const SizedBox(height: 20),
-                                                    AppTextField(
-                                                      initialValue: product.description,
-                                                      title: 'Descrição',
-                                                      hint: 'Descreva seu produto',
-                                                      validator: (desc) {
-                                                        if (desc == null || desc.isEmpty) {
-                                                          return 'Campo obrigatório';
-                                                        } else if (desc.length < 10) {
-                                                          return 'Descrição muito curta';
-                                                        }
-                                                        return null;
-                                                      },
-                                                      onChanged: (desc) {
-                                                        controller.onChanged(product.copyWith(description: desc));
-                                                      },
-                                                    ),
-
-
-                                                    Row(
-                                                      children: [
-                                                        Flexible(
-                                                          child: Text(
-                                                            'Em destaque',
-                                                            style: TextStyle(
-                                                              //     color:
-                                                              //      notifire
-                                                              //        .textcolore,
-                                                            ),
-                                                            overflow:
-                                                            TextOverflow
-                                                                .ellipsis,
-                                                          ),
-                                                        ),
-
-                                                        const SizedBox(
-                                                          width: 5,
-                                                        ),
-                                                        Switch(
-                                                          value:
-                                                          product
-                                                              .featured,
-
-                                                          onChanged: (
-                                                              bool value,
-                                                              ) {
-                                                            controller.onChanged(
-                                                              product.copyWith(
-                                                                featured:
-                                                                value,
-                                                              ),
-                                                            );
-                                                          },
-                                                        ),
-                                                      ],
-                                                    ),
-
-
-                                                    Row(
-                                                      children: [
-                                                        Flexible(
-                                                          flex: 1,
-                                                          child: AppTextField(
-                                                            title:
-                                                            'EAN/GTIN',
-                                                            hint: '',
-                                                            initialValue:
-                                                            product
-                                                                .ean,
-                                                            // validator: (title) {
-                                                            //   if (title == null ||
-                                                            //       title.isEmpty) {
-                                                            //     return 'Campo obrigatório';
-                                                            //   } else if (title.length <
-                                                            //       3) {
-                                                            //     return 'Título muito curto';
-                                                            //   }
-                                                            //   return null;
-                                                            // },
-                                                            formatters: [
-                                                              FilteringTextInputFormatter
-                                                                  .digitsOnly,
-                                                            ],
-
-                                                            onChanged: (
-                                                                ean,
-                                                                ) {
-                                                              controller.onChanged(
-                                                                product.copyWith(
-                                                                  ean:
-                                                                  ean,
-                                                                ),
-                                                              );
-                                                            },
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 20,
-                                                        ),
-
-                                                      ],
-                                                    ),
-
-
-
-
-                                                    // OPÇÃOES AVANÇADAS
-
-
-
-
-
-                                                  ],
+                                            AppSelectionFormField<Category>(
+                                              title: 'Categoria',
+                                              initialValue: product.category,
+                                              fetch:
+                                                  () => getIt<CategoryRepository>()
+                                                  .getCategories(widget.storeId),
+                                              validator: (category) {
+                                                if (category == null) {
+                                                  return 'Campo obrigatório';
+                                                }
+                                                return null;
+                                              },
+                                              onChanged:
+                                                  (category) => controller.onChanged(
+                                                product.copyWith(
+                                                  category: () => category,
                                                 ),
                                               ),
+                                              columns: [
+                                                AppTableColumnString(
+                                                  title: 'Nome',
+                                                  dataSelector: (c) => c.name,
+                                                ),
+                                              ],
+                                            ),
+
+
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 20),
+
+
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: AppTextField(
+                                              initialValue: product.basePrice != null
+                                                  ? UtilBrasilFields.obterReal(product.basePrice! / 100)
+                                                  : '',
+                                              title: 'Preço',
+                                              hint: 'Ex: R\$ 5,00',
+                                              formatters: [
+                                                FilteringTextInputFormatter.digitsOnly,
+                                                CentavosInputFormatter(moeda: true),
+                                              ],
+                                              onChanged: (value) {
+                                                final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
+                                                controller.onChanged(product.copyWith(basePrice: (money * 100).floor()));
+                                              },
+                                              validator: (value) {
+                                                if (value == null || value.length < 7) {
+                                                  return 'Campo obrigatório';
+                                                }
+                                                return null;
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(width: 20),
+                                          Flexible(
+                                            child: AppTextField(
+                                              initialValue: product.costPrice != null
+                                                  ? UtilBrasilFields.obterReal(product.costPrice! / 100)
+                                                  : '',
+                                              title: 'Custo do produto',
+                                              hint: 'Ex: R\$ 1,00',
+                                              formatters: [
+                                                FilteringTextInputFormatter.digitsOnly,
+                                                CentavosInputFormatter(moeda: true),
+                                              ],
+                                              onChanged: (value) {
+                                                final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
+                                                controller.onChanged(product.copyWith(costPrice: (money * 100).floor()));
+                                              },
                                             ),
                                           ),
 
@@ -902,256 +757,356 @@ class _EditProductDialogState extends State<EditProductDialog> {
                                       ),
 
 
-                                      Theme(
-                                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                                        child: ExpansionTile(
-
-                                          tilePadding: EdgeInsets.zero, // remove espaçamento
-                                          childrenPadding: EdgeInsets.zero,
-                                          title: const Text(
-                                            'Opções Avançadas',
-                                            style: TextStyle(fontWeight: FontWeight.bold),
-                                          ),
-                                          children: [
-                                            Padding(
-                                              padding: const EdgeInsets.all(16.0),
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  SizedBox(
-                                                    height: 72, // altura suficiente para comportar o Switch + TextField
-                                                    child: Row(
-                                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                                      children: [
-                                                        Expanded(
-                                                          flex: 2,
-                                                          child: Row(
-                                                            mainAxisAlignment: MainAxisAlignment.start,
-                                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                                            children: [
-                                                              const Text(
-                                                                'Ativar promoção?',
-                                                                overflow: TextOverflow.ellipsis,
-                                                                style: TextStyle(fontSize: 16),
-                                                              ),
-                                                              const SizedBox(width: 8),
-                                                              Switch(
-                                                                value: product.activatePromotion,
-                                                                onChanged: (bool value) {
-                                                                  controller.onChanged(
-                                                                    product.copyWith(activatePromotion: value),
-                                                                  );
-                                                                },
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-
-                                                        const SizedBox(width: 16),
-
-                                                        Expanded(
-                                                          flex: 2,
-                                                          child: AnimatedSwitcher(
-                                                            duration: const Duration(milliseconds: 300),
-                                                            transitionBuilder: (child, animation) =>
-                                                                FadeTransition(opacity: animation, child: child),
-                                                            child: product.activatePromotion
-                                                                ? AppTextField(
-                                                              key: const ValueKey('costPriceField'),
-                                                              initialValue: product.promotionPrice != null
-                                                                  ? UtilBrasilFields.obterReal(product.promotionPrice! / 100)
-                                                                  : '',
-                                                              title: '',
-                                                              hint: 'Ex: R\$ 10,00',
-                                                              formatters: [
-                                                                FilteringTextInputFormatter.digitsOnly,
-                                                                CentavosInputFormatter(moeda: true),
-                                                              ],
-                                                              onChanged: (value) {
-                                                                final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
-                                                                controller.onChanged(product.copyWith(promotionPrice: (money * 100).floor()));
-                                                              },
-                                                            )
-                                                                : const SizedBox.shrink(),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
 
 
 
-                                                  Row(
-                                                    children: [
-                                                      Flexible(
-                                                        child: Text(
-                                                          'Controlar estoque',
-                                                          style: TextStyle(
-                                                            //   color:
-                                                            //    notifire.textcolore,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 5,
-                                                      ),
+                                      const SizedBox(height: 20),
+                                      AppTextField(
+                                        initialValue: product.description,
+                                        title: 'Descrição',
+                                        hint: 'Descreva seu produto',
+                                        validator: (desc) {
+                                          if (desc == null || desc.isEmpty) {
+                                            return 'Campo obrigatório';
+                                          } else if (desc.length < 10) {
+                                            return 'Descrição muito curta';
+                                          }
+                                          return null;
+                                        },
+                                        onChanged: (desc) {
+                                          controller.onChanged(product.copyWith(description: desc));
+                                        },
+                                      ),
 
-                                                      Switch(
-                                                        value:
-                                                        product
-                                                            .controlStock,
 
-                                                        onChanged: (
-                                                            bool
-                                                            value,
-                                                            ) {
-                                                          controller.onChanged(
-                                                            product.copyWith(
-                                                              controlStock:
-                                                              value,
-                                                            ),
-                                                          );
-                                                        },
-                                                      ),
-                                                    ],
-                                                  ),
-
-                                                  // Mostra os dois TextFormField se o switch estiver ativo
-                                                  if (product
-                                                      .controlStock) ...[
-                                                    const SizedBox(
-                                                      height: 10,
-                                                    ),
-
-                                                    Row(
-                                                      children: [
-                                                        Flexible(
-                                                          child: AppTextField(
-                                                            title:
-                                                            'Estoque',
-                                                            hint:
-                                                            '0',
-                                                            initialValue:
-                                                            product.stockQuantity.toString(),
-
-                                                            keyboardType:
-                                                            TextInputType.number,
-                                                            onChanged: (
-                                                                ean,
-                                                                ) {
-                                                              controller.onChanged(
-                                                                product.copyWith(
-                                                                  stockQuantity: int.tryParse(
-                                                                    ean!,
-                                                                  ),
-                                                                ),
-                                                              );
-                                                            },
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 20,
-                                                        ),
-                                                        Flexible(
-                                                          child: AppTextField(
-                                                            initialValue:
-                                                            product.minStock.toString(),
-
-                                                            title:
-                                                            'Estoque mín.',
-                                                            hint:
-                                                            'Digite o mínimo',
-                                                            keyboardType:
-                                                            TextInputType.number,
-                                                            onChanged: (
-                                                                ean,
-                                                                ) {
-                                                              controller.onChanged(
-                                                                product.copyWith(
-                                                                  minStock: int.tryParse(
-                                                                    ean!,
-                                                                  ),
-                                                                ),
-                                                              );
-                                                            },
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
-
-                                                  Row(
-                                                    children: [
-                                                      Flexible(
-                                                        child: Text(
-                                                          'Produto disponível no cardápio ?',
-                                                          style: TextStyle(
-                                                            //     color:
-                                                            //      notifire
-                                                            //        .textcolore,
-                                                          ),
-                                                          overflow:
-                                                          TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-
-                                                      const SizedBox(
-                                                        width: 5,
-                                                      ),
-                                                      Switch(
-                                                        value:
-                                                        product
-                                                            .available,
-
-                                                        onChanged: (
-                                                            bool value,
-                                                            ) {
-                                                          controller.onChanged(
-                                                            product.copyWith(
-                                                              available:
-                                                              value,
-                                                            ),
-                                                          );
-                                                        },
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  // Coloque aqui os seus widgets personalizados
-                                                ],
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              'Em destaque',
+                                              style: TextStyle(
+                                                //     color:
+                                                //      notifire
+                                                //        .textcolore,
                                               ),
+                                              overflow:
+                                              TextOverflow
+                                                  .ellipsis,
                                             ),
+                                          ),
 
-                                          ],
+                                          const SizedBox(
+                                            width: 5,
+                                          ),
+                                          Switch(
+                                            value:
+                                            product
+                                                .featured,
+
+                                            onChanged: (
+                                                bool value,
+                                                ) {
+                                              controller.onChanged(
+                                                product.copyWith(
+                                                  featured:
+                                                  value,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+
+
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            flex: 1,
+                                            child: AppTextField(
+                                              title:
+                                              'EAN/GTIN',
+                                              hint: '',
+                                              initialValue:
+                                              product
+                                                  .ean,
+                                              // validator: (title) {
+                                              //   if (title == null ||
+                                              //       title.isEmpty) {
+                                              //     return 'Campo obrigatório';
+                                              //   } else if (title.length <
+                                              //       3) {
+                                              //     return 'Título muito curto';
+                                              //   }
+                                              //   return null;
+                                              // },
+                                              formatters: [
+                                                FilteringTextInputFormatter
+                                                    .digitsOnly,
+                                              ],
+
+                                              onChanged: (
+                                                  ean,
+                                                  ) {
+                                                controller.onChanged(
+                                                  product.copyWith(
+                                                    ean:
+                                                    ean,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(
+                                            width: 20,
+                                          ),
+
+                                        ],
+                                      ),
+
+
+
+
+                                      // OPÇÃOES AVANÇADAS
+
+
+
+
+
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+
+                          ],
+                        ),
+
+
+                        Theme(
+                          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+
+                            tilePadding: EdgeInsets.zero, // remove espaçamento
+                            childrenPadding: EdgeInsets.zero,
+                            title: const Text(
+                              'Opções Avançadas',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      height: 72, // altura suficiente para comportar o Switch + TextField
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Expanded(
+                                            flex: 2,
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.start,
+                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              children: [
+                                                const Text(
+                                                  'Ativar promoção?',
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(fontSize: 16),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Switch(
+                                                  value: product.activatePromotion,
+                                                  onChanged: (bool value) {
+                                                    controller.onChanged(
+                                                      product.copyWith(activatePromotion: value),
+                                                    );
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+
+                                          const SizedBox(width: 16),
+
+                                          Expanded(
+                                            flex: 2,
+                                            child: AnimatedSwitcher(
+                                              duration: const Duration(milliseconds: 300),
+                                              transitionBuilder: (child, animation) =>
+                                                  FadeTransition(opacity: animation, child: child),
+                                              child: product.activatePromotion
+                                                  ? AppTextField(
+                                                key: const ValueKey('costPriceField'),
+                                                initialValue: product.promotionPrice != null
+                                                    ? UtilBrasilFields.obterReal(product.promotionPrice! / 100)
+                                                    : '',
+                                                title: '',
+                                                hint: 'Ex: R\$ 10,00',
+                                                formatters: [
+                                                  FilteringTextInputFormatter.digitsOnly,
+                                                  CentavosInputFormatter(moeda: true),
+                                                ],
+                                                onChanged: (value) {
+                                                  final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
+                                                  controller.onChanged(product.copyWith(promotionPrice: (money * 100).floor()));
+                                                },
+                                              )
+                                                  : const SizedBox.shrink(),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+
+
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            'Controlar estoque',
+                                            style: TextStyle(
+                                              //   color:
+                                              //    notifire.textcolore,
+                                            ),
+                                          ),
                                         ),
+                                        const SizedBox(
+                                          width: 5,
+                                        ),
+
+                                        Switch(
+                                          value:
+                                          product
+                                              .controlStock,
+
+                                          onChanged: (
+                                              bool
+                                              value,
+                                              ) {
+                                            controller.onChanged(
+                                              product.copyWith(
+                                                controlStock:
+                                                value,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+
+                                    // Mostra os dois TextFormField se o switch estiver ativo
+                                    if (product
+                                        .controlStock) ...[
+                                      const SizedBox(
+                                        height: 10,
+                                      ),
+
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: AppTextField(
+                                              title:
+                                              'Estoque',
+                                              hint:
+                                              '0',
+                                              initialValue:
+                                              product.stockQuantity.toString(),
+
+                                              keyboardType:
+                                              TextInputType.number,
+                                              onChanged: (
+                                                  ean,
+                                                  ) {
+                                                controller.onChanged(
+                                                  product.copyWith(
+                                                    stockQuantity: int.tryParse(
+                                                      ean!,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(
+                                            width: 20,
+                                          ),
+                                          Flexible(
+                                            child: AppTextField(
+                                              initialValue:
+                                              product.minStock.toString(),
+
+                                              title:
+                                              'Estoque mín.',
+                                              hint:
+                                              'Digite o mínimo',
+                                              keyboardType:
+                                              TextInputType.number,
+                                              onChanged: (
+                                                  ean,
+                                                  ) {
+                                                controller.onChanged(
+                                                  product.copyWith(
+                                                    minStock: int.tryParse(
+                                                      ean!,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
-                                  ),
-                                ),
 
-                                // Aba 2 - Estoque
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    children: const [
-                                      Text('Conteúdo da aba Estoque'),
-                                    ],
-                                  ),
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            'Produto disponível no cardápio ?',
+                                            style: TextStyle(
+                                              //     color:
+                                              //      notifire
+                                              //        .textcolore,
+                                            ),
+                                            overflow:
+                                            TextOverflow
+                                                .ellipsis,
+                                          ),
+                                        ),
+
+                                        const SizedBox(
+                                          width: 5,
+                                        ),
+                                        Switch(
+                                          value:
+                                          product
+                                              .available,
+
+                                          onChanged: (
+                                              bool value,
+                                              ) {
+                                            controller.onChanged(
+                                              product.copyWith(
+                                                available:
+                                                value,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                    // Coloque aqui os seus widgets personalizados
+                                  ],
                                 ),
-                                // Aba 3 - Imagens
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    children: const [
-                                      Text('Conteúdo da aba Imagens'),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     );
 
 

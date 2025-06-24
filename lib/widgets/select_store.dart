@@ -32,10 +32,13 @@ class StorePopupMenu extends StatelessWidget {
 
       child: Row(
         children: [
-           CircleAvatar(
-            backgroundImage: NetworkImage(selectedStore.store.image!.url!), // você pode personalizar isso
+          CircleAvatar(
             radius: 12,
+            backgroundImage: (selectedStore.store.image?.url != null && selectedStore.store.image!.url!.isNotEmpty)
+                ? NetworkImage(selectedStore.store.image!.url!)
+                : const AssetImage('assets/images/avatar.png') as ImageProvider,
           ),
+
           const SizedBox(width: 10),
           Text(
             selectedStore.store.name,
@@ -58,9 +61,12 @@ class StorePopupMenu extends StatelessWidget {
             value: s.store.id,
             child: ListTile(
               leading:  CircleAvatar(
-                backgroundImage: NetworkImage(s.store.image!.url!), // mesmo ícone ou imagem
-                radius: 18,
+                radius: 12,
+                backgroundImage: (selectedStore.store.image?.url != null && selectedStore.store.image!.url!.isNotEmpty)
+                    ? NetworkImage(selectedStore.store.image!.url!)
+                    : const AssetImage('assets/images/avatar.png') as ImageProvider,
               ),
+
               title: Text(
                 s.store.name,
                 style: Theme.of(context).textTheme.labelLarge,

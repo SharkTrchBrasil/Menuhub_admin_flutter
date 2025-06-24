@@ -94,127 +94,183 @@ class _VariantsPageState extends State<VariantsPage> {
   }
 
   Widget _variantsGrid({required double size}) {
+    int crossAxisCount = 1;
+    if (MediaQuery.of(context).size.width >= 1200) {
+      crossAxisCount = 3;
+    } else if (MediaQuery.of(context).size.width >= 800) {
+      crossAxisCount = 2;
+    } else if (MediaQuery.of(context).size.width >= 600) {
+      crossAxisCount = 1;
+    } else {
+      crossAxisCount = 1;
+    }
+
+
     return Padding(
-      padding: const EdgeInsets.all(28.0),
-      child: AnimatedBuilder(
-        animation: variantsController,
-        builder: (_, __) {
-          return AppPageStatusBuilder<List<Variant>>(
-            tryAgain: variantsController.refresh,
-            status: variantsController.status,
-            successBuilder: (variants) {
-              return Column(children: variants.map(_variantCard).toList());
-            },
-          );
-        },
+      padding: const EdgeInsets.only(left: 0, right: 10),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                // Layout para mobile
+                return AnimatedBuilder(
+                  animation: variantsController,
+                  builder: (_, __) {
+                    return AppPageStatusBuilder<List<Variant>>(
+                      tryAgain: variantsController.refresh,
+                      status: variantsController.status,
+                      successBuilder: (coupons) {
+                        return Padding(
+                          padding: const EdgeInsets.all(28.0),
+                          child: GridView.builder(
+                            shrinkWrap: true,
+                            itemCount: coupons.length,
+                            physics: NeverScrollableScrollPhysics(),
+
+                            // evita conflito de rolagem
+                            gridDelegate:
+                            SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              mainAxisExtent: 180,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
+                            itemBuilder: (context, index) {
+                              final coupon = coupons[index];
+                              return _variantCard(coupon);
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
+
+
+
+
   }
 
   Widget _variantCard(Variant variant) {
-    return ExpansionTile(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      title: Text(
-        variant.name,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-      ),
 
-      childrenPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.end,
+
+
+
+    return Material(
+      elevation: 1,
+      child: ExpansionTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        title: Text(
+          variant.name,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+
+        childrenPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12.0),
-                  child: const Text(
-                    'Exibir inativos',
-                    textAlign: TextAlign.end,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                SizedBox(width: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      child: const Text(
+                        'Exibir inativos',
+                        textAlign: TextAlign.end,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    SizedBox(width: 8),
 
-                Switch(
-                  value: showUnpublished,
-                  onChanged: (v) {
-                    setState(() {
-                      showUnpublished = v;
-                    });
-                  },
+                    Switch(
+                      value: showUnpublished,
+                      onChanged: (v) {
+                        setState(() {
+                          showUnpublished = v;
+                        });
+                      },
+                    ),
+                  ],
                 ),
+                const SizedBox(width: 8),
+
+                for (final o in variant.options!.where(
+                  (v) => showUnpublished || v.available,
+                ))
+                  VariantOptionListItem(
+                    option: o,
+                    storeId: widget.storeId,
+                    //  productId: widget.productId,
+                    variantId: variant.id!,
+
+                    onSaved: () => variantsController.refresh(),
+                  ),
               ],
             ),
-            const SizedBox(width: 8),
+          ),
 
-            for (final o in variant.options!.where(
-              (v) => showUnpublished || v.available,
-            ))
-              VariantOptionListItem(
-                option: o,
-                storeId: widget.storeId,
-                //  productId: widget.productId,
-                variantId: variant.id!,
+          Row(
+            children: [
+              Expanded(
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
 
-                onSaved: () => variantsController.refresh(),
-              ),
-          ],
-        ),
-
-        Row(
-          children: [
-            Expanded(
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-
-                title: Row(
-                  children: const [
-                    Icon(Icons.add, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Text('Nova opção', overflow: TextOverflow.ellipsis),
-                  ],
+                  title: Row(
+                    children: const [
+                      Icon(Icons.add, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Nova opção', overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                  onTap: () {
+                    DialogService.showVariantsOptionsDialog(
+                      context,
+                      widget.storeId,
+                      variant.id!,
+                      onSaved: () async {
+                        await variantsController.refresh();
+                      },
+                    );
+                  },
                 ),
-                onTap: () {
-                  DialogService.showVariantsOptionsDialog(
-                    context,
-                    widget.storeId,
-                    variant.id!,
-                    onSaved: () async {
-                      await variantsController.refresh();
-                    },
-                  );
-                },
               ),
-            ),
 
-            Expanded(
-              child: ListTile(
+              Expanded(
+                child: ListTile(
 
-                contentPadding: EdgeInsets.zero,
-                title: Row(
-                  children: const [
-                    Icon(Icons.edit, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Text('Editar adicional', overflow: TextOverflow.ellipsis),
-                  ],
+                  contentPadding: EdgeInsets.zero,
+                  title: Row(
+                    children: const [
+                      Icon(Icons.edit, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Editar adicional', overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                  onTap: () {
+                    DialogService.showVariantsDialog(
+                      context,
+                      variantId: variant.id,
+                      widget.storeId,
+                      onSaved: (_) => variantsController.refresh(),
+                    );
+                  },
                 ),
-                onTap: () {
-                  DialogService.showVariantsDialog(
-                    context,
-                    variantId: variant.id,
-                    widget.storeId,
-                    onSaved: (_) => variantsController.refresh(),
-                  );
-                },
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

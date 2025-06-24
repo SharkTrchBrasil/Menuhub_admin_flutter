@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 
 // 🎨 Cores principais
-const Color primaryColor = Color(0xff2e03e5); // Roxo do SVG
+const Color primaryColor = Color(0xFFA347FF); // Roxo do SVG
 const Color accentGreen = Color(0xFF00ddb3); // Verde neon do SVG
 const Color errorColor = Color(0xFFFC871D); // Usando o laranja como destaque/alerta
 
 // ⚫️ Fundo e containers
 const Color scaffoldColorDark = Color(0xFF060E19); // Azul escuro profundo
-const Color blackColor = Color(0xFF020B12); // Preto azulado
+const Color blackColor = Color(0xff050C17); // Preto azulado
 const Color greyDark = Color(0xFF19212C); // Azul petróleo escuro
 const Color cardDarkColor = Color(0xFF6D7588); // Cinza médio frio
 const Color cardLightColor = Color(0xFFEBEBEB); // Claro (quase branco)
