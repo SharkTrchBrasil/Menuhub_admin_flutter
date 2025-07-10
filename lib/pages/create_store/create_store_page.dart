@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
@@ -8,6 +9,7 @@ import 'package:totem_pro_admin/core/extensions/extensions.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart';
 
+import '../../cubits/store_manager_cubit.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/app_primary_button.dart';
 import '../../widgets/app_text_field.dart';
@@ -96,19 +98,30 @@ class _CreateStorePageState extends State<CreateStorePage> {
                     const SizedBox(height: 48),
                     AppPrimaryButton(
                       label: 'Criar loja',
-                      onPressed: () async {
-                        if (formKey.currentState!.validate()) {
-                          final l = showLoading();
-                          final result = await storeRepository.createStore(name,  phone);
-                          l();
-                          if(result.isLeft) {
-                            showError('Não foi possível criar a loja. Por favor, tente novamente.');
-                          } else {
-                            showSuccess('Loja criada com sucesso!');
-                            if(context.mounted) context.go('/stores/${result.right.store.id}/orders');
+                        onPressed: () async {
+                          if (formKey.currentState!.validate()) {
+                            final l = showLoading();
+                            final result = await storeRepository.createStore(name, phone);
+                            l();
+
+                            if (result.isLeft) {
+                              showError('Não foi possível criar a loja. Por favor, tente novamente.');
+                            } else {
+                              showSuccess('Loja criada com sucesso!');
+
+                              final store = result.right;
+
+                              // ✅ Adiciona a loja ao StoresManagerCubit e conecta o socket
+                              final storesManagerCubit = context.read<StoresManagerCubit>();
+                              storesManagerCubit.addStore(store); // <-- você vai precisar criar este método
+
+                              if (context.mounted) {
+                                context.go('/stores/${store.store.id}/orders');
+                              }
+                            }
                           }
                         }
-                      },
+
                     ),
                   ],
                 ),

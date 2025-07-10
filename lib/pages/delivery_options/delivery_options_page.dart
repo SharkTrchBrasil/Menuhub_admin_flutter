@@ -33,16 +33,16 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
   DeliveryScope selected = DeliveryScope.neighborhood;
 
   late final AppEditController<void, DeliveryOptionsModel> controller =
-      AppEditController<void, DeliveryOptionsModel>(
-        id: widget.storeId,
-        fetch: (id) => storeRepository.getStoreDeliveryConfig(id),
-        save:
-            (pixConfig) => storeRepository.updateStoreDeliveryConfig(
-              widget.storeId,
-              pixConfig,
-            ),
-        empty: () => DeliveryOptionsModel(),
-      );
+  AppEditController<void, DeliveryOptionsModel>(
+    id: widget.storeId,
+    fetch: (id) => storeRepository.getStoreDeliveryConfig(id),
+    save:
+        (pixConfig) => storeRepository.updateStoreDeliveryConfig(
+      widget.storeId,
+      pixConfig,
+    ),
+    empty: () => DeliveryOptionsModel(),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -77,10 +77,10 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                 value: config.deliveryEnabled,
                                 onChanged:
                                     (v) => controller.onChanged(
-                                      config.copyWith(
-                                        deliveryEnabled: v ?? false,
-                                      ),
-                                    ),
+                                  config.copyWith(
+                                    deliveryEnabled: v ?? false,
+                                  ),
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -111,10 +111,10 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                 value: config.pickupEnabled,
                                 onChanged:
                                     (v) => controller.onChanged(
-                                      config.copyWith(
-                                        pickupEnabled: v ?? false,
-                                      ),
-                                    ),
+                                  config.copyWith(
+                                    pickupEnabled: v ?? false,
+                                  ),
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -145,8 +145,8 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                 value: config.tableEnabled,
                                 onChanged:
                                     (v) => controller.onChanged(
-                                      config.copyWith(tableEnabled: v ?? false),
-                                    ),
+                                  config.copyWith(tableEnabled: v ?? false),
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -186,8 +186,8 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                   // valor atual selecionado
                                   onChanged:
                                       (v) => controller.onChanged(
-                                        config.copyWith(deliveryScope: v),
-                                      ),
+                                    config.copyWith(deliveryScope: v),
+                                  ),
                                 ),
                               ),
 
@@ -201,8 +201,8 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                   groupValue: config.deliveryScope,
                                   onChanged:
                                       (v) => controller.onChanged(
-                                        config.copyWith(deliveryScope: v),
-                                      ),
+                                    config.copyWith(deliveryScope: v),
+                                  ),
                                 ),
                               ),
                             ],
@@ -218,16 +218,16 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
 
                           AppTextField(
                             initialValue:
-                                config.deliveryMinOrder?.toString() ?? '',
+                            config.deliveryMinOrder?.toString() ?? '',
                             title: 'Pedido mínimo (R\$)',
                             hint: 'Ex: 20.00',
                             onChanged:
                                 (v) => controller.onChanged(
-                                  config.copyWith(
-                                    deliveryMinOrder:
-                                        double.tryParse(v ?? '') ?? 0.0,
-                                  ),
-                                ),
+                              config.copyWith(
+                                deliveryMinOrder:
+                                double.tryParse(v ?? '') ?? 0.0,
+                              ),
+                            ),
                           ),
 
                           const SizedBox(height: 32),
@@ -257,32 +257,32 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                         Expanded(
                                           child: AppCounterFormField(
                                             initialValue:
-                                                config.deliveryEstimatedMin ?? 10,
+                                            config.deliveryEstimatedMin ?? 10,
                                             minValue: 1,
                                             maxValue: 60,
                                             title: 'Mínimo',
                                             onChanged:
                                                 (v) => controller.onChanged(
-                                                  config.copyWith(
-                                                    deliveryEstimatedMin: v,
-                                                  ),
-                                                ),
+                                              config.copyWith(
+                                                deliveryEstimatedMin: v,
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      //  const SizedBox(width: 30),
+                                        //  const SizedBox(width: 30),
                                         Expanded(
                                           child: AppCounterFormField(
                                             initialValue:
-                                                config.deliveryEstimatedMax ?? 30,
+                                            config.deliveryEstimatedMax ?? 30,
                                             minValue: 1,
                                             maxValue: 120,
                                             title: 'Máximo',
                                             onChanged:
                                                 (v) => controller.onChanged(
-                                                  config.copyWith(
-                                                    deliveryEstimatedMax: v,
-                                                  ),
-                                                ),
+                                              config.copyWith(
+                                                deliveryEstimatedMax: v,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -312,32 +312,32 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                         Expanded(
                                           child: AppCounterFormField(
                                             initialValue:
-                                                config.pickupEstimatedMin ?? 5,
+                                            config.pickupEstimatedMin ?? 5,
                                             minValue: 1,
                                             maxValue: 60,
                                             title: 'Mínimo',
                                             onChanged:
                                                 (v) => controller.onChanged(
-                                                  config.copyWith(
-                                                    pickupEstimatedMin: v,
-                                                  ),
-                                                ),
+                                              config.copyWith(
+                                                pickupEstimatedMin: v,
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      //  const SizedBox(width: 30),
+                                        //  const SizedBox(width: 30),
                                         Expanded(
                                           child: AppCounterFormField(
                                             initialValue:
-                                                config.pickupEstimatedMax ?? 15,
+                                            config.pickupEstimatedMax ?? 15,
                                             minValue: 1,
                                             maxValue: 120,
                                             title: 'Máximo',
                                             onChanged:
                                                 (v) => controller.onChanged(
-                                                  config.copyWith(
-                                                    pickupEstimatedMax: v,
-                                                  ),
-                                                ),
+                                              config.copyWith(
+                                                pickupEstimatedMax: v,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -368,22 +368,22 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                       title: 'Mínimo',
                                       onChanged:
                                           (v) => controller.onChanged(
-                                            config.copyWith(tableEstimatedMin: v),
-                                          ),
+                                        config.copyWith(tableEstimatedMin: v),
+                                      ),
                                     ),
                                   ),
-                           //       const SizedBox(width: 30),
+                                  //       const SizedBox(width: 30),
                                   Expanded(
                                     child: AppCounterFormField(
                                       initialValue:
-                                          config.tableEstimatedMax ?? 15,
+                                      config.tableEstimatedMax ?? 15,
                                       minValue: 1,
                                       maxValue: 120,
                                       title: 'Máximo',
                                       onChanged:
                                           (v) => controller.onChanged(
-                                            config.copyWith(tableEstimatedMax: v),
-                                          ),
+                                        config.copyWith(tableEstimatedMax: v),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -394,11 +394,11 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                 initialValue: config.tableInstructions ?? '',
                                 title: 'Instruções para mesas',
                                 hint:
-                                    'Ex: Escolha uma mesa disponível e aguarde atendimento',
+                                'Ex: Escolha uma mesa disponível e aguarde atendimento',
                                 onChanged:
                                     (v) => controller.onChanged(
-                                      config.copyWith(tableInstructions: v),
-                                    ),
+                                  config.copyWith(tableInstructions: v),
+                                ),
                               ),
                             ],
                           ),
@@ -468,16 +468,16 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                       value: config.deliveryEnabled,
                                       onChanged:
                                           (v) => controller.onChanged(
-                                            config.copyWith(
-                                              deliveryEnabled: v ?? false,
-                                            ),
-                                          ),
+                                        config.copyWith(
+                                          deliveryEnabled: v ?? false,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        CrossAxisAlignment.start,
                                         children: const [
                                           Text('Entrega'),
                                           SizedBox(height: 2),
@@ -503,16 +503,16 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                       value: config.pickupEnabled,
                                       onChanged:
                                           (v) => controller.onChanged(
-                                            config.copyWith(
-                                              pickupEnabled: v ?? false,
-                                            ),
-                                          ),
+                                        config.copyWith(
+                                          pickupEnabled: v ?? false,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        CrossAxisAlignment.start,
                                         children: const [
                                           Text('Retirada na loja'),
                                           SizedBox(height: 2),
@@ -538,16 +538,16 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                       value: config.tableEnabled,
                                       onChanged:
                                           (v) => controller.onChanged(
-                                            config.copyWith(
-                                              tableEnabled: v ?? false,
-                                            ),
-                                          ),
+                                        config.copyWith(
+                                          tableEnabled: v ?? false,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        CrossAxisAlignment.start,
                                         children: const [
                                           Text('Consumo no local'),
                                           SizedBox(height: 2),
@@ -591,8 +591,8 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                         // valor atual selecionado
                                         onChanged:
                                             (v) => controller.onChanged(
-                                              config.copyWith(deliveryScope: v),
-                                            ),
+                                          config.copyWith(deliveryScope: v),
+                                        ),
                                       ),
                                     ),
                                     SizedBox(width: 28),
@@ -606,8 +606,8 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                         groupValue: config.deliveryScope,
                                         onChanged:
                                             (v) => controller.onChanged(
-                                              config.copyWith(deliveryScope: v),
-                                            ),
+                                          config.copyWith(deliveryScope: v),
+                                        ),
                                       ),
                                     ),
                                     Spacer()
@@ -634,17 +634,17 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                   width: 200,
                                   child: AppTextField(
                                     initialValue:
-                                        config.deliveryMinOrder?.toString() ??
+                                    config.deliveryMinOrder?.toString() ??
                                         '',
                                     title: 'Pedido mínimo (R\$)',
                                     hint: 'Ex: 20.00',
                                     onChanged:
                                         (v) => controller.onChanged(
-                                          config.copyWith(
-                                            deliveryMinOrder:
-                                                double.tryParse(v ?? '') ?? 0.0,
-                                          ),
-                                        ),
+                                      config.copyWith(
+                                        deliveryMinOrder:
+                                        double.tryParse(v ?? '') ?? 0.0,
+                                      ),
+                                    ),
                                   ),
                                 ),
 
@@ -668,7 +668,7 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        CrossAxisAlignment.start,
                                         children: [
                                           const Text(
                                             'Entrega',
@@ -679,34 +679,34 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                             children: [
                                               AppCounterFormField(
                                                 initialValue:
-                                                    config
-                                                        .deliveryEstimatedMin ??
+                                                config
+                                                    .deliveryEstimatedMin ??
                                                     10,
                                                 minValue: 1,
                                                 maxValue: 60,
                                                 title: 'Mínimo',
                                                 onChanged:
                                                     (v) => controller.onChanged(
-                                                      config.copyWith(
-                                                        deliveryEstimatedMin: v,
-                                                      ),
-                                                    ),
+                                                  config.copyWith(
+                                                    deliveryEstimatedMin: v,
+                                                  ),
+                                                ),
                                               ),
                                               const SizedBox(width: 60),
                                               AppCounterFormField(
                                                 initialValue:
-                                                    config
-                                                        .deliveryEstimatedMax ??
+                                                config
+                                                    .deliveryEstimatedMax ??
                                                     30,
                                                 minValue: 1,
                                                 maxValue: 120,
                                                 title: 'Máximo',
                                                 onChanged:
                                                     (v) => controller.onChanged(
-                                                      config.copyWith(
-                                                        deliveryEstimatedMax: v,
-                                                      ),
-                                                    ),
+                                                  config.copyWith(
+                                                    deliveryEstimatedMax: v,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -727,7 +727,7 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        CrossAxisAlignment.start,
                                         children: [
                                           const Text(
                                             'Retirada na loja',
@@ -739,34 +739,34 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                               Expanded(
                                                 child: AppCounterFormField(
                                                   initialValue:
-                                                      config.pickupEstimatedMin ??
+                                                  config.pickupEstimatedMin ??
                                                       5,
                                                   minValue: 1,
                                                   maxValue: 60,
                                                   title: 'Mínimo',
                                                   onChanged:
                                                       (v) => controller.onChanged(
-                                                        config.copyWith(
-                                                          pickupEstimatedMin: v,
-                                                        ),
-                                                      ),
+                                                    config.copyWith(
+                                                      pickupEstimatedMin: v,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                               const SizedBox(width: 60),
                                               Expanded(
                                                 child: AppCounterFormField(
                                                   initialValue:
-                                                      config.pickupEstimatedMax ??
+                                                  config.pickupEstimatedMax ??
                                                       15,
                                                   minValue: 1,
                                                   maxValue: 120,
                                                   title: 'Máximo',
                                                   onChanged:
                                                       (v) => controller.onChanged(
-                                                        config.copyWith(
-                                                          pickupEstimatedMax: v,
-                                                        ),
-                                                      ),
+                                                    config.copyWith(
+                                                      pickupEstimatedMax: v,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                             ],
@@ -796,30 +796,30 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                       children: [
                                         AppCounterFormField(
                                           initialValue:
-                                              config.tableEstimatedMin ?? 5,
+                                          config.tableEstimatedMin ?? 5,
                                           minValue: 1,
                                           maxValue: 60,
                                           title: 'Mínimo',
                                           onChanged:
                                               (v) => controller.onChanged(
-                                                config.copyWith(
-                                                  tableEstimatedMin: v,
-                                                ),
-                                              ),
+                                            config.copyWith(
+                                              tableEstimatedMin: v,
+                                            ),
+                                          ),
                                         ),
                                         const SizedBox(width: 60),
                                         AppCounterFormField(
                                           initialValue:
-                                              config.tableEstimatedMax ?? 15,
+                                          config.tableEstimatedMax ?? 15,
                                           minValue: 1,
                                           maxValue: 120,
                                           title: 'Máximo',
                                           onChanged:
                                               (v) => controller.onChanged(
-                                                config.copyWith(
-                                                  tableEstimatedMax: v,
-                                                ),
-                                              ),
+                                            config.copyWith(
+                                              tableEstimatedMax: v,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -837,16 +837,16 @@ class _DeliveryOptionsPageState extends State<DeliveryOptionsPage> {
                                       width: 300,
                                       child: AppTextField(
                                         initialValue:
-                                            config.tableInstructions ?? '',
+                                        config.tableInstructions ?? '',
                                         title: 'Instruções para mesas',
                                         hint:
-                                            'Ex: Escolha uma mesa disponível e aguarde atendimento',
+                                        'Ex: Escolha uma mesa disponível e aguarde atendimento',
                                         onChanged:
                                             (v) => controller.onChanged(
-                                              config.copyWith(
-                                                tableInstructions: v,
-                                              ),
-                                            ),
+                                          config.copyWith(
+                                            tableInstructions: v,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ],

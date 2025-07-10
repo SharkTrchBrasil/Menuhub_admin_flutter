@@ -41,7 +41,8 @@ class _AppBarCustomState extends State<AppBarCustom> {
     return AppBar(
       scrolledUnderElevation: 0.0,
       title: Text(widget.title),
-      leading: (isMobile || widget.showLeadingButton) ? const BackButton() : null,
+      centerTitle: true,
+      leading: (isMobile && widget.showLeadingButton) ? const BackButton() : null,
       elevation: 0,
       actions: widget.actions,
     );

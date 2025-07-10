@@ -1,7 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../models/store.dart';
+import '../cubits/store_manager_cubit.dart';
+import '../cubits/store_manager_state.dart';
 import '../models/store_with_role.dart';
+
+class StoreSelectorWidget extends StatelessWidget {
+  const StoreSelectorWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<StoresManagerCubit, StoresManagerState>(
+      builder: (context, state) {
+        final List<StoreWithRole> stores = (state is StoresManagerLoaded)
+            ? List<StoreWithRole>.from(state.stores.values)
+            : [];
+
+        final selectedStoreId = (state is StoresManagerLoaded)
+            ? state.activeStoreId ?? (stores.isNotEmpty ? stores.first.store.id : null)
+            : null;
+
+        if (stores.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return StorePopupMenu(
+          stores: stores,
+          selectedStoreId: selectedStoreId,
+          onStoreSelected: (id) {
+            context.read<StoresManagerCubit>().setActiveStore(id);
+          },
+          onAddStore: () {
+            // Navegar para tela de adicionar loja
+          },
+        );
+      },
+    );
+  }
+}
 
 class StorePopupMenu extends StatelessWidget {
   final List<StoreWithRole> stores;
@@ -29,7 +65,6 @@ class StorePopupMenu extends StatelessWidget {
       tooltip: '',
       offset: const Offset(0, 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-
       child: Row(
         children: [
           CircleAvatar(
@@ -38,12 +73,11 @@ class StorePopupMenu extends StatelessWidget {
                 ? NetworkImage(selectedStore.store.image!.url!)
                 : const AssetImage('assets/images/avatar.png') as ImageProvider,
           ),
-
           const SizedBox(width: 10),
           Text(
             selectedStore.store.name,
             style: Theme.of(context).textTheme.labelLarge,
-                    ),
+          ),
           Icon(Icons.arrow_drop_down, size: 15, color: Theme.of(context).iconTheme.color),
           const SizedBox(width: 10),
         ],
@@ -60,30 +94,27 @@ class StorePopupMenu extends StatelessWidget {
           PopupMenuItem<int>(
             value: s.store.id,
             child: ListTile(
-              leading:  CircleAvatar(
+              leading: CircleAvatar(
                 radius: 12,
-                backgroundImage: (selectedStore.store.image?.url != null && selectedStore.store.image!.url!.isNotEmpty)
-                    ? NetworkImage(selectedStore.store.image!.url!)
+                backgroundImage: (s.store.image?.url != null && s.store.image!.url!.isNotEmpty)
+                    ? NetworkImage(s.store.image!.url!)
                     : const AssetImage('assets/images/avatar.png') as ImageProvider,
               ),
-
               title: Text(
                 s.store.name,
                 style: Theme.of(context).textTheme.labelLarge,
                 overflow: TextOverflow.ellipsis,
-
               ),
-
             ),
           ),
         const PopupMenuDivider(),
         PopupMenuItem<int>(
           value: -1,
           child: Row(
-            children:  [
-              Icon(Icons.add, size: 18, color: Theme.of(context).iconTheme.color,),
-              SizedBox(width: 8),
-              Text('Adicionar loja',  style: Theme.of(context).textTheme.labelLarge),
+            children: [
+              Icon(Icons.add, size: 18, color: Theme.of(context).iconTheme.color),
+              const SizedBox(width: 8),
+              Text('Adicionar loja', style: Theme.of(context).textTheme.labelLarge),
             ],
           ),
         ),

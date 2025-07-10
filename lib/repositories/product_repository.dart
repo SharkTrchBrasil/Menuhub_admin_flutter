@@ -1,9 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
+
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/variant.dart';
 
+import '../models/category.dart';
+import '../models/minimal_product.dart';
 import '../models/product_availability.dart';
 import '../models/variant_option.dart';
 
@@ -193,4 +196,75 @@ class ProductRepository {
       return const Left(null);
     }
   }
+
+  Future<Either<void, void>> deleteVariant(int storeId, int variantId) async {
+    try {
+      await _dio.delete('/stores/$storeId/variants/$variantId');
+      return const Right(null);
+    } catch (e) {
+      debugPrint('Error deleteVariant: $e');
+      return const Left(null);
+    }
+  }
+  Future<Either<void, void>> deleteVariantOption(
+      int storeId,
+      int variantId,
+      int optionId,
+      ) async {
+    try {
+      await _dio.delete('/stores/$storeId/variants/$variantId/options/$optionId');
+      return const Right(null);
+    } catch (e) {
+      debugPrint('Error deleteVariantOption: $e');
+      return const Left(null);
+    }
+  }
+  Future<List<int>> getSelectedVariants(int storeId, int productId) async {
+    final response = await _dio.get('/stores/$storeId/products/$productId/variants');
+    return List<int>.from(response.data);
+  }
+
+  Future<void> saveVariantsForProduct(int storeId, int productId, List<int> variantIds) async {
+    await _dio.post('/stores/$storeId/products/$productId/variants', data: {
+      'variant_ids': variantIds,
+    });
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Future<Either<void, List<MinimalProduct>>> getMinimalProducts(int storeId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/products/minimal');
+      return Right((response.data as List)
+          .map((e) => MinimalProduct.fromJson(e))
+          .toList());
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
+
+  Future<List<int>> getProductsLinkedToVariant(int storeId, int variantId) async {
+    try {
+      final response = await _dio.get(
+          '/stores/$storeId/products/variants/$variantId/products');
+      return List<int>.from(response.data);
+    } catch (e) {
+      debugPrint('Erro em getProductsLinkedToVariant: $e');
+      return [];
+    }
+  }
+
+
 }

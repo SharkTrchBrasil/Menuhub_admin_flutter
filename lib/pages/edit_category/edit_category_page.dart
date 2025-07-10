@@ -69,22 +69,22 @@ class _EditCategoryPageState extends State<EditCategoryPage> {
                                     spacing: 24,
                                     runSpacing: 24,
                                     children: [
-                                      AppImageFormField(
-                                        initialValue: category.image,
-                                        title: 'Imagem',
-                                        aspectRatio: 1,
-                                        validator: (image) {
-                                          if (image == null) {
-                                            return 'Selecione uma imagem';
-                                          }
-                                          return null;
-                                        },
-                                        onChanged: (image) {
-                                          controller.onChanged(
-                                            category.copyWith(image: image),
-                                          );
-                                        },
-                                      ),
+                                      // AppImageFormField(
+                                      //   initialValue: category.image,
+                                      //   title: 'Imagem',
+                                      //   aspectRatio: 1,
+                                      //   validator: (image) {
+                                      //     if (image == null) {
+                                      //       return 'Selecione uma imagem';
+                                      //     }
+                                      //     return null;
+                                      //   },
+                                      //   onChanged: (image) {
+                                      //     controller.onChanged(
+                                      //       category.copyWith(image: image),
+                                      //     );
+                                      //   },
+                                      // ),
                                       SizedBox(
                                         width: 200,
                                         child: AppTextField(

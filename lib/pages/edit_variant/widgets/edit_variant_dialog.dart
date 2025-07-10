@@ -150,18 +150,23 @@ class _EditVariantDialogState extends State<EditVariantDialog> {
                                   ),
                                 ),
 
+
+                              ],
+                            ),
+                            Row(
+                              children: [
                                 Flexible(
                                   child: AppSwitchFormField(
                                     title: 'Pode repetir?',
                                     initialValue: variant.repeatable,
                                     onChanged:
                                         (value) => controller.onChanged(
-                                          variant.copyWith(repeatable: value),
-                                        ),
+                                      variant.copyWith(repeatable: value),
+                                    ),
                                     validator: (value) {
                                       final variant =
                                           (controller.status
-                                                  as PageStatusSuccess<Variant>)
+                                          as PageStatusSuccess<Variant>)
                                               .data;
 
                                       if (value != null &&
@@ -175,7 +180,6 @@ class _EditVariantDialogState extends State<EditVariantDialog> {
                                 ),
                               ],
                             ),
-
                             SizedBox(height: 40),
                           ],
                         ),

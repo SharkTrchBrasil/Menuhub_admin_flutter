@@ -45,7 +45,7 @@ class BaseDialog extends StatelessWidget {
         vertical: 12,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-     // titlePadding: const EdgeInsets.only(top: 16, left: 16, right: 8),
+      // titlePadding: const EdgeInsets.only(top: 16, left: 16, right: 8),
       actionsPadding: const EdgeInsets.only(
         top: 0,
         left: 8,

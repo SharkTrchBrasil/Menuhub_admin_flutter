@@ -125,7 +125,7 @@ class _HomePageState extends State<HomePage> {
       )
           : null,
 
-     // mobileAppBar:   navHelper.shouldShowAppBarCode(currentUrl) ? appber( storeId: widget.storeId, ) : null,
+      // mobileAppBar:   navHelper.shouldShowAppBarCode(currentUrl) ? appber( storeId: widget.storeId, ) : null,
 
 
 
@@ -133,8 +133,8 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-  
-  
+
+
 
 
 

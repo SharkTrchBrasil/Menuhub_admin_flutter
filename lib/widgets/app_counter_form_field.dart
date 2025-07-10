@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 
 class AppCounterFormField extends StatelessWidget {
-  const AppCounterFormField({super.key, required this.title, this.validator, required this.minValue, required this.maxValue, required this.initialValue, required this.onChanged});
+  const AppCounterFormField({
+    super.key,
+    required this.title,
+    this.validator,
+    required this.minValue,
+    required this.maxValue,
+    required this.initialValue,
+    required this.onChanged,
+  });
 
   final int initialValue;
   final String title;
@@ -21,18 +29,25 @@ class AppCounterFormField extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, overflow: TextOverflow.ellipsis),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  onPressed: state.value! > minValue ? () async {
+                  onPressed: state.value! > minValue
+                      ? () {
                     onChanged(state.value! - 1);
                     state.didChange(state.value! - 1);
-                  } : null,
+                  }
+                      : null,
+                  icon: const Icon(Icons.remove),
                   color: Colors.blue,
-                  icon: Icon(Icons.remove),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -42,12 +57,14 @@ class AppCounterFormField extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: state.value! < maxValue ? () async {
+                  onPressed: state.value! < maxValue
+                      ? () {
                     onChanged(state.value! + 1);
                     state.didChange(state.value! + 1);
-                  } : null,
+                  }
+                      : null,
+                  icon: const Icon(Icons.add),
                   color: Colors.blue,
-                  icon: Icon(Icons.add),
                 ),
               ],
             ),

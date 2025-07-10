@@ -12,6 +12,7 @@ import '../models/cash_session.dart';
 import '../models/cash_transaction.dart';
 import '../models/full_store_data_model.dart';
 import '../models/store_city.dart';
+import '../models/store_customer.dart';
 import '../models/store_hour.dart';
 import '../models/store_neig.dart';
 import '../models/store_payable.dart';
@@ -290,6 +291,24 @@ class StoreRepository {
       return const Left(null);
     }
   }
+
+
+  Future<Either<void, List<StoreCustomer>>> getStoreCustomers(int storeId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/customers');
+      final list = (response.data as List<dynamic>)
+          .map((e) => StoreCustomer.fromJson(e))
+          .toList();
+      return Right(list);
+    } catch (e) {
+      debugPrint('Error getStoreCustomers: $e');
+      return const Left(null);
+    }
+  }
+
+
+
+
 
 
   ///#### ///////

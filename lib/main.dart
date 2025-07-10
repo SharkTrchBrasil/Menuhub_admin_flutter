@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 //import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
@@ -8,9 +10,12 @@ import 'package:provider/provider.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:bot_toast/bot_toast.dart';
+
 import 'package:totem_pro_admin/repositories/chatbot_repository.dart';
+import 'package:totem_pro_admin/repositories/realtime_repository.dart';
+import 'package:totem_pro_admin/repositories/store_repository.dart';
 
-
+import 'constdata/colorprovider.dart';
 import 'core/chatbot_config_provider.dart';
 import 'core/di.dart';
 import 'core/menu_app_controller.dart';
@@ -18,15 +23,15 @@ import 'core/router.dart';
 import 'core/store_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
+import 'cubits/store_manager_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  await dotenv.load(fileName: 'assets/env'); // carrega o env
 
   if (kIsWeb) {
- // usePathUrlStrategy();
+    // usePathUrlStrategy();
   }
-
 
   configureDependencies();
 
@@ -46,15 +51,23 @@ void main() async {
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
 
           ChangeNotifierProvider(
-            create: (_) => ChatBotConfigController(getIt<ChatBotConfigRepository>()),
-
+            create:
+                (_) =>
+                    ChatBotConfigController(getIt<ChatBotConfigRepository>()),
           ),
 
-       //   ChangeNotifierProvider(create: (_) =>  StoreProvider()),
-
-
+          //   ChangeNotifierProvider(create: (_) =>  StoreProvider()),
           ChangeNotifierProvider(create: (_) => DrawerControllerProvider()),
 
+          ChangeNotifierProvider(create: (context) => ColorNotifire()),
+
+          BlocProvider<StoresManagerCubit>(
+            create:
+                (_) => StoresManagerCubit(
+                  storeRepository: getIt<StoreRepository>(),
+                    realtimeRepository: getIt<RealtimeRepository>()
+                ), // ou com injeção de dependência
+          ),
         ],
         child: const MyApp(),
       ),
@@ -68,6 +81,7 @@ class MyCustomScrollBehavior extends ScrollBehavior {
     return const BouncingScrollPhysics();
   }
 }
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -78,7 +92,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'PDVix - Admin',
 
-      scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+      scrollBehavior: ScrollConfiguration.of(
+        context,
+      ).copyWith(scrollbars: false),
       debugShowCheckedModeBanner: false,
       builder: BotToastInit(),
       theme: AppTheme.lightTheme,
@@ -91,7 +107,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 
 class CleanScrollBehavior extends ScrollBehavior {
   @override

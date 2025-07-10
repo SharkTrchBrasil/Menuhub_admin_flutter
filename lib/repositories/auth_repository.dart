@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,11 +10,77 @@ import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/token_interceptor.dart';
 import 'package:totem_pro_admin/models/auth_tokens.dart';
 import 'package:totem_pro_admin/models/user.dart';
+import 'package:totem_pro_admin/repositories/store_repository.dart';
+import 'package:uuid/uuid.dart';
 
-enum SignInError { invalidCredentials, inactiveAccount, emailNotVerified, unknown }
-enum CodeError { unknown, userNotFound, alreadyVerified, invalidCode }
+import '../models/totem_auth.dart';
+
+enum SignInError {
+  invalidCredentials,   // Credenciais incorretas
+  inactiveAccount,      // Conta desativada
+  emailNotVerified,     // E-mail não verificado
+  noStoresAvailable,    // Nenhuma loja disponível (novo)
+  notLoggedIn,          // Usuário não está logado (novo)
+  networkError,         // Problema de conexão (novo)
+  serverError,          // Erro no servidor (novo)
+  unauthorized,         // Acesso não autorizado (novo)
+  sessionExpired,       // Sessão expirada (novo)
+  unknown               // Erro desconhecido
+}
+
+enum StoreCreationError {
+  creationFailed,
+  connectionFailed,
+  unknown;
+
+  String get message {
+    switch (this) {
+      case StoreCreationError.creationFailed:
+        return 'Falha ao criar a loja';
+      case StoreCreationError.connectionFailed:
+        return 'Falha ao conectar com a loja';
+      case StoreCreationError.unknown:
+        return 'Erro desconhecido';
+    }
+  }
+}
+
+  enum CodeError { unknown, userNotFound, alreadyVerified, invalidCode }
 enum ResendError { unknown, userNotFound, resendError }
-enum SignUpError { userAlreadyExists, unknown }
+
+
+enum SignUpError {
+  userAlreadyExists,    // Email já cadastrado
+  invalidData,         // Dados inválidos
+  weakPassword,        // Senha fraca
+  networkError,        // Problema de conexão
+  emailNotSent,        // Falha no envio do email de verificação
+  unknown;             // Erro desconhecido
+
+  String get message {
+    switch (this) {
+      case SignUpError.userAlreadyExists:
+        return 'user_already_exists'.tr();
+      case SignUpError.invalidData:
+        return 'invalid_data'.tr();
+      case SignUpError.weakPassword:
+        return 'weak_password'.tr();
+      case SignUpError.networkError:
+        return 'network_error'.tr();
+      case SignUpError.emailNotSent:
+        return 'verification_email_not_sent'.tr();
+      case SignUpError.unknown:
+        return 'failed_to_create_account'.tr();
+    }
+  }
+}
+
+
+
+
+
+
+
 
 class SecureStorageKeys {
   static const refreshToken = 'refreshToken';
@@ -50,6 +119,10 @@ class AuthRepository {
 
     return true;
   }
+
+
+
+
 
   Future<Either<SignInError, void>> signIn({
     required String email,
@@ -255,4 +328,67 @@ class AuthRepository {
     _user = null;
     _secureStorage.delete(key: SecureStorageKeys.refreshToken);
   }
+
+
+
+  Future<Either<void, TotemAuth>> checkToken() async {
+    try {
+      final token = await getTotemToken();
+      if (token.isEmpty) {
+        return Left(null);
+      }
+
+      final response = await _dio.post(
+        '/auth/check-token',
+        data: {'totem_token': token},
+      );
+
+      return Right(TotemAuth.fromJson(response.data));
+    } catch (e) {
+      print('Error in checkToken: $e');
+      return Left(null);
+    }
+  }
+
+
+  Future<Either<void, TotemAuth>> getToken(String storeSlug) async {
+    try {
+      final response = await _dio.post(
+        '/auth/subdomain',
+
+        data: {
+          'store_url': storeSlug,
+          'totem_token': await getTotemToken(),
+        },
+      );
+
+
+      final TotemAuth totemAuth = TotemAuth.fromJson(response.data);
+
+      await _secureStorage.write(key: 'totem_token', value: totemAuth.token);
+
+      return Right(totemAuth);
+    } catch (e) {
+      print('Erro ao buscar token do subdomínio: $e');
+      return Left(null);
+    }
+  }
+
+
+
+
+  Future<String> getTotemToken() async {
+
+    String? token = await _secureStorage.read(key: 'totem_token');
+    if (token != null && token.isNotEmpty) return token;
+
+    token = const Uuid().v4();
+    await _secureStorage.write(key: 'totem_token', value: token);
+    return token;
+  }
+
+
+
+
+
 }

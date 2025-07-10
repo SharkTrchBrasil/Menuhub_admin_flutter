@@ -132,3 +132,21 @@ class AppTableColumnImage<T> extends AppTableColumn<T> {
     );
   }
 }
+
+class AppTableColumnDateTime<T> extends AppTableColumn<T> {
+  AppTableColumnDateTime({
+    required super.title,
+    required this.dataSelector,
+    super.width,
+  });
+
+  final DateTime Function(T) dataSelector;
+
+  @override
+  Widget builder(T item) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Text(DateFormat('dd/MM/yyyy HH:mm').format(dataSelector(item))),
+    );
+  }
+}

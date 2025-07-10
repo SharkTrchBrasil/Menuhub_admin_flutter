@@ -62,13 +62,25 @@ class AppTheme {
       shadowColor: Colors.transparent,
     ),
 
+
+    tabBarTheme: TabBarThemeData(
+      splashFactory: NoSplash.splashFactory,
+      overlayColor: MaterialStateProperty.all(Colors.transparent), // Remove efeito de clique
+      mouseCursor: MaterialStateProperty.all(MouseCursor.defer), // Remove mudança de cursor
+      indicatorColor: primaryColor,
+      labelColor: primaryColor,
+      unselectedLabelColor: Colors.grey,
+      dividerColor: Colors.transparent,
+    ),
+
+
     drawerTheme: const DrawerThemeData(
       backgroundColor: Color(0xFF060e19), // mais escuro que scaffold (personalizado)
       surfaceTintColor: Color(0xFF060e19),
       shadowColor: Colors.transparent,
     ),
 
-    cardTheme: const CardTheme(
+    cardTheme:  CardThemeData(
       color: Color(0xFF060e19), // levemente mais claro que drawer
       elevation: 0,
       shadowColor: Colors.transparent,
@@ -167,8 +179,16 @@ class AppTheme {
       foregroundColor: Colors.black,
     ),
 
+    tabBarTheme: TabBarThemeData(
+      splashFactory: NoSplash.splashFactory,
+      indicatorColor: primaryColor,
+      labelColor: primaryColor,
+      unselectedLabelColor: Colors.grey,
+      dividerColor: Colors.transparent,
+    ),
 
-    cardTheme: CardTheme(
+
+    cardTheme: CardThemeData(
       color: const Color(0xffFFFFFF),
       elevation: 1,
       shape: RoundedRectangleBorder(

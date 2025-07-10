@@ -81,31 +81,31 @@ class _EditCategoryFormState extends State<EditCategoryForm> {
                         children: [
 
 
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 160,
-
-                                child: AppImageFormField(
-                                  initialValue: category.image,
-                                  title: '',
-                                  aspectRatio: 1,
-                                  validator: (image) {
-                                    if (image == null) {
-                                      return 'Selecione uma imagem';
-                                    }
-                                    return null;
-                                  },
-                                  onChanged: (image) {
-                                    controller.onChanged(
-                                      category.copyWith(image: image),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
+                          // Row(
+                          //   mainAxisAlignment: MainAxisAlignment.center,
+                          //   children: [
+                          //     SizedBox(
+                          //       width: 160,
+                          //
+                          //       child: AppImageFormField(
+                          //         initialValue: category.image,
+                          //         title: '',
+                          //         aspectRatio: 1,
+                          //         validator: (image) {
+                          //           if (image == null) {
+                          //             return 'Selecione uma imagem';
+                          //           }
+                          //           return null;
+                          //         },
+                          //         onChanged: (image) {
+                          //           controller.onChanged(
+                          //             category.copyWith(image: image),
+                          //           );
+                          //         },
+                          //       ),
+                          //     ),
+                          //   ],
+                          // ),
 
 
                           const SizedBox(height: 25),

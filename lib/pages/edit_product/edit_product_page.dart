@@ -1654,10 +1654,10 @@ class _EditProductPageState extends State<EditProductPage> {
       children: [
         const Row(children: []),
 
-        AppImageFormField(
+        AppProductImageFormField(
           initialValue: product.image,
           title: 'Imagem',
-          aspectRatio: 1,
+
           validator: (image) {
             if (image == null) {
               return 'Selecione uma imagem';

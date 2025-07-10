@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-
-
-
 import '../ConstData/typography.dart';
 
 class AppTextField extends StatefulWidget {
@@ -18,12 +15,11 @@ class AppTextField extends StatefulWidget {
     this.isHidden = false,
     this.icon,
     this.formatters,
-
     this.keyboardType,
     this.controller,
     this.readOnly = false,
     this.enabled = true,
-
+    this.suffix,
   });
 
   final String title;
@@ -35,11 +31,10 @@ class AppTextField extends StatefulWidget {
   final String? icon;
   final List<TextInputFormatter>? formatters;
   final TextEditingController? controller;
-
   final TextInputType? keyboardType;
   final bool readOnly;
   final bool enabled;
-
+  final Widget? suffix;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -50,62 +45,73 @@ class _AppTextFieldState extends State<AppTextField> {
 
   @override
   Widget build(BuildContext context) {
-
+    final borderRadius = BorderRadius.circular(12);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           widget.title,
-        overflow: TextOverflow.ellipsis,
-       style: Theme.of(context).textTheme.bodyMedium,
+          overflow: TextOverflow.ellipsis,
+          style: Typographyy.bodySmallMedium.copyWith(
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         TextFormField(
+
+          style: TextStyle(
+            color: Theme.of(context).textTheme.displayLarge?.color, // Cor do texto digitado
+            fontSize: 16, // Tamanho opcional
+          ),
+
           readOnly: widget.readOnly,
           enabled: widget.enabled,
-
-
           controller: widget.controller,
           obscureText: obscure,
           validator: widget.validator,
           initialValue: widget.initialValue,
           onChanged: widget.onChanged,
           keyboardType: widget.keyboardType,
-
           inputFormatters: widget.formatters,
+          cursorColor: const Color(0xFFF39C12), // laranja
 
-          cursorColor: Colors.blue, // 🔹 Cursor azul
-          style: Typographyy.bodyLargeMedium.copyWith(
-           // color: notifire.getWhitAndBlack,
-          ),
           decoration: InputDecoration(
+            filled: true,
+
             hintText: widget.hint,
-            hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
-isDense: true,
-            isCollapsed: true, // 🔥 Remove padding interno extra
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            hintStyle: Theme.of(context).inputDecorationTheme.hintStyle?.copyWith(
+              color: Colors.grey.shade500,
+            ),
 
-
-
-
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            border: OutlineInputBorder(
+              borderRadius: borderRadius,
+              borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: borderRadius,
+              borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+            ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(4),
-              borderSide: const BorderSide(color: Colors.blue, width: 1),
+              borderRadius: borderRadius,
+              borderSide: const BorderSide(color: Color(0xFFF39C12), width: 1), // laranja
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: const BorderSide(color: Colors.red, width: 1),
+              borderRadius: borderRadius,
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: const BorderSide(color: Colors.red, width: 2),
+              borderRadius: borderRadius,
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
+
             suffixIcon: widget.isHidden
                 ? IconButton(
               icon: Icon(
                 obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-               // color: notifire.getGry600_500Color,
+                color: Colors.grey.shade600,
               ),
               onPressed: () {
                 setState(() {
@@ -113,17 +119,23 @@ isDense: true,
                 });
               },
             )
-                : widget.icon != null
-                ? Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: SvgPicture.asset(
-                widget.icon!,
-                width: 24,
-                height: 24,
-              //  color: greyscale600,
-              ),
-            )
-                : null,
+                : widget.suffix ??
+                (widget.icon != null
+                    ? Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: SvgPicture.asset(
+                    widget.icon!,
+                    width: 24,
+                    height: 24,
+                    colorFilter: ColorFilter.mode(
+                      Colors.grey.shade600,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                )
+                    : null),
+            // sombra leve da caixa
+            // Flutter InputDecoration não tem sombra, então aplicamos na caixa externa
           ),
         ),
       ],

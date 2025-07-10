@@ -202,6 +202,14 @@ class _EditVariantPageState extends State<EditVariantPage> {
                                       ),
                                     ),
 
+
+
+
+
+                                  ],
+                                ),
+                                Row(
+                                  children: [
                                     Flexible(
                                       child: AppSwitchFormField(
                                         title: 'Pode repetir?',
@@ -219,7 +227,7 @@ class _EditVariantPageState extends State<EditVariantPage> {
                                                   Variant
                                               >)
                                                   .data;
-
+                                    
                                           if (value != null &&
                                               value &&
                                               variant.maxQuantity == 1) {
@@ -229,10 +237,6 @@ class _EditVariantPageState extends State<EditVariantPage> {
                                         },
                                       ),
                                     ),
-
-
-
-
                                   ],
                                 ),
 

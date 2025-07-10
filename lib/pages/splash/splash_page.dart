@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/repositories/auth_repository.dart';
-import 'package:totem_pro_admin/repositories/store_repository.dart';
+import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
+import 'package:totem_pro_admin/services/auth_service.dart';
 import 'package:totem_pro_admin/widgets/app_logo.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
 
-import '../../core/responsive_builder.dart';
-import '../../core/store_provider.dart';
-import '../../models/store_with_role.dart';
+import '../../repositories/auth_repository.dart';
+import '../../repositories/store_repository.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key, required this.redirectTo});
@@ -23,77 +20,77 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(width: 20),
-                SizedBox(
-                    height: 30,
-                    width: 30,
-                    child: Image(
-                      image: AssetImage('assets/images/Symbol123.png'),
-                      fit: BoxFit.fill,
-                    )),
-                SizedBox(width: 10),
-                Text('PDVix',
-                    style: TextStyle(
-                        fontFamily: 'Jost-SemiBold',
-                        fontSize: 30,
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  late final AuthService _authService;
+  late final SplashPageCubit _cubit;
 
   @override
   void initState() {
     super.initState();
+    _authService = getIt<AuthService>();
+    _cubit = getIt<SplashPageCubit>();
+    _initializeApp();
+  }
+  Future<void> _initializeApp() async {
+    final authService = getIt<AuthService>();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      initialize();
-    });
+    final result = await authService.initializeApp();
+
+    if (!mounted) return;
+
+    result.fold(
+          (error) => _handleAuthError(error),
+          (totemAuth) async {
+        // Busca as lojas novamente para garantir consistência
+        final storesResult = await getIt<StoreRepository>().getStores();
+
+        if (!mounted) return;
+
+        storesResult.fold(
+              (_) => showError('Não foi possível buscar suas lojas.'),
+              (stores) {
+            if (stores.isNotEmpty) {
+              context.go(widget.redirectTo ?? '/stores/${stores.first.store.id}/orders');
+            } else {
+              context.go('/stores/new');
+            }
+          },
+        );
+      },
+    );
   }
 
 
-  Future<void> initialize() async {
-    final AuthRepository authRepository = getIt();
-    final StoreRepository storeRepository = getIt();
-    final isLoggedIn = await authRepository.initialize();
-    getIt.registerSingleton(true, instanceName: 'isInitialized');
-
-    if(!isLoggedIn) {
-      if(mounted) context.go('/sign-in');
-      return;
-    }
-
-    final getStoresResult = await storeRepository.getStores();
-    if(getStoresResult.isLeft) {
-      showError('Não foi possível buscar suas lojas.');
-      return;
-    } else {
-      final stores = getStoresResult.right;
-
-      if(!mounted) return;
-
-      if(stores.isNotEmpty) {
-        context.go(widget.redirectTo ?? '/stores/${stores.first.store.id}/orders');
-      } else {
+  void _handleAuthError(SignInError error) {
+    switch (error) {
+      case SignInError.notLoggedIn:
+      case SignInError.invalidCredentials:
+      case SignInError.sessionExpired:
+        context.go('/sign-in');
+        break;
+      case SignInError.inactiveAccount:
+        showError('Conta inativa. Entre em contato com o suporte.');
+        break;
+      case SignInError.noStoresAvailable:
         context.go('/stores/new');
-      }
+        break;
+      case SignInError.networkError:
+        showError('Sem conexão com a internet. Tente novamente.');
+        break;
+      case SignInError.emailNotVerified:
+        context.go('/verify-email');
+        break;
+      default:
+        showError('Erro inesperado. Tente novamente.');
+        context.go('/sign-in');
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: AppLogo(size: 50),
+      ),
+    );
   }
 }

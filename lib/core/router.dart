@@ -1,5 +1,7 @@
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
@@ -21,6 +23,7 @@ import 'package:totem_pro_admin/pages/sign_up/sign_up_page.dart';
 import 'package:totem_pro_admin/pages/splash/splash_page.dart';
 
 
+import '../cubits/store_manager_cubit.dart';
 import '../pages/accesses/accesses_page.dart';
 
 import '../pages/banners/banners_page.dart';
@@ -42,13 +45,18 @@ import '../pages/integrations/integrations_page.dart';
 import '../pages/inventory/inventory_page.dart';
 import '../pages/kds/kds_page.dart';
 import '../pages/not_found/error_505_Page.dart';
+
+import '../pages/orders/order_page_cubit.dart';
 import '../pages/orders/orders_page.dart';
 
+import '../pages/orders/store_settings.dart';
 import '../pages/payables/payables_page.dart';
 import '../pages/reports/reports_page.dart';
+import '../pages/splash/splash_page_cubit.dart';
 import '../pages/totems/totems_page.dart';
 import '../pages/variants/variants_page.dart';
 import '../pages/verify_code/verify_code_page.dart';
+import '../repositories/realtime_repository.dart';
 import '../repositories/store_repository.dart';
 
 import 'guards/store_owner_guard.dart';
@@ -86,10 +94,16 @@ final router = GoRouter(
       ),
 
   routes: [
+
     GoRoute(
       path: '/splash',
       builder: (_, state) {
-        return SplashPage(redirectTo: state.uri.queryParameters['redirectTo']);
+        return BlocProvider(
+          create: (_) => SplashPageCubit(),
+          child: SplashPage(
+            redirectTo: state.uri.queryParameters['redirectTo'],
+          ),
+        );
       },
       redirect: (context, state) {
         final isInitialized = getIt.isRegistered<bool>(
@@ -101,6 +115,8 @@ final router = GoRouter(
         return null;
       },
     ),
+
+
     GoRoute(
       path: '/sign-in',
       redirect: (_, state) {
@@ -129,7 +145,7 @@ final router = GoRouter(
       },
     ),
 
-    GoRoute(path: '/', builder: (context, state) => const Sales()),
+
 
     GoRoute(
       path: '/verify-code',
@@ -171,6 +187,7 @@ final router = GoRouter(
           },
           routes: [
             StatefulShellRoute.indexedStack(
+
               builder: (context, state, shell) {
                 return HomePage(shell: shell, storeId: state.storeId);
               },
@@ -231,12 +248,90 @@ final router = GoRouter(
                   ],
                 ),
 
-                // PEDIDOS
+
                 StatefulShellBranch(
                   routes: [
-                    GoRoute(path: '/orders', builder: (_, __) => Sales()),
+                    GoRoute(
+                      path: '/orders',
+                      pageBuilder: (_, state) {
+                        final storeId = state.extra as int? ?? state.storeId;
+
+                        return NoTransitionPage(
+                          child: BlocProvider<OrderCubit>(
+                            create: (context) => OrderCubit(
+                              // <--- Agora você passa os parâmetros nomeados corretamente para o construtor do OrderCubit
+                              realtimeRepository: GetIt.I<RealtimeRepository>(),
+                              storesManagerCubit: context.read<StoresManagerCubit>(), // <--- Pegamos o StoresManagerCubit do contexto!
+                            ),
+                            // Remova o storeId da OrdersPage, pois ele será gerenciado internamente pelo OrderCubit
+                            child: OrdersPage(), // <--- Não passe storeId aqui!
+                          ),
+                        );
+                      },
+
+                    ),
+
+
+
+
+
+                    GoRoute(
+                      path: 'store-settings',
+                      pageBuilder: (context, state) {
+                        final storeId = int.tryParse(state.pathParameters['storeId'] ?? '') ?? 0;
+
+                        return CustomTransitionPage(
+                          barrierDismissible: true,
+                          barrierColor: Colors.transparent,
+                          opaque: false,
+                          maintainState: true,
+                          transitionDuration: const Duration(milliseconds: 300),
+                          transitionsBuilder: (context, animation, _, child) {
+                            final offsetAnimation = Tween<Offset>(
+                              begin: const Offset(1.0, 0.0),
+                              end: Offset.zero,
+                            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+                            return SlideTransition(position: offsetAnimation, child: child);
+                          },
+                          child: StoreSettingsSidePanel(storeId: storeId),
+                        );
+                      },
+                    ),
+
+
+
                   ],
                 ),
+
+                // StatefulShellBranch(
+                //   routes: [
+                //     GoRoute(
+                //       path: '/orders',
+                //       pageBuilder: (context, state) => NoTransitionPage(
+                //         key: UniqueKey(),
+                //         child: BlocProvider(
+                //           create: (_) => OrderCubit(GetIt.I<RealtimeRepository>()),
+                //           child: OrdersPage(storeId: state.storeId),
+                //         ),
+                //       ),
+                //       routes: [
+                //         GoRoute(
+                //           path: ':id',
+                //           pageBuilder: (context, state) => NoTransitionPage(
+                //             key: UniqueKey(),
+                //             child: BlocProvider.value(
+                //               value: context.read<OrderCubit>(),
+                //               child: OrderDetailsPage(
+                //                 storeId: state.storeId,
+                //             //    id: state.pathParameters['id']!, // ou state.id se tiver extensão
+                //               ),
+                //             ),
+                //           ),
+                //         ),
+                //       ],
+                //     ),
+                //   ],
+                // ),
 
                 // PRODUTOS
 
@@ -555,7 +650,7 @@ final router = GoRouter(
                       pageBuilder:
                           (_, state) => NoTransitionPage(
                             key: UniqueKey(),
-                            child: EditSettingsPage(storeId: state.storeId),
+                            child: Settings(storeId: state.storeId),
                           ),
                       routes: [
                         // === HORÁRIOS DE ATENDIMENTO ===
