@@ -13,6 +13,8 @@ import 'package:totem_pro_admin/pages/orders/widgets/mobileorderlist.dart';
 
 import '../../core/responsive_builder.dart';
 
+import '../../cubits/store_manager_cubit.dart';
+import '../../cubits/store_manager_state.dart';
 import '../../widgets/mobileappbar.dart';
 import '../base/BasePage.dart';
 
@@ -79,8 +81,30 @@ class _OrdersPageState extends State<OrdersPage>
 
   @override
   Widget build(BuildContext context) {
+    final storeState = context.watch<StoresManagerCubit>().state;
+
+    if (storeState is! StoresManagerLoaded || storeState.activeStoreId == null) {
+      print('Estado da loja não está carregado ainda');
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final activeStoreId = storeState.activeStoreId!;
+    final storeName = storeState.stores[activeStoreId]?.store.name ?? 'Sem nome';
+    print('Loja ativa ID: $activeStoreId');
+    print('Loja ativa nome: $storeName');
+
+
+
     return BlocBuilder<OrderCubit, OrderState>(
+
       builder: (BuildContext context, state) {
+
+
+
+
+
+
+
         if (state.status == OrderStatus.loading) {
           return const Center(child: CircularProgressIndicator());
         }

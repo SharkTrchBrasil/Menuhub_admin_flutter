@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/di.dart';
+import '../cubits/store_manager_cubit.dart';
 import '../models/store.dart';
 import '../models/store_with_role.dart';
 import '../models/totem_auth.dart';
@@ -63,16 +64,24 @@ class AuthService {
     // 2. Busca as lojas do usuário
     final storesResult = await _storeRepository.getStores();
 
-    return storesResult.fold(
+    return await storesResult.fold(
           (_) => Left(SignInError.unknown),
           (stores) async {
         if (stores.isEmpty) return Left(SignInError.noStoresAvailable);
 
         // 3. Conecta ao socket da primeira loja
-        return await _connectToSocket(stores.first.store.store_url!);
+        final connectionResult = await _connectToSocket(stores.first.store.store_url!);
+
+        if (connectionResult.isLeft) return Left(connectionResult.left);
+
+        // 4. INICIALIZA o StoresManagerCubit com as lojas
+        getIt<StoresManagerCubit>().initialize(); // 👈 ESSENCIAL
+
+        return Right(connectionResult.right);
       },
     );
   }
+
 
 
   Future<Either<SignUpError, void>> signUp({

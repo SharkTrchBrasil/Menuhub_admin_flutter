@@ -80,9 +80,10 @@ class OrderDetails {
       orderStatus: json['order_status'] as String,
       totemId: json['totem_id'] as int?, // <- permite null
       paymentMethodId: json['payment_method_id'] as int,
-      products: (json['products'] as List)
-          .map((product) => OrderProduct.fromJson(product))
+      products: (json['products'] as List<dynamic>)
+          .map((product) => OrderProduct.fromJson(product as Map<String, dynamic>))
           .toList(),
+
       deliveryFee: json['delivery_fee'] as int?, // <- permite null
     );
   }

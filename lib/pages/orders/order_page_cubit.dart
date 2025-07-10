@@ -32,19 +32,24 @@ class OrderCubit extends Cubit<OrderState> {
   void _initialize() {
     // 1. Inicie a escuta ao StoresManagerCubit
     _storeManagerSubscription = _storesManagerCubit.stream.listen((state) {
+
+      print('[OrderCubit] Estado do StoresManagerCubit mudou: $state');
+
       if (state is StoresManagerLoaded) {
-        // Se a loja ativa mudou E não é nula...
+
+        print('[OrderCubit] StoresManagerLoaded - activeStoreId: ${state.activeStoreId}, currentStoreId: $_currentStoreId');
         if (state.activeStoreId != _currentStoreId && state.activeStoreId != null) {
+          print('[OrderCubit] Loja ativa diferente! Mudando para: ${state.activeStoreId}');
           _currentStoreId = state.activeStoreId;
           startListeningToStore(_currentStoreId!); // Chame seu método existente
         } else if (state.activeStoreId == null) {
-          // Se não há loja ativa, limpe os pedidos
+          print('[OrderCubit] Nenhuma loja ativa. Limpando pedidos.');
           _ordersSubscription?.cancel();
           _currentStoreId = null;
           emit(this.state.copyWith(orders: [], status: OrderStatus.success)); // Ou OrderStatus.empty
         }
       } else if (state is StoresManagerEmpty) {
-        // Se não há lojas, limpa tudo
+        print('[OrderCubit] StoresManagerEmpty. Limpando tudo.');
         _ordersSubscription?.cancel();
         _currentStoreId = null;
         emit(this.state.copyWith(orders: [], status: OrderStatus.success)); // Ou OrderStatus.empty
@@ -58,6 +63,17 @@ class OrderCubit extends Cubit<OrderState> {
       _currentStoreId = initialStoreState.activeStoreId;
       startListeningToStore(_currentStoreId!);
     }
+
+
+
+
+
+
+
+
+
+
+
   }
 
 

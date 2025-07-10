@@ -252,25 +252,32 @@ final router = GoRouter(
                 StatefulShellBranch(
                   routes: [
                     GoRoute(
-                      path: '/orders',
+                      path: 'orders', // <--- ADICIONE O PARÂMETRO DINÂMICO
                       pageBuilder: (_, state) {
-                        final storeId = state.extra as int? ?? state.storeId;
+                        // EXTRAIA O storeId da URL
+                        final storeIdString = state.pathParameters['storeId'];
+                        final int? storeId = int.tryParse(storeIdString ?? '');
 
+                        // Você pode querer lidar com o caso de storeId ser nulo ou inválido aqui,
+                        // talvez redirecionando para uma página de erro ou uma loja padrão.
+                        if (storeId == null) {
+                          // Exemplo de redirecionamento ou página de erro
+                          return const NoTransitionPage(child: Text('Erro: ID da loja na URL é inválido.'));
+                        }
+
+                        // O OrderCubit ainda pegará o activeStoreId do StoresManagerCubit,
+                        // mas a URL estará correta e o GoRouter entenderá a navegação por loja.
                         return NoTransitionPage(
                           child: BlocProvider<OrderCubit>(
                             create: (context) => OrderCubit(
-                              // <--- Agora você passa os parâmetros nomeados corretamente para o construtor do OrderCubit
                               realtimeRepository: GetIt.I<RealtimeRepository>(),
-                              storesManagerCubit: context.read<StoresManagerCubit>(), // <--- Pegamos o StoresManagerCubit do contexto!
+                              storesManagerCubit: context.read<StoresManagerCubit>(),
                             ),
-                            // Remova o storeId da OrdersPage, pois ele será gerenciado internamente pelo OrderCubit
-                            child: OrdersPage(), // <--- Não passe storeId aqui!
+                            child: OrdersPage(),
                           ),
                         );
                       },
-
                     ),
-
 
 
 

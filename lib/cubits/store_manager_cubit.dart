@@ -39,56 +39,49 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-
-
   Future<void> _initialize() async {
     emit(const StoresManagerLoading());
 
     try {
-      // 1. Inicialize 'stores' com uma lista vazia para garantir que não seja nula
-      List<StoreWithRole> stores = []; // <-- MUDANÇA AQUI: inicializa como lista vazia
+      List<StoreWithRole> stores = []; // Inicializa como lista vazia
 
       final storesResult = await _storeRepository.getStores();
 
       await storesResult.fold(
             (failure) {
-          print('Erro ao carregar lojas: "mostra failure aqui');
+          print('Erro ao carregar lojas: ');
           emit(StoresManagerError(message: 'Falha ao carregar lojas.'));
-          // IMPORTANTE: Se você der um 'return;' aqui, a lógica subsequente pode não fazer sentido
-          // se 'stores' for uma lista vazia e você continuar.
-          // Para este caso, faz sentido porque 'stores.isEmpty' será verdadeiro.
+          return; // Interrompe a execução para não continuar com lista vazia
         },
             (data) {
-          stores = data; // Atribui a lista de lojas em caso de sucesso
+          stores = data;
         },
       );
 
-      // Agora, 'stores' nunca será nula aqui.
-      // Ela será a lista carregada ou uma lista vazia se a chamada falhar ou retornar vazio.
-      if (stores.isEmpty) { // A verificação continua válida
+      if (stores.isEmpty) {
         emit(const StoresManagerEmpty());
         return;
       }
 
-      // 4. Atualização do cache e conexão
+      // Atualiza cache e define loja ativa
       _updateStoresCache(stores);
       _activeStoreId ??= stores.first.store.id;
 
-      // 5. Conexão prioritária para a loja ativa
       if (_activeStoreId != null) {
         _realtimeRepository.joinStoreRoom(_activeStoreId!);
         _subscribeToStore(_activeStoreId!, priority: true);
       }
 
-      // 6. Conexão para outras lojas em batches
-      _connectToStoresInBatches(
-        stores
-            .map((s) => s.store.id!)
-            .where((id) => id != _activeStoreId)
-            .toList(),
-      );
+      // Conecta outras lojas, se existirem
+      final otherStoreIds = stores
+          .map((s) => s.store.id!)
+          .where((id) => id != _activeStoreId)
+          .toList();
 
-      // 7. Emitir estado atualizado
+      if (otherStoreIds.isNotEmpty) {
+        _connectToStoresInBatches(otherStoreIds);
+      }
+
       emit(
         StoresManagerLoaded(
           stores: Map<int, StoreWithRole>.from(_storesCache),
@@ -100,8 +93,8 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       print('Erro na inicialização: $e\n$stackTrace');
       emit(
         StoresManagerError(
-          message:
-          'Falha ao inicializar: ${e is SocketException ? 'Problema de conexão' : e.toString()}',
+          message: 'Falha ao inicializar: '
+              '${e is SocketException ? 'Problema de conexão' : e.toString()}',
         ),
       );
 
@@ -115,40 +108,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-
-  // Novo método para adicionar/atualizar pedidos iniciais de uma loja
-  void _handleOrdersInitial(int storeId, List<OrderDetails> orders) {
-    _ordersCache[storeId] = orders;
-    _emitUpdatedState(); // Reemita o estado para atualizar a UI
-  }
-
-  // Novo método para lidar com atualizações de pedidos (novo pedido, status, etc.)
-  void _handleOrderUpdate(int storeId, OrderDetails updatedOrder) {
-    // Encontra a lista de pedidos da loja
-    final currentOrders = _ordersCache[storeId] ?? [];
-
-    // Tenta encontrar o pedido existente para atualizar
-    final index = currentOrders.indexWhere((order) => order.id == updatedOrder.id);
-
-    if (index != -1) {
-      // Atualiza o pedido existente
-      currentOrders[index] = updatedOrder;
-    } else {
-      // Adiciona o novo pedido (se não existir)
-      currentOrders.add(updatedOrder);
-    }
-    _ordersCache[storeId] = currentOrders; // Atualiza o cache
-    _emitUpdatedState(); // Reemita o estado para atualizar a UI
-  }
-
-
-
-
-
-
-
-  // Método auxiliar para atualizar o cache
-  void _updateStoresCache(List<StoreWithRole> stores) {
+    void _updateStoresCache(List<StoreWithRole> stores) {
     _storesCache.clear();
     _storesCache.addAll({for (var s in stores) s.store.id!: s});
   }
@@ -175,11 +135,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
+// No seu StoresManagerCubit
+
   void _subscribeToStore(int storeId, {bool priority = false}) {
-    // Verificação inicial
+    // 1. Verificação de existência e limites (mantida a mesma)
     if (_storeSubscriptions.containsKey(storeId)) return;
 
-    // Verificação de limite de conexões simultâneas
     if (_storeSubscriptions.length >= _maxSimultaneousConnections) {
       if (priority) {
         final nonPriorityId = _storeSubscriptions.keys.firstWhere(
@@ -198,44 +159,50 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     print('[StoreManagerCubit] Iniciando conexão com loja $storeId');
 
-    // try {
-    //
-    //   _realtimeRepository.joinStoreRoom(storeId); // Não é mais nullable, use direto
-    //
-    //
-    //   final sub = _realtimeRepository
-    //       .listenToStore(storeId)
-    //       .listen(
-    //         (store) => _handleStoreUpdate(storeId, store),
-    //     onError: (e) => _handleStoreError(storeId, e),
-    //     onDone: () {
-    //       _storeSubscriptions.remove(storeId);
-    //       _processPendingSubscriptions();
-    //     },
-    //   );
-    //
-    //   _storeSubscriptions[storeId] = sub;
-    // } catch (e, s) {
-    //   print('[StoreManagerCubit] Erro ao tentar assinar loja $storeId: $e');
-    //   print(s);
-    // }
-    //
-    //
+    // **** NOVA ORDEM: Primeiro, entre na sala para garantir que o stream exista ****
+    // Esta chamada irá garantir que os BehaviorSubjects para esta storeId sejam criados
+    // dentro do RealtimeRepository (graças ao putIfAbsent).
+    _realtimeRepository.joinStoreRoom(storeId);
+
+    // **** AGORA SIM, você pode se inscrever ao stream com segurança ****
+    final subscription = _realtimeRepository.listenToStore(storeId).listen(
+          (storeWithRole) {
+        print('[StoresManagerCubit] Recebeu atualização para loja $storeId: ${storeWithRole.store.name}');
+        _handleStoreUpdate(storeId, storeWithRole);
+      },
+      onError: (error) {
+        print('[StoresManagerCubit] ERRO na assinatura da loja $storeId: $error');
+        _handleStoreError(storeId, error);
+      },
+      onDone: () {
+        print('[StoresManagerCubit] Assinatura da loja $storeId concluída.');
+        _storeSubscriptions.remove(storeId);
+        _processPendingSubscriptions();
+      },
+    );
+
+    _storeSubscriptions[storeId] = subscription;
+
+    // Se a loja que está sendo inscrita é a loja ativa, emita o estado atualizado imediatamente.
+    if (storeId == _activeStoreId) {
+      _emitUpdatedState();
+    }
+  }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+  void _handleStoreUpdate(int id, StoreWithRole store) {
+    _storesCache[id] = store;
+    if (id == _activeStoreId) {
+      _emitUpdatedState();
+    } else {
+      // Use debounce para lojas não ativas para evitar muitas reconstruções
+      _debounceTimer?.cancel();
+      _debounceTimer = Timer(
+        const Duration(milliseconds: 500),
+        _emitUpdatedState,
+      );
+    }
   }
 
 
@@ -243,9 +210,13 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-
-
-
+  StoreWithRole? getStore(int storeId) {
+    if (state is StoresManagerLoaded) {
+      final loadedState = state as StoresManagerLoaded;
+      return loadedState.stores[storeId];
+    }
+    return null;
+  }
 
 
 
@@ -254,18 +225,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     await _initialize(); // Apenas renomeie ou exponha o método atual
   }
 
-  void _handleStoreUpdate(int id, StoreWithRole store) {
-    _storesCache[id] = store;
-    if (id == _activeStoreId) {
-      _emitUpdatedState();
-    } else {
-      _debounceTimer?.cancel();
-      _debounceTimer = Timer(
-        const Duration(milliseconds: 500),
-        _emitUpdatedState,
-      );
-    }
-  }
+
 
   void _handleStoreError(int id, dynamic e) {
     print('[Socket] Erro na loja $id: $e');
@@ -302,36 +262,53 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
   StoreWithRole? getActiveStore() => _storesCache[_activeStoreId ?? -1];
 
+  // No seu StoresManagerCubit
   void setActiveStore(int storeId) {
-    print('[DEBUG] Tentando ativar loja: $storeId');
+    print('[StoresManagerCubit] setActiveStore chamado para ID: $storeId');
 
-    if (!_storesCache.containsKey(storeId) || _activeStoreId == storeId) {
-      return; // Evita processamento desnecessário
+    if (!_storesCache.containsKey(storeId)) {
+      print('[StoresManagerCubit] Erro: Loja $storeId não encontrada no cache.');
+      return; // Loja não existe no cache, não faz sentido ativá-la
     }
 
-    // Sai da sala antiga
+    if (_activeStoreId == storeId) {
+      print('[StoresManagerCubit] Loja $storeId já é a loja ativa. Nenhuma mudança necessária.');
+      return; // Já é a loja ativa, evite processamento desnecessário
+    }
+
+    // Se chegamos aqui, a loja existe e é diferente da ativa atual
+    print('[StoresManagerCubit] Mudando de loja ativa de $_activeStoreId para $storeId');
+
+    // 1. Sair da sala da loja antiga
     if (_activeStoreId != null) {
-      _realtimeRepository?.leaveStoreRoom(_activeStoreId!);
-      _storeSubscriptions[_activeStoreId!]?.pause(); // Pausa em vez de cancelar
+      print('[StoresManagerCubit] Saindo da sala da loja antiga: $_activeStoreId');
+      _realtimeRepository.leaveStoreRoom(_activeStoreId!); // Use .leaveStoreRoom
+      _storeSubscriptions[_activeStoreId!]?.pause(); // Pausa a assinatura, não cancela
     }
 
+    // 2. Atualizar o ID da loja ativa
     _activeStoreId = storeId;
+    print('[StoresManagerCubit] Novo _activeStoreId interno: $_activeStoreId');
 
-    // Entra na nova sala
-    _realtimeRepository?.joinStoreRoom(storeId);
 
-    // Resume ou cria a subscription
+    // 3. Entrar na sala da nova loja e retomar/criar assinatura
+    print('[StoresManagerCubit] Entrando na sala da nova loja: $_activeStoreId');
+    _realtimeRepository.joinStoreRoom(_activeStoreId!); // Use .joinStoreRoom
+
     if (_storeSubscriptions.containsKey(storeId)) {
+      print('[StoresManagerCubit] Retomando assinatura para loja: $storeId');
       _storeSubscriptions[storeId]?.resume();
     } else {
+      print('[StoresManagerCubit] Criando nova assinatura para loja: $storeId (prioridade: true)');
       _subscribeToStore(storeId, priority: true);
     }
 
+    // 4. Emitir o novo estado para notificar os listeners (OrderCubit, UI)
     _emitUpdatedState();
+    print('[StoresManagerCubit] _emitUpdatedState() chamado após setActiveStore.');
 
-    print('[DEBUG] Loja ativada com sucesso: $storeId');
+    print('[StoresManagerCubit] Loja ativada com sucesso: $storeId');
   }
-
   void addStore(StoreWithRole newStore) {
     final id = newStore.store.id!;
     if (_storesCache.containsKey(id)) return;
@@ -384,6 +361,30 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       emit(StoresManagerError(message: 'Falha ao atualizar: ${e.toString()}'));
     }
   }
+
+
+
+
+
+  StoreWithRole? getStoreById(int storeId) {
+    return _storesCache[storeId];
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   @override
   Future<void> close() async {

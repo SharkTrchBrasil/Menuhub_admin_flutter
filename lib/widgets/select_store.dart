@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
@@ -7,7 +8,6 @@ import '../models/store_with_role.dart';
 
 class StoreSelectorWidget extends StatelessWidget {
   const StoreSelectorWidget({super.key});
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
@@ -16,22 +16,30 @@ class StoreSelectorWidget extends StatelessWidget {
             ? List<StoreWithRole>.from(state.stores.values)
             : [];
 
-        final selectedStoreId = (state is StoresManagerLoaded)
-            ? state.activeStoreId ?? (stores.isNotEmpty ? stores.first.store.id : null)
-            : null;
+        final selectedStoreId = (state is StoresManagerLoaded) ? state.activeStoreId : null;
 
-        if (stores.isEmpty) {
+        if (stores.isEmpty || selectedStoreId == null) {
           return const SizedBox.shrink();
         }
 
         return StorePopupMenu(
           stores: stores,
           selectedStoreId: selectedStoreId,
+          // ✅ Este onStoreSelected é o que o StorePopupMenu vai chamar.
+          // Coloque a lógica do GoRouter AQUI.
           onStoreSelected: (id) {
+            // Primeiro, chame o setActiveStore no Cubit
             context.read<StoresManagerCubit>().setActiveStore(id);
+
+            // Depois, navegue com o GoRouter
+            GoRouter.of(context).go('/stores/$id/orders');
+            print('[GoRouter Navigation] Navegando para /stores/$id/orders');
           },
           onAddStore: () {
             // Navegar para tela de adicionar loja
+            // Você pode adicionar a navegação do GoRouter aqui também, se necessário
+            GoRouter.of(context).go('/stores/new');
+            print('[GoRouter Navigation] Navegando para /stores/new');
           },
         );
       },

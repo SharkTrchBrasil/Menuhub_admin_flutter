@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:bot_toast/bot_toast.dart';
+import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
 
 import 'package:totem_pro_admin/repositories/chatbot_repository.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
@@ -62,11 +63,17 @@ void main() async {
           ChangeNotifierProvider(create: (context) => ColorNotifire()),
 
           BlocProvider<StoresManagerCubit>(
-            create:
-                (_) => StoresManagerCubit(
-                  storeRepository: getIt<StoreRepository>(),
-                    realtimeRepository: getIt<RealtimeRepository>()
-                ), // ou com injeção de dependência
+            create: (_) => StoresManagerCubit(
+              storeRepository: getIt<StoreRepository>(),
+              realtimeRepository: getIt<RealtimeRepository>(),
+            )..initialize(), // <-- ESSENCIAL
+          ),
+
+          BlocProvider<OrderCubit>( // <--- ESTE AQUI
+            create: (context) => OrderCubit(
+              realtimeRepository: RealtimeRepository(), // Substitua pelo seu RealtimeRepository real
+              storesManagerCubit: context.read<StoresManagerCubit>(), // <--- ESTA LINHA É CRÍTICA
+            ),
           ),
         ],
         child: const MyApp(),
