@@ -10,24 +10,30 @@ import '../cubits/store_manager_state.dart'; // Importe seu StoresManagerState (
 
 import '../models/product.dart';
 import '../models/store_with_role.dart';
+import '../pages/orders/utils/order_helpers.dart';
 
 class RealtimeRepository {
   late Socket _socket;
 
+  late final StoresManagerCubit _storesManagerCubit;
 
-  late final StoresManagerCubit _storesManagerCubit; // Usamos late final para atribuir depois
-
-  // NOVO: Stream para pedidos iniciais (lista completa de pedidos)
   final Map<int, BehaviorSubject<List<OrderDetails>>> _ordersInitialStreams = {};
-  // NOVO: Stream para atualizações de pedidos (um único pedido atualizado)
   final Map<int, BehaviorSubject<OrderDetails>> _orderUpdateStreams = {};
 
+  // NOVO: Stream para atualizações da lista de lojas consolidadas do backend
+  // Removido '.broadcast()' do construtor BehaviorSubject
+  final _consolidatedStoresUpdatedController = BehaviorSubject<List<int>>(); // <--- CORRIGIDO AQUI
+  Stream<List<int>> get onConsolidatedStoresUpdated => _consolidatedStoresUpdatedController.stream;
+
+
+  // Você precisará de um BehaviorSubject ou StreamController para a lista completa de lojas do admin
+  // Removido '.broadcast()' do construtor BehaviorSubject
+  final _adminStoresListController = BehaviorSubject<List<StoreWithRole>>(); // <--- CORRIGIDO AQUI
+  Stream<List<StoreWithRole>> get onAdminStoresList => _adminStoresListController.stream;
 
   final Map<int, BehaviorSubject<StoreWithRole>> _storeStreams = {};
   final Map<int, BehaviorSubject<List<Product>>> _productsStreams = {};
   final Map<int, BehaviorSubject<List<OrderDetails>>> _ordersStreams = {};
-
-
   RealtimeRepository();
 
   void initialize(String adminToken) {
@@ -43,19 +49,28 @@ class RealtimeRepository {
           .build(),
     );
 
-    // Debug: Log todos os eventos recebidos
-    _socket.onAny((event, data) {
-      print('[SOCKET] Evento recebido: $event');
-      // Evite imprimir ping/pong para não poluir o log
-      if (event != 'ping' && event != 'pong') {
-        print('[SOCKET] Dados: $data');
+    _socket.on('consolidated_stores_updated', (data) {
+      if (data is Map && data.containsKey('store_ids') && data['store_ids'] is List) {
+        _consolidatedStoresUpdatedController.add(List<int>.from(data['store_ids']));
       }
     });
+
+    // NOVO: Escuta para 'admin_stores_list' ao conectar
+    _socket.on('admin_stores_list', (data) {
+      if (data is Map && data.containsKey('stores') && data['stores'] is List) {
+        final List<StoreWithRole> stores = (data['stores'] as List)
+            .map((s) => StoreWithRole.fromJson(s)) // Adapte se precisar de um StoreSummarySchema
+            .toList();
+        _adminStoresListController.add(stores); // Você precisará criar este BehaviorSubject
+      }
+    });
+
 
     // ✅ O seu bloco de código atualizado para 'store_full_updated'
     _socket.on('store_full_updated', (data) {
       try {
-        print('[DEBUG] store_full_updated data: $data');
+        //   print('[DEBUG] store_full_updated data: $data');
+
         if (data == null) {
           throw Exception('Dados nulos recebidos para store_full_updated');
         }
@@ -109,7 +124,7 @@ class RealtimeRepository {
 
     _socket.on('products_updated', (data) {
       try {
-        print('[DEBUG] products_updated data: $data');
+        //    print('[DEBUG] products_updated data: $data');
         final productsRaw = (data is List) ? data : [];
         final products = productsRaw
             .whereType<Map<String, dynamic>>()
@@ -134,7 +149,7 @@ class RealtimeRepository {
 
     _socket.on('orders_initial', (data) {
       try {
-        print('[DEBUG] orders_initial data: $data');
+           print('[DEBUG] orders_initial data: $data');
         if (data is Map<String, dynamic> && data.containsKey('store_id') &&
             data.containsKey('orders')) {
           final int storeId = data['store_id'] as int;
@@ -145,14 +160,13 @@ class RealtimeRepository {
               .map((e) => OrderDetails.fromJson(e))
               .toList();
 
+          // Ensure the stream exists before adding data
+          _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject<List<OrderDetails>>());
           _ordersStreams[storeId]?.add(orders);
 
           _ordersInitialStreams.putIfAbsent(storeId, () => BehaviorSubject<List<OrderDetails>>());
           _ordersInitialStreams[storeId]?.add(orders); // Adiciona a lista inicial
-          print('[DEBUG] orders_initial data: $data');
-
-
-
+          //  print('[DEBUG] orders_initial data: $data');
 
         } else {
           print(
@@ -165,41 +179,61 @@ class RealtimeRepository {
 
     _socket.on('order_updated', (data) {
       try {
-        print('[DEBUG] order_updated data: $data');
+        print('[DEBUG] Raw order_updated data type: ${data.runtimeType}');
+        print('[DEBUG] Raw order_updated data: $data');
 
-        final orderData = _convertToOrderMap(data);
+        final Map<String, dynamic> orderData = data as Map<String, dynamic>;
         final updatedOrder = OrderDetails.fromJson(orderData);
         final storeId = updatedOrder.storeId;
 
         final ordersSubject = _ordersStreams[storeId];
+
         if (ordersSubject != null && !ordersSubject.isClosed) {
-          final currentOrders = List<OrderDetails>.from(
-              ordersSubject.valueOrNull ?? []);
-          final index = currentOrders.indexWhere((o) =>
-          o.id == updatedOrder.id);
+
+          final List<dynamic> rawList = ordersSubject.valueOrNull ?? [];
+
+          final List<OrderDetails> currentOrders = rawList
+              .map((item) {
+            if (item is OrderDetails) return item;
+            if (item is Map<String, dynamic>) return OrderDetails.fromJson(item);
+            throw Exception('Tipo inválido encontrado: ${item.runtimeType}');
+          })
+              .toList();
 
 
+          final List<OrderDetails> newOrdersList = List.from(currentOrders);
 
-
-
+          final index = newOrdersList.indexWhere((o) => o.id == updatedOrder.id);
           if (index != -1) {
-            currentOrders[index] = updatedOrder;
-            print('[DEBUG] Pedido ${updatedOrder
-                .id} atualizado na lista da loja $storeId.');
+            newOrdersList[index] = updatedOrder;
+            print('[DEBUG] Pedido ${updatedOrder.id} atualizado na lista da loja $storeId.');
           } else {
-            currentOrders.insert(0, updatedOrder);
-            print('[DEBUG] Novo pedido ${updatedOrder
-                .id} adicionado à lista da loja $storeId.');
+            newOrdersList.insert(0, updatedOrder);
+
+
+
+            showNewOrderNotification(updatedOrder.publicId, updatedOrder.storeId);
+
+            print('[DEBUG] Novo pedido ${updatedOrder.id} adicionado à lista da loja $storeId.');
           }
-          ordersSubject.add(currentOrders);
+
+          ordersSubject.add(newOrdersList);
+
+          final OrderDetails? loggedOrder = newOrdersList.firstWhere(
+                (element) => element.id == updatedOrder.id,
+            orElse: () => updatedOrder,
+          );
+          print('[DEBUG] Dados do pedido convertido: ${loggedOrder?.toJson()}');
+
         } else {
-          print(
-              '[DEBUG] order_updated: Stream de pedidos para loja $storeId não encontrado ou fechado.');
+          print('[DEBUG] order_updated: Stream de pedidos para a loja $storeId não encontrado ou fechado.');
         }
       } catch (e, stack) {
         print('[ERRO] order_updated: $e\n$stack');
       }
     });
+
+
 
     _socket.onConnect((_) => print('[Socket] ✅ Conectado'));
     _socket.onDisconnect((_) => print('[Socket] 🔌 Desconectado'));
@@ -236,8 +270,8 @@ class RealtimeRepository {
       return Left(null);
     }
   }
-
   Future<Either<String, Map<String, dynamic>>> updateStoreSettings({
+    required int storeId, // <--- adiciona como parâmetro obrigatório
     bool? isDeliveryActive,
     bool? isTakeoutActive,
     bool? isTableServiceActive,
@@ -247,17 +281,16 @@ class RealtimeRepository {
   }) async {
     try {
       final data = <String, dynamic>{
+        'store_id': storeId, // <--- adiciona aqui
         if (isDeliveryActive != null) 'is_delivery_active': isDeliveryActive,
         if (isTakeoutActive != null) 'is_takeout_active': isTakeoutActive,
-        if (isTableServiceActive !=
-            null) 'is_table_service_active': isTableServiceActive,
+        if (isTableServiceActive != null) 'is_table_service_active': isTableServiceActive,
         if (isStoreOpen != null) 'is_store_open': isStoreOpen,
         if (autoAcceptOrders != null) 'auto_accept_orders': autoAcceptOrders,
         if (autoPrintOrders != null) 'auto_print_orders': autoPrintOrders,
       };
 
-      final result = await _socket.emitWithAckAsync(
-          'update_store_settings', data);
+      final result = await _socket.emitWithAckAsync('update_store_settings', data);
 
       if (result['error'] != null) return Left(result['error'] as String);
       return Right(result as Map<String, dynamic>);
@@ -283,14 +316,20 @@ class RealtimeRepository {
   }
 
   Stream<StoreWithRole> listenToStore(int storeId) {
+    // Adicione uma verificação de segurança caso o stream não exista
+    _storeStreams.putIfAbsent(storeId, () => BehaviorSubject<StoreWithRole>());
     return _storeStreams[storeId]!.stream;
   }
 
   Stream<List<Product>> listenToProducts(int storeId) {
+    // Adicione uma verificação de segurança caso o stream não exista
+    _productsStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Product>>());
     return _productsStreams[storeId]!.stream;
   }
 
   Stream<List<OrderDetails>> listenToOrders(int storeId) {
+    // Adicione uma verificação de segurança caso o stream não exista
+    _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject<List<OrderDetails>>());
     return _ordersStreams[storeId]!.stream;
   }
 
@@ -306,24 +345,68 @@ class RealtimeRepository {
     _socket.emit('join_store_room', {'store_id': storeId});
   }
 
+
+
+
+  // NOVO: Evento para definir lojas consolidadas
+  Future<Either<String, Map<String, dynamic>>> setConsolidatedStores(List<int> storeIds) async {
+    Completer<Either<String, Map<String, dynamic>>> completer = Completer();
+
+    void ack(dynamic data) {
+      if (data is Map && data.containsKey('error')) {
+        completer.complete(Left(data['error'] as String));
+      } else {
+        completer.complete(Right(data as Map<String, dynamic>));
+      }
+    }
+    _socket.emitWithAck('set_consolidated_stores', {'store_ids': storeIds}, ack: ack);
+    return completer.future;
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   void dispose() {
     // Limpe os maps após fechar os streams
     _storeStreams.forEach((_, stream) => stream.close());
     _productsStreams.forEach((_, stream) => stream.close());
     _ordersStreams.forEach((_, stream) => stream.close());
+    _ordersInitialStreams.forEach((_, stream) => stream.close()); // Dispose the new stream
+    _orderUpdateStreams.forEach((_, stream) => stream.close()); // Dispose the new stream
+
     _storeStreams.clear();
     _productsStreams.clear();
     _ordersStreams.clear();
-    for (var c in _storeStreams.values)
-      c.close();
-    for (var c in _productsStreams.values)
-      c.close();
-    for (var c in _ordersStreams.values)
-      c.close();
+    _ordersInitialStreams.clear();
+    _orderUpdateStreams.clear();
+
     _socket.disconnect();
     _socket.dispose();
     print('[Socket] RealtimeRepository disposto. Socket desconectado.');
   }
-
-
 }
+
+
+
+

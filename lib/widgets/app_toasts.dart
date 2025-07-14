@@ -2,12 +2,14 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 
+import 'dot_loading.dart';
+
 Function showLoading() {
   // Exibe o loading e bloqueia a tela
   final cancelLoading = BotToast.showCustomLoading(
     toastBuilder: (_) {
       return Center(
-        child: CircularProgressIndicator(), // Indicador de loading circular
+        child:     const DotLoading(color: Colors.red, size: 12), // Indicador de loading circular
       );
     },
     clickClose: false, // Impede qualquer interação enquanto o loading está visível

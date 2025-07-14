@@ -60,8 +60,11 @@ import '../repositories/realtime_repository.dart';
 import '../repositories/store_repository.dart';
 
 import 'guards/store_owner_guard.dart';
+final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
+
 
 final router = GoRouter(
+  navigatorKey: globalNavigatorKey, // passa aqui, no GoRouter
   initialLocation: '/splash',
   debugLogDiagnostics: true,
   redirectLimit: 10,

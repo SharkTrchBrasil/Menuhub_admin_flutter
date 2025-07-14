@@ -25,19 +25,16 @@ class StoreSelectorWidget extends StatelessWidget {
         return StorePopupMenu(
           stores: stores,
           selectedStoreId: selectedStoreId,
-          // ✅ Este onStoreSelected é o que o StorePopupMenu vai chamar.
-          // Coloque a lógica do GoRouter AQUI.
-          onStoreSelected: (id) {
-            // Primeiro, chame o setActiveStore no Cubit
-            context.read<StoresManagerCubit>().setActiveStore(id);
 
-            // Depois, navegue com o GoRouter
-            GoRouter.of(context).go('/stores/$id/orders');
-            print('[GoRouter Navigation] Navegando para /stores/$id/orders');
+          onStoreSelected: (id) {
+
+            context.read<StoresManagerCubit>().setActiveStore(id);
+            // Atualiza a URL com o novo ID da loja
+            context.go('/orders/$id');
+
           },
           onAddStore: () {
-            // Navegar para tela de adicionar loja
-            // Você pode adicionar a navegação do GoRouter aqui também, se necessário
+
             GoRouter.of(context).go('/stores/new');
             print('[GoRouter Navigation] Navegando para /stores/new');
           },

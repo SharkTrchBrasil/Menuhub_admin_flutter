@@ -19,5 +19,12 @@ class OrderProductVariant {
       options: map['options'].map<OrderProductVariantOption>((c) => OrderProductVariantOption.fromJson(c)).toList(),
     );
   }
-
+  // Add this toJson method
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'options': options.map((o) => o.toJson()).toList(), // Serialize nested options
+    };
+  }
 }

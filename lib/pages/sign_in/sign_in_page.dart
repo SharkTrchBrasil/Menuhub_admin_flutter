@@ -323,8 +323,12 @@ class _SignInPageState extends State<SignInPage> {
               (_) => showError('Erro ao carregar lojas'),
               (stores) async { // Agora 'stores' está populado.
 
-                final storesManagerCubit = getIt<StoresManagerCubit>(); // Obtenha a instância do GetIt
-                await storesManagerCubit.initialize(); // Chame o novo método initialize()
+
+                // 2. Inicialize o StoresManagerCubit APÓS carregar as lojas no StoreRepository
+                final storesManagerCubit = getIt<StoresManagerCubit>();
+            //    await storesManagerCubit.initialize();
+
+
 
             if (stores.isNotEmpty) {
               context.go(widget.redirectTo ??

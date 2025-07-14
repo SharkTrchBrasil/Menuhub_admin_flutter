@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:totem_pro_admin/models/page_status.dart';
 import 'package:totem_pro_admin/widgets/app_text_button.dart';
-import 'loading.dart';
+import 'dot_loading.dart';
+
 
 class AppPageStatusBuilder<T> extends StatelessWidget {
   const AppPageStatusBuilder({
@@ -24,7 +25,7 @@ class AppPageStatusBuilder<T> extends StatelessWidget {
       PageStatusIdle _ => Container(),
       PageStatusLoading _ => const Padding(
         padding: EdgeInsets.all(32),
-        child: Center(child: AnimatedHourglassSequence()),
+        child: Center(child: DotLoading(color: Colors.red, size: 12),),
       ),
       PageStatusError status => Center(
         child: Padding(

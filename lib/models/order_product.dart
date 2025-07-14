@@ -30,4 +30,15 @@ class OrderProduct {
     );
   }
 
+// Add this toJson method
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'quantity': quantity,
+      'variants': variants.map((v) => v.toJson()).toList(),
+      // 'tickets': tickets.map((t) => t.toJson()).toList(), // Uncomment if you add tickets back
+      'price': price,
+    };
+  }
 }

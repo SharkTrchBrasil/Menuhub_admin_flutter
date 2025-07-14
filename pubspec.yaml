@@ -62,8 +62,11 @@ dependencies:
   flutter_dotenv: ^5.1.0
   flutter_staggered_grid_view:
   lottie:
-
-
+  audioplayers: ^6.5.0
+  printing: 
+  pdf:
+  universal_html:
+  collection:
 
 
   kanban_board:
@@ -138,6 +141,7 @@ flutter:
     - assets/langs/
     - assets/animations/
     - assets/env
+    - assets/sounds/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

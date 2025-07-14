@@ -1,35 +1,75 @@
+// lib/pages/orders/order_page_state.dart
+
 import 'package:equatable/equatable.dart';
-import 'package:totem_pro_admin/models/order.dart';
+import 'package:totem_pro_admin/models/order_details.dart';
 
-import '../../models/order_details.dart';
+// Enum para filtros de pedidos (se você tiver)
+enum OrderFilter {
+  all,
+  pending,
+  accepted,
+  // ... outros status
+}
 
-//enum OrderStatus { pendent, preparing, ready, canceled }
+abstract class OrderState extends Equatable {
+  const OrderState();
 
-enum OrderStatus { initial, loading, success, failure }
+  @override
+  List<Object?> get props => [];
+}
 
-class OrderState extends Equatable {
+class OrdersInitial extends OrderState {
+  const OrdersInitial();
+}
+
+class OrdersLoading extends OrderState {
+  // Pode ter um opcional para indicar qual loja está carregando
+  // final int? storeId;
+  const OrdersLoading(); // {this.storeId}
+}
+
+class OrdersLoaded extends OrderState {
   final List<OrderDetails> orders;
-  final OrderStatus status;
-  final String? error;
+  final OrderFilter selectedFilter;
+  // Opcional: Para saber de qual conjunto de lojas esses pedidos vieram.
+  // final List<int> currentConsolidatedStores; // Ou um map para mostrar quais estão ativas
 
-  const OrderState({
-    this.orders = const [],
-    this.status = OrderStatus.initial,
-    this.error,
+  const OrdersLoaded({
+    required this.orders,
+    this.selectedFilter = OrderFilter.all,
+    // this.currentConsolidatedStores = const [],
   });
 
-  OrderState copyWith({
-    List<OrderDetails>? orders,
-    OrderStatus? status,
-    String? error,
-  }) {
-    return OrderState(
-      orders: orders ?? this.orders,
-      status: status ?? this.status,
-      error: error,
-    );
+  // Você pode adicionar getters para pedidos filtrados
+  List<OrderDetails> get filteredOrders {
+    switch (selectedFilter) {
+      case OrderFilter.all:
+        return orders;
+      case OrderFilter.pending:
+        return orders.where((order) => order.orderStatus == 'pending').toList();
+      case OrderFilter.accepted:
+        return orders.where((order) => order.orderStatus == 'accepted').toList();
+      default:
+        return orders;
+    }
   }
 
   @override
-  List<Object?> get props => [orders, status, error];
+  List<Object?> get props => [orders, selectedFilter]; // currentConsolidatedStores
+}
+
+class OrdersError extends OrderState {
+  final String message;
+  const OrdersError(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+
+class OrdersEmpty extends OrderState {
+  final String message; // Opcional, para uma mensagem mais detalhada
+  const OrdersEmpty({this.message = 'Nenhum pedido encontrado.'});
+
+  @override
+  List<Object?> get props => [message];
 }

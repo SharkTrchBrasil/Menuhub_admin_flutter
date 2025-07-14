@@ -18,4 +18,12 @@ class OrderProductVariantOption {
     );
   }
 
+  // Add this toJson method
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'quantity': quantity,
+    };
+  }
 }

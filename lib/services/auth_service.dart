@@ -75,7 +75,7 @@ class AuthService {
         if (connectionResult.isLeft) return Left(connectionResult.left);
 
         // 4. INICIALIZA o StoresManagerCubit com as lojas
-        getIt<StoresManagerCubit>().initialize(); // 👈 ESSENCIAL
+      //  getIt<StoresManagerCubit>().initialize(); // 👈 ESSENCIAL
 
         return Right(connectionResult.right);
       },

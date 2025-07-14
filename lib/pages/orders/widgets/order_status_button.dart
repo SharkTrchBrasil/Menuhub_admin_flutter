@@ -1,0 +1,168 @@
+// lib/pages/orders/widgets/_order_status_button.dart
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/models/order_details.dart';
+import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
+import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
+
+class OrderStatusButton extends StatelessWidget {
+  final OrderDetails order;
+  final Function(OrderDetails order) onPrintOrder;
+
+  const OrderStatusButton({
+    super.key,
+    required this.order,
+    required this.onPrintOrder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Color buttonColor = Colors.red;
+    String buttonText = '';
+    VoidCallback? onPressed;
+
+    // Lógica para o botão principal de avanço de status
+    switch (order.orderStatus) {
+      case 'pending':
+        buttonText = 'Aceitar Pedido';
+        buttonColor = Colors.green;
+        onPressed = () {
+          context.read<OrderCubit>().updateOrderStatus(order.id, 'preparing');
+          onPrintOrder(order);
+        };
+        break;
+
+      case 'preparing':
+      // Lógica condicional baseada no tipo de pedido
+        if (order.deliveryType == 'delivery') {
+          buttonText = 'Despachar para Entrega'; // Direto para "out_for_delivery"
+          buttonColor = Colors.blue;
+          onPressed = () {
+            context.read<OrderCubit>().updateOrderStatus(order.id, 'on_route');
+          };
+        } else if (order.deliveryType == 'takeout' || order.orderType == 'dine_in') {
+          buttonText = 'Marcar como Pronto'; // Para "ready"
+          buttonColor = Colors.orange; // Cor diferente para 'ready'
+          onPressed = () {
+            context.read<OrderCubit>().updateOrderStatus(order.id, 'ready');
+          };
+        } else {
+          // Caso um tipo de pedido desconhecido ou não gerenciado
+          buttonText = 'Ação Indisponível';
+          buttonColor = Colors.grey.shade300;
+          onPressed = null;
+        }
+        break;
+
+      case 'ready': // Somente para 'takeout' ou 'dine_in'
+        if (order.deliveryType == 'takeout' || order.orderType == 'dine_in') {
+          buttonText = 'Marcar como Concluído'; // 'ready' para 'delivered'
+          buttonColor = Colors.green;
+          onPressed = () {
+            context.read<OrderCubit>().updateOrderStatus(order.id, 'delivered');
+          };
+        } else {
+          // Se um pedido de delivery (ou desconhecido) acidentalmente chega aqui
+          buttonText = 'Ação Indisponível (Ready)';
+          buttonColor = Colors.grey.shade300;
+          onPressed = null;
+        }
+        break;
+
+      case 'on_route': // Somente para 'delivery'
+        if (order.deliveryType == 'delivery') {
+          buttonText = 'Marcar como Entregue'; // 'out_for_delivery' para 'delivered'
+          buttonColor = Colors.green.shade700;
+          onPressed = () {
+            context.read<OrderCubit>().updateOrderStatus(order.id, 'delivered');
+          };
+        } else {
+          // Se um pedido não delivery acidentalmente chega aqui
+          buttonText = 'Ação Indisponível (Out for Delivery)';
+          buttonColor = Colors.grey.shade300;
+          onPressed = null;
+        }
+        break;
+
+      case 'delivered':
+        buttonText = 'Pedido Concluído';
+        buttonColor = Colors.grey;
+        onPressed = null;
+        break;
+
+      case 'canceled':
+        buttonText = 'Pedido Cancelado';
+        buttonColor = Colors.grey;
+        onPressed = null;
+        break;
+
+      default:
+        buttonText = 'Ação Indisponível';
+        buttonColor = Colors.grey.shade300;
+        onPressed = null;
+        break;
+    }
+
+    return Column(
+      children: [
+        if (onPressed != null)
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: buttonColor,
+              minimumSize: const Size(double.infinity, 40),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: onPressed,
+            child: Text(
+              buttonText,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        if (order.orderStatus != 'delivered' && order.orderStatus != 'canceled')
+          Padding(
+            padding: EdgeInsets.only(top: onPressed != null ? 8.0 : 0.0),
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.red),
+                minimumSize: const Size(double.infinity, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext dialogContext) {
+                    return AlertDialog(
+                      title: const Text('Confirmar Cancelamento'),
+                      content: Text('Tem certeza que deseja cancelar o pedido #${order.publicId}?'),
+                      actions: <Widget>[
+                        TextButton(
+                          child: const Text('Não'),
+                          onPressed: () {
+                            Navigator.of(dialogContext).pop();
+                          },
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          child: const Text('Sim', style: TextStyle(color: Colors.white)),
+                          onPressed: () {
+                            context.read<OrderCubit>().updateOrderStatus(order.id, 'canceled');
+                            Navigator.of(dialogContext).pop();
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              child: const Text('Cancelar Pedido', style: TextStyle(color: Colors.red)),
+            ),
+          ),
+      ],
+    );
+  }
+}

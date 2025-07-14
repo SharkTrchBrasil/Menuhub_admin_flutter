@@ -34,5 +34,15 @@
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
+
+
+  <script>
+
+    window.addEventListener('load', function() {
+      AudioContext = window.AudioContext || window.webkitAudioContext;
+      context = new AudioContext();
+    });
+  </script>
+
 </body>
 </html>

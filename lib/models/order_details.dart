@@ -1,5 +1,12 @@
 import 'order_product.dart';
 
+class OrderStatuses {
+  static const String pending = 'pending';
+  static const String preparing = 'preparing';
+  static const String ready = 'ready';
+  static const String canceled = 'canceled';
+}
+
 class OrderDetails {
   final int id;
   final int sequentialId;
@@ -9,6 +16,7 @@ class OrderDetails {
   final int discountedTotalPrice;
   final int? deliveryFee;
   final DateTime createdAt;
+  final DateTime updatedAt; // <--- Adicione esta propriedade
   final String customerName;
   final String customerPhone;
   final String paymentMethodName;
@@ -27,6 +35,11 @@ class OrderDetails {
   final int paymentMethodId;
   final List<OrderProduct> products;
 
+  final DateTime? scheduledFor;
+  final bool isScheduled;
+  final String consumptionType;
+
+
   OrderDetails({
     required this.id,
     required this.sequentialId,
@@ -35,6 +48,7 @@ class OrderDetails {
     required this.customerId,
     required this.discountedTotalPrice,
     required this.createdAt,
+    required this.updatedAt, // <--- E aqui no construtor
     required this.customerName,
     required this.customerPhone,
     required this.paymentMethodName,
@@ -53,6 +67,10 @@ class OrderDetails {
     required this.paymentMethodId,
     required this.products,
     required this.deliveryFee,
+    this.scheduledFor,
+    this.isScheduled = false,
+    this.consumptionType = 'dine_in',
+
   });
 
   factory OrderDetails.fromJson(Map<String, dynamic> json) {
@@ -63,7 +81,8 @@ class OrderDetails {
       storeId: json['store_id'] as int,
       customerId: json['customer_id'] as int,
       discountedTotalPrice: json['discounted_total_price'] as int,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),
       customerName: json['customer_name'] as String,
       customerPhone: json['customer_phone'] as String,
       paymentMethodName: json['payment_method_name'] as String,
@@ -85,7 +104,57 @@ class OrderDetails {
           .toList(),
 
       deliveryFee: json['delivery_fee'] as int?, // <- permite null
+
+      scheduledFor: json['scheduled_for'] != null
+          ? DateTime.parse(json['scheduled_for'] as String).toLocal()
+          : null,
+      isScheduled: json['is_scheduled'] as bool? ?? false,
+      consumptionType: json['consumption_type'] as String? ?? 'dine_in',
     );
   }
+
+
+
+
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'sequential_id': sequentialId,
+      'public_id': publicId,
+      'store_id': storeId,
+      'customer_id': customerId,
+      'discounted_total_price': discountedTotalPrice,
+      'created_at': createdAt.toIso8601String(),
+      'customer_name': customerName,
+      'customer_phone': customerPhone,
+      'payment_method_name': paymentMethodName,
+      'street': street,
+      'number': number,
+      'complement': complement,
+      'neighborhood': neighborhood,
+      'city': city,
+      'attendant_name': attendantName,
+      'order_type': orderType,
+      'delivery_type': deliveryType,
+      'total_price': totalPrice,
+      'payment_status': paymentStatus,
+      'order_status': orderStatus,
+      'totem_id': totemId,
+      'payment_method_id': paymentMethodId,
+      'products': products.map((p) => p.toJson()).toList(),
+      'delivery_fee': deliveryFee,
+      'updated_at': updatedAt.toIso8601String(),
+      'scheduled_for': scheduledFor?.toIso8601String(),
+      'is_scheduled': isScheduled,
+      'consumption_type': consumptionType,
+    };
+  }
 }
+
+
+
+
+
+
 

@@ -14,6 +14,7 @@ import '../../../models/category.dart';
 import '../../../repositories/category_repository.dart';
 import '../../../widgets/app_counter_form_field.dart';
 import '../../../widgets/app_image_form_field.dart';
+import '../../../widgets/app_image_form_field_category.dart';
 import '../../../widgets/app_page_status_builder.dart';
 import '../../../widgets/app_primary_button.dart';
 import '../../../widgets/app_text_field.dart';
@@ -81,31 +82,31 @@ class _EditCategoryFormState extends State<EditCategoryForm> {
                         children: [
 
 
-                          // Row(
-                          //   mainAxisAlignment: MainAxisAlignment.center,
-                          //   children: [
-                          //     SizedBox(
-                          //       width: 160,
-                          //
-                          //       child: AppImageFormField(
-                          //         initialValue: category.image,
-                          //         title: '',
-                          //         aspectRatio: 1,
-                          //         validator: (image) {
-                          //           if (image == null) {
-                          //             return 'Selecione uma imagem';
-                          //           }
-                          //           return null;
-                          //         },
-                          //         onChanged: (image) {
-                          //           controller.onChanged(
-                          //             category.copyWith(image: image),
-                          //           );
-                          //         },
-                          //       ),
-                          //     ),
-                          //   ],
-                          // ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 160,
+
+                                child: AppImageFormField(
+                                  initialValue: category.image,
+                                  title: '',
+                                  aspectRatio: 1,
+                                  validator: (image) {
+                                    if (image == null) {
+                                      return 'Selecione uma imagem';
+                                    }
+                                    return null;
+                                  },
+                                  onChanged: (image) {
+                                    controller.onChanged(
+                                      category.copyWith(image: image),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
 
 
                           const SizedBox(height: 25),

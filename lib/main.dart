@@ -26,6 +26,9 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'cubits/store_manager_cubit.dart';
 
+
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: 'assets/env'); // carrega o env
@@ -66,15 +69,15 @@ void main() async {
             create: (_) => StoresManagerCubit(
               storeRepository: getIt<StoreRepository>(),
               realtimeRepository: getIt<RealtimeRepository>(),
-            )..initialize(), // <-- ESSENCIAL
+            ) // <-- ESSENCIAL
           ),
 
-          BlocProvider<OrderCubit>( // <--- ESTE AQUI
-            create: (context) => OrderCubit(
-              realtimeRepository: RealtimeRepository(), // Substitua pelo seu RealtimeRepository real
-              storesManagerCubit: context.read<StoresManagerCubit>(), // <--- ESTA LINHA É CRÍTICA
-            ),
-          ),
+          // BlocProvider<OrderCubit>( // <--- ESTE AQUI
+          //   create: (context) => OrderCubit(
+          //     realtimeRepository: RealtimeRepository(), // Substitua pelo seu RealtimeRepository real
+          //     storesManagerCubit: context.read<StoresManagerCubit>(), // <--- ESTA LINHA É CRÍTICA
+          //   ),
+          // ),
         ],
         child: const MyApp(),
       ),
@@ -103,7 +106,6 @@ class MyApp extends StatelessWidget {
         context,
       ).copyWith(scrollbars: false),
       debugShowCheckedModeBanner: false,
-      builder: BotToastInit(),
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
@@ -111,6 +113,12 @@ class MyApp extends StatelessWidget {
       supportedLocales: context.supportedLocales,
       localizationsDelegates: context.localizationDelegates,
       routerConfig: router,
+      builder: (context, child) {
+        return ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+          child: BotToastInit()(context, child),
+        );
+      },
     );
   }
 }

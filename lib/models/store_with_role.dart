@@ -10,33 +10,15 @@ enum StoreAccessRole {
   const StoreAccessRole(this.title, this.selectable);
 }
 
-// class StoreWithRole {
-//
-//   StoreWithRole({
-//     required this.store,
-//     required this.role,
-//   });
-//
-//   final Store store;
-//   final StoreAccessRole role;
-//
-//   factory StoreWithRole.fromJson(Map<String, dynamic> json) {
-//     return StoreWithRole(
-//       store: Store.fromJson(json['store']),
-//       role: StoreAccessRole.values.byName(json['role']['machine_name']),
-//     );
-//   }
-//
-// }
-
-
 class StoreWithRole {
   final Store store;
-  final StoreAccessRole role;
+  final StoreAccessRole role; // Mudança de String para StoreAccessRole
+  bool isConsolidated; // NOVO: indica se está selecionada para consolidação
 
   StoreWithRole({
     required this.store,
     required this.role,
+    this.isConsolidated = false, // Valor padrão
   });
 
   factory StoreWithRole.fromJson(Map<String, dynamic> json) {
@@ -61,9 +43,13 @@ class StoreWithRole {
         role = StoreAccessRole.admin; // Valor padrão
       }
 
+      // 3. Obtém o estado de consolidação
+      final bool isConsolidated = json['is_consolidated'] ?? false;
+
       return StoreWithRole(
         store: store,
         role: role,
+        isConsolidated: isConsolidated, // Agora está no lugar certo!
       );
     } catch (e, stack) {
       print('Erro ao decodificar StoreWithRole: $e\n$stack');
@@ -71,11 +57,13 @@ class StoreWithRole {
     }
   }
 
+  // Opcional: Adicione um método toJson para isConsolidated se for enviar para o backend
   Map<String, dynamic> toJson() => {
     'store': store.toJson(),
     'role': {
       'machine_name': role.name,
       'title': role.title,
     },
+    'is_consolidated': isConsolidated, // Inclua no toJson se for serializar
   };
 }

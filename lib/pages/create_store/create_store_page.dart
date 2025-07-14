@@ -113,7 +113,7 @@ class _CreateStorePageState extends State<CreateStorePage> {
 
                               // ✅ Adiciona a loja ao StoresManagerCubit e conecta o socket
                               final storesManagerCubit = context.read<StoresManagerCubit>();
-                              storesManagerCubit.addStore(store); // <-- você vai precisar criar este método
+                            //  storesManagerCubit.addStore(store); // <-- você vai precisar criar este método
 
                               if (context.mounted) {
                                 context.go('/stores/${store.store.id}/orders');

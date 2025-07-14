@@ -18,41 +18,43 @@ class DrawerCode extends StatefulWidget {
 class _DrawerCodeState extends State<DrawerCode> {
   InboxController inboxController = Get.put(InboxController());
 
-
-
   final double _collapsedWidth = 72.0; // Largura do mini-drawer (ícone + texto)
   final double _expandedWidth = 260.0; // Largura do drawer expandido
 
   @override
   Widget build(BuildContext context) {
-
     final drawerController = context.watch<DrawerControllerProvider>();
     final bool isExpanded = drawerController.isExpanded;
-
-
 
     return GetBuilder<InboxController>(
       builder: (inboxController) {
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200), // Duração da animação
-          width: isExpanded ? _expandedWidth : _collapsedWidth, // Use isExpanded from provider
+          width:
+              isExpanded
+                  ? _expandedWidth
+                  : _collapsedWidth, // Use isExpanded from provider
           child: Drawer(
             child: Column(
               children: [
-
                 Padding(
-                  padding: isExpanded
-                      ? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0)
-                      : const EdgeInsets.symmetric(vertical: 20.0),
+                  padding:
+                      isExpanded
+                          ? const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 20.0,
+                          )
+                          : const EdgeInsets.symmetric(vertical: 20.0),
                   child: InkWell(
                     onTap: () {
                       // Toggle the state of the drawer using the provider
                       drawerController.toggle();
                     },
                     child: Row(
-                      mainAxisAlignment: isExpanded
-                          ? MainAxisAlignment.start
-                          : MainAxisAlignment.center,
+                      mainAxisAlignment:
+                          isExpanded
+                              ? MainAxisAlignment.start
+                              : MainAxisAlignment.center,
                       children: [
                         Image.asset(
                           'assets/images/Symbol.png',
@@ -64,7 +66,9 @@ class _DrawerCodeState extends State<DrawerCode> {
                           Expanded(
                             child: Text(
                               'PDVix',
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              style: Theme.of(
+                                context,
+                              ).textTheme.headlineSmall?.copyWith(
                                 fontFamily: 'Jost-SemiBold',
                                 fontWeight: FontWeight.bold,
                               ),
@@ -79,18 +83,21 @@ class _DrawerCodeState extends State<DrawerCode> {
 
                 Expanded(
                   child: ScrollConfiguration(
-                    behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                    behavior: ScrollConfiguration.of(
+                      context,
+                    ).copyWith(scrollbars: false),
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 20), // Espaço inicial
-
                           // === DASHBOARD ===
                           if (isExpanded) // Títulos de seção apenas no modo expandido
                             _buildSectionTitle(
                               'Dashboard',
-                              selected: inboxController.pageselecter >= 0 && inboxController.pageselecter <= 3,
+                              selected:
+                                  inboxController.pageselecter >= 0 &&
+                                  inboxController.pageselecter <= 3,
                             ),
                           _buildMenuItem(
                             context: context,
@@ -100,6 +107,7 @@ class _DrawerCodeState extends State<DrawerCode> {
                             iconPath: 'assets/images/package.png',
                             isExpanded: isExpanded,
                           ),
+
                           // _buildMenuItem(
                           //   context: context,
                           //   title: 'Pedidos Balcão (PDV)',
@@ -116,17 +124,18 @@ class _DrawerCodeState extends State<DrawerCode> {
                           //   iconPath: 'assets/images/package.png',
                           //   isExpanded: isExpanded,
                           // ),
-
                           const SizedBox(height: 20),
                           // === LOJA ===
                           if (isExpanded)
                             _buildSectionTitle(
                               'Loja',
-                              selected: inboxController.pageselecter >= 4 && inboxController.pageselecter <= 8,
+                              selected:
+                                  inboxController.pageselecter >= 4 &&
+                                  inboxController.pageselecter <= 8,
                             ),
                           _buildMenuItem(
                             context: context,
-                            title: 'Clientes',
+                            title: 'Seus clientes',
                             route: '/stores/${widget.storeId}/customers',
                             index: 4,
                             iconPath: 'assets/images/user.png',
@@ -150,12 +159,13 @@ class _DrawerCodeState extends State<DrawerCode> {
                           ),
                           _buildMenuItem(
                             context: context,
-                            title: 'Cupons',
+                            title: 'Promoções',
                             route: '/stores/${widget.storeId}/coupons',
                             index: 7,
                             iconPath: 'assets/images/6.png',
                             isExpanded: isExpanded,
                           ),
+
                           // _buildMenuItem(
                           //   context: context,
                           //   title: 'Banners',
@@ -180,17 +190,18 @@ class _DrawerCodeState extends State<DrawerCode> {
                           //   iconPath: 'assets/images/package.png',
                           //   isExpanded: isExpanded,
                           // ),
-
                           const SizedBox(height: 20),
                           // === CONFIGURAÇÃO DA LOJA ===
                           if (isExpanded)
                             _buildSectionTitle(
                               'Configuração da Loja',
-                              selected: inboxController.pageselecter >= 10 && inboxController.pageselecter <= 14,
+                              selected:
+                                  inboxController.pageselecter >= 10 &&
+                                  inboxController.pageselecter <= 14,
                             ),
                           _buildMenuItem(
                             context: context,
-                            title: 'Informações Gerais',
+                            title: 'Minha loja',
                             route: '/stores/${widget.storeId}/settings',
                             index: 11,
                             iconPath: 'assets/images/33.png',
@@ -198,7 +209,7 @@ class _DrawerCodeState extends State<DrawerCode> {
                           ),
                           _buildMenuItem(
                             context: context,
-                            title: 'Horários de Atendimento',
+                            title: 'Horários',
                             route: '/stores/${widget.storeId}/settings/hours',
                             index: 12,
                             iconPath: 'assets/images/calendar-edit.png',
@@ -206,7 +217,7 @@ class _DrawerCodeState extends State<DrawerCode> {
                           ),
                           _buildMenuItem(
                             context: context,
-                            title: 'Métodos de Pagamento',
+                            title: 'Formas de Pagamento',
                             route: '/stores/${widget.storeId}/payment-methods',
                             index: 13,
                             iconPath: 'assets/images/coins.png',
@@ -214,8 +225,9 @@ class _DrawerCodeState extends State<DrawerCode> {
                           ),
                           _buildMenuItem(
                             context: context,
-                            title: 'Formas de Entrega',
-                            route: '/stores/${widget.storeId}/settings/shipping',
+                            title: 'Configurações de Entrega',
+                            route:
+                                '/stores/${widget.storeId}/settings/shipping',
                             index: 14,
                             iconPath: 'assets/images/box.png',
                             isExpanded: isExpanded,
@@ -223,11 +235,13 @@ class _DrawerCodeState extends State<DrawerCode> {
                           _buildMenuItem(
                             context: context,
                             title: 'Cidades e Bairros',
-                            route: '/stores/${widget.storeId}/settings/locations',
+                            route:
+                                '/stores/${widget.storeId}/settings/locations',
                             index: 15,
                             iconPath: 'assets/images/location-pin.png',
                             isExpanded: isExpanded,
                           ),
+
                           // _buildMenuItem(
                           //   context: context,
                           //   title: 'Chatbot',
@@ -236,7 +250,6 @@ class _DrawerCodeState extends State<DrawerCode> {
                           //   iconPath: 'assets/images/location-pin.png',
                           //   isExpanded: isExpanded,
                           // ),
-
                           const SizedBox(height: 20),
                           // === ESTOQUE ===
                           if (isExpanded)
@@ -258,7 +271,9 @@ class _DrawerCodeState extends State<DrawerCode> {
                           if (isExpanded)
                             _buildSectionTitle(
                               'Financeiro',
-                              selected: inboxController.pageselecter >= 16 && inboxController.pageselecter <= 18,
+                              selected:
+                                  inboxController.pageselecter >= 16 &&
+                                  inboxController.pageselecter <= 18,
                             ),
                           _buildMenuItem(
                             context: context,
@@ -268,14 +283,7 @@ class _DrawerCodeState extends State<DrawerCode> {
                             iconPath: 'assets/images/dollar-circle.png',
                             isExpanded: isExpanded,
                           ),
-                          _buildMenuItem(
-                            context: context,
-                            title: 'Caixa',
-                            route: '/stores/${widget.storeId}/cash',
-                            index: 19,
-                            iconPath: 'assets/images/hard-drive.png',
-                            isExpanded: isExpanded,
-                          ),
+
                           _buildMenuItem(
                             context: context,
                             title: 'Relatórios',
@@ -335,9 +343,10 @@ class _DrawerCodeState extends State<DrawerCode> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 13,
-          color: selected
-              ? Theme.of(context).primaryColor
-              : Theme.of(context).textTheme.bodyLarge?.color,
+          color:
+              selected
+                  ? Theme.of(context).primaryColor
+                  : Theme.of(context).textTheme.bodyLarge?.color,
         ),
       ),
     );
@@ -353,24 +362,25 @@ class _DrawerCodeState extends State<DrawerCode> {
   }) {
     final isSelected = inboxController.pageselecter == index;
     final Color primaryColor = Theme.of(context).primaryColor;
-    final Color defaultIconColor = Theme.of(context).listTileTheme.iconColor ?? Theme.of(context).iconTheme.color!;
-    final Color defaultTextColor = Theme.of(context).textTheme.bodyLarge!.color!;
+    final Color defaultIconColor =
+        Theme.of(context).listTileTheme.iconColor ??
+        Theme.of(context).iconTheme.color!;
+    final Color defaultTextColor =
+        Theme.of(context).textTheme.bodyLarge!.color!;
 
     final Color iconColor = isSelected ? primaryColor : defaultIconColor;
     final Color textColor = isSelected ? primaryColor : defaultTextColor;
-    final Color backgroundColor = isSelected ? primaryColor.withOpacity(0.1) : Colors.transparent;
-    final Border? border = isSelected
-        ? Border.all(
-      color: primaryColor.withOpacity(0.3),
-      width: 1.0,
-    )
-        : null;
+    final Color backgroundColor =
+        isSelected ? primaryColor.withOpacity(0.1) : Colors.transparent;
+    final Border? border =
+        isSelected
+            ? Border.all(color: primaryColor.withOpacity(0.3), width: 1.0)
+            : null;
 
     return InkWell(
       onTap: () {
         inboxController.setTextIsTrue(index);
         context.go(route);
-
       },
       borderRadius: BorderRadius.circular(8),
       child: Container(
@@ -382,78 +392,81 @@ class _DrawerCodeState extends State<DrawerCode> {
           borderRadius: BorderRadius.circular(8),
           border: isExpanded ? null : border,
         ),
-        child: isExpanded
-            ? Row(
-          children: [
-            const SizedBox(width: 8),
-            Image.asset(
-              iconPath,
-              height: 20,
-              width: 20,
-              color: iconColor,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: defaultTextColor, // Consider using textColor here for consistency
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        )
-            : Stack(
-          children: [
-            if (isSelected)
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: 2.0,
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      bottomLeft: Radius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Image.asset(
+        child:
+            isExpanded
+                ? Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    Image.asset(
                       iconPath,
                       height: 20,
                       width: 20,
                       color: iconColor,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  if (!isSelected) // Only show text if not selected in collapsed view (as selected has the bar)
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: defaultTextColor, // Consider using textColor here for consistency
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color:
+                              defaultTextColor, // Consider using textColor here for consistency
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                ],
-              ),
-            ),
-          ],
-        ),
+                  ],
+                )
+                : Stack(
+                  children: [
+                    if (isSelected)
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 2.0,
+                          decoration: BoxDecoration(
+                            color: primaryColor,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              bottomLeft: Radius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Image.asset(
+                              iconPath,
+                              height: 20,
+                              width: 20,
+                              color: iconColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (!isSelected) // Only show text if not selected in collapsed view (as selected has the bar)
+                            Text(
+                              title,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color:
+                                    defaultTextColor, // Consider using textColor here for consistency
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
       ),
     );
   }
