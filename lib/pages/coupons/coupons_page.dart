@@ -180,7 +180,7 @@ class _CouponsPageState extends State<CouponsPage> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final Color backgroundColor = coupon.available
+    final Color backgroundColor = coupon.isActive
         ? _generateCouponBackground(coupon.id.toString(), isDark)
         : (isDark ? Color(0xFF7F1D1D) : Color(0xFFFEE2E2)); // Inativo
 
@@ -203,14 +203,15 @@ class _CouponsPageState extends State<CouponsPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Text(
-                        coupon.discountFixed != null
-                            ? coupon.discountFixed!.toPrice()
-                            : '${coupon.discountPercent}%',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
+                    //
+                    // Expanded(
+                    //   child: Text(
+                    //     coupon.discountFixed != null
+                    //         ? coupon.discountFixed!.toPrice()
+                    //         : '${coupon.discountPercent}%',
+                    //     style: const TextStyle(fontSize: 14),
+                    //   ),
+                    // ),
 
                     IconButton(
                       padding: EdgeInsets.zero,
@@ -245,7 +246,7 @@ class _CouponsPageState extends State<CouponsPage> {
                                 coupon.code,
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
-                              coupon.available
+                              coupon.isActive
                                   ? CouponCopyButton(couponCode: coupon.code)
                                   : SizedBox.shrink(),
                             ],
@@ -264,10 +265,10 @@ class _CouponsPageState extends State<CouponsPage> {
                       children: [
                         Flexible(
                           child: Text(
-                            coupon.available ? 'Ativo' : 'Inativo',
+                            coupon.isActive ? 'Ativo' : 'Inativo',
                             style: TextStyle(
                               color:
-                                  coupon.available ? Colors.green : Colors.red,
+                                  coupon.isActive ? Colors.green : Colors.red,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

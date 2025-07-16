@@ -577,24 +577,24 @@ final router = GoRouter(
                             child: CouponsPage(storeId: state.storeId),
                           ),
                       routes: [
-                        GoRoute(
-                          path: 'new',
-                          builder: (_, state) {
-                            return EditCouponPage(storeId: state.storeId);
-                          },
-                        ),
-                        GoRoute(
-                          path: ':id',
-                          pageBuilder: (_, state) {
-                            return NoTransitionPage(
-                              key: UniqueKey(),
-                              child: EditCouponPage(
-                                storeId: state.storeId,
-                                id: state.id,
-                              ),
-                            );
-                          },
-                        ),
+                        // GoRoute(
+                        //   path: 'new',
+                        //   builder: (_, state) {
+                        //     return EditCouponPage(storeId: state.storeId);
+                        //   },
+                        // ),
+                        // GoRoute(
+                        //   path: ':id',
+                        //   pageBuilder: (_, state) {
+                        //     return NoTransitionPage(
+                        //       key: UniqueKey(),
+                        //       child: EditCouponPage(
+                        //         storeId: state.storeId,
+                        //         id: state.id,
+                        //       ),
+                        //     );
+                        //   },
+                        // ),
                       ],
                     ),
                   ],

@@ -156,7 +156,7 @@ class _EditCouponPageDialogState extends State<EditCouponPageDialog> {
                                 const SizedBox(height: 15),
 
                                 AppDateTimeFormField(
-                                  initialValue: coupon.startDate,
+                                  initialValue: coupon.endDate,
                                   title: 'Fim da promoção *',
                                   validator: (value) {
                                     if (value == null) {
@@ -280,114 +280,186 @@ class _EditCouponPageDialogState extends State<EditCouponPageDialog> {
 
                                 Row(
                                   children: [
-                                    Expanded(
-                                      child:
+                                    Flexible(
+                                      child: DropdownButtonFormField<String>(
+                                        value: coupon.discountType,
+                                        decoration: InputDecoration(
+                                          labelText: 'Tipo de desconto',
 
-                                      AppTextField2(
-                                        initialValue:
-                                            coupon.discountPercent
-                                                ?.toString(),
-                                        title: 'Percentual',
-                                        hint: 'Ex: 10%',
-                                        suffixText: '%',
-                                        description:
-                                            'Informe somente um tipo de desconto',
+                                        ),
+                                        items: const [
+                                          DropdownMenuItem(value: 'percentage', child: Text('Porcentagem')),
+                                          DropdownMenuItem(value: 'fixed', child: Text('Valor fixo')),
+                                        ],
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            controller.onChanged(
+                                              coupon.copyWith(discountType: value),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ),
+
+                                    SizedBox(width: 15,),
+
+                                    Flexible(
+                                      child: AppTextField(
+                                        title: coupon.discountType == 'percentage' ? 'Valor do desconto (%)' : 'Valor do desconto (R\$)',
+                                        initialValue: coupon.discountValue.toString(),
+                                        hint: coupon.discountType == 'percentage' ? 'Ex: 10' : 'Ex: R\$ 10,00',
+
+                                        formatters: coupon.discountType == 'percentage'
+                                            ? [FilteringTextInputFormatter.digitsOnly]
+                                            : [
+                                          FilteringTextInputFormatter.digitsOnly,
+                                          CentavosInputFormatter(moeda: true),
+                                        ],
                                         validator: (value) {
-                                          if (value == null ||
-                                              value.isEmpty) {
-                                            if (coupon.discountFixed ==
-                                                null) {
-                                              return 'Campo obrigatório';
-                                            } else {
-                                              return null;
-                                            }
+                                          if (value == null || value.isEmpty) {
+                                            return 'Campo obrigatório';
                                           }
-                                          final integer = int.tryParse(
-                                            value,
-                                          );
-                                          if (integer == null) {
-                                            return 'Número inválido';
-                                          } else if (integer < 0 ||
-                                              integer > 1000000) {
-                                            return 'O número deve ser entre 1 e 100';
+
+                                          final parsed = coupon.discountType == 'percentage'
+                                              ? int.tryParse(value)
+                                              : UtilBrasilFields.converterMoedaParaDouble(value);
+
+                                          if (parsed == null || parsed == 0) {
+                                            return 'Valor inválido';
                                           }
+
                                           return null;
                                         },
-                                        formatters: [
-                                          FilteringTextInputFormatter
-                                              .digitsOnly,
-                                        ],
                                         onChanged: (v) {
+                                          final parsed = coupon.discountType == 'percentage'
+                                              ? int.tryParse(v ?? '') ?? 0
+                                              : (UtilBrasilFields.converterMoedaParaDouble(v ?? '') * 100).floor();
+
                                           controller.onChanged(
-                                            coupon.copyWith(
-                                              discountPercent:
-                                                  int.tryParse(v ?? '') ??
-                                                  0,
-                                            ),
+                                            coupon.copyWith(discountValue: parsed),
                                           );
                                         },
                                       ),
                                     ),
-                                    const SizedBox(width: 15),
 
-                                    Expanded(
-                                      child: AppTextField2(
-                                        initialValue:
-                                            coupon.discountFixed?.toPrice(),
-                                        title: 'Desconto fixo',
-                                        hint: 'Ex: R\$ 10,00',
-                                        description:
-                                            'Informe somente um tipo de desconto',
-                                        validator: (value) {
-                                          if (value == null ||
-                                              value.isEmpty) {
-                                            if (coupon.discountPercent ==
-                                                null) {
-                                              return 'Campo obrigatório';
-                                            } else {
-                                              return null;
-                                            }
-                                          } else if (coupon
-                                                  .discountPercent !=
-                                              null) {
-                                            return 'Informe somente um';
-                                          }
-                                          final money =
-                                              UtilBrasilFields.converterMoedaParaDouble(
-                                                value,
-                                              );
-                                          if (money == 0) {
-                                            return 'Desconto inválido';
-                                          } else if (money > 1000000) {
-                                            return 'Número muito grande';
-                                          }
-                                          return null;
-                                        },
-                                        formatters: [
-                                          FilteringTextInputFormatter
-                                              .digitsOnly,
-                                          CentavosInputFormatter(
-                                            moeda: true,
-                                          ),
-                                        ],
-                                        onChanged: (v) {
-                                          final money =
-                                              (UtilBrasilFields.converterMoedaParaDouble(
-                                                        v ?? '',
-                                                      ) *
-                                                      100)
-                                                  .floor();
-
-                                          controller.onChanged(
-                                            coupon.copyWith(
-                                              discountFixed: money,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
                                   ],
                                 ),
+
+                                const SizedBox(height: 15),
+
+
+
+                                // Row(
+                                //   children: [
+                                //
+                                //     Expanded(
+                                //       child:
+                                //
+                                //       AppTextField2(
+                                //         initialValue:
+                                //             coupon.discountPercent
+                                //                 ?.toString(),
+                                //         title: 'Percentual',
+                                //         hint: 'Ex: 10%',
+                                //         suffixText: '%',
+                                //         description:
+                                //             'Informe somente um tipo de desconto',
+                                //         validator: (value) {
+                                //           if (value == null ||
+                                //               value.isEmpty) {
+                                //             if (coupon.discountFixed ==
+                                //                 null) {
+                                //               return 'Campo obrigatório';
+                                //             } else {
+                                //               return null;
+                                //             }
+                                //           }
+                                //           final integer = int.tryParse(
+                                //             value,
+                                //           );
+                                //           if (integer == null) {
+                                //             return 'Número inválido';
+                                //           } else if (integer < 0 ||
+                                //               integer > 1000000) {
+                                //             return 'O número deve ser entre 1 e 100';
+                                //           }
+                                //           return null;
+                                //         },
+                                //         formatters: [
+                                //           FilteringTextInputFormatter
+                                //               .digitsOnly,
+                                //         ],
+                                //         onChanged: (v) {
+                                //           controller.onChanged(
+                                //             coupon.copyWith(
+                                //               discountPercent:
+                                //                   int.tryParse(v ?? '') ??
+                                //                   0,
+                                //             ),
+                                //           );
+                                //         },
+                                //       ),
+                                //     ),
+                                //     const SizedBox(width: 15),
+                                //
+                                //     Expanded(
+                                //       child: AppTextField2(
+                                //         initialValue:
+                                //             coupon.discountFixed?.toPrice(),
+                                //         title: 'Desconto fixo',
+                                //         hint: 'Ex: R\$ 10,00',
+                                //         description:
+                                //             'Informe somente um tipo de desconto',
+                                //         validator: (value) {
+                                //           if (value == null ||
+                                //               value.isEmpty) {
+                                //             if (coupon.discountPercent ==
+                                //                 null) {
+                                //               return 'Campo obrigatório';
+                                //             } else {
+                                //               return null;
+                                //             }
+                                //           } else if (coupon
+                                //                   .discountPercent !=
+                                //               null) {
+                                //             return 'Informe somente um';
+                                //           }
+                                //           final money =
+                                //               UtilBrasilFields.converterMoedaParaDouble(
+                                //                 value,
+                                //               );
+                                //           if (money == 0) {
+                                //             return 'Desconto inválido';
+                                //           } else if (money > 1000000) {
+                                //             return 'Número muito grande';
+                                //           }
+                                //           return null;
+                                //         },
+                                //         formatters: [
+                                //           FilteringTextInputFormatter
+                                //               .digitsOnly,
+                                //           CentavosInputFormatter(
+                                //             moeda: true,
+                                //           ),
+                                //         ],
+                                //         onChanged: (v) {
+                                //           final money =
+                                //               (UtilBrasilFields.converterMoedaParaDouble(
+                                //                         v ?? '',
+                                //                       ) *
+                                //                       100)
+                                //                   .floor();
+                                //
+                                //           controller.onChanged(
+                                //             coupon.copyWith(
+                                //               discountFixed: money,
+                                //             ),
+                                //           );
+                                //         },
+                                //       ),
+                                //     ),
+                                //   ],
+                                // ),
 
 
                                 const SizedBox(width: 25),
@@ -442,12 +514,12 @@ class _EditCouponPageDialogState extends State<EditCouponPageDialog> {
 
                                                 const SizedBox(width: 5),
                                                 Switch(
-                                                  value: coupon.available,
+                                                  value: coupon.isActive,
 
                                                   onChanged: (bool value) {
                                                     controller.onChanged(
                                                       coupon.copyWith(
-                                                        available: value,
+                                                        isActive: value,
                                                       ),
                                                     );
                                                   },
@@ -475,12 +547,12 @@ class _EditCouponPageDialogState extends State<EditCouponPageDialog> {
                                                 Switch(
                                                   value:
                                                       coupon
-                                                          .onlyNewCustomers,
+                                                          .onlyFirstPurchase,
 
                                                   onChanged: (bool value) {
                                                     controller.onChanged(
                                                       coupon.copyWith(
-                                                        onlyNewCustomers:
+                                                        onlyFirstPurchase:
                                                             value,
                                                       ),
                                                     );
@@ -777,124 +849,204 @@ class _EditCouponPageDialogState extends State<EditCouponPageDialog> {
                                               ],
                                             ),
                                             const SizedBox(height: 15),
+
+
                                             Row(
                                               children: [
                                                 Flexible(
-                                                  child: AppTextField2(
-                                                    initialValue:
-                                                        coupon
-                                                            .discountPercent
-                                                            ?.toString(),
-                                                    title: 'Percentual',
-                                                    hint: 'Ex: 10%',
-                                                    suffixText: '%',
-                                                    description:
-                                                        'Informe somente um tipo de desconto',
-                                                    validator: (value) {
-                                                      if (value == null ||
-                                                          value.isEmpty) {
-                                                        if (coupon
-                                                                .discountFixed ==
-                                                            null) {
-                                                          return 'Campo obrigatório';
-                                                        } else {
-                                                          return null;
-                                                        }
-                                                      }
-                                                      final integer =
-                                                          int.tryParse(
-                                                            value,
-                                                          );
-                                                      if (integer == null) {
-                                                        return 'Número inválido';
-                                                      } else if (integer <
-                                                              0 ||
-                                                          integer >
-                                                              1000000) {
-                                                        return 'O número deve ser entre 1 e 100';
-                                                      }
-                                                      return null;
-                                                    },
-                                                    formatters: [
-                                                      FilteringTextInputFormatter
-                                                          .digitsOnly,
+                                                  child: DropdownButtonFormField<String>(
+
+                                                    value: coupon.discountType,
+                                                    decoration: InputDecoration(
+                                                      labelText: 'Tipo de desconto',
+
+                                                    ),
+                                                    items: const [
+                                                      DropdownMenuItem(value: 'percentage', child: Text('Porcentagem')),
+                                                      DropdownMenuItem(value: 'fixed', child: Text('Valor fixo')),
                                                     ],
-                                                    onChanged: (v) {
-                                                      controller.onChanged(
-                                                        coupon.copyWith(
-                                                          discountPercent:
-                                                              int.tryParse(
-                                                                v ?? '',
-                                                              ) ??
-                                                              0,
-                                                        ),
-                                                      );
+                                                    onChanged: (value) {
+                                                      if (value != null) {
+                                                        controller.onChanged(
+                                                          coupon.copyWith(discountType: value),
+                                                        );
+                                                      }
                                                     },
                                                   ),
                                                 ),
-                                                const SizedBox(width: 20),
+
+                                                SizedBox(width: 15,),
                                                 Flexible(
-                                                  child: AppTextField2(
-                                                    initialValue:
-                                                        coupon.discountFixed
-                                                            ?.toPrice(),
-                                                    title: 'Desconto fixo',
-                                                    hint: 'Ex: R\$ 10,00',
-                                                    description:
-                                                        'Informe somente um tipo de desconto',
+                                                  child: AppTextField(
+                                                    title: coupon.discountType == 'percentage' ? 'Valor do desconto (%)' : 'Valor do desconto (R\$)',
+                                                    initialValue: coupon.discountValue.toString(),
+                                                    hint: coupon.discountType == 'percentage' ? 'Ex: 10' : 'Ex: R\$ 10,00',
+
+                                                    formatters: coupon.discountType == 'percentage'
+                                                        ? [FilteringTextInputFormatter.digitsOnly]
+                                                        : [
+                                                      FilteringTextInputFormatter.digitsOnly,
+                                                      CentavosInputFormatter(moeda: true),
+                                                    ],
                                                     validator: (value) {
-                                                      if (value == null ||
-                                                          value.isEmpty) {
-                                                        if (coupon
-                                                                .discountPercent ==
-                                                            null) {
-                                                          return 'Campo obrigatório';
-                                                        } else {
-                                                          return null;
-                                                        }
-                                                      } else if (coupon
-                                                              .discountPercent !=
-                                                          null) {
-                                                        return 'Informe somente um';
+                                                      if (value == null || value.isEmpty) {
+                                                        return 'Campo obrigatório';
                                                       }
-                                                      final money =
-                                                          UtilBrasilFields.converterMoedaParaDouble(
-                                                            value,
-                                                          );
-                                                      if (money == 0) {
-                                                        return 'Desconto inválido';
-                                                      } else if (money >
-                                                          1000000) {
-                                                        return 'Número muito grande';
+
+                                                      final parsed = coupon.discountType == 'percentage'
+                                                          ? int.tryParse(value)
+                                                          : UtilBrasilFields.converterMoedaParaDouble(value);
+
+                                                      if (parsed == null || parsed == 0) {
+                                                        return 'Valor inválido';
                                                       }
+
                                                       return null;
                                                     },
-                                                    formatters: [
-                                                      FilteringTextInputFormatter
-                                                          .digitsOnly,
-                                                      CentavosInputFormatter(
-                                                        moeda: true,
-                                                      ),
-                                                    ],
                                                     onChanged: (v) {
-                                                      final money =
-                                                          (UtilBrasilFields.converterMoedaParaDouble(
-                                                                    v ?? '',
-                                                                  ) *
-                                                                  100)
-                                                              .floor();
+                                                      final parsed = coupon.discountType == 'percentage'
+                                                          ? int.tryParse(v ?? '') ?? 0
+                                                          : (UtilBrasilFields.converterMoedaParaDouble(v ?? '') * 100).floor();
 
                                                       controller.onChanged(
-                                                        coupon.copyWith(
-                                                          discountFixed:
-                                                              money,
-                                                        ),
+                                                        coupon.copyWith(discountValue: parsed),
                                                       );
                                                     },
                                                   ),
                                                 ),
+
+
+
+
+
                                               ],
                                             ),
+
+
+                                            const SizedBox(height: 15),
+
+
+
+
+
+                                            // Row(
+                                            //   children: [
+                                            //     Flexible(
+                                            //       child: AppTextField2(
+                                            //         initialValue:
+                                            //             coupon
+                                            //                 .discountPercent
+                                            //                 ?.toString(),
+                                            //         title: 'Percentual',
+                                            //         hint: 'Ex: 10%',
+                                            //         suffixText: '%',
+                                            //         description:
+                                            //             'Informe somente um tipo de desconto',
+                                            //         validator: (value) {
+                                            //           if (value == null ||
+                                            //               value.isEmpty) {
+                                            //             if (coupon
+                                            //                     .discountFixed ==
+                                            //                 null) {
+                                            //               return 'Campo obrigatório';
+                                            //             } else {
+                                            //               return null;
+                                            //             }
+                                            //           }
+                                            //           final integer =
+                                            //               int.tryParse(
+                                            //                 value,
+                                            //               );
+                                            //           if (integer == null) {
+                                            //             return 'Número inválido';
+                                            //           } else if (integer <
+                                            //                   0 ||
+                                            //               integer >
+                                            //                   1000000) {
+                                            //             return 'O número deve ser entre 1 e 100';
+                                            //           }
+                                            //           return null;
+                                            //         },
+                                            //         formatters: [
+                                            //           FilteringTextInputFormatter
+                                            //               .digitsOnly,
+                                            //         ],
+                                            //         onChanged: (v) {
+                                            //           controller.onChanged(
+                                            //             coupon.copyWith(
+                                            //               discountPercent:
+                                            //                   int.tryParse(
+                                            //                     v ?? '',
+                                            //                   ) ??
+                                            //                   0,
+                                            //             ),
+                                            //           );
+                                            //         },
+                                            //       ),
+                                            //     ),
+                                            //     const SizedBox(width: 20),
+                                            //     Flexible(
+                                            //       child: AppTextField2(
+                                            //         initialValue:
+                                            //             coupon.discountFixed
+                                            //                 ?.toPrice(),
+                                            //         title: 'Desconto fixo',
+                                            //         hint: 'Ex: R\$ 10,00',
+                                            //         description:
+                                            //             'Informe somente um tipo de desconto',
+                                            //         validator: (value) {
+                                            //           if (value == null ||
+                                            //               value.isEmpty) {
+                                            //             if (coupon
+                                            //                     .discountPercent ==
+                                            //                 null) {
+                                            //               return 'Campo obrigatório';
+                                            //             } else {
+                                            //               return null;
+                                            //             }
+                                            //           } else if (coupon
+                                            //                   .discountPercent !=
+                                            //               null) {
+                                            //             return 'Informe somente um';
+                                            //           }
+                                            //           final money =
+                                            //               UtilBrasilFields.converterMoedaParaDouble(
+                                            //                 value,
+                                            //               );
+                                            //           if (money == 0) {
+                                            //             return 'Desconto inválido';
+                                            //           } else if (money >
+                                            //               1000000) {
+                                            //             return 'Número muito grande';
+                                            //           }
+                                            //           return null;
+                                            //         },
+                                            //         formatters: [
+                                            //           FilteringTextInputFormatter
+                                            //               .digitsOnly,
+                                            //           CentavosInputFormatter(
+                                            //             moeda: true,
+                                            //           ),
+                                            //         ],
+                                            //         onChanged: (v) {
+                                            //           final money =
+                                            //               (UtilBrasilFields.converterMoedaParaDouble(
+                                            //                         v ?? '',
+                                            //                       ) *
+                                            //                       100)
+                                            //                   .floor();
+                                            //
+                                            //           controller.onChanged(
+                                            //             coupon.copyWith(
+                                            //               discountFixed:
+                                            //                   money,
+                                            //             ),
+                                            //           );
+                                            //         },
+                                            //       ),
+                                            //     ),
+                                            //   ],
+                                            // ),
                                           ],
                                         ),
                                       ),
@@ -956,14 +1108,14 @@ class _EditCouponPageDialogState extends State<EditCouponPageDialog> {
                                                     ),
                                                     Switch(
                                                       value:
-                                                          coupon.available,
+                                                          coupon.isActive,
 
                                                       onChanged: (
                                                         bool value,
                                                       ) {
                                                         controller.onChanged(
                                                           coupon.copyWith(
-                                                            available:
+                                                            isActive:
                                                                 value,
                                                           ),
                                                         );
@@ -994,14 +1146,14 @@ class _EditCouponPageDialogState extends State<EditCouponPageDialog> {
                                                     Switch(
                                                       value:
                                                           coupon
-                                                              .onlyNewCustomers,
+                                                              .onlyFirstPurchase,
 
                                                       onChanged: (
                                                         bool value,
                                                       ) {
                                                         controller.onChanged(
                                                           coupon.copyWith(
-                                                            onlyNewCustomers:
+                                                            onlyFirstPurchase:
                                                                 value,
                                                           ),
                                                         );
@@ -1034,4 +1186,8 @@ class _EditCouponPageDialogState extends State<EditCouponPageDialog> {
       },
     );
   }
+
+
+
+
 }

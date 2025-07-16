@@ -126,17 +126,26 @@ class OrderDetailsPage extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.red),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    minimumSize: const Size(double.infinity, 50),
+              if (canStoreCancelOrder(order.orderStatus))
+
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    onPressed: () =>
+                        showCancelConfirmationDialog(context, order),
+                    child: const Text(
+                        'Cancelar Pedido', style: TextStyle(color: Colors.red)),
                   ),
-                  onPressed: () => _showCancelConfirmationDialog(context),
-                  child: const Text('Cancelar Pedido', style: TextStyle(color: Colors.red)),
                 ),
-              ),
+
+
+
+
               const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton(
@@ -211,7 +220,7 @@ class OrderDetailsPage extends StatelessWidget {
   }
 
   Widget _buildStatusBar(String currentStatus) {
-    final List<String> displayStatuses = ['pending', 'preparing', 'ready', 'delivered'];
+    final List<String> displayStatuses = ['pending', 'preparing','ready', 'on_route','delivered'];
     final int currentStatusIndex = displayStatuses.indexOf(currentStatus);
 
     return Row(
@@ -253,12 +262,18 @@ class OrderDetailsPage extends StatelessWidget {
     switch (order.orderStatus) {
       case 'pending':
         nextStatus = 'preparing';
+
         onPrintOrder(order); // Imprime ao aceitar
+
         break;
       case 'preparing':
         nextStatus = 'ready';
         break;
       case 'ready':
+        nextStatus = 'on_route';
+
+        break;
+      case 'on_route':
         nextStatus = 'delivered';
         break;
       default:
@@ -272,32 +287,5 @@ class OrderDetailsPage extends StatelessWidget {
     }
   }
 
-  void _showCancelConfirmationDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Confirmar Cancelamento'),
-          content: Text('Tem certeza que deseja cancelar o pedido #${order.publicId}?'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Não'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Sim', style: TextStyle(color: Colors.white)),
-              onPressed: () {
-                context.read<OrderCubit>().updateOrderStatus(order.id, 'cancelled');
-                Navigator.of(dialogContext).pop();
-                Navigator.of(context).pop(); // Fechar a tela de detalhes após cancelar
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+
 }

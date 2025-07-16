@@ -2,27 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:totem_pro_admin/models/order.dart';
 
 import '../../../core/router.dart';
 
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
 import '../../../models/order_details.dart';
+import '../../../models/order_product.dart';
 import '../../../utils/sounds/sound_util.dart';
 import 'package:bot_toast/bot_toast.dart';
 
+import '../order_page_cubit.dart';
 import '../service/print.dart';
 
 String formatOrderDate(DateTime date) {
   return DateFormat('dd/MM/yyyy HH:mm').format(date.toLocal());
 }
-
-
-
-
-
-
-
 
 String getDeliveryTypeName(String? deliveryType) {
   switch (deliveryType) {
@@ -47,20 +43,20 @@ void handleNewOrderArrival({
   final now = DateTime.now().toUtc();
 
   final recentNewOrders =
-  currentOrders
-      .where(
-        (order) =>
-    (order.orderStatus == 'pending' ||
-        order.orderStatus == 'preparing') &&
-        order.id.toString() != lastNotifiedOrderId &&
-        now.difference(order.createdAt).inSeconds < 180,
-  )
-      .toList();
+      currentOrders
+          .where(
+            (order) =>
+                (order.orderStatus == 'pending' ||
+                    order.orderStatus == 'preparing') &&
+                order.id.toString() != lastNotifiedOrderId &&
+                now.difference(order.createdAt).inSeconds < 180,
+          )
+          .toList();
 
   if (recentNewOrders.isEmpty) return;
 
   final newOrder = recentNewOrders.reduce(
-        (a, b) => a.createdAt.isAfter(b.createdAt) ? a : b,
+    (a, b) => a.createdAt.isAfter(b.createdAt) ? a : b,
   );
 
   setLastNotifiedOrderId(newOrder.id.toString());
@@ -92,16 +88,16 @@ extension IterableExtensions<T> on Iterable<T> {
 }
 
 OrderDetails? findLatestPendingNewOrder(
-    List<OrderDetails> orders,
-    String? lastNotifiedId,
-    ) {
+  List<OrderDetails> orders,
+  String? lastNotifiedId,
+) {
   return orders
       .where(
         (order) =>
-    order.orderStatus == 'pending' &&
-        order.id.toString() != lastNotifiedId &&
-        DateTime.now().toUtc().difference(order.createdAt).inSeconds < 180,
-  )
+            order.orderStatus == 'pending' &&
+            order.id.toString() != lastNotifiedId &&
+            DateTime.now().toUtc().difference(order.createdAt).inSeconds < 180,
+      )
       .reduceOrNull((a, b) => a.createdAt.isAfter(b.createdAt) ? a : b);
 }
 
@@ -122,18 +118,18 @@ void showNewOrderNotification(String orderCode, int storeId) {
       BotToast.showNotification(
         title:
             (_) => const Text(
-          '🛎️ Novo Pedido!',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 16,
-          ),
-        ),
+              '🛎️ Novo Pedido!',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 16,
+              ),
+            ),
         subtitle:
             (_) => const Text(
-          'Pedido recebido',
-          style: TextStyle(color: Colors.white70, fontSize: 14),
-        ),
+              'Pedido recebido',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
         backgroundColor: Colors.green[600] ?? Colors.green,
         duration: const Duration(seconds: 5),
         animationDuration: const Duration(milliseconds: 300),
@@ -144,15 +140,15 @@ void showNewOrderNotification(String orderCode, int storeId) {
         crossPage: true,
         trailing:
             (cancelFunc) => TextButton(
-          onPressed: () {
-            cancelFunc();
-            globalNavigatorKey.currentState?.pushNamed(
-              '/stores/$storeId/orders',
-              arguments: {'orderCode': orderCode},
-            );
-          },
-          child: const Text('Ver', style: TextStyle(color: Colors.white)),
-        ),
+              onPressed: () {
+                cancelFunc();
+                globalNavigatorKey.currentState?.pushNamed(
+                  '/stores/$storeId/orders',
+                  arguments: {'orderCode': orderCode},
+                );
+              },
+              child: const Text('Ver', style: TextStyle(color: Colors.white)),
+            ),
       );
     } catch (e) {
       debugPrint('Erro ao mostrar notificação: $e');
@@ -269,23 +265,254 @@ String? getNextStatusInternal(String currentOrderStatus, String deliveryType) {
 
 void printOrder(OrderDetails order) {
   print('🖨️ Imprimindo pedido #${order.id}...');
-  printExampleReceipt(order);
+  printOrderReceipt(order);
 }
 
-void printExampleReceipt(OrderDetails order) async {
+void printOrderReceipt(OrderDetails order) async {
   try {
     final printerService = PrinterService();
+
+    // Formatar datas
+    final createdAt = DateFormat('dd/MM/yyyy HH:mm:ss').format(order.createdAt);
+    final deliveryAt =
+        order.scheduledFor != null
+            ? DateFormat('dd/MM/yyyy HH:mm:ss').format(order.scheduledFor!)
+            : DateFormat(
+              'dd/MM/yyyy HH:mm:ss',
+            ).format(order.createdAt.add(Duration(minutes: 30)));
+
+    // Determinar tipo de entrega
+    final deliveryType = _getDeliveryType(order.deliveryType);
+
+    // Converter valores monetários
+    final currencyFormat = NumberFormat.currency(
+      locale: 'pt_BR',
+      symbol: 'R\$',
+    );
+
+    // Preparar itens para impressão
+    final items = _prepareReceiptItems(order.products, currencyFormat);
+
+    // Calcular totais
+    final total = order.discountedTotalPrice / 100;
+    final subtotal = order.totalPrice / 100;
+    final deliveryFee =
+        order.deliveryFee != null ? order.deliveryFee! / 100 : 0;
+    final discount = (order.totalPrice - order.discountedTotalPrice) / 100;
+
+    // Construir footer com todas as informações adicionais
+    final footer = '''
+${deliveryType.toUpperCase()}
+
+${_getStoreName(order)}
+Data do Pedido: $createdAt
+${order.scheduledFor != null ? 'Data de Entrega: $deliveryAt' : 'Data de Entrega Estimada: $deliveryAt'}
+Cliente: ${order.customerName.isNotEmpty ? order.customerName : 'Consumidor'}
+Telefone: ${_formatPhone(order.customerPhone)}
+---
+TOTAL
+Valor dos itens: ${currencyFormat.format(subtotal)}
+${deliveryFee > 0 ? 'Taxa de Entrega: ${currencyFormat.format(deliveryFee)}' : ''}
+${discount > 0 ? 'Desconto: ${currencyFormat.format(discount)}' : ''}
+VALOR TOTAL: ${currencyFormat.format(total)}
+......
+FORMA DE PAGAMENTO
+${order.paymentMethodName.toUpperCase()}
+${order.changeAmount != null && order.changeAmount! > 0 ? 'Troco para: ${currencyFormat.format(order.changeAmount! / 100)}' : ''}
+......
+${order.observation != null && order.observation!.isNotEmpty ? 'Obs: ${order.observation}' : ''}
+......
+${order.deliveryType == 'delivery' ? _buildDeliveryAddressSection(order) : ''}
+......
+Impresso em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}
+''';
+
     await printerService.printReceipt(
-      title: order.storeId.toString(),
-      items: order.products.map((p) => {
-        'name': p.name,
-        'value': 'R\$ ${(p.price/100).toStringAsFixed(2)}'
-      }).toList(),
-      total: order.totalPrice/100,
-      footer: 'Obrigado pela preferência!\nVolte sempre!',
+      title: 'PEDIDO #${order.publicId}',
+      items: items,
+      total: total,
+      footer: footer,
       is58mm: true,
     );
   } catch (e) {
     print('Erro ao imprimir: $e');
+    // Adicione aqui tratamento de erro adequado
+    rethrow; // Opcional: propagar o erro para tratamento superior
   }
+}
+
+List<Map<String, String>> _prepareReceiptItems(
+  List<OrderProduct> products,
+  NumberFormat currencyFormat,
+) {
+  return products.expand((product) {
+    final items = <Map<String, String>>[];
+
+    // Item principal
+    items.add({
+      'name': '${product.quantity}x ${product.name.toUpperCase()}',
+      'value': currencyFormat.format((product.price * product.quantity) / 100),
+    });
+
+    // Variantes/adicionais
+    for (final variant in product.variants) {
+      items.add({'name': '  ${variant.name}'});
+    }
+
+    // Observações
+    if (product.note.isNotEmpty) {
+      items.add({'name': '  Obs: ${product.note}', 'value': ''});
+    }
+
+    // Separador
+    items.add({'name': '......', 'value': ''});
+
+    return items;
+  }).toList();
+}
+
+// Funções auxiliares melhoradas
+String _getDeliveryType(String deliveryType) {
+  switch (deliveryType.toLowerCase()) {
+    case 'delivery':
+      return 'Delivery';
+    case 'takeout':
+      return 'Pra Retirar';
+    case 'dine_in':
+      return 'Na Mesa';
+    default:
+      return deliveryType;
+  }
+}
+
+String _getStoreName(OrderDetails order) {
+  return order.storeId.toString() ?? 'NOME DO ESTABELECIMENTO';
+}
+
+String _formatPhone(String phone) {
+  if (phone.isEmpty) return '';
+  // Formatação básica de telefone: (XX) XXXX-XXXX
+  return phone.replaceAllMapped(
+    RegExp(r'^(\d{2})(\d{4,5})(\d{4})$'),
+    (Match m) => '(${m[1]}) ${m[2]}-${m[3]}',
+  );
+}
+
+String _buildItemsSection(
+  List<OrderProduct> products,
+  NumberFormat currencyFormat,
+) {
+  final buffer = StringBuffer();
+  double itemsTotal = 0;
+
+  for (final product in products) {
+    final itemTotal = (product.price * product.quantity) / 100;
+    itemsTotal += itemTotal;
+
+    buffer.writeln('${product.quantity} UN');
+    buffer.writeln(
+      '${product.name.toUpperCase()}${' ' * (30 - product.name.length)}${currencyFormat.format(product.price / 100)}',
+    );
+
+    if (product.variants.isNotEmpty) {
+      for (final variant in product.variants) {
+        //   final variantPrice = variant.name > 0 ? '${currencyFormat.format(variant.price / 100)}' : '';
+        //  buffer.writeln('  ${variant.quantity} UN ${variant.name}${' ' * (25 - variant.name.length)}$variantPrice');
+      }
+    }
+
+    if (product.note.isNotEmpty) {
+      buffer.writeln('Obs: ${product.note}');
+    }
+
+    buffer.writeln(
+      'Total do item${' ' * (20)}${currencyFormat.format(itemTotal)}',
+    );
+    buffer.writeln('......');
+  }
+
+  return buffer.toString();
+}
+
+// Método para verificar se o lojista pode cancelar
+bool canStoreCancelOrder(String currentOrderStatus) {
+  return ['pending', 'preparing', 'ready'].contains(currentOrderStatus);
+}
+
+String _buildPaymentSection(OrderDetails order, NumberFormat currencyFormat) {
+  final buffer = StringBuffer();
+
+  final paymentMethod = order.paymentMethodName.toUpperCase();
+  final totalPaid = order.discountedTotalPrice / 100;
+
+  if (paymentMethod.contains('ONLINE')) {
+    buffer.writeln(
+      'Pagamento Online ($paymentMethod)${' ' * (10)}${currencyFormat.format(totalPaid)}',
+    );
+  } else {
+    buffer.writeln(
+      '$paymentMethod${' ' * (25 - paymentMethod.length)}${currencyFormat.format(totalPaid)}',
+    );
+  }
+
+  if (order.changeAmount != null && order.changeAmount! > 0) {
+    buffer.writeln(
+      'Troco para${' ' * (20)}${currencyFormat.format(order.changeAmount! / 100)}',
+    );
+  }
+
+  return buffer.toString();
+}
+
+String _buildDeliveryAddressSection(OrderDetails order) {
+  return '''
+    ENTREGA PEDIDO #${order.publicId}
+
+Horário da Entrega: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(order.scheduledFor ?? order.createdAt.add(Duration(minutes: 30)))}
+Cliente: ${order.customerName}
+Endereço: ${order.street}, ${order.number}
+${order.complement?.isNotEmpty ?? false ? 'Comp: ${order.complement}' : ''}
+
+Bairro: ${order.neighborhood}
+Cidade: ${order.city} -  'UF'}
+
+''';
+}
+
+String _formatCEP(String? cep) {
+  if (cep == null || cep.isEmpty) return 'NÃO INFORMADO';
+  final cleanCep = cep.replaceAll(RegExp(r'[^0-9]'), '');
+  if (cleanCep.length == 8) {
+    return '${cleanCep.substring(0, 2)}.${cleanCep.substring(2, 5)}-${cleanCep.substring(5)}';
+  }
+  return cep;
+}
+
+void showCancelConfirmationDialog(BuildContext context, OrderDetails order) {
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        title: const Text('Confirmar Cancelamento'),
+        content: Text('Tem certeza que deseja cancelar o pedido #${order.publicId}?'),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Não'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Sim', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              context.read<OrderCubit>().updateOrderStatus(order.id, 'cancelled');
+              Navigator.of(dialogContext).pop();
+              Navigator.of(context).pop(); // Fechar a tela de detalhes após cancelar
+            },
+          ),
+        ],
+      );
+    },
+  );
 }

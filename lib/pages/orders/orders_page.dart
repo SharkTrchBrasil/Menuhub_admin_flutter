@@ -37,6 +37,7 @@ import '../../models/rating_summary.dart';
 import '../../models/store_hour.dart';
 import '../../models/store_settings.dart';
 import '../../widgets/dot_loading.dart';
+import '../../widgets/subscription_blocked_card.dart';
 
 class OrdersPage extends StatefulWidget {
   // Remova o construtor 'storeId' daqui, ele será gerenciado pelo StoreManagerCubit
@@ -123,9 +124,6 @@ class _OrdersPageState extends State<OrdersPage>
       listener: (context, storeState) {
         if (storeState is StoresManagerLoaded &&
             storeState.activeStoreId != null) {
-          // Quando a loja ativa muda, recarregue os pedidos para a nova loja
-          //    context.read<OrderCubit>().loadInitialOrders(storeState.activeStoreId!);
-          // Limpa o pedido selecionado se a loja mudar
           setState(() {
             _selectedOrderDetails = null;
           });
@@ -155,10 +153,22 @@ class _OrdersPageState extends State<OrdersPage>
           }
 
           // Se chegarmos aqui, temos uma loja ativa e podemos construir a UI
-          final activeStore = storeState.stores[storeState.activeStoreId!]
-              ?.store;
-          final String currentStoreName = activeStore?.name ??
-              'Loja Desconhecida';
+          final activeStore = storeState.stores[storeState.activeStoreId!]?.store;
+          final String currentStoreName = activeStore?.name ?? 'Loja Desconhecida';
+
+          final storeId = activeStore?.id;
+          final subscription = activeStore?.subscription;
+
+          print('🧾 [DEBUG] Assinatura da loja $storeId:');
+          print('Status: ${subscription?.status}');
+          print('currentPeriodEnd: ${subscription?.currentPeriodEnd}');
+          print('isExpired: ${subscription?.isExpired}');
+          print('isInGracePeriod: ${subscription?.isInGracePeriod}');
+          print('daysUntilExpiration: ${subscription?.daysUntilExpiration}');
+
+          if (subscription == null || (subscription.isExpired && !subscription.isInGracePeriod)) {
+            SubscriptionBlockedCard(storeName: currentStoreName);
+          }
 
 
           return BasePage(
@@ -321,7 +331,7 @@ class _OrdersPageState extends State<OrdersPage>
                 // Adicionado um null check para storeSettings e activeStoreId
                 if (activeStoreId != null && storeSettings != null)
                   ListTile(
-                    title: const Text('Aceitar pedidos automaticamente'),
+                    title: const Text('Aceitar pedidos automaticamente', overflow:TextOverflow.ellipsis),
                     trailing: Switch(
                       value: storeSettings.autoAcceptOrders,
                       onChanged: (newValue) =>
@@ -740,9 +750,9 @@ class _OrdersPageState extends State<OrdersPage>
             )
           else
             Expanded(
-              child: OrderDetailsPanelDestop(
-                selectedOrder: _selectedOrderDetails,
-                onPrintOrder: printOrder,),
+              child: OrderDetailsElegant(
+
+                 order: _selectedOrderDetails!),
             ),
           const SizedBox(height: 16),
         ],

@@ -50,22 +50,7 @@ class OrderListItem extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      internalStatusToDisplayName[order.orderStatus] ??
-                          'Desconhecido',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+
                 ],
               ),
 
@@ -130,19 +115,7 @@ class OrderListItem extends StatelessWidget {
                       onPrintOrder: onPrintOrder,
                     ),
                   ),
-                  if (order.orderStatus == 'pending')
-                    const SizedBox(width: 8),
-                  if (order.orderStatus == 'pending')
-                    TextButton.icon(
-                      icon: const Icon(Icons.close, size: 18),
-                      label: const Text('Recusar'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.red,
-                      ),
-                      onPressed: () {
-                        // Lógica para recusar pedido
-                      },
-                    ),
+
                 ],
               ),
             ],

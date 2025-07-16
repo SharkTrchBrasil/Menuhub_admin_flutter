@@ -117,6 +117,7 @@ class OrderStatusButton extends StatelessWidget {
             ),
             onPressed: onPressed,
             child: Text(
+              overflow:TextOverflow.ellipsis,
               buttonText,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),

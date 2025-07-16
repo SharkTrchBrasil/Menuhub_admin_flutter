@@ -3,98 +3,109 @@ import 'package:totem_pro_admin/models/product.dart';
 class Coupon {
   Coupon({
     this.id,
-    this.maxUsesPerCustomer,
-    this.minOrderValue,
     this.code = '',
-    this.product,
-    this.discountPercent,
-    this.discountFixed,
+    this.discountType = 'percentage',
+    this.discountValue = 0,
     this.maxUses,
     this.used = 0,
+    this.maxUsesPerCustomer,
+    this.minOrderValue,
     this.startDate,
     this.endDate,
-    this.available = true,
-    this.onlyNewCustomers = false,
+    this.isActive = true,
+    this.onlyFirstPurchase = false,
+    this.product,
+
   });
 
   final int? id;
   final String code;
-  final Product? product;
-  final int? discountPercent;
-  final int? discountFixed;
+  final String discountType; // 'percentage' ou 'fixed'
+  final int discountValue; // sempre em centavos ou percentual
   final int? maxUses;
+  final int used;
   final int? maxUsesPerCustomer;
   final int? minOrderValue;
-  final int used;
-  final bool available;
-  final bool onlyNewCustomers;
   final DateTime? startDate;
   final DateTime? endDate;
+  final bool isActive;
+  final bool onlyFirstPurchase;
+  final Product? product;
+
 
   factory Coupon.fromJson(Map<String, dynamic> json) => Coupon(
-    id: json['id'] as int,
+    id: json['id'] as int?,
     code: json['code'] as String,
-    minOrderValue: json['minOrderValue'] as int?,
-    maxUsesPerCustomer: json['maxUsesPerCustomer'] as int?,
+    discountType: json['discount_type'] as String,
+    discountValue: json['discount_value'] as int,
+    maxUses: json['max_uses'] as int?,
+    used: json['used'] as int? ?? 0,
+    maxUsesPerCustomer: json['max_uses_per_customer'] as int?,
+    minOrderValue: json['min_order_value'] as int?,
+    startDate: json['start_date'] != null
+        ? DateTime.parse(json['start_date'] as String)
+        : null,
+    endDate: json['end_date'] != null
+        ? DateTime.parse(json['end_date'] as String)
+        : null,
+    isActive: json['is_active'] as bool? ?? true,
+    onlyFirstPurchase: json['only_first_purchase'] as bool? ?? false,
+    product: json['product'] != null
+        ? Product.fromJson(json['product'])
+        : null,
 
-
-
-    product: json['product'] != null ? Product.fromJson(json['product']) : null,
-    discountPercent: json['discount_percent'] as int?,
-    discountFixed: json['discount_fixed'] as int?,
-    maxUses: json['max_uses'] as int,
-    used: json['used'] as int,
-    available: json['available'] as bool,
-    onlyNewCustomers: json['onlyNewCustomers'] as bool,
-    startDate: DateTime.parse(json['start_date'] as String),
-    endDate: DateTime.parse(json['end_date'] as String),
   );
-
-  Coupon copyWith({
-    int? id,
-    String? code,
-    Product? product,
-    int? discountPercent,
-    int? discountFixed,
-    int? minOrderValue,
-    int? maxUses,
-    int? maxUsesPerCustomer,
-    DateTime? startDate,
-    DateTime? endDate,
-    bool? available,
-    bool? onlyNewCustomers,
-  }) {
-    return Coupon(
-      id: id ?? this.id,
-      code: code ?? this.code,
-      product: product ?? this.product,
-      discountPercent: discountPercent ?? this.discountPercent,
-      minOrderValue: minOrderValue ?? this.minOrderValue,
-      maxUsesPerCustomer: maxUsesPerCustomer ?? this.maxUsesPerCustomer,
-      discountFixed: discountFixed ?? this.discountFixed,
-      maxUses: maxUses ?? this.maxUses,
-      used: used,
-      startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
-      available: available ?? this.available,
-      onlyNewCustomers: onlyNewCustomers ?? this.onlyNewCustomers,
-    );
-  }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'code': code,
-      'maxUsesPerCustomer': maxUsesPerCustomer,
-      'minOrderValue': minOrderValue,
-      'product_id': product?.id,
-      'discount_percent': discountPercent != 0 ? discountPercent : null,
-      'discount_fixed': discountFixed != 0 ? discountFixed : null,
+      'discount_type': discountType,
+      'discount_value': discountValue,
       'max_uses': maxUses,
-      'start_date': startDate!.toIso8601String(),
-      'end_date': endDate!.toIso8601String(),
-      'available': available,
-      'onlyNewCustomers': onlyNewCustomers,
+      'used': used,
+      'max_uses_per_customer': maxUsesPerCustomer,
+      'min_order_value': minOrderValue,
+      'start_date': startDate?.toIso8601String(),
+      'end_date': endDate?.toIso8601String(),
+      'is_active': isActive,
+      'only_first_purchase': onlyFirstPurchase,
+      'product_id': product?.id,
+
     };
+  }
+
+  Coupon copyWith({
+    int? id,
+    String? code,
+    String? discountType,
+    int? discountValue,
+    int? maxUses,
+    int? used,
+    int? maxUsesPerCustomer,
+    int? minOrderValue,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool? isActive,
+    bool? onlyFirstPurchase,
+    Product? product,
+    int? storeId,
+  }) {
+    return Coupon(
+      id: id ?? this.id,
+      code: code ?? this.code,
+      discountType: discountType ?? this.discountType,
+      discountValue: discountValue ?? this.discountValue,
+      maxUses: maxUses ?? this.maxUses,
+      used: used ?? this.used,
+      maxUsesPerCustomer: maxUsesPerCustomer ?? this.maxUsesPerCustomer,
+      minOrderValue: minOrderValue ?? this.minOrderValue,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      isActive: isActive ?? this.isActive,
+      onlyFirstPurchase: onlyFirstPurchase ?? this.onlyFirstPurchase,
+      product: product ?? this.product,
+
+    );
   }
 }

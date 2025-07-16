@@ -8,8 +8,10 @@ import 'package:totem_pro_admin/models/order_details.dart';
 import '../cubits/store_manager_cubit.dart'; // Importe seu StoresManagerCubit
 import '../cubits/store_manager_state.dart'; // Importe seu StoresManagerState (se StoreManagerCubit usa estados)
 
+import '../models/command.dart';
 import '../models/product.dart';
 import '../models/store_with_role.dart';
+import '../models/table.dart';
 import '../pages/orders/utils/order_helpers.dart';
 
 class RealtimeRepository {
@@ -19,17 +21,27 @@ class RealtimeRepository {
 
   final Map<int, BehaviorSubject<List<OrderDetails>>> _ordersInitialStreams = {};
   final Map<int, BehaviorSubject<OrderDetails>> _orderUpdateStreams = {};
+  final Map<int, BehaviorSubject<List<Table>>> _tablesStreams = {};
+  final Map<int, BehaviorSubject<List<Command>>> _commandsStreams = {};
 
-  // NOVO: Stream para atualizações da lista de lojas consolidadas do backend
-  // Removido '.broadcast()' do construtor BehaviorSubject
   final _consolidatedStoresUpdatedController = BehaviorSubject<List<int>>(); // <--- CORRIGIDO AQUI
-  Stream<List<int>> get onConsolidatedStoresUpdated => _consolidatedStoresUpdatedController.stream;
 
-
-  // Você precisará de um BehaviorSubject ou StreamController para a lista completa de lojas do admin
-  // Removido '.broadcast()' do construtor BehaviorSubject
   final _adminStoresListController = BehaviorSubject<List<StoreWithRole>>(); // <--- CORRIGIDO AQUI
   Stream<List<StoreWithRole>> get onAdminStoresList => _adminStoresListController.stream;
+
+
+  Stream<List<int>> get onConsolidatedStoresUpdated => _consolidatedStoresUpdatedController.stream;
+// Getters para escutar streams
+  Stream<List<Table>> listenToTables(int storeId) {
+    _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Table>>());
+    return _tablesStreams[storeId]!.stream;
+  }
+
+  Stream<List<Command>> listenToCommands(int storeId) {
+    _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Command>>());
+    return _commandsStreams[storeId]!.stream;
+  }
+
 
   final Map<int, BehaviorSubject<StoreWithRole>> _storeStreams = {};
   final Map<int, BehaviorSubject<List<Product>>> _productsStreams = {};
@@ -69,7 +81,7 @@ class RealtimeRepository {
     // ✅ O seu bloco de código atualizado para 'store_full_updated'
     _socket.on('store_full_updated', (data) {
       try {
-        //   print('[DEBUG] store_full_updated data: $data');
+          print('[DEBUG] store_full_updated data: $data');
 
         if (data == null) {
           throw Exception('Dados nulos recebidos para store_full_updated');
@@ -234,6 +246,38 @@ class RealtimeRepository {
     });
 
 
+    _socket.on('tables_and_commands', (data) {
+      try {
+        if (data is Map<String, dynamic>) {
+          final tablesRaw = data['tables'] as List<dynamic>? ?? [];
+          final commandsRaw = data['commands'] as List<dynamic>? ?? [];
+
+          final List<Table> tables = tablesRaw
+              .whereType<Map<String, dynamic>>()
+              .map((json) => Table.fromJson(json))
+              .toList();
+
+          final List<Command> commands = commandsRaw
+              .whereType<Map<String, dynamic>>()
+              .map((json) => Command.fromJson(json))
+              .toList();
+
+          if (tables.isNotEmpty) {
+            final storeId = tables.first.storeId;
+            _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Table>>());
+            _tablesStreams[storeId]?.add(tables);
+          }
+
+          if (commands.isNotEmpty) {
+            final storeId = commands.first.storeId;
+            _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Command>>());
+            _commandsStreams[storeId]?.add(commands);
+          }
+        }
+      } catch (e, st) {
+        print('[ERRO] tables_and_commands: $e\n$st');
+      }
+    });
 
     _socket.onConnect((_) => print('[Socket] ✅ Conectado'));
     _socket.onDisconnect((_) => print('[Socket] 🔌 Desconectado'));
@@ -394,13 +438,16 @@ class RealtimeRepository {
     _ordersStreams.forEach((_, stream) => stream.close());
     _ordersInitialStreams.forEach((_, stream) => stream.close()); // Dispose the new stream
     _orderUpdateStreams.forEach((_, stream) => stream.close()); // Dispose the new stream
+_commandsStreams.forEach((_, stream) => stream.close());
+_tablesStreams.forEach((_, stream) => stream.close());
 
     _storeStreams.clear();
     _productsStreams.clear();
     _ordersStreams.clear();
     _ordersInitialStreams.clear();
     _orderUpdateStreams.clear();
-
+    _tablesStreams.clear();
+    _commandsStreams.clear();
     _socket.disconnect();
     _socket.dispose();
     print('[Socket] RealtimeRepository disposto. Socket desconectado.');
