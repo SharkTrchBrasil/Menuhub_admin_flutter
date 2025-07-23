@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,8 +24,10 @@ import 'package:totem_pro_admin/pages/sign_in/sign_in_page.dart';
 import 'package:totem_pro_admin/pages/sign_up/sign_up_page.dart';
 import 'package:totem_pro_admin/pages/splash/splash_page.dart';
 
-
 import '../cubits/store_manager_cubit.dart';
+import '../cubits/store_manager_state.dart';
+import '../models/order_details.dart';
+import '../models/store.dart';
 import '../pages/accesses/accesses_page.dart';
 
 import '../pages/banners/banners_page.dart';
@@ -39,17 +43,20 @@ import '../pages/edit_settings/delivery_locations_page.dart';
 import '../pages/edit_settings/hours_store_page.dart';
 import '../pages/edit_settings/edit_settings_page.dart';
 
-
+import '../pages/edit_subscription/edit_subscription_page.dart';
 import '../pages/edit_variant/edit_variant_page.dart';
 import '../pages/integrations/integrations_page.dart';
 import '../pages/inventory/inventory_page.dart';
 import '../pages/kds/kds_page.dart';
+import '../pages/loading/loading_data_page.dart';
 import '../pages/not_found/error_505_Page.dart';
 
 import '../pages/orders/order_page_cubit.dart';
 import '../pages/orders/orders_page.dart';
 
+import '../pages/orders/service/printer_manager.dart';
 import '../pages/orders/store_settings.dart';
+import '../pages/orders/widgets/order_details_mobile.dart';
 import '../pages/payables/payables_page.dart';
 import '../pages/reports/reports_page.dart';
 import '../pages/splash/splash_page_cubit.dart';
@@ -59,37 +66,86 @@ import '../pages/verify_code/verify_code_page.dart';
 import '../repositories/realtime_repository.dart';
 import '../repositories/store_repository.dart';
 
+import '../services/auth_service.dart';
+import '../services/cubits/auth_cubit.dart';
+import '../services/cubits/auth_state.dart';
 import 'guards/store_owner_guard.dart';
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
+GoRouter createRouter({
+  required AuthCubit authCubit,
+  required StoresManagerCubit storesManagerCubit,
+}) {
+  return GoRouter(
+    navigatorKey: globalNavigatorKey,
+    initialLocation: '/splash',
+    debugLogDiagnostics: true,
+    redirectLimit: 10,
+    observers: [BotToastNavigatorObserver()],
+    refreshListenable: Listenable.merge([
+      GoRouterRefreshStream(authCubit.stream),
+      GoRouterRefreshStream(storesManagerCubit.stream),
+    ]),
 
-final router = GoRouter(
-  navigatorKey: globalNavigatorKey, // passa aqui, no GoRouter
-  initialLocation: '/splash',
-  debugLogDiagnostics: true,
-  redirectLimit: 10,
-  observers: [BotToastNavigatorObserver()],
 
-  redirect: (context, state) {
-    final isInitializedRegistered = getIt.isRegistered<bool>(
-      instanceName: 'isInitialized',
-    );
+// Dentro da sua configuração do GoRouter
 
-    final isSplash = state.fullPath == '/splash';
+      redirect: (BuildContext context, GoRouterState state) {
+        final authCubit = context.read<AuthCubit>();
+        final authState = authCubit.state;
+        final location = state.uri.toString();
 
-    if (!isInitializedRegistered ||
-        !getIt.get<bool>(instanceName: 'isInitialized')) {
-      // Permite apenas a splash
-      return isSplash ? null : '/splash?redirectTo=${state.uri.toString()}';
-    }
+        // Variáveis para facilitar a leitura da lógica
+        final isLoading = authState is AuthInitial || authState is AuthLoading;
+        final isAuthenticated = authState is AuthAuthenticated;
 
-    // Já está inicializado, mas está na splash
-    if (isSplash) {
-      return '/sign-in'; // ou '/' se quiser ir direto pro app
-    }
 
-    return null;
-  },
+        final isGoingToSplash = location == '/loading';
+
+
+        const authRoutes = ['/sign-in', '/sign-up'];
+        final isGoingToAuthRoute = authRoutes.any((route) => location.startsWith(route));
+
+
+        // REGRA 1: Se o app ainda está carregando o status de autenticação...
+        if (isLoading) {
+
+
+          if (isGoingToSplash || isGoingToAuthRoute) {
+            return null;
+          }
+          return '/loading';
+
+
+
+        }
+
+        // REGRA 2: Se o usuário ESTÁ autenticado...
+        if (isAuthenticated) {
+          // ... e está na tela de splash ou de login, redireciona para dentro do app.
+          if (isGoingToSplash || isGoingToAuthRoute) {
+            final stores = authState.data.stores;
+            if (stores.isEmpty) {
+              return '/stores/new';
+            } else {
+              final activeStoreId = stores.first.store.id;
+              return '/stores/$activeStoreId/orders';
+            }
+          }
+        }
+
+        // REGRA 3: Se o usuário NÃO ESTÁ autenticado (e não está carregando)...
+        if (!isAuthenticated) {
+          // ... e tenta acessar qualquer rota que não seja a de login, redireciona para o login.
+          if (!isGoingToAuthRoute) {
+            return '/sign-in';
+          }
+        }
+
+        // Se nenhuma regra acima foi acionada, permite a navegação.
+        return null;
+      },
+
 
   errorPageBuilder:
       (context, state) => MaterialPage(
@@ -97,7 +153,6 @@ final router = GoRouter(
       ),
 
   routes: [
-
     GoRoute(
       path: '/splash',
       builder: (_, state) {
@@ -117,8 +172,8 @@ final router = GoRouter(
         }
         return null;
       },
-    ),
 
+    ),
 
     GoRoute(
       path: '/sign-in',
@@ -148,7 +203,10 @@ final router = GoRouter(
       },
     ),
 
-
+    GoRoute(
+      path: '/loading',
+      builder: (_, state) => LoadingDataPage(), // <-- ADICIONE AQUI
+    ),
 
     GoRoute(
       path: '/verify-code',
@@ -159,8 +217,6 @@ final router = GoRouter(
         return VerifyCodePage(email: email, password: password);
       },
     ),
-
-
 
     GoRoute(
       path: '/stores',
@@ -181,7 +237,7 @@ final router = GoRouter(
           path: ':storeId',
           redirect: (_, state) {
             if (state.fullPath == '/stores/:storeId') {
-              return '/stores/${state.pathParameters['storeId']}/orders';
+              return '/stores/${state.pathParameters['storeId']}/products';
             }
             return null;
           },
@@ -190,7 +246,6 @@ final router = GoRouter(
           },
           routes: [
             StatefulShellRoute.indexedStack(
-
               builder: (context, state, shell) {
                 return HomePage(shell: shell, storeId: state.storeId);
               },
@@ -251,67 +306,94 @@ final router = GoRouter(
                   ],
                 ),
 
-
                 StatefulShellBranch(
                   routes: [
                     GoRoute(
-                      path: 'orders', // <--- ADICIONE O PARÂMETRO DINÂMICO
-                      pageBuilder: (_, state) {
-                        // EXTRAIA O storeId da URL
-                        final storeIdString = state.pathParameters['storeId'];
-                        final int? storeId = int.tryParse(storeIdString ?? '');
+                      path: '/orders',
+                      pageBuilder:
+                          (_, state) => NoTransitionPage(
+                            child:  BlocBuilder<StoresManagerCubit, StoresManagerState>(
+                          builder: (context, storesState) {
+                            if (storesState is StoresManagerLoaded) {
+                              return BlocProvider<OrderCubit>(
+                                create: (context) => OrderCubit(
+                                  realtimeRepository: getIt<RealtimeRepository>(),
+                                  storesManagerCubit: context.read<StoresManagerCubit>(),
+                                  printManager: getIt<PrintManager>(),
+                                ),
+                                child: OrdersPage(),
+                              );
+                            }
 
-                        // Você pode querer lidar com o caso de storeId ser nulo ou inválido aqui,
-                        // talvez redirecionando para uma página de erro ou uma loja padrão.
-                        if (storeId == null) {
-                          // Exemplo de redirecionamento ou página de erro
-                          return const NoTransitionPage(child: Text('Erro: ID da loja na URL é inválido.'));
-                        }
-
-                        // O OrderCubit ainda pegará o activeStoreId do StoresManagerCubit,
-                        // mas a URL estará correta e o GoRouter entenderá a navegação por loja.
-                        return NoTransitionPage(
-                          child: BlocProvider<OrderCubit>(
-                            create: (context) => OrderCubit(
-                              realtimeRepository: GetIt.I<RealtimeRepository>(),
-                              storesManagerCubit: context.read<StoresManagerCubit>(),
-                            ),
-                            child: OrdersPage(),
-                          ),
-                        );
-                      },
-                    ),
-
-
-
-
-                    GoRoute(
-                      path: 'store-settings',
-                      pageBuilder: (context, state) {
-                        final storeId = int.tryParse(state.pathParameters['storeId'] ?? '') ?? 0;
-
-                        return CustomTransitionPage(
-                          barrierDismissible: true,
-                          barrierColor: Colors.transparent,
-                          opaque: false,
-                          maintainState: true,
-                          transitionDuration: const Duration(milliseconds: 300),
-                          transitionsBuilder: (context, animation, _, child) {
-                            final offsetAnimation = Tween<Offset>(
-                              begin: const Offset(1.0, 0.0),
-                              end: Offset.zero,
-                            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-                            return SlideTransition(position: offsetAnimation, child: child);
+                            return const Scaffold(
+                              body: Center(child: CircularProgressIndicator()),
+                            );
                           },
-                          child: StoreSettingsSidePanel(storeId: storeId),
-                        );
-                      },
+                          ),
+
+
+
+
+
+
+
+
+                          ),
+                      routes: [
+
+                        GoRoute(
+                          path: ':id', // Supondo que a rota pai seja '/stores/:storeId'
+                          name: 'order-details',
+                          builder: (context, state) {
+                            // 1. Tenta pegar o 'extra' como um mapa.
+                            final extra = state.extra as Map<String, dynamic>?;
+
+                            // 2. Extrai os objetos do mapa.
+                            final OrderDetails? order = extra?['order'];
+                            final Store? store = extra?['store'];
+
+                            // 3. Verifica se os dados foram recebidos.
+                            if (order != null && store != null) {
+                              // 4. Constrói a página com os dados completos.
+                              return OrderDetailsPageMobile(
+                                order: order,
+                                store: store
+                              );
+                            }
+
+                            // Fallback: Se a página for acessada sem os dados (ex: link direto),
+                            // mostra uma tela de erro ou de carregamento.
+                            return const Scaffold(
+                              body: Center(
+                                child: Text("Erro: Não foi possível carregar os dados do pedido."),
+                              ),
+                            );
+                          },
+                        ),
+
+
+
+
+
+
+
+
+
+
+                      ],
                     ),
-
-
-
                   ],
                 ),
+
+
+
+
+
+
+
+
+
+
 
                 // StatefulShellBranch(
                 //   routes: [
@@ -344,8 +426,6 @@ final router = GoRouter(
                 // ),
 
                 // PRODUTOS
-
-
                 StatefulShellBranch(
                   routes: [
                     GoRoute(
@@ -372,74 +452,68 @@ final router = GoRouter(
                                   id: state.productId,
                                 ),
                               ),
-
                         ),
                       ],
                     ),
                   ],
                 ),
 
-
-
                 StatefulShellBranch(
                   routes: [
-
                     GoRoute(
                       path: '/variants',
-                      pageBuilder: (_, state) => NoTransitionPage(
-                        key: UniqueKey(),
-                        child: VariantsPage(storeId: state.storeId),
-                      ),
+                      pageBuilder:
+                          (_, state) => NoTransitionPage(
+                            key: UniqueKey(),
+                            child: VariantsPage(storeId: state.storeId),
+                          ),
                       routes: [
                         GoRoute(
                           path: 'new',
-                          builder: (_, state) => EditVariantPage(
-                            storeId: state.storeId,
-                            id: null,
-                          ),
+                          builder:
+                              (_, state) => EditVariantPage(
+                                storeId: state.storeId,
+                                id: null,
+                              ),
                         ),
                         GoRoute(
                           path: ':variantId',
-                          pageBuilder: (_, state) => NoTransitionPage(
-                            key: UniqueKey(),
-                            child: EditVariantPage(
-                              storeId: state.storeId,
-                              id: state.variantId,
-                            ),
-                          ),
+                          pageBuilder:
+                              (_, state) => NoTransitionPage(
+                                key: UniqueKey(),
+                                child: EditVariantPage(
+                                  storeId: state.storeId,
+                                  id: state.variantId,
+                                ),
+                              ),
                           routes: [
                             GoRoute(
                               path: 'options/new',
-                              builder: (_, state) => EditVariantOptionPage(
-                                storeId: state.storeId,
-                                variantId: state.variantId,
-                                id: null,
-                              ),
+                              builder:
+                                  (_, state) => EditVariantOptionPage(
+                                    storeId: state.storeId,
+                                    variantId: state.variantId,
+                                    id: null,
+                                  ),
                             ),
                             GoRoute(
                               path: 'options/:optionId',
-                              pageBuilder: (_, state) => NoTransitionPage(
-                                key: UniqueKey(),
-                                child: EditVariantOptionPage(
-                                  storeId: state.storeId,
-                                  variantId: state.variantId,
-                                  id: state.optionId,
-                                ),
-                              ),
+                              pageBuilder:
+                                  (_, state) => NoTransitionPage(
+                                    key: UniqueKey(),
+                                    child: EditVariantOptionPage(
+                                      storeId: state.storeId,
+                                      variantId: state.variantId,
+                                      id: state.optionId,
+                                    ),
+                                  ),
                             ),
                           ],
                         ),
                       ],
                     ),
-
-
-
-
                   ],
                 ),
-
-
-
 
                 // CATEGORIAS
                 StatefulShellBranch(
@@ -475,17 +549,15 @@ final router = GoRouter(
                   ],
                 ),
 
-
-
                 StatefulShellBranch(
                   routes: [
                     GoRoute(
                       path: '/banners',
                       pageBuilder:
                           (_, state) => NoTransitionPage(
-                        key: UniqueKey(),
-                        child: BannersPage(storeId: state.storeId),
-                      ),
+                            key: UniqueKey(),
+                            child: BannersPage(storeId: state.storeId),
+                          ),
                       routes: [
                         // GoRoute(
                         //   path: 'new',
@@ -509,15 +581,6 @@ final router = GoRouter(
                     ),
                   ],
                 ),
-
-
-
-
-
-
-
-
-
 
                 StatefulShellBranch(
                   routes: [
@@ -551,21 +614,6 @@ final router = GoRouter(
                     ),
                   ],
                 ),
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
                 StatefulShellBranch(
                   routes: [
@@ -619,9 +667,9 @@ final router = GoRouter(
                       path: '/cash',
                       pageBuilder:
                           (_, state) => NoTransitionPage(
-                        key: UniqueKey(),
-                        child: CashPage(storeId: state.storeId),
-                      ),
+                            key: UniqueKey(),
+                            child: CashPage(storeId: state.storeId),
+                          ),
                     ),
                   ],
                 ),
@@ -669,9 +717,7 @@ final router = GoRouter(
                           pageBuilder:
                               (_, state) => NoTransitionPage(
                                 key: UniqueKey(),
-                                child: OpeningHoursPage(
-                                  storeId: state.storeId,
-                                ),
+                                child: OpeningHoursPage(storeId: state.storeId),
                               ),
                         ),
 
@@ -753,23 +799,21 @@ final router = GoRouter(
                   ],
                 ),
 
-
                 StatefulShellBranch(
                   routes: [
                     GoRoute(
                       path: '/more',
                       pageBuilder:
                           (_, state) => NoTransitionPage(
-                        key: UniqueKey(),
-                        child: MorePage(storeId: state.storeId),
-                      ),
+                            key: UniqueKey(),
+                            child: MorePage(storeId: state.storeId),
+                          ),
                       redirect:
                           (_, state) =>
-                          RouteGuard.apply(state, [StoreOwnerGuard()]),
+                              RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
-
 
                 StatefulShellBranch(
                   routes: [
@@ -777,16 +821,15 @@ final router = GoRouter(
                       path: '/reports',
                       pageBuilder:
                           (_, state) => NoTransitionPage(
-                        key: UniqueKey(),
-                        child: ReportsPage(storeId: state.storeId),
-                      ),
+                            key: UniqueKey(),
+                            child: ReportsPage(storeId: state.storeId),
+                          ),
                       redirect:
                           (_, state) =>
-                          RouteGuard.apply(state, [StoreOwnerGuard()]),
+                              RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
-
 
                 StatefulShellBranch(
                   routes: [
@@ -794,12 +837,12 @@ final router = GoRouter(
                       path: '/inventory',
                       pageBuilder:
                           (_, state) => NoTransitionPage(
-                        key: UniqueKey(),
-                        child: InventoryPage(storeId: state.storeId),
-                      ),
+                            key: UniqueKey(),
+                            child: InventoryPage(storeId: state.storeId),
+                          ),
                       redirect:
                           (_, state) =>
-                          RouteGuard.apply(state, [StoreOwnerGuard()]),
+                              RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
@@ -810,12 +853,12 @@ final router = GoRouter(
                       path: '/customers',
                       pageBuilder:
                           (_, state) => NoTransitionPage(
-                        key: UniqueKey(),
-                        child: CustomersPage(storeId: state.storeId),
-                      ),
+                            key: UniqueKey(),
+                            child: CustomersPage(storeId: state.storeId),
+                          ),
                       redirect:
                           (_, state) =>
-                          RouteGuard.apply(state, [StoreOwnerGuard()]),
+                              RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
@@ -826,18 +869,36 @@ final router = GoRouter(
                       path: '/payables',
                       pageBuilder:
                           (_, state) => NoTransitionPage(
-                        key: UniqueKey(),
-                        child: PayablePage(storeId: state.storeId),
-                      ),
+                            key: UniqueKey(),
+                            child: PayablePage(storeId: state.storeId),
+                          ),
                       redirect:
                           (_, state) =>
-                          RouteGuard.apply(state, [StoreOwnerGuard()]),
+                              RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
 
-
-
+                StatefulShellBranch(
+                  routes: [
+                    GoRoute(
+                      path: '/plans',
+                      pageBuilder:
+                          (_, state) => NoTransitionPage(
+                            key: UniqueKey(),
+                            child: EditSubscriptionPage(
+                              storeId:
+                                  int.tryParse(
+                                    state.pathParameters['storeId']!,
+                                  )!,
+                            ),
+                          ),
+                      redirect:
+                          (_, state) =>
+                              RouteGuard.apply(state, [StoreOwnerGuard()]),
+                    ),
+                  ],
+                ),
               ],
 
               // MESAS
@@ -845,8 +906,41 @@ final router = GoRouter(
           ],
         ),
       ],
-    ),
+    )
+  ]);
 
 
-  ],
-);
+
+}
+
+
+
+
+
+bool _isPublicRoute(String path) {
+  return [
+    '/splash',
+    '/sign-in',
+    '/sign-up',
+    '/verify-code',
+    '/loading-data',
+  ].any((publicRoute) => path.startsWith(publicRoute));
+}
+
+
+
+// Auxiliar para streams em GoRouter
+class GoRouterRefreshStream extends ChangeNotifier {
+  late final StreamSubscription _subscription;
+
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}

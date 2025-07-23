@@ -27,28 +27,6 @@ enum SignInError {
   sessionExpired,       // Sessão expirada (novo)
   unknown               // Erro desconhecido
 }
-
-enum StoreCreationError {
-  creationFailed,
-  connectionFailed,
-  unknown;
-
-  String get message {
-    switch (this) {
-      case StoreCreationError.creationFailed:
-        return 'Falha ao criar a loja';
-      case StoreCreationError.connectionFailed:
-        return 'Falha ao conectar com a loja';
-      case StoreCreationError.unknown:
-        return 'Erro desconhecido';
-    }
-  }
-}
-
-  enum CodeError { unknown, userNotFound, alreadyVerified, invalidCode }
-enum ResendError { unknown, userNotFound, resendError }
-
-
 enum SignUpError {
   userAlreadyExists,    // Email já cadastrado
   invalidData,         // Dados inválidos
@@ -74,6 +52,29 @@ enum SignUpError {
     }
   }
 }
+
+
+
+
+enum StoreCreationError {
+  creationFailed,
+  connectionFailed,
+  unknown;
+
+  String get message {
+    switch (this) {
+      case StoreCreationError.creationFailed:
+        return 'Falha ao criar a loja';
+      case StoreCreationError.connectionFailed:
+        return 'Falha ao conectar com a loja';
+      case StoreCreationError.unknown:
+        return 'Erro desconhecido';
+    }
+  }
+}
+
+  enum CodeError { unknown, userNotFound, alreadyVerified, invalidCode }
+enum ResendError { unknown, userNotFound, resendError }
 
 
 

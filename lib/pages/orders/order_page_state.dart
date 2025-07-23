@@ -1,15 +1,7 @@
-// lib/pages/orders/order_page_state.dart
+// Em: pages/orders/order_page_state.dart
 
 import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-
-// Enum para filtros de pedidos (se você tiver)
-enum OrderFilter {
-  all,
-  pending,
-  accepted,
-  // ... outros status
-}
 
 abstract class OrderState extends Equatable {
   const OrderState();
@@ -23,39 +15,62 @@ class OrdersInitial extends OrderState {
 }
 
 class OrdersLoading extends OrderState {
-  // Pode ter um opcional para indicar qual loja está carregando
-  // final int? storeId;
-  const OrdersLoading(); // {this.storeId}
+  const OrdersLoading();
 }
 
 class OrdersLoaded extends OrderState {
   final List<OrderDetails> orders;
-  final OrderFilter selectedFilter;
-  // Opcional: Para saber de qual conjunto de lojas esses pedidos vieram.
-  // final List<int> currentConsolidatedStores; // Ou um map para mostrar quais estão ativas
+  final int? activeStoreId;
+  final String? lastNotifiedOrderId;
+  final OrderFilter filter;
+
+  // ✨ 1. NOVO CAMPO ADICIONADO ✨
+  final bool isConnected;
 
   const OrdersLoaded({
     required this.orders,
-    this.selectedFilter = OrderFilter.all,
-    // this.currentConsolidatedStores = const [],
+    this.activeStoreId,
+    this.lastNotifiedOrderId,
+    required this.filter,
+    this.isConnected = true, // Valor padrão é 'true'
   });
 
-  // Você pode adicionar getters para pedidos filtrados
-  List<OrderDetails> get filteredOrders {
-    switch (selectedFilter) {
-      case OrderFilter.all:
-        return orders;
-      case OrderFilter.pending:
-        return orders.where((order) => order.orderStatus == 'pending').toList();
-      case OrderFilter.accepted:
-        return orders.where((order) => order.orderStatus == 'accepted').toList();
-      default:
-        return orders;
-    }
+  // ✨ 2. MÉTODO ESSENCIAL ADICIONADO ✨
+  // Permite criar uma cópia do estado atual, alterando apenas alguns campos.
+  OrdersLoaded copyWith({
+    List<OrderDetails>? orders,
+    int? activeStoreId,
+    String? lastNotifiedOrderId,
+    OrderFilter? filter,
+    bool? isConnected,
+  }) {
+    return OrdersLoaded(
+      orders: orders ?? this.orders,
+      activeStoreId: activeStoreId ?? this.activeStoreId,
+      lastNotifiedOrderId: lastNotifiedOrderId ?? this.lastNotifiedOrderId,
+      filter: filter ?? this.filter,
+      isConnected: isConnected ?? this.isConnected,
+    );
   }
 
+  // ✨ 3. LISTA DE PROPS ATUALIZADA ✨
+  // Garante que o Bloc/Equatable compare todos os campos corretamente.
   @override
-  List<Object?> get props => [orders, selectedFilter]; // currentConsolidatedStores
+  List<Object?> get props => [
+    orders,
+    activeStoreId,
+    lastNotifiedOrderId,
+    filter,
+    isConnected,
+  ];
+}
+
+class OrdersEmpty extends OrderState {
+  final String message;
+  const OrdersEmpty({required this.message});
+
+  @override
+  List<Object?> get props => [message];
 }
 
 class OrdersError extends OrderState {
@@ -66,10 +81,4 @@ class OrdersError extends OrderState {
   List<Object?> get props => [message];
 }
 
-class OrdersEmpty extends OrderState {
-  final String message; // Opcional, para uma mensagem mais detalhada
-  const OrdersEmpty({this.message = 'Nenhum pedido encontrado.'});
-
-  @override
-  List<Object?> get props => [message];
-}
+enum OrderFilter { all, pending, preparing, ready }

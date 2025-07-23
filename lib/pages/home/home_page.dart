@@ -1,6 +1,7 @@
 
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,8 @@ import 'package:provider/provider.dart';
 
 import '../../UI TEMP/controller/get_code.dart';
 
+import '../../cubits/store_manager_cubit.dart';
+import '../../cubits/store_manager_state.dart';
 import '../../widgets/appbarcode.dart';
 import '../../widgets/drawercode.dart';
 import '../base/BasePage.dart';
@@ -45,92 +48,91 @@ class _HomePageState extends State<HomePage> {
   }
 
 
+
   @override
   Widget build(BuildContext context) {
-
-
-
-
-
     final String currentUrl = GoRouterState.of(context).uri.toString();
     final String currentTitle = navHelper.getCurrentTitle(currentUrl);
 
 
-
-    return BasePage(
-
-      mobileBuilder: (BuildContext context) {
-        return Column(
-          children: [
-            // laout(),
-            // Inbox()
-            Expanded(child: widget.shell)
-          ],
-        );
-
+    return BlocListener<StoresManagerCubit, StoresManagerState>(
+      // Ouve as mudanças no estado do StoresManagerCubit
+      listenWhen: (previous, current) {
+        // Só executa o listener se o ID da loja ativa realmente mudou
+        if (previous is StoresManagerLoaded && current is StoresManagerLoaded) {
+          return previous.activeStoreId != current.activeStoreId;
+        }
+        return false;
       },
-      desktopBuilder: (BuildContext context) {
-        return     Container(
-          height: MediaQuery.of(context).size.height,
-          width:  MediaQuery.of(context).size.width,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      listener: (context, state) {
+        // A mágica da navegação acontece aqui!
+        if (state is StoresManagerLoaded) {
+          final newStoreId = state.activeStoreId;
+          final currentPath = GoRouterState.of(context).uri.toString();
+
+          final parts = currentPath.split('/');
+          String newPath;
+          if (parts.length > 3 && parts[1] == 'stores') {
+            // Recria a URL: /stores/NOVO_ID/subrota_atual
+            parts[2] = newStoreId.toString();
+            newPath = parts.join('/');
+          } else {
+            // Se não conseguir encontrar o padrão, vai para a página padrão de pedidos
+            newPath = '/stores/$newStoreId/orders';
+          }
+
+          print("✅ BLOCLISTENER: Navegando para a nova rota: $newPath");
+          context.go(newPath);
+        }
+      },
+      child: BasePage(
+        // O resto do seu widget BasePage e suas propriedades continuam aqui,
+        // exatamente como estavam antes.
+        mobileBuilder: (BuildContext context) {
+          return Column(
             children: [
-              DrawerCode(storeId: widget.storeId,),
-
-              Expanded(
-                child: SizedBox(
-                  height: MediaQuery.of(context).size.height,
-                  width: MediaQuery.of(context).size.width,
-                  child: Column(
-                    children: [
-
-
-                      Container(
-                        height: 50,
-                        width: MediaQuery.of(context).size.width,
-
-                        child: appber(storeId: widget.storeId,),
-                      ),
-
-
-
-
-                      Expanded(
-                        child: SizedBox(
-                            height: MediaQuery.of(context).size.height,
-                            width: MediaQuery.of(context).size.width,
-                            child: widget.shell
-                          // Inbox(),
-                          //  laout(),
+              Expanded(child: widget.shell)
+            ],
+          );
+        },
+        desktopBuilder: (BuildContext context) {
+          return Container(
+            height: MediaQuery.of(context).size.height,
+            width: MediaQuery.of(context).size.width,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DrawerCode(storeId: widget.storeId,),
+                Expanded(
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height,
+                    width: MediaQuery.of(context).size.width,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                              height: MediaQuery.of(context).size.height,
+                              width: MediaQuery.of(context).size.width,
+                              child: widget.shell
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
-
-      mobileBottomNavigationBar:
-
-
-      navHelper.shouldShowBottomBar(currentUrl)
-          ? navHelper.buildBottomNavigationBar(
-        context,
-        currentUrl,
-        scaffoldKey,
-      )
-          : null,
-
-      // mobileAppBar:   navHelper.shouldShowAppBarCode(currentUrl) ? appber( storeId: widget.storeId, ) : null,
-
-
-
+              ],
+            ),
+          );
+        },
+        mobileBottomNavigationBar: navHelper.shouldShowBottomBar(currentUrl)
+            ? navHelper.buildBottomNavigationBar(context, currentUrl, scaffoldKey)
+            : null,
+      ),
     );
   }
+
+
+
 }
 
 

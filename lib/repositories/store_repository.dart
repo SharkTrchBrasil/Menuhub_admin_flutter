@@ -1,3 +1,4 @@
+import 'package:brasil_fields/brasil_fields.dart';
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart';
@@ -8,15 +9,21 @@ import 'package:totem_pro_admin/models/store_with_role.dart';
 
 
 
+import '../core/payment_token.dart';
+import '../models/address.dart';
 import '../models/cash_session.dart';
 import '../models/cash_transaction.dart';
+import '../models/credit_card.dart';
 import '../models/full_store_data_model.dart';
+import '../models/new_subscription.dart';
 import '../models/store_city.dart';
 import '../models/store_customer.dart';
 import '../models/store_hour.dart';
 import '../models/store_neig.dart';
 import '../models/store_payable.dart';
 import '../models/store_pix_config.dart';
+import '../models/subscription_plan.dart';
+import '../models/tokenized_card.dart';
 
 
 class StoreRepository {
@@ -46,7 +53,7 @@ class StoreRepository {
   Future<Either<String, FullStoreDataModel>> getFullStore(int storeId) async {
     try {
       final response = await _dio.get('/stores/$storeId/full');
-      print('Resposta da API (getFullStore): ${response.data}'); // Log da resposta bruta
+  //    print('Resposta da API (getFullStore): ${response.data}'); // Log da resposta bruta
       return Right(FullStoreDataModel.fromJson(response.data));
     } catch (e) {
       print('Erro capturado no getFullStore: $e, tipo: ${e.runtimeType}'); // Log do erro e seu tipo
@@ -754,14 +761,98 @@ class StoreRepository {
 
 
 
-  // FIM TRANSACTIONS ///
 
+  Future<Either<void, List<SubscriptionPlan>>> getPlans() async {
+    try {
+      final response = await _dio.get('/plans');
+      return Right(
+        response.data
+            .map<SubscriptionPlan>((s) => SubscriptionPlan.fromJson(s))
+            .toList(),
+      );
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
 
+  Future<Either<void, Address>> getZipcodeAddress(String zipcode) async {
+    try {
+      return Right(
+        Address(
+          zipcode: '13087000',
+          street: 'Rua Exemplo',
+          neighborhood: 'Bairro Exemplo',
+          city: 'Cidade Exemplo',
+          state: 'SP',
+          complement: 'Complemento Exemplo',
+          number: '123',
+        ),
+      );
 
+      final response = await _dio.get(
+        '/zipcodes/${UtilBrasilFields.removeCaracteres(zipcode)}',
+      );
+      return Right(Address.fromJson(response.data));
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
 
+  Future<Either<void, TokenizedCard>> generateCardToken(CreditCard card) async {
+    try {
+      final result = await PaymentToken.generate(
+        {
+          'brand': 'visa', // TODO: Determine card brand dynamically
+          'number': UtilBrasilFields.removeCaracteres(card.number),
+          'cvv': card.cvv,
+          'expiration_month': card.expirationDate!.month.toString(),
+          'expiration_year': card.expirationDate!.year.toString(),
+          'reuse': true,
+        },
+        {'accountId': '3e7b68aadfca624cc414ac8b42c36290', 'sandbox': true},
+      );
 
-// FIM DO CAIXA ///
+      print('RESULT TOKEN $result');
+
+      return Right(TokenizedCard.fromJson(result));
+    } catch (e, s) {
+      debugPrint('$e $s');
+      return const Left(null);
+    }
+  }
+
+  Future<Either<void, void>> createSubscription(
+      int storeId,
+      NewSubscription subscription,
+      ) async {
+    try {
+      await _dio.post(
+        '/stores/$storeId/subscriptions',
+        data: subscription.toJson(),
+      );
+      await getStores();
+      return const Right(null);
+    } catch (e) {
+      debugPrint('$e');
+      return const Left(null);
+    }
+  }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

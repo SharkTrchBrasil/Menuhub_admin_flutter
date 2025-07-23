@@ -1,3 +1,5 @@
+import 'package:totem_pro_admin/models/subscription_plan.dart';
+
 class StoreSubscription {
   final String? planName;
   final int? price;
@@ -7,6 +9,7 @@ class StoreSubscription {
   final DateTime? currentPeriodEnd;
   final bool? isRecurring;
   final Map<String, bool>? features;
+  final SubscriptionPlan plan;
 
   StoreSubscription({
     this.planName,
@@ -17,6 +20,7 @@ class StoreSubscription {
     this.currentPeriodEnd,
     this.isRecurring,
     this.features,
+    required this.plan,
   });
 
 
@@ -104,7 +108,9 @@ class StoreSubscription {
       isRecurring: combinedJson['is_recurring'] as bool?,
       features: (combinedJson['features'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(key, value as bool),
+
       ),
+      plan: SubscriptionPlan.fromJson(json['plan']),
     );
   }
 

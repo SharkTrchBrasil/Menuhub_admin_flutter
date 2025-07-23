@@ -137,8 +137,8 @@ class Store {
 
 
 
-      subscription: json['subscription'] != null
-          ? StoreSubscription.fromJson(json['subscription'] as Map<String, dynamic>)
+      subscription: json['subscription'] != null && json['subscription'] is Map<String, dynamic>
+          ? StoreSubscription.fromJson(json['subscription'])
           : null,
 
     );

@@ -1,8 +1,10 @@
 import 'package:totem_pro_admin/models/store.dart';
 
 enum StoreAccessRole {
-  owner('Proprietário', false),
-  admin('Administrador', true);
+  owner('Proprietário', false), // Geralmente não atribuível via UI
+  manager('Gerente', true),    // Antigo 'admin', agora para gerentes
+  cashier('Caixa', true),      // Nova role para operadores de caixa
+  stockManager('Estoquista', true); // Nova role para gerentes de estoque
 
   final String title;
   final bool selectable;
@@ -30,17 +32,22 @@ class StoreWithRole {
       // 2. Tratamento seguro para a role
       StoreAccessRole role;
       if (json['role'] is String) {
+        // Se 'role' vem como String, busca pelo nome (machine_name)
         role = StoreAccessRole.values.firstWhere(
               (r) => r.name == json['role'],
-          orElse: () => StoreAccessRole.admin,
+          // CUIDADO AQUI: Mude para 'manager' ou outra role padrão válida se 'admin' não existir mais
+          orElse: () => StoreAccessRole.manager,
         );
       } else if (json['role'] is Map) {
+        // Se 'role' vem como Map (com 'machine_name'), busca por ele
         role = StoreAccessRole.values.firstWhere(
-              (r) => r.name == (json['role']['machine_name'] ?? 'admin'),
-          orElse: () => StoreAccessRole.admin,
+              (r) => r.name == (json['role']['machine_name'] ?? 'manager'),
+          // CUIDADO AQUI: Mude para 'manager' ou outra role padrão válida se 'admin' não existir mais
+          orElse: () => StoreAccessRole.manager,
         );
       } else {
-        role = StoreAccessRole.admin; // Valor padrão
+        // Valor padrão se 'role' não for String nem Map
+        role = StoreAccessRole.manager; // CUIDADO AQUI: Mude para 'manager'
       }
 
       // 3. Obtém o estado de consolidação
@@ -55,6 +62,19 @@ class StoreWithRole {
       print('Erro ao decodificar StoreWithRole: $e\n$stack');
       rethrow;
     }
+  }
+
+
+  StoreWithRole copyWith({
+    Store? store,
+    StoreAccessRole? role,
+    bool? isConsolidated,
+  }) {
+    return StoreWithRole(
+      store: store ?? this.store,
+      role: role ?? this.role,
+      isConsolidated: isConsolidated ?? this.isConsolidated,
+    );
   }
 
   // Opcional: Adicione um método toJson para isConsolidated se for enviar para o backend

@@ -1,19 +1,26 @@
 // lib/pages/orders/widgets/_order_status_button.dart
 
+
+// lib/pages/orders/widgets/_order_status_button.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
+import 'package:totem_pro_admin/models/store.dart'; // Importe o modelo Store
 import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
-import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
+import 'package:totem_pro_admin/pages/orders/service/printer_manager.dart';
+
+import '../service/print.dart'; // Corrija o import se necessário
 
 class OrderStatusButton extends StatelessWidget {
   final OrderDetails order;
-  final Function(OrderDetails order) onPrintOrder;
+  // NOVO: O widget agora recebe o objeto Store diretamente.
+  final Store? store;
 
   const OrderStatusButton({
     super.key,
     required this.order,
-    required this.onPrintOrder,
+    required this.store, // O store agora é um parâmetro obrigatório
   });
 
   @override
@@ -22,24 +29,29 @@ class OrderStatusButton extends StatelessWidget {
     String buttonText = '';
     VoidCallback? onPressed;
 
+    // REMOVIDO: A busca de dados foi removida daqui.
+    // final store = context.read<StoresManagerCubit>().getActiveStore()?.store;
+
     // Lógica para o botão principal de avanço de status
     switch (order.orderStatus) {
       case 'pending':
         buttonText = 'Aceitar Pedido';
         buttonColor = Colors.green;
         onPressed = () {
+
           context.read<OrderCubit>().updateOrderStatus(order.id, 'preparing');
-          onPrintOrder(order);
+          PrinterService().printOrder(order, store!);
+
         };
         break;
 
       case 'preparing':
       // Lógica condicional baseada no tipo de pedido
         if (order.deliveryType == 'delivery') {
-          buttonText = 'Despachar para Entrega'; // Direto para "out_for_delivery"
+          buttonText = 'Pronto para Entrega'; // Direto para "out_for_delivery"
           buttonColor = Colors.blue;
           onPressed = () {
-            context.read<OrderCubit>().updateOrderStatus(order.id, 'on_route');
+            context.read<OrderCubit>().updateOrderStatus(order.id, 'ready');
           };
         } else if (order.deliveryType == 'takeout' || order.orderType == 'dine_in') {
           buttonText = 'Marcar como Pronto'; // Para "ready"
@@ -55,20 +67,26 @@ class OrderStatusButton extends StatelessWidget {
         }
         break;
 
-      case 'ready': // Somente para 'takeout' ou 'dine_in'
-        if (order.deliveryType == 'takeout' || order.orderType == 'dine_in') {
-          buttonText = 'Marcar como Concluído'; // 'ready' para 'delivered'
+      case 'ready':
+        if (order.deliveryType == 'delivery') {
+          buttonText = 'Saiu para Entrega'; // de 'ready' para 'on_route'
+          buttonColor = Colors.purple;
+          onPressed = () {
+            context.read<OrderCubit>().updateOrderStatus(order.id, 'on_route');
+          };
+        } else if (order.deliveryType == 'takeout' || order.orderType == 'dine_in') {
+          buttonText = 'Marcar como Concluído'; // de 'ready' para 'delivered'
           buttonColor = Colors.green;
           onPressed = () {
             context.read<OrderCubit>().updateOrderStatus(order.id, 'delivered');
           };
         } else {
-          // Se um pedido de delivery (ou desconhecido) acidentalmente chega aqui
           buttonText = 'Ação Indisponível (Ready)';
           buttonColor = Colors.grey.shade300;
           onPressed = null;
         }
         break;
+
 
       case 'on_route': // Somente para 'delivery'
         if (order.deliveryType == 'delivery') {
@@ -104,6 +122,7 @@ class OrderStatusButton extends StatelessWidget {
         break;
     }
 
+    // O restante do build do widget permanece o mesmo.
     return Column(
       children: [
         if (onPressed != null)
@@ -117,7 +136,7 @@ class OrderStatusButton extends StatelessWidget {
             ),
             onPressed: onPressed,
             child: Text(
-              overflow:TextOverflow.ellipsis,
+              overflow: TextOverflow.ellipsis,
               buttonText,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
@@ -133,37 +152,55 @@ class OrderStatusButton extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext dialogContext) {
-                    return AlertDialog(
-                      title: const Text('Confirmar Cancelamento'),
-                      content: Text('Tem certeza que deseja cancelar o pedido #${order.publicId}?'),
-                      actions: <Widget>[
-                        TextButton(
-                          child: const Text('Não'),
-                          onPressed: () {
-                            Navigator.of(dialogContext).pop();
-                          },
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          child: const Text('Sim', style: TextStyle(color: Colors.white)),
-                          onPressed: () {
-                            context.read<OrderCubit>().updateOrderStatus(order.id, 'canceled');
-                            Navigator.of(dialogContext).pop();
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
+              onPressed: () => _showCancelDialog(context),
               child: const Text('Cancelar Pedido', style: TextStyle(color: Colors.red)),
             ),
           ),
       ],
     );
   }
+
+  void _showCancelDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirmar Cancelamento'),
+          content: Text('Tem certeza que deseja cancelar o pedido #${order.publicId}?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Não'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Sim', style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                context.read<OrderCubit>().updateOrderStatus(order.id, 'canceled');
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

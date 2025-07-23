@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 class SubscriptionBlockedCard extends StatelessWidget {
-  final String storeName;
-  const SubscriptionBlockedCard({super.key, required this.storeName});
+  final String message;
+  const SubscriptionBlockedCard({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class SubscriptionBlockedCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Renove seu plano para continuar visualizando os pedidos da loja "$storeName".',
+               message,
                 textAlign: TextAlign.center,
               ),
             ],

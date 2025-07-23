@@ -1,16 +1,18 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-
 import '../../core/di.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/auth_service.dart';
+import '../../services/cubits/auth_cubit.dart';
+import '../../services/cubits/auth_state.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_toasts.dart';
 
@@ -36,31 +38,45 @@ class _SignUpPageState extends State<SignUpPage> {
     final isMobile = MediaQuery.of(context).size.width < 800;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          if (!isMobile) _buildBackground(),
-          Center(
-            child: Container(
-              margin: const EdgeInsets.all(30),
-              constraints: const BoxConstraints(maxWidth: 1000),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                color: Colors.white,
+      body: BlocListener<AuthCubit, AuthState>(
+        listener: (context, state) {
 
-                border: Border.all(color: Color(0xFFE67E22), width: 1),
+          if (state is AuthSignUpError) {
+            // Chama o método para exibir o erro com base na mensagem do AuthError
+            _handleSignUpError(state.error);
+          }
+
+
+
+
+
+        },
+        child: Stack(
+          children: [
+            if (!isMobile) _buildBackground(),
+            Center(
+              child: Container(
+                margin: const EdgeInsets.all(30),
+                constraints: const BoxConstraints(maxWidth: 1000),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  color: Colors.white,
+
+                  border: Border.all(color: Color(0xFFE67E22), width: 1),
+                ),
+                child:
+                    isMobile
+                        ? _buildFormSection()
+                        : Row(
+                          children: [
+                            Expanded(child: _buildVisualSection()),
+                            Expanded(child: _buildFormSection()),
+                          ],
+                        ),
               ),
-              child:
-                  isMobile
-                      ? _buildFormSection()
-                      : Row(
-                        children: [
-                          Expanded(child: _buildVisualSection()),
-                          Expanded(child: _buildFormSection()),
-                        ],
-                      ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -74,7 +90,6 @@ class _SignUpPageState extends State<SignUpPage> {
         key: formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         child: SingleChildScrollView(
-
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -106,14 +121,11 @@ class _SignUpPageState extends State<SignUpPage> {
               ),
               const SizedBox(height: 8),
 
-
               if (!isMobile)
-              const Text(
-                'Preencha os dados abaixo para começar',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-
-
+                const Text(
+                  'Preencha os dados abaixo para começar',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
 
               const SizedBox(height: 50),
               Row(
@@ -167,7 +179,6 @@ class _SignUpPageState extends State<SignUpPage> {
                 onChanged: (s) => password = s ?? '',
               ),
 
-
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -183,79 +194,16 @@ class _SignUpPageState extends State<SignUpPage> {
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
                       final loading = showLoading();
-                      final authService = getIt<AuthService>();
 
-                      final result = await authService.signUp(
+                      await context.read<AuthCubit>().signUp(
                         name: name,
                         email: email,
                         password: password,
                       );
 
                       loading();
-
-                      if (!context.mounted) return;
-
-                      result.fold(
-                            (error) => showError(error.message),
-                            (_) {
-                          // Navega para verificação de email
-                          context.go(
-                            '/verify-code',
-                            extra: {
-                              'email': email,
-                              'password': password, // Armazenado apenas na memória
-                            },
-                          );
-                        },
-                      );
                     }
                   },
-
-
-
-
-
-                  // onPressed: () async {
-                  //   if (formKey.currentState!.validate()) {
-                  //     final AuthRepository authRepository = getIt();
-                  //     final l = showLoading();
-                  //
-                  //     final result = await authRepository.signUp(
-                  //       name: name,
-                  //       email: email,
-                  //       password: password,
-                  //     );
-                  //
-                  //     l();
-                  //
-                  //     if (result.isLeft) {
-                  //       switch (result.left) {
-                  //         case SignUpError.userAlreadyExists:
-                  //           showError('user_already_exists'.tr());
-                  //           break;
-                  //         case SignUpError.unknown:
-                  //           showError('failed_to_create_account'.tr());
-                  //           break;
-                  //       }
-                  //       return;
-                  //     }
-                  //
-                  //     if (result.isRight) {
-                  //
-                  //
-                  //       context.go(
-                  //         '/verify-code',
-                  //         extra: {
-                  //           'email': email,
-                  //           'password': password, // armazene só na memória!
-                  //         },
-                  //       );
-                  //     } else {
-                  //       showError('Erro ao criar conta.');
-                  //     }
-                  //   }
-                  // },
-
 
                   label: const Text(
                     'Criar conta',
@@ -272,7 +220,12 @@ class _SignUpPageState extends State<SignUpPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (!isMobile)
-                  Flexible(child: const Text('Já tem uma conta? ', overflow: TextOverflow.ellipsis,)),
+                    Flexible(
+                      child: const Text(
+                        'Já tem uma conta? ',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   InkWell(
                     onTap: () {
                       context.go(
@@ -368,8 +321,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
   bool isChecked = false;
 
-
-
   final phoneMask = MaskTextInputFormatter(
     mask: '(##) #####-####', // Máscara para números internacionais
     filter: {"#": RegExp(r'[0-9]')},
@@ -379,7 +330,7 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget _buildBackground() {
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white
+        color: Colors.white,
         // gradient: LinearGradient(
         //   colors: [Color(0xFFF39C12), Color(0xFFE67E22)],
         //   begin: Alignment.topLeft,
@@ -388,4 +339,32 @@ class _SignUpPageState extends State<SignUpPage> {
       ),
     );
   }
+
+  void _handleSignUpError(SignUpError error) {
+    switch (error) {
+      case SignUpError.userAlreadyExists:
+        showError('Este e-mail já está cadastrado.');
+        break;
+      case SignUpError.invalidData:
+        showError('Dados inválidos. Verifique os campos preenchidos.');
+        break;
+      case SignUpError.weakPassword:
+        showError('A senha escolhida é muito fraca. Tente uma mais segura.');
+        break;
+      case SignUpError.networkError:
+        showError('Sem conexão com a internet. Verifique sua conexão.');
+        break;
+      case SignUpError.emailNotSent:
+        showError('Falha ao enviar o e-mail de verificação. Tente novamente.');
+        break;
+      case SignUpError.unknown:
+      default:
+        showError('Erro inesperado ao criar a conta. Tente novamente.');
+    }
+  }
+
+
+
+
 }
+

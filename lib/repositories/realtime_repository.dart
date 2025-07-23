@@ -1,411 +1,513 @@
 import 'dart:async';
+import 'dart:developer';
+
 import 'package:either_dart/either.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:get_it/get_it.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:socket_io_client/socket_io_client.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+// Adapte os imports para os caminhos corretos do seu projeto
+import 'package:totem_pro_admin/models/command.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
+import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/store_with_role.dart';
+import 'package:totem_pro_admin/models/table.dart';
+import 'package:totem_pro_admin/services/auth_service.dart';
 
-import '../cubits/store_manager_cubit.dart'; // Importe seu StoresManagerCubit
-import '../cubits/store_manager_state.dart'; // Importe seu StoresManagerState (se StoreManagerCubit usa estados)
-
-import '../models/command.dart';
-import '../models/product.dart';
-import '../models/store_with_role.dart';
-import '../models/table.dart';
-import '../pages/orders/utils/order_helpers.dart';
+import '../models/order_notification.dart';
+import '../models/store.dart';
+import '../models/totem_auth.dart';
+import '../models/totem_auth_and_stores.dart'; // Para ter acesso ao TotemAuth
 
 class RealtimeRepository {
-  late Socket _socket;
+  // A variável do socket agora pode ser nula e será inicializada corretamente.
+  IO.Socket? _socket;
 
-  late final StoresManagerCubit _storesManagerCubit;
 
-  final Map<int, BehaviorSubject<List<OrderDetails>>> _ordersInitialStreams = {};
-  final Map<int, BehaviorSubject<OrderDetails>> _orderUpdateStreams = {};
-  final Map<int, BehaviorSubject<List<Table>>> _tablesStreams = {};
-  final Map<int, BehaviorSubject<List<Command>>> _commandsStreams = {};
+  int? _lastJoinedStoreId;
 
-  final _consolidatedStoresUpdatedController = BehaviorSubject<List<int>>(); // <--- CORRIGIDO AQUI
+  // Streams de estado e notificações
+  final _connectionStatusController = BehaviorSubject<bool>.seeded(false);
+  final _storeNotificationController = BehaviorSubject<Map<int, int>>.seeded({});
+  final _orderNotificationController = StreamController<OrderNotification>.broadcast();
 
-  final _adminStoresListController = BehaviorSubject<List<StoreWithRole>>(); // <--- CORRIGIDO AQUI
+  // Stream para a loja ativa (usado pelo ActiveStoreCubit)
+  final _activeStoreController = BehaviorSubject<Store?>.seeded(null);
+
+  // Streams de dados específicos (se ainda usados em outras partes)
+  final _productsStreams = <int, BehaviorSubject<List<Product>>>{};
+  final _ordersStreams = <int, BehaviorSubject<List<OrderDetails>>>{};
+  final _tablesStreams = <int, BehaviorSubject<List<Table>>>{};
+  final _commandsStreams = <int, BehaviorSubject<List<Command>>>{};
+  final _adminStoresListController = BehaviorSubject<List<StoreWithRole>>.seeded([]);
+
+  // Getters públicos
+  Stream<bool> get isConnectedStream => _connectionStatusController.stream;
+  Stream<Map<int, int>> get onStoreNotification => _storeNotificationController.stream;
+  Stream<OrderNotification> get onOrderNotification => _orderNotificationController.stream;
+  Stream<Store?> get onActiveStoreUpdated => _activeStoreController.stream;
   Stream<List<StoreWithRole>> get onAdminStoresList => _adminStoresListController.stream;
+  Map<int, int> get currentNotificationCounts => _storeNotificationController.value;
 
 
-  Stream<List<int>> get onConsolidatedStoresUpdated => _consolidatedStoresUpdatedController.stream;
-// Getters para escutar streams
-  Stream<List<Table>> listenToTables(int storeId) {
-    _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Table>>());
-    return _tablesStreams[storeId]!.stream;
+  // --- Métodos Públicos ---
+
+  Stream<List<Product>> listenToProducts(int storeId) => _productsStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
+  Stream<List<OrderDetails>> listenToOrders(int storeId) => _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
+  Stream<List<Table>> listenToTables(int storeId) => _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
+  Stream<List<Command>> listenToCommands(int storeId) => _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // Conjuntos para controle de salas
+  final _joinedStores = <int>{};
+  final _joiningInProgress = <int>{};
+
+  RealtimeRepository() {
+    log('[RealtimeRepository] Instância criada, aguardando inicialização...');
   }
 
-  Stream<List<Command>> listenToCommands(int storeId) {
-    _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Command>>());
-    return _commandsStreams[storeId]!.stream;
-  }
-
-
-  final Map<int, BehaviorSubject<StoreWithRole>> _storeStreams = {};
-  final Map<int, BehaviorSubject<List<Product>>> _productsStreams = {};
-  final Map<int, BehaviorSubject<List<OrderDetails>>> _ordersStreams = {};
-  RealtimeRepository();
-
-  void initialize(String adminToken) {
-    _socket = io(
-      '${dotenv.env['API_URL']}/admin',
-      OptionBuilder()
-          .setTransports(['websocket'])
-          .enableAutoConnect()
-          .enableReconnection() // ✅ reconexão ativada
-          .setReconnectionAttempts(9999) // ✅ número máximo de tentativas
-          .setReconnectionDelay(1000) // ✅ tempo entre tentativas em ms
-          .setQuery({'admin_token': adminToken})
-          .build(),
-    );
-
-    _socket.on('consolidated_stores_updated', (data) {
-      if (data is Map && data.containsKey('store_ids') && data['store_ids'] is List) {
-        _consolidatedStoresUpdatedController.add(List<int>.from(data['store_ids']));
-      }
-    });
-
-    // NOVO: Escuta para 'admin_stores_list' ao conectar
-    _socket.on('admin_stores_list', (data) {
-      if (data is Map && data.containsKey('stores') && data['stores'] is List) {
-        final List<StoreWithRole> stores = (data['stores'] as List)
-            .map((s) => StoreWithRole.fromJson(s)) // Adapte se precisar de um StoreSummarySchema
-            .toList();
-        _adminStoresListController.add(stores); // Você precisará criar este BehaviorSubject
-      }
-    });
-
-
-    // ✅ O seu bloco de código atualizado para 'store_full_updated'
-    _socket.on('store_full_updated', (data) {
-      try {
-          print('[DEBUG] store_full_updated data: $data');
-
-        if (data == null) {
-          throw Exception('Dados nulos recebidos para store_full_updated');
-        }
-
-        final Map<String, dynamic> payload = data as Map<String, dynamic>;
-
-        final int storeId = payload['store_id'];
-
-        // Garante que o stream existe
-        if (!_storeStreams.containsKey(storeId)) {
-          _storeStreams[storeId] = BehaviorSubject<StoreWithRole>();
-        }
-
-
-
-        final Map<String, dynamic> storeDetailsData = payload['store'] as Map<
-            String,
-            dynamic>;
-
-        // ** AQUI ESTÁ A LÓGICA PARA OBTER O ROLE CORRETO **
-        StoreAccessRole? currentRole;
-        // Verificamos o estado atual do StoresManagerCubit para encontrar o role
-        if (_storesManagerCubit.state is StoresManagerLoaded) {
-          final loadedState = _storesManagerCubit.state as StoresManagerLoaded;
-          currentRole = loadedState.stores[storeId]?.role;
-        }
-
-        // Se o role não for encontrado (o que pode acontecer se a loja ainda não foi carregada no Cubit),
-        // use um role padrão ou trate o erro. É crucial que StoreWithRole sempre tenha um role.
-        if (currentRole == null) {
-          print(
-              '[WARN] Role não encontrado no StoresManagerCubit para loja $storeId. Usando role padrão "admin".');
-          currentRole = StoreAccessRole.admin; // Valor padrão de segurança
-        }
-
-        // Criamos o mapa no formato que StoreWithRole.fromJson espera
-        final Map<String, dynamic> dataForStoreWithRole = {
-          'store': storeDetailsData,
-          // Passa o nome do enum para a key 'machine_name' que o fromJson espera
-          'role': {'machine_name': currentRole.name},
-        };
-
-        // Agora, StoreWithRole.fromJson pode processar os dados corretamente
-        final storeWithRole = StoreWithRole.fromJson(dataForStoreWithRole);
-
-        _storeStreams[storeId]?.add(storeWithRole);
-      } catch (e, stack) {
-        print('[ERRO] store_full_updated: $e\n$stack');
-      }
-    });
-
-    _socket.on('products_updated', (data) {
-      try {
-        //    print('[DEBUG] products_updated data: $data');
-        final productsRaw = (data is List) ? data : [];
-        final products = productsRaw
-            .whereType<Map<String, dynamic>>()
-            .map((e) => Product.fromJson(e))
-            .toList();
-
-        if (products.isNotEmpty) {
-          final storeId = products.first.id; // Supondo que Product tem storeId
-          _productsStreams[storeId]?.add(products);
-        } else
-        if (data is Map<String, dynamic> && data.containsKey('store_id')) {
-          final storeId = data['store_id'] as int;
-          _productsStreams[storeId]?.add([]);
-        } else {
-          print(
-              '[DEBUG] products_updated: Lista vazia ou sem storeId explícito para adicionar ao stream.');
-        }
-      } catch (e, stack) {
-        print('[ERRO] products_updated: $e\n$stack');
-      }
-    });
-
-    _socket.on('orders_initial', (data) {
-      try {
-           print('[DEBUG] orders_initial data: $data');
-        if (data is Map<String, dynamic> && data.containsKey('store_id') &&
-            data.containsKey('orders')) {
-          final int storeId = data['store_id'] as int;
-          final List<dynamic> ordersRaw = data['orders'] as List<dynamic>;
-
-          final orders = ordersRaw
-              .whereType<Map<String, dynamic>>()
-              .map((e) => OrderDetails.fromJson(e))
-              .toList();
-
-          // Ensure the stream exists before adding data
-          _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject<List<OrderDetails>>());
-          _ordersStreams[storeId]?.add(orders);
-
-          _ordersInitialStreams.putIfAbsent(storeId, () => BehaviorSubject<List<OrderDetails>>());
-          _ordersInitialStreams[storeId]?.add(orders); // Adiciona a lista inicial
-          //  print('[DEBUG] orders_initial data: $data');
-
-        } else {
-          print(
-              '[ERRO] orders_initial: Formato de dados inesperado. Esperado Map com store_id e orders.');
-        }
-      } catch (e, stack) {
-        print('[ERRO] orders_initial: $e\n$stack');
-      }
-    });
-
-    _socket.on('order_updated', (data) {
-      try {
-        print('[DEBUG] Raw order_updated data type: ${data.runtimeType}');
-        print('[DEBUG] Raw order_updated data: $data');
-
-        final Map<String, dynamic> orderData = data as Map<String, dynamic>;
-        final updatedOrder = OrderDetails.fromJson(orderData);
-        final storeId = updatedOrder.storeId;
-
-        final ordersSubject = _ordersStreams[storeId];
-
-        if (ordersSubject != null && !ordersSubject.isClosed) {
-
-          final List<dynamic> rawList = ordersSubject.valueOrNull ?? [];
-
-          final List<OrderDetails> currentOrders = rawList
-              .map((item) {
-            if (item is OrderDetails) return item;
-            if (item is Map<String, dynamic>) return OrderDetails.fromJson(item);
-            throw Exception('Tipo inválido encontrado: ${item.runtimeType}');
-          })
-              .toList();
-
-
-          final List<OrderDetails> newOrdersList = List.from(currentOrders);
-
-          final index = newOrdersList.indexWhere((o) => o.id == updatedOrder.id);
-          if (index != -1) {
-            newOrdersList[index] = updatedOrder;
-            print('[DEBUG] Pedido ${updatedOrder.id} atualizado na lista da loja $storeId.');
-          } else {
-            newOrdersList.insert(0, updatedOrder);
-
-
-
-            showNewOrderNotification(updatedOrder.publicId, updatedOrder.storeId);
-
-            print('[DEBUG] Novo pedido ${updatedOrder.id} adicionado à lista da loja $storeId.');
-          }
-
-          ordersSubject.add(newOrdersList);
-
-          final OrderDetails? loggedOrder = newOrdersList.firstWhere(
-                (element) => element.id == updatedOrder.id,
-            orElse: () => updatedOrder,
-          );
-          print('[DEBUG] Dados do pedido convertido: ${loggedOrder?.toJson()}');
-
-        } else {
-          print('[DEBUG] order_updated: Stream de pedidos para a loja $storeId não encontrado ou fechado.');
-        }
-      } catch (e, stack) {
-        print('[ERRO] order_updated: $e\n$stack');
-      }
-    });
-
-
-    _socket.on('tables_and_commands', (data) {
-      try {
-        if (data is Map<String, dynamic>) {
-          final tablesRaw = data['tables'] as List<dynamic>? ?? [];
-          final commandsRaw = data['commands'] as List<dynamic>? ?? [];
-
-          final List<Table> tables = tablesRaw
-              .whereType<Map<String, dynamic>>()
-              .map((json) => Table.fromJson(json))
-              .toList();
-
-          final List<Command> commands = commandsRaw
-              .whereType<Map<String, dynamic>>()
-              .map((json) => Command.fromJson(json))
-              .toList();
-
-          if (tables.isNotEmpty) {
-            final storeId = tables.first.storeId;
-            _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Table>>());
-            _tablesStreams[storeId]?.add(tables);
-          }
-
-          if (commands.isNotEmpty) {
-            final storeId = commands.first.storeId;
-            _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Command>>());
-            _commandsStreams[storeId]?.add(commands);
-          }
-        }
-      } catch (e, st) {
-        print('[ERRO] tables_and_commands: $e\n$st');
-      }
-    });
-
-    _socket.onConnect((_) => print('[Socket] ✅ Conectado'));
-    _socket.onDisconnect((_) => print('[Socket] 🔌 Desconectado'));
-    _socket.onError((err) => print('[Socket] ❌ Erro: $err'));
-  }
-
-  // Método para injetar o StoresManagerCubit *depois* que ele for registrado no GetIt
-  void setStoresManagerCubit(StoresManagerCubit cubit) {
-    _storesManagerCubit = cubit;
-    // Se RealtimeRepository precisar fazer algo imediatamente com o cubit, faça aqui
-    // Por exemplo: _webSocketService.connect(cubit.activeStoreId);
-  }
-  Map<String, dynamic> _convertToOrderMap(dynamic data) {
-    if (data is Map<String, dynamic>) {
-      return data;
-    } else if (data is Map) {
-      return Map<String, dynamic>.from(data);
-    } else {
-      throw Exception('Formato de dados inválido: ${data.runtimeType}');
+  /// **CORREÇÃO PRINCIPAL:** O método 'initialize' agora recebe o objeto 'TotemAuth'.
+  /// Ele contém o 'sid' e o 'access_token' necessários para uma autenticação segura.
+  Future<void> initialize(TotemAuth totemAuth) async {
+    // Se já existe um socket, desconecte antes de criar um novo para garantir uma conexão limpa.
+    if (_socket != null && _socket!.connected) {
+      _socket!.disconnect();
     }
+
+    log('[RealtimeRepository] Inicializando conexão com o socket...');
+    log('[RealtimeRepository] Usando SID: ${totemAuth.sid}');
+
+
+
+    final options = IO.OptionBuilder()
+        .setTransports(['websocket'])
+        .disableAutoConnect()
+        .setReconnectionAttempts(9999)
+        .setReconnectionDelay(1000)
+    // **CORREÇÃO APLICADA:** Usa .setQuery() para enviar o token na URL
+        .setQuery({'admin_token':  totemAuth.token,})
+        .build();
+
+
+
+
+    // A URL do seu backend de socket
+    _socket = IO.io('https://api-pdvix-production.up.railway.app/admin', options);
+
+    // Registra os listeners ANTES de conectar
+    _registerSocketListeners();
+
+    // Agora, conecta manualmente
+    _socket!.connect();
   }
 
-  Future<Either<void, void>> updateOrderStatus(int orderId,
-      String newStatus) async {
-    try {
-      final result = await _socket.emitWithAckAsync('update_order_status', {
-        'order_id': orderId,
-        'new_status': newStatus,
+  void _registerSocketListeners() {
+    if (_socket == null) return;
+
+    // Limpa listeners antigos para evitar duplicação em reconexões
+    _socket!.clearListeners();
+    //
+    // _socket!.on('connect', (_) {
+    //   Future.microtask(() {
+    //     log('[Socket] ✅ Conectado com sucesso! ID: ${_socket!.id}');
+    //     _connectionStatusController.add(true);
+    //     _joinedStores.clear();
+    //     _joiningInProgress.clear();
+    //   });
+    // });
+
+    _socket!.on('connect', (_) {
+
+      Future.microtask(() {
+      log('[Socket] ✅ Conectado com sucesso! ID: ${_socket!.id}');
+      _connectionStatusController.add(true);
+      _joinedStores.clear();
+      _joiningInProgress.clear();
+
+      if (_lastJoinedStoreId != null) {
+        log('[Socket] Reconectado. Tentando reentrar automaticamente na sala da loja $_lastJoinedStoreId...');
+       joinStoreRoom(_lastJoinedStoreId!);
+      }
+
       });
+    });
 
-      if (result['error'] != null) return Left(null);
-      return Right(null);
-    } catch (_) {
-      return Left(null);
+
+
+
+
+    _socket!.on('disconnect', (reason) {
+      log('[Socket] 🔌 Desconectado: $reason');
+      _connectionStatusController.add(false);
+    });
+
+    _socket!.on('connect_error', (data) {
+      log('[Socket] ❌ Erro de conexão: $data');
+      _connectionStatusController.add(false);
+    });
+
+    // Listeners de Dados
+    _socket!.on('new_order_notification', _handleNewOrderNotification);
+
+
+
+
+    _socket!.on('admin_stores_list', (data) {
+      if (data is Map && data['stores'] is List) {
+        final stores = (data['stores'] as List).map((s) => StoreWithRole.fromJson(s)).toList();
+        _adminStoresListController.add(stores);
+      }
+    });
+    _socket!.on('store_full_updated', _handleStoreUpdated);
+    _socket!.on('products_updated', _handleProductsUpdated);
+    _socket!.on('orders_initial', _handleOrdersInitial);
+    _socket!.on('order_updated', _handleOrderUpdated);
+    _socket!.on('tables_and_commands', _handleTablesAndCommands);
+    // NOVO: Registra o listener para o evento de aviso de assinatura
+
+  }
+
+
+  void _handleNewOrderNotification(dynamic data) {
+    try {
+
+
+      log('🔔 Notificação de novo pedido recebida: $data');
+      // Extrai o payload, lidando com os formatos [evento, dados] ou apenas {dados}
+      final payload = (data is List && data.length > 1 && data[1] is Map)
+          ? data[1] as Map<String, dynamic>
+          : data as Map<String, dynamic>;
+
+      // --- Lógica ANTIGA (para o contador de sininho) - MANTIDA ---
+      final storeId = payload['store_id'] as int;
+      final currentNotifications = Map<int, int>.from(_storeNotificationController.value);
+      currentNotifications.update(storeId, (value) => value + 1, ifAbsent: () => 1);
+      _storeNotificationController.add(currentNotifications);
+
+      // --- Lógica NOVA (para o SnackBar) - ADICIONADA ---
+      final notification = OrderNotification.fromJson(payload);
+      _orderNotificationController.add(notification);
+
+    } catch (e, st) {
+      log('[Socket] ❌ Erro ao processar notificação de pedido', error: e, stackTrace: st);
     }
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+  void _handleStoreUpdated(dynamic data) {
+    try {
+      final Map<String, dynamic> payload;
+
+      print(data);
+      if (data is List && data.length > 1 && data[1] is Map<String, dynamic>) {
+        payload = data[1] as Map<String, dynamic>;
+      } else if (data is Map<String, dynamic>) {
+        payload = data;
+      } else {
+        log('[Socket] ❌ Erro em store_full_updated: Formato de dados inesperado.');
+        return;
+      }
+
+      final storeData = payload['store'] as Map<String, dynamic>;
+     // final subscriptionData = payload['subscription'] as Map<String, dynamic>?;
+
+      // if (subscriptionData != null) {
+      //   storeData['subscription'] = subscriptionData;
+      // }
+
+      final store = Store.fromJson(storeData);
+      _activeStoreController.add(store);
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em store_full_updated', error: e, stackTrace: st);
+      _activeStoreController.addError('Falha ao carregar dados da loja.');
+    }
+  }
+
+  void _handleProductsUpdated(dynamic data) {
+    try {
+      if (data is! Map || !data.containsKey('store_id')) return;
+      final storeId = data['store_id'] as int;
+      final products = (data['products'] as List? ?? []).map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+      _productsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(products);
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em products_updated', error: e, stackTrace: st);
+    }
+  }
+
+  void _handleOrdersInitial(dynamic data) {
+    try {
+      if (data is! Map || !data.containsKey('store_id')) return;
+      final storeId = data['store_id'] as int;
+      final orders = (data['orders'] as List? ?? []).map((e) => OrderDetails.fromJson(e as Map<String, dynamic>)).toList();
+      _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(orders);
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em orders_initial', error: e, stackTrace: st);
+    }
+  }
+
+  void _handleOrderUpdated(dynamic data) {
+    try {
+      final Map<String, dynamic> orderDataPayload = (data is List && data.isNotEmpty) ? data[0] : data;
+      final updatedOrder = OrderDetails.fromJson(orderDataPayload);
+      final storeId = updatedOrder.storeId;
+
+      final ordersSubject = _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([]));
+      if (ordersSubject.isClosed) return;
+
+      final currentOrders = List<OrderDetails>.from(ordersSubject.value);
+      final index = currentOrders.indexWhere((o) => o.id == updatedOrder.id);
+
+      if (index != -1) {
+        currentOrders[index] = updatedOrder;
+      } else {
+        currentOrders.insert(0, updatedOrder);
+      }
+      ordersSubject.add(currentOrders);
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em order_updated', error: e, stackTrace: st);
+    }
+  }
+
+  void _handleTablesAndCommands(dynamic data) {
+    try {
+      if (data is! Map || !data.containsKey('store_id')) return;
+      final storeId = data['store_id'] as int;
+      final tables = (data['tables'] as List? ?? []).map((e) => Table.fromJson(e)).toList();
+      final commands = (data['commands'] as List? ?? []).map((e) => Command.fromJson(e)).toList();
+
+      _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(tables);
+      _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(commands);
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em tables_and_commands', error: e, stackTrace: st);
+    }
+  }
+
+
+
+
+
+
+
+
+  Future<void> joinStoreRoom(int storeId) async {
+    if (!_connectionStatusController.value) {
+      log('[Socket] Aguardando conexão para entrar na sala $storeId...');
+      try {
+        await isConnectedStream.firstWhere((isConnected) => isConnected).timeout(const Duration(seconds: 10));
+      } on TimeoutException {
+        log('[Socket] ❌ Timeout esperando a conexão para entrar na sala $storeId.');
+        throw Exception('Timeout: Socket não conectou a tempo.');
+      }
+    }
+
+    if (_socket == null) {
+      throw Exception('Instância do Socket é nula. Não é possível entrar na sala.');
+    }
+
+    if (_joinedStores.contains(storeId) || _joiningInProgress.contains(storeId)) {
+      return;
+    }
+    _joiningInProgress.add(storeId);
+    try {
+      _clearNotificationForStore(storeId);
+    //  _initializeStoreStreams(storeId);
+      final completer = Completer<void>();
+      _socket!.emitWithAck('join_store_room', {'store_id': storeId}, ack: ([dynamic args]) {
+        final data = (args is List && args.isNotEmpty) ? args[0] : null;
+        if (data is Map && data['error'] != null) {
+          completer.completeError(Exception(data['error']));
+        } else if (!completer.isCompleted) {
+          completer.complete();
+        }
+      });
+      await completer.future.timeout(const Duration(seconds: 10));
+      _joinedStores.add(storeId);
+
+      // ✨ PASSO 2.1: Memorize o ID da loja ao entrar com sucesso
+      _lastJoinedStoreId = storeId;
+
+      log('[Socket] ✅ Entrou na sala da loja $storeId');
+    } catch (e, st) {
+      log('[Socket] ❌ Falha ao entrar na sala $storeId', error: e, stackTrace: st);
+      rethrow;
+    } finally {
+      _joiningInProgress.remove(storeId);
+    }
+  }
+
+
+
+
+  Future<void> leaveStoreRoom(int storeId) async {
+    if (_socket == null || !_socket!.connected || !_joinedStores.contains(storeId)) return;
+    try {
+      _joinedStores.remove(storeId);
+      final completer = Completer<void>();
+      _socket!.emitWithAck('leave_store_room', {'store_id': storeId}, ack: ([_]) {
+        if (!completer.isCompleted) completer.complete();
+      });
+      await completer.future.timeout(const Duration(seconds: 5));
+      _closeStoreStreams(storeId);
+
+      // ✨ PASSO 2.2: Limpe a memória ao sair da sala
+      if (_lastJoinedStoreId == storeId) {
+        _lastJoinedStoreId = null;
+      }
+
+      log('[Socket] Saiu da sala da loja $storeId');
+    } catch (e, st) {
+      log('[Socket] ❌ Falha ao sair da sala $storeId', error: e, stackTrace: st);
+    }
+  }
+
+  Future<Either<String, Map<String, dynamic>>> setConsolidatedStores(List<int> storeIds) async {
+    return _emitWithAck('set_consolidated_stores', {'store_ids': storeIds});
+  }
+
+  Future<Either<String, void>> updateOrderStatus(int orderId, String newStatus) async {
+    final result = await _emitWithAck('update_order_status', {'order_id': orderId, 'new_status': newStatus});
+    return result.isRight ? const Right(null) : Left(result.left);
+  }
+
   Future<Either<String, Map<String, dynamic>>> updateStoreSettings({
-    required int storeId, // <--- adiciona como parâmetro obrigatório
+    required int storeId,
     bool? isDeliveryActive,
     bool? isTakeoutActive,
     bool? isTableServiceActive,
     bool? isStoreOpen,
     bool? autoAcceptOrders,
     bool? autoPrintOrders,
-  }) async {
+  }) {
+    final data = <String, dynamic>{
+      'store_id': storeId,
+      if (isDeliveryActive != null) 'is_delivery_active': isDeliveryActive,
+      if (isTakeoutActive != null) 'is_takeout_active': isTakeoutActive,
+      if (isTableServiceActive != null) 'is_table_service_active': isTableServiceActive,
+      if (isStoreOpen != null) 'is_store_open': isStoreOpen,
+      if (autoAcceptOrders != null) 'auto_accept_orders': autoAcceptOrders,
+      if (autoPrintOrders != null) 'auto_print_orders': autoPrintOrders,
+    };
+    return _emitWithAck('update_store_settings', data);
+  }
+
+  // --- Métodos Auxiliares e de Limpeza ---
+
+  void _clearNotificationForStore(int storeId) {
+    final currentNotifications = Map<int, int>.from(_storeNotificationController.value);
+    if (currentNotifications.containsKey(storeId)) {
+      currentNotifications.remove(storeId);
+      _storeNotificationController.add(currentNotifications);
+      log('✨ Notificações para a loja $storeId foram limpas.');
+    }
+  }
+
+  /// Wrapper genérico para emitir eventos com ACK e tratar erros.
+  Future<Either<String, Map<String, dynamic>>> _emitWithAck(String event, dynamic payload) async {
+    if (_socket == null || !_socket!.connected) {
+      return Left('Socket não conectado.');
+    }
     try {
-      final data = <String, dynamic>{
-        'store_id': storeId, // <--- adiciona aqui
-        if (isDeliveryActive != null) 'is_delivery_active': isDeliveryActive,
-        if (isTakeoutActive != null) 'is_takeout_active': isTakeoutActive,
-        if (isTableServiceActive != null) 'is_table_service_active': isTableServiceActive,
-        if (isStoreOpen != null) 'is_store_open': isStoreOpen,
-        if (autoAcceptOrders != null) 'auto_accept_orders': autoAcceptOrders,
-        if (autoPrintOrders != null) 'auto_print_orders': autoPrintOrders,
-      };
+      final completer = Completer<Either<String, Map<String, dynamic>>>();
+      _socket!.emitWithAck(event, payload, ack: ([dynamic args]) {
+        final data = (args is List && args.isNotEmpty) ? args[0] : null;
+        if (data is Map && data['error'] != null) {
+          completer.complete(Left(data['error'] as String));
+        } else {
+          completer.complete(Right(data as Map<String, dynamic>? ?? {}));
+        }
+      });
+      return await completer.future.timeout(const Duration(seconds: 10));
+    } catch (e) {
+      return Left('Falha na comunicação: ${e.toString()}');
+    }
+  }
 
-      final result = await _socket.emitWithAckAsync('update_store_settings', data);
+  /// ✨ NOVO: Limpa as notificações para uma loja específica.
+  void clearNotificationsForStore(int storeId) {
+    // Pega o mapa atual de notificações
+    final currentNotifications = Map<int, int>.from(_storeNotificationController.value);
 
-      if (result['error'] != null) return Left(result['error'] as String);
-      return Right(result as Map<String, dynamic>);
-    } catch (_) {
-      return Left('Erro ao atualizar configurações');
+    // Se a loja tiver notificações, remove a entrada dela do mapa
+    if (currentNotifications.containsKey(storeId)) {
+      currentNotifications.remove(storeId);
+      // Emite o novo mapa sem as notificações da loja limpa
+      _storeNotificationController.add(currentNotifications);
     }
   }
 
 
-  void leaveStoreRoom(int storeId) {
-    if (_storeStreams.containsKey(storeId)) {
-      print('[Socket] Saindo da sala da loja: $storeId e fechando streams.');
-      _socket.emit('leave_store_room', {'store_id': storeId});
-      _storeStreams[storeId]?.close();
-      _productsStreams[storeId]?.close();
-      _ordersStreams[storeId]?.close();
-      _storeStreams.remove(storeId);
-      _productsStreams.remove(storeId);
-      _ordersStreams.remove(storeId);
-    } else {
-      print('[Socket] Não estava na sala da loja: $storeId.');
-    }
+
+
+
+
+
+
+  void _initializeStoreStreams(int storeId) {
+
+    _productsStreams.putIfAbsent(storeId, () => BehaviorSubject());
+    _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject());
+    _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject());
+    _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject());
   }
 
-  Stream<StoreWithRole> listenToStore(int storeId) {
-    // Adicione uma verificação de segurança caso o stream não exista
-    _storeStreams.putIfAbsent(storeId, () => BehaviorSubject<StoreWithRole>());
-    return _storeStreams[storeId]!.stream;
-  }
+  void _closeStoreStreams(int storeId) {
+    log('[Socket] Fechando streams e limpando cache para loja $storeId');
 
-  Stream<List<Product>> listenToProducts(int storeId) {
-    // Adicione uma verificação de segurança caso o stream não exista
-    _productsStreams.putIfAbsent(storeId, () => BehaviorSubject<List<Product>>());
-    return _productsStreams[storeId]!.stream;
-  }
-
-  Stream<List<OrderDetails>> listenToOrders(int storeId) {
-    // Adicione uma verificação de segurança caso o stream não exista
-    _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject<List<OrderDetails>>());
-    return _ordersStreams[storeId]!.stream;
-  }
-
-
-  void joinStoreRoom(int storeId) {
-    // Garanta que os streams existam antes de entrar na sala
-    _storeStreams.putIfAbsent(storeId, () => BehaviorSubject<StoreWithRole>());
-    _productsStreams.putIfAbsent(
-        storeId, () => BehaviorSubject<List<Product>>());
-    _ordersStreams.putIfAbsent(
-        storeId, () => BehaviorSubject<List<OrderDetails>>());
-
-    _socket.emit('join_store_room', {'store_id': storeId});
+    _productsStreams.remove(storeId)?.close();
+    _ordersStreams.remove(storeId)?.close();
+    _tablesStreams.remove(storeId)?.close();
+    _commandsStreams.remove(storeId)?.close();
   }
 
 
 
 
-  // NOVO: Evento para definir lojas consolidadas
-  Future<Either<String, Map<String, dynamic>>> setConsolidatedStores(List<int> storeIds) async {
-    Completer<Either<String, Map<String, dynamic>>> completer = Completer();
 
-    void ack(dynamic data) {
-      if (data is Map && data.containsKey('error')) {
-        completer.complete(Left(data['error'] as String));
-      } else {
-        completer.complete(Right(data as Map<String, dynamic>));
-      }
-    }
-    _socket.emitWithAck('set_consolidated_stores', {'store_ids': storeIds}, ack: ack);
-    return completer.future;
-  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -432,28 +534,25 @@ class RealtimeRepository {
 
 
   void dispose() {
-    // Limpe os maps após fechar os streams
-    _storeStreams.forEach((_, stream) => stream.close());
-    _productsStreams.forEach((_, stream) => stream.close());
-    _ordersStreams.forEach((_, stream) => stream.close());
-    _ordersInitialStreams.forEach((_, stream) => stream.close()); // Dispose the new stream
-    _orderUpdateStreams.forEach((_, stream) => stream.close()); // Dispose the new stream
-_commandsStreams.forEach((_, stream) => stream.close());
-_tablesStreams.forEach((_, stream) => stream.close());
+    log('[RealtimeRepository] Disposando recursos...');
 
-    _storeStreams.clear();
+    _productsStreams.values.forEach((s) => s.close());
+    _ordersStreams.values.forEach((s) => s.close());
+    _tablesStreams.values.forEach((s) => s.close());
+    _commandsStreams.values.forEach((s) => s.close());
+
+    _activeStoreController.close();
     _productsStreams.clear();
     _ordersStreams.clear();
-    _ordersInitialStreams.clear();
-    _orderUpdateStreams.clear();
     _tablesStreams.clear();
     _commandsStreams.clear();
-    _socket.disconnect();
-    _socket.dispose();
-    print('[Socket] RealtimeRepository disposto. Socket desconectado.');
+
+    _adminStoresListController.close();
+    _storeNotificationController.close();
+    _connectionStatusController.close();
+
+    _orderNotificationController.close();
+    _socket?.dispose();
+    log('[RealtimeRepository] Todos os streams e o socket foram fechados');
   }
 }
-
-
-
-

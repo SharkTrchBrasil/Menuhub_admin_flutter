@@ -65,9 +65,12 @@ dependencies:
   audioplayers: ^6.5.0
   printing: 
   pdf:
+  share_plus:
   universal_html:
   collection:
-
+  encrypt:
+  pointycastle:
+  path_provider:
 
   kanban_board:
   flutter_boardview_kanban: ^1.0.1

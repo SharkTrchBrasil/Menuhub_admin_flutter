@@ -52,6 +52,7 @@ class StoreNavigationHelper {
       RegExp(r'/edit'),
       RegExp(r'/payment-methods'),
       RegExp(r'/cash'),
+      RegExp(r'/orders/'),
 
 
     ];

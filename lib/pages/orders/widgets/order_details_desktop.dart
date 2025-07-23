@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:totem_pro_admin/pages/orders/service/print.dart';
 
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/order_details.dart';
 import '../../../models/order_product.dart';
+import '../../../models/store.dart';
 import '../utils/order_helpers.dart';
 
 class OrderDetailsElegant extends StatelessWidget {
   final OrderDetails order;
-
-  const OrderDetailsElegant({super.key, required this.order});
+  final Store? store;
+  const OrderDetailsElegant({super.key, required this.order, required this.store,});
 
   @override
   Widget build(BuildContext context) {
@@ -64,12 +66,12 @@ class OrderDetailsElegant extends StatelessWidget {
   }
 
   Widget _buildHeader(
-      ThemeData theme,
-      DateFormat dateFormat,
-      DateFormat timeFormat,
-      BuildContext context,
-      ) {
-    final store = context.read<StoresManagerCubit>().getActiveStore()?.store;
+    ThemeData theme,
+    DateFormat dateFormat,
+    DateFormat timeFormat,
+    BuildContext context,
+  ) {
+
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,10 +82,7 @@ class OrderDetailsElegant extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.grey.shade400,
-                  width: 1.2,
-                ),
+                border: Border.all(color: Colors.grey.shade400, width: 1.2),
                 color: Colors.white,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -121,7 +120,7 @@ class OrderDetailsElegant extends StatelessWidget {
 
             if (store != null)
               Text(
-                store.name,
+                store!.name,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -133,15 +132,11 @@ class OrderDetailsElegant extends StatelessWidget {
                 color: Colors.grey[800],
               ),
             ),
-
-
-
           ],
         ),
       ],
     );
   }
-
 
   Widget _buildItemsList(ThemeData theme, NumberFormat currencyFormat) {
     return Column(
@@ -186,26 +181,6 @@ class OrderDetailsElegant extends StatelessWidget {
                         _buildProductItem(product, theme, currencyFormat),
                   )
                   .toList(),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Subtotal',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      currencyFormat.format(order.totalPrice / 100),
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
@@ -214,148 +189,170 @@ class OrderDetailsElegant extends StatelessWidget {
   }
 
   Widget _buildPaymentSummary(ThemeData theme, NumberFormat currencyFormat) {
-    // Convertendo valores de centavos para unidades monetárias
-    final subtotal = order.subtotalPrice / 100;
-    final total = order.totalPrice / 100;
     final deliveryFee = (order.deliveryFee ?? 0) / 100;
+    final subtotal = order.totalPrice / 100;
     final discountAmount = (order.discountAmount ?? 0) / 100;
+    final total = (order.discountedTotalPrice + (order.deliveryFee ?? 0)) / 100;
+
     final hasDiscount = discountAmount > 0;
     final hasCoupon = order.couponCode != null && order.couponCode!.isNotEmpty;
+    final isDinheiro = order.paymentMethodName.toLowerCase().contains(
+      'dinheiro',
+    );
+    final isCartao =
+        order.paymentMethodName.toLowerCase().contains('cartão') ||
+        order.paymentMethodName.toLowerCase().contains('credito') ||
+        order.paymentMethodName.toLowerCase().contains('débito') ||
+        order.paymentMethodName.toLowerCase().contains('debito');
+    final troco = (order.changeAmount ?? 0) / 100;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (deliveryFee > 0)
+            _buildIconRow(
+              icon: Icons.local_shipping,
+              label: 'Taxa de entrega',
+              value: currencyFormat.format(deliveryFee),
+              theme: theme,
+            ),
+
+          _buildIconRow(
+            icon: Icons.attach_money,
+            label: 'Subtotal',
+            value: currencyFormat.format(subtotal),
+            theme: theme,
           ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                'Resumo do Pedido',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-              const SizedBox(height: 16),
 
-              // Detalhes dos valores
-              _buildPaymentRow(
-                'Subtotal',
-                currencyFormat.format(subtotal),
-                theme,
-              ),
+          if (hasDiscount)
+            _buildIconRow(
+              icon: Icons.discount,
+              label: 'Desconto aplicado',
+              value: '-${currencyFormat.format(discountAmount)}',
+              theme: theme,
+              valueColor: Colors.green,
+            ),
 
-              if (hasDiscount) ...[
-                const SizedBox(height: 8),
-                _buildPaymentRow(
-                  'Desconto aplicado',
-                  '-${currencyFormat.format(discountAmount)}',
-                  theme,
-                  isDiscount: true,
-                ),
-
-                if (hasCoupon)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Cupom: ${order.couponCode}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                        if (order.discountPercentage != null)
-                          Text(
-                            ' (${order.discountPercentage!.round()}% off)',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.green,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
-
-              if (deliveryFee > 0) ...[
-                const SizedBox(height: 8),
-                _buildPaymentRow(
-                  'Taxa de Entrega',
-                  currencyFormat.format(deliveryFee),
-                  theme,
-                ),
-              ],
-
-
-
-              // Total
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          if (hasCoupon)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 30),
+              child: Row(
                 children: [
                   Text(
-                    'Total',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    'Cupom: ${order.couponCode}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  if (order.discountPercentage != null)
+                    Text(
+                      ' (${order.discountPercentage!.round()}% off)',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.green,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 16),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                isDinheiro
+                    ? Icons.payments
+                    : isCartao
+                    ? Icons.credit_card
+                    : Icons.account_balance_wallet,
+                size: 24,
+                color: theme.primaryColor,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    Text(
+                      isDinheiro
+                          ? 'Dinheiro (troco: ${currencyFormat.format(troco)})'
+                          : isCartao
+                          ? '${order.paymentMethodName} (maquininha necessária)'
+                          : order.paymentMethodName,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (isCartao)
+                      Text(
+                        'Entregador deve levar maquininha',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Cobrar do cliente',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
                     ),
                   ),
                   Text(
                     currencyFormat.format(total),
-                    style: theme.textTheme.titleLarge?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.primaryColor,
                     ),
                   ),
                 ],
               ),
-
-              // Método de pagamento
-              if (order.paymentMethodName != null && order.paymentMethodName!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: _buildPaymentRow(
-                    'Método de pagamento',
-                    order.paymentMethodName!,
-                    theme,
-                    secondary: true,
-                  ),
-                ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-
-
-// Widget auxiliar (mantido igual)
-  Widget _buildPaymentRow(String label, String value, ThemeData theme, {
-    bool isDiscount = false,
-    bool secondary = false,
+  Widget _buildIconRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required ThemeData theme,
+    Color? valueColor,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: secondary
-                ? theme.textTheme.bodySmall?.copyWith(color: Colors.grey)
-                : theme.textTheme.bodyMedium,
+          Row(
+            children: [
+              Icon(icon, size: 20, color: Colors.grey[700]),
+              const SizedBox(width: 8),
+              Text(label, style: theme.textTheme.bodyMedium),
+            ],
           ),
           Text(
             value,
-            style: (isDiscount
-                ? theme.textTheme.bodyMedium?.copyWith(color: Colors.green)
-                : theme.textTheme.bodyMedium)?.copyWith(
-              fontWeight: secondary ? null : FontWeight.w500,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: valueColor ?? Colors.grey[900],
             ),
           ),
         ],
@@ -365,9 +362,10 @@ class OrderDetailsElegant extends StatelessWidget {
 
 
 
-
-
   Widget _buildActionButtons(BuildContext context) {
+
+
+
     return Row(
       children: [
         Expanded(
@@ -386,7 +384,7 @@ class OrderDetailsElegant extends StatelessWidget {
         const SizedBox(width: 16),
         Expanded(
           child: ElevatedButton(
-            onPressed: () => printOrder(order),
+            onPressed: () => PrinterService().printOrder(order, store!),
 
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -394,7 +392,7 @@ class OrderDetailsElegant extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Imprimir Comanda'),
+            child: const Text('Imprimir Pedido'),
           ),
         ),
       ],
@@ -402,10 +400,10 @@ class OrderDetailsElegant extends StatelessWidget {
   }
 
   Widget _buildProductItem(
-      OrderProduct product,
-      ThemeData theme,
-      NumberFormat currencyFormat,
-      ) {
+    OrderProduct product,
+    ThemeData theme,
+    NumberFormat currencyFormat,
+  ) {
     final variantsTotal = product.variants.fold<double>(0.0, (sum, variant) {
       return sum +
           variant.options.fold<double>(0.0, (optionSum, option) {
@@ -413,7 +411,7 @@ class OrderDetailsElegant extends StatelessWidget {
           });
     });
 
-    final itemTotal = (product.price * product.quantity) + variantsTotal;
+    final itemTotal = ((product.price + variantsTotal) * product.quantity);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -428,10 +426,10 @@ class OrderDetailsElegant extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 children: [
                   Container(
-                    width: 60,
-                    height: 60,
+                    width: 55,
+                    height: 55,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(18),
                       image: DecorationImage(
                         image: NetworkImage(product.image!.url!),
                         fit: BoxFit.cover,
@@ -441,14 +439,14 @@ class OrderDetailsElegant extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(right: 0),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey[800],
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 1.5,
-                        ),
+                        border: Border.all(color: Colors.white, width: 1.5),
                       ),
                       child: Text(
                         '${product.quantity}',
@@ -461,7 +459,7 @@ class OrderDetailsElegant extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -475,7 +473,7 @@ class OrderDetailsElegant extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      currencyFormat.format(itemTotal / 100),
+                      currencyFormat.format(product.price / 100),
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -486,50 +484,64 @@ class OrderDetailsElegant extends StatelessWidget {
             ],
           ),
 
-          // Variantes (opções)
-          if (product.variants.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            ...product.variants.expand(
-                  (variant) => variant.options.map(
-                    (option) => Padding(
-                  padding: const EdgeInsets.only(left: 72, bottom: 6), // alinha com início do nome
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${option.quantity}',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.grey[800],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          option.name,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                      Text(
-                        currencyFormat.format(option.price / 100),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ],
+          ...product.variants.map(
+            (variant) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 72, bottom: 4),
+                  child: Text(
+                    variant.name,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
                   ),
                 ),
-              ),
+                ...variant.options.map(
+                  (option) => Padding(
+                    padding: const EdgeInsets.only(left: 72, bottom: 6),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${option.quantity}',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: Colors.grey[800],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            option.name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                        Text(
+                          currencyFormat.format(option.price / 100),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
 
           // Observação do produto (nota)
           if (product.note.isNotEmpty) ...[
@@ -562,7 +574,6 @@ class OrderDetailsElegant extends StatelessWidget {
       ),
     );
   }
-
 
   Widget _buildStatusCard(ThemeData theme, BuildContext context) {
     return Card(
@@ -917,6 +928,10 @@ class OrderDetailsElegant extends StatelessWidget {
         return Colors.grey;
     }
   }
+
+
+
+
 }
 
 class _StatusStep {

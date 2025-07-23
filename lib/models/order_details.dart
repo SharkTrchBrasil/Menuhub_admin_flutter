@@ -16,6 +16,8 @@ class OrderDetails {
   final String? observation;
   final int storeId;
   final int? customerId;
+
+
   final int discountedTotalPrice;
   final int? deliveryFee;
   final int? changeAmount;
@@ -51,6 +53,8 @@ class OrderDetails {
   final int subtotalPrice;
   final int? couponId;
   final String? couponCode;
+
+  final int? customerOrderCount;
 
   OrderDetails({
     required this.id,
@@ -93,6 +97,7 @@ class OrderDetails {
     required this.subtotalPrice,
     this.couponId,
     this.couponCode,
+    this.customerOrderCount,
   });
 
   factory OrderDetails.fromJson(Map<String, dynamic> json) {
@@ -141,6 +146,8 @@ class OrderDetails {
       subtotalPrice: json['subtotal_price'] as int? ?? json['total_price'] as int,
       couponId: json['coupon_id'],
       couponCode: json['coupon_code'],
+      customerOrderCount: json['customer_order_count'] as int?,
+
     );
   }
 

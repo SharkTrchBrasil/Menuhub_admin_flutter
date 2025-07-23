@@ -1,15 +1,11 @@
-// lib/widgets/store_selector_panel.dart (Exemplo adaptado)
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-
-import '../../../cubits/store_manager_cubit.dart';
 
 class StoreSelectorPanel extends StatelessWidget {
   final Function(int storeId) onStoreSelected;
-  final VoidCallback? onClose; // Callback opcional para fechar o pop-up
+  final VoidCallback? onClose;
 
   const StoreSelectorPanel({
     super.key,
@@ -21,66 +17,78 @@ class StoreSelectorPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, state) {
-        if (state is StoresManagerLoading) {
+        if (state is! StoresManagerLoaded) {
+          // Trata todos os estados não-carregados (Initial, Loading, Error, Empty)
           return const Center(child: CircularProgressIndicator());
-        } else if (state is StoresManagerLoaded) {
-          if (state.stores.isEmpty) {
-            return const Center(child: Text('Nenhuma loja disponível.'));
-          }
+        }
 
-          final List<int> consolidatedIds = context.read<StoresManagerCubit>().currentConsolidatedStoreIds;
+        if (state.stores.isEmpty) {
+          return const Center(child: Text('Nenhuma loja disponível.'));
+        }
 
-          return Column(
-            children: [
-              // Cabeçalho opcional para fechar o painel
-              if (onClose != null)
-                Align(
-                  alignment: Alignment.topRight,
-                  child: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: onClose,
-                  ),
-                ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: state.stores.length,
-                  itemBuilder: (context, index) {
-                    final storeWithRole = state.stores.values.elementAt(index);
-                    final store = storeWithRole.store;
-                    final isActive = state.activeStoreId == store.id;
-                    final isConsolidated = consolidatedIds.contains(store.id);
+        // 1. Pega os dados diretamente do estado para consistência.
+        final consolidatedIds = state.consolidatedStores;
+        final notificationCounts = state.notificationCounts;
 
-                    return ListTile(
-                      title: Text(store.name ?? 'Loja Desconhecida'),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                        //  Text('Online: ${storeWithRole.isOnline ? 'Sim' : 'Não'}'),
-                          Text('Consolidada: ${isConsolidated ? 'Sim' : 'Não'}'),
-                        ],
-                      ),
-                      leading: Icon(
-                        isActive ? Icons.check_circle : Icons.circle_outlined,
-                        color: isActive ? Colors.green : Colors.grey,
-                      ),
-                      trailing: Icon(
-                        isConsolidated ? Icons.star : Icons.star_border,
-                        color: isConsolidated ? Colors.amber : Colors.grey,
-                      ),
-                      onTap: () {
-                        // Ao clicar, aciona o callback para selecionar a loja
-                        onStoreSelected(store.id!);
-                      },
-                    );
-                  },
+        return Column(
+          children: [
+            if (onClose != null)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Selecionar Loja', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(icon: const Icon(Icons.close), onPressed: onClose),
+                  ],
                 ),
               ),
-            ],
-          );
-        } else if (state is StoresManagerError) {
-          return Center(child: Text('Erro ao carregar lojas: ${state.message}'));
-        }
-        return const Center(child: Text('Carregando...')); // Caso seja StoresManagerInitial
+            Expanded(
+              child: ListView.builder(
+                itemCount: state.stores.length,
+                itemBuilder: (context, index) {
+                  final storeWithRole = state.stores.values.elementAt(index);
+                  final store = storeWithRole.store;
+                  final isActive = state.activeStoreId == store.id;
+                  final isConsolidated = consolidatedIds.contains(store.id);
+
+                  // 2. Pega a contagem de notificações para a loja atual.
+                  final notificationCount = notificationCounts[store.id] ?? 0;
+
+                  return ListTile(
+                    leading: Icon(
+                      isActive ? Icons.check_circle : Icons.radio_button_unchecked,
+                      color: isActive ? Colors.green : Colors.grey,
+                    ),
+                    title: Row(
+                      children: [
+                        Flexible(child: Text(store.name, overflow: TextOverflow.ellipsis)),
+                        const SizedBox(width: 8),
+                        // 3. Exibe o badge se houver notificações!
+                        if (notificationCount > 0)
+                          Badge(
+                            label: Text('$notificationCount'),
+                            backgroundColor: Colors.red,
+                          ),
+                      ],
+                    ),
+                    trailing: Icon(
+                      isConsolidated ? Icons.star : Icons.star_border,
+                      color: isConsolidated ? Colors.amber : Colors.grey,
+                    ),
+                    onTap: () {
+                      onStoreSelected(store.id!);
+                      // Fecha o painel após a seleção
+                      if (onClose != null) {
+                        onClose!();
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
       },
     );
   }

@@ -2,20 +2,22 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
+import 'package:totem_pro_admin/models/store.dart'; // Importe o modelo Store
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
 import 'order_status_button.dart';
 
 class OrderListItem extends StatelessWidget {
   final OrderDetails order;
   final VoidCallback onTap;
-  final Function(OrderDetails order) onPrintOrder;
+  // NOVO: Recebe o objeto da loja ativa.
+  final Store? store;
 
   const OrderListItem({
-    Key? key,
+    super.key,
     required this.order,
     required this.onTap,
-    required this.onPrintOrder,
-  }) : super(key: key);
+    required this.store, // O store agora é um parâmetro obrigatório.
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +52,6 @@ class OrderListItem extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                 ],
               ),
 
@@ -112,10 +113,10 @@ class OrderListItem extends StatelessWidget {
                   Expanded(
                     child: OrderStatusButton(
                       order: order,
-                      onPrintOrder: onPrintOrder,
+                      // AJUSTADO: Passa o 'store' recebido para o botão filho.
+                      store: store,
                     ),
                   ),
-
                 ],
               ),
             ],
