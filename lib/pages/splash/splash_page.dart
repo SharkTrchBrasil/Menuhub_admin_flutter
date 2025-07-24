@@ -6,7 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:totem_pro_admin/widgets/app_logo.dart';
 
 import '../../core/di.dart';
-import '../../services/cubits/auth_cubit.dart';
+import '../../cubits/auth_cubit.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key, this.redirectTo}); // Remova 'required' se não for sempre fornecido

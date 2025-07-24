@@ -4,7 +4,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 import 'dot_loading.dart';
 
-Function showLoading() {
+VoidCallback showLoading(){
   // Exibe o loading e bloqueia a tela
   final cancelLoading = BotToast.showCustomLoading(
     toastBuilder: (_) {

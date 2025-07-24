@@ -15,6 +15,12 @@ class StoreSettingsSidePanel extends StatelessWidget {
         ? MediaQuery.of(context).size.width
         : MediaQuery.of(context).size.width * 0.3;
 
+    // Estilo para os subtítulos para manter o código limpo
+    final subtitleStyle = TextStyle(
+      color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+      fontSize: 12,
+    );
+
     return Align(
       alignment: Alignment.centerRight,
       child: Material(
@@ -41,8 +47,8 @@ class StoreSettingsSidePanel extends StatelessWidget {
                   ),
                 ],
               ),
-              const Divider(),
-              const SizedBox(height: 8),
+
+              const Divider(), // A linha divisória fica melhor aqui
 
               Expanded(
                 child: BlocBuilder<StoresManagerCubit, StoresManagerState>(
@@ -59,35 +65,54 @@ class StoreSettingsSidePanel extends StatelessWidget {
                       return ListView(
                         children: [
                           ListTile(
-                            title: const Text('Loja Aberta'),
+                            title: const Text('Fechar temporariamente'),
+                            // ✅ DESCRIÇÃO ADICIONADA
+                            subtitle: Text(
+                              'Interrompe completamente o funcionamento da loja.',
+                              style: subtitleStyle,
+                            ),
                             trailing: Switch(
-                              value: settings.isStoreOpen,
+                              value: !settings.isStoreOpen, // Lógica invertida para "Fechar"
                               onChanged: (_) => context
                                   .read<StoresManagerCubit>()
                                   .updateStoreSettings(storeId, isStoreOpen: !settings.isStoreOpen),
                             ),
                           ),
                           ListTile(
-                            title: const Text('Delivery Ativo'),
+                            title: const Text('Pausar Delivery'),
+                            // ✅ DESCRIÇÃO ADICIONADA
+                            subtitle: Text(
+                              'Desativa a opção de entrega para novos pedidos.',
+                              style: subtitleStyle,
+                            ),
                             trailing: Switch(
-                              value: settings.isDeliveryActive,
+                              value: !settings.isDeliveryActive, // Lógica invertida para "Pausar"
                               onChanged: (_) => context
                                   .read<StoresManagerCubit>()
                                   .updateStoreSettings(storeId, isDeliveryActive: !settings.isDeliveryActive),
                             ),
                           ),
                           ListTile(
-                            title: const Text('Retirada Ativa'),
+                            title: const Text('Pausar Retirada'),
+                            // ✅ DESCRIÇÃO ADICIONADA
+                            subtitle: Text(
+                              'Desativa a opção de retirada no local.',
+                              style: subtitleStyle,
+                            ),
                             trailing: Switch(
-                              value: settings.isTakeoutActive,
+                              value: !settings.isTakeoutActive, // Lógica invertida para "Pausar"
                               onChanged: (_) => context
                                   .read<StoresManagerCubit>()
                                   .updateStoreSettings(storeId, isTakeoutActive: !settings.isTakeoutActive),
                             ),
                           ),
-
                           ListTile(
                             title: const Text('Aceitar pedidos automaticamente'),
+                            // ✅ DESCRIÇÃO ADICIONADA
+                            subtitle: Text(
+                              "Novos pedidos mudam para 'Em preparo' sem ação manual.",
+                              style: subtitleStyle,
+                            ),
                             trailing: Switch(
                               value: settings.autoAcceptOrders,
                               onChanged: (_) => context
@@ -97,6 +122,11 @@ class StoreSettingsSidePanel extends StatelessWidget {
                           ),
                           ListTile(
                             title: const Text('Imprimir pedidos automaticamente'),
+                            // ✅ DESCRIÇÃO ADICIONADA
+                            subtitle: Text(
+                              'Envia novos pedidos para a impressora configurada.',
+                              style: subtitleStyle,
+                            ),
                             trailing: Switch(
                               value: settings.autoPrintOrders,
                               onChanged: (_) => context
@@ -104,16 +134,9 @@ class StoreSettingsSidePanel extends StatelessWidget {
                                   .updateStoreSettings(storeId, autoPrintOrders: !settings.autoPrintOrders),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Exibir pedidos das lojas vinculadas:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          // Adicione outras opções aqui
                         ],
                       );
                     }
-
                     return const Center(child: CircularProgressIndicator());
                   },
                 ),

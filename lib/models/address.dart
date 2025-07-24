@@ -19,13 +19,16 @@ class Address {
     this.complement = '',
   });
 
+  // ✅ CORREÇÃO APLICADA AQUI
   factory Address.fromJson(Map<String, dynamic> json) {
     return Address(
-      zipcode: json['zipcode'],
-      city: json['city'],
-      state: json['state'],
-      neighborhood: json['neighborhood'],
-      street: json['street'],
+      // Usa as chaves corretas da API ViaCEP
+      zipcode: json['cep'] ?? '',
+      city: json['localidade'] ?? '',
+      state: json['uf'] ?? '',
+      neighborhood: json['bairro'] ?? '',
+      street: json['logradouro'] ?? '',
+      complement: json['complemento'] ?? '',
     );
   }
 

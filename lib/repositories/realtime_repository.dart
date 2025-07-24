@@ -15,6 +15,7 @@ import 'package:totem_pro_admin/models/table.dart';
 import 'package:totem_pro_admin/services/auth_service.dart';
 
 import '../models/order_notification.dart';
+import '../models/print_job.dart';
 import '../models/store.dart';
 import '../models/totem_auth.dart';
 import '../models/totem_auth_and_stores.dart'; // Para ter acesso ao TotemAuth
@@ -41,6 +42,10 @@ class RealtimeRepository {
   final _commandsStreams = <int, BehaviorSubject<List<Command>>>{};
   final _adminStoresListController = BehaviorSubject<List<StoreWithRole>>.seeded([]);
 
+// Crie o novo StreamController
+  final _newPrintJobsController = StreamController<PrintJobPayload>.broadcast();
+
+
   // Getters públicos
   Stream<bool> get isConnectedStream => _connectionStatusController.stream;
   Stream<Map<int, int>> get onStoreNotification => _storeNotificationController.stream;
@@ -48,6 +53,8 @@ class RealtimeRepository {
   Stream<Store?> get onActiveStoreUpdated => _activeStoreController.stream;
   Stream<List<StoreWithRole>> get onAdminStoresList => _adminStoresListController.stream;
   Map<int, int> get currentNotificationCounts => _storeNotificationController.value;
+
+  Stream<PrintJobPayload> get onNewPrintJobsAvailable => _newPrintJobsController.stream;
 
 
   // --- Métodos Públicos ---
@@ -58,7 +65,14 @@ class RealtimeRepository {
   Stream<List<Command>> listenToCommands(int storeId) => _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
 
 
+// Dentro da classe RealtimeRepository
 
+  /// Reivindica um trabalho de impressão específico pelo seu ID.
+  Future<Either<String, Map<String, dynamic>>> claimSpecificPrintJob(int jobId) {
+    print('[RealtimeRepository] Enviando reivindicação para o trabalho de impressão #$jobId');
+    // O backend precisa ter um handler para este novo evento.
+    return _emitWithAck('claim_specific_print_job', {'job_id': jobId});
+  }
 
 
 
@@ -174,6 +188,10 @@ class RealtimeRepository {
     _socket!.on('orders_initial', _handleOrdersInitial);
     _socket!.on('order_updated', _handleOrderUpdated);
     _socket!.on('tables_and_commands', _handleTablesAndCommands);
+
+    // No método _registerSocketListeners(), adicione o novo listener:
+    _socket!.on('new_print_jobs_available', _handleNewPrintJobsAvailable);
+
     // NOVO: Registra o listener para o evento de aviso de assinatura
 
   }
@@ -206,21 +224,10 @@ class RealtimeRepository {
 
 
 
-
-
-
-
-
-
-
-
-
-
   void _handleStoreUpdated(dynamic data) {
     try {
       final Map<String, dynamic> payload;
-
-      print(data);
+    print(data);
       if (data is List && data.length > 1 && data[1] is Map<String, dynamic>) {
         payload = data[1] as Map<String, dynamic>;
       } else if (data is Map<String, dynamic>) {
@@ -230,15 +237,22 @@ class RealtimeRepository {
         return;
       }
 
-      final storeData = payload['store'] as Map<String, dynamic>;
-     // final subscriptionData = payload['subscription'] as Map<String, dynamic>?;
+      // ✅ PASSO 1: Extraia o 'storeData' como mutável para poder editá-lo.
+      // Usamos Map.from para criar uma cópia que pode ser modificada.
+      final Map<String, dynamic> storeData = Map.from(payload['store'] as Map<String, dynamic>);
 
-      // if (subscriptionData != null) {
-      //   storeData['subscription'] = subscriptionData;
-      // }
+      // ✅ PASSO 2: Extraia a 'subscription' do payload principal.
+      final subscriptionData = payload['subscription'] as Map<String, dynamic>?;
 
+      // ✅ PASSO 3: Se a 'subscription' existir, adicione-a ao 'storeData'.
+      if (subscriptionData != null) {
+        storeData['subscription'] = subscriptionData;
+      }
+
+      // ✅ PASSO 4: Agora o 'storeData' tem tudo que o fromJson precisa.
       final store = Store.fromJson(storeData);
       _activeStoreController.add(store);
+
     } catch (e, st) {
       log('[Socket] ❌ Erro em store_full_updated', error: e, stackTrace: st);
       _activeStoreController.addError('Falha ao carregar dados da loja.');
@@ -283,6 +297,10 @@ class RealtimeRepository {
         currentOrders[index] = updatedOrder;
       } else {
         currentOrders.insert(0, updatedOrder);
+
+        // ✅ NOVA LÓGICA: Apenas notifica o app sobre o novo pedido.
+        print('[RealtimeRepository] Notificando sobre novo pedido para impressão: #${updatedOrder.id}');
+
       }
       ordersSubject.add(currentOrders);
     } catch (e, st) {
@@ -304,7 +322,25 @@ class RealtimeRepository {
     }
   }
 
+  void _handleNewPrintJobsAvailable(dynamic data) {
+    try {
+      log('[Socket] ✅ Recebido comando de impressão: $data');
+      final payload = data is List ? data[1] : data; // Lida com o formato do seu socket
 
+      final jobsList = (payload['jobs'] as List)
+          .map((job) => PrintJob(id: job['id'], destination: job['destination']))
+          .toList();
+
+      final printPayload = PrintJobPayload(
+        orderId: payload['order_id'],
+        jobs: jobsList,
+      );
+
+      _newPrintJobsController.add(printPayload);
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em new_print_jobs_available', error: e, stackTrace: st);
+    }
+  }
 
 
 
@@ -444,6 +480,9 @@ class RealtimeRepository {
     }
   }
 
+
+
+
   /// ✨ NOVO: Limpa as notificações para uma loja específica.
   void clearNotificationsForStore(int storeId) {
     // Pega o mapa atual de notificações
@@ -460,7 +499,10 @@ class RealtimeRepository {
 
 
 
-
+  Future<Either<String, Map<String, dynamic>>> claimPrintJob(int orderId) {
+    print('[RealtimeRepository] Enviando evento claim_print_job para o pedido $orderId');
+    return _emitWithAck('claim_print_job', {'order_id': orderId});
+  }
 
 
 
@@ -552,6 +594,7 @@ class RealtimeRepository {
     _connectionStatusController.close();
 
     _orderNotificationController.close();
+    _newPrintJobsController.close();
     _socket?.dispose();
     log('[RealtimeRepository] Todos os streams e o socket foram fechados');
   }

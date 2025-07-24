@@ -198,6 +198,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   Future<void> close() {
     _adminStoresListSubscription?.cancel();
     _notificationSubscription?.cancel();
+    _activeStoreSubscription?.cancel();
     return super.close();
   }
 }

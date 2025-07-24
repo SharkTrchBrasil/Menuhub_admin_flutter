@@ -11,8 +11,14 @@ import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
 import 'package:totem_pro_admin/pages/base/BasePage.dart';
+import 'package:totem_pro_admin/pages/orders/printer_settings.dart';
+import 'package:totem_pro_admin/pages/orders/store_settings.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/count_badge.dart';
+import 'package:totem_pro_admin/pages/orders/widgets/desktoptoolbar.dart';
+import 'package:totem_pro_admin/pages/orders/widgets/empty_order_view.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/mobile_order_layout.dart';
+import 'package:totem_pro_admin/pages/orders/widgets/order_details_desktop.dart';
+import 'package:totem_pro_admin/pages/orders/widgets/order_type_tab.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/store_header.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/summary_panel.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/order_list_item.dart';
@@ -20,7 +26,8 @@ import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import 'package:totem_pro_admin/widgets/mobileappbar.dart';
 
 
-import '../../widgets/app_bar_subscription_info.dart';
+
+import '../../widgets/appbarcode.dart';
 import '../../widgets/select_store.dart';
 import '../../widgets/subscription_blocked_card.dart';
 import 'order_page_cubit.dart';
@@ -37,6 +44,13 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   OrderDetails? _selectedOrderDetails;
+  // VARIÁVEIS DE ESTADO ATUALIZADAS
+  bool _areTabsMerged = false; // Novo estado para fundir abas
+  int _selectedOrderTypeIndex = 0;
+  int _selectedStatusFilterIndex = 0;
+// Novo estado para fundir abas
+  OrderDetails? _selectedOrder; // Novo estado para o pedido selecionado
+
   int _currentTabIndex = 0;
 
   @override
@@ -99,6 +113,49 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     super.dispose();
   }
 
+
+  // NOVO: Função para abrir os painéis de overlay (impressora, etc.)
+  void _showOverlaySidePanel(BuildContext context, Widget panel) {
+    // Use a função com PageRouteBuilder da resposta anterior
+    Navigator.of(context).push(PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => panel,
+        opaque: false,
+        barrierColor: Colors.black.withOpacity(0.5),
+        barrierDismissible: true,
+        transitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.easeOut));
+          return SlideTransition(position: animation.drive(tween), child: child);
+        }));
+  }
+
+
+  // MÉTODO DE FILTRAGEM ATUALIZADO
+  List<OrderDetails> _filterOrders(List<OrderDetails> allOrders) {
+    List<OrderDetails> orders;
+
+    // 1. Filtro por tipo (com lógica de "Fundir")
+    if (_areTabsMerged) {
+      // Se fundido, pega pedidos de Balcão E Delivery
+      orders = allOrders.where((o) => o.deliveryType == 'balcao' || o.deliveryType == 'delivery').toList();
+    } else {
+      final orderTypes = ['balcao', 'delivery', 'mesa'];
+      final selectedType = orderTypes[_selectedOrderTypeIndex];
+      orders = allOrders.where((o) => o.deliveryType == selectedType).toList();
+    }
+
+    // 2. Filtro por status
+    if (_selectedStatusFilterIndex == 1) {
+      orders = orders.where((o) => o.orderStatus == 'pending').toList();
+    } else if (_selectedStatusFilterIndex == 2) {
+      orders = orders.where((o) => o.orderStatus == 'preparing').toList();
+    }
+
+    return orders;
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
@@ -116,20 +173,6 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
 
 
 
-        // 2. NOVA LÓGICA: Se houver uma mensagem de aviso, exibe uma tela de bloqueio e para aqui.
-        if (warningMessage != null) {
-          return BasePage(
-            desktopAppBar: AppBarCustom(title: '', actions: [
-              Row(children: [StoreSelectorWidget()])
-            ]),
-            // Mostra o card de bloqueio tanto no mobile quanto no desktop
-            mobileBuilder: (context) => Center(child: SubscriptionBlockedCard(message: warningMessage)),
-            desktopBuilder: (context) => Center(child: SubscriptionBlockedCard(message: warningMessage)),
-          );
-        }
-
-
-
 
         // Ouve o OrderCubit para obter a lista de pedidos e o estado de filtro
         return BlocBuilder<OrderCubit, OrderState>(
@@ -142,19 +185,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
             }
 
             return BasePage(
-              desktopAppBar: AppBarCustom(title: '', actions: [
-                Row(
-                  children: [
-                  //  AppBarSubscriptionInfo(),
-                    StoreSelectorWidget(),
-
-                  ],
-                )
-
-
-
-              ],),
-
+              desktopAppBar: appber(store: activeStore,),
 
               mobileBuilder: (context) => MobileOrderLayout(
 
@@ -181,42 +212,402 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     );
   }
 
+
+
+
+
+
+
+  // Dentro da sua classe _OrdersPageState
+
+// MODIFIQUE O MÉTODO _buildDesktopLayout PARA USAR O PAINEL DE DETALHES ADAPTADO
   Widget _buildDesktopLayout(BuildContext context, Store? activeStore, String? warningMessage) {
-    // Ouve o OrderCubit para obter a lista de pedidos e o estado de carregamento
-    return BlocBuilder<OrderCubit, OrderState>(
-      builder: (context, orderState) {
-        return Scaffold(
-          body: Column(
-            children: [
-
-
-              // NOVO: Adiciona o banner se existir uma mensagem
-              if (warningMessage != null) SubscriptionBlockedCard(message:warningMessage),
-              Expanded(
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: _buildOrderListPanel(context, activeStore, orderState),
-                    ),
-                    Expanded(
-                      flex: 4,
-                      child: SummaryPanel(
-                        selectedOrder: _selectedOrderDetails,
-                        store: activeStore,
-                        orderState: orderState, // Passa o estado completo dos pedidos
-                        notifire: Provider.of<ColorNotifire>(context, listen: false),
-                      ),
-                    ),
-                  ],
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      body: Column(
+        children: [
+          if (warningMessage != null) SubscriptionBlockedCard(message: warningMessage),
+          _buildTopBar(context, activeStore),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  // ✅ Passa o activeStore para o painel de conteúdo
+                  child: _buildMainContentPanel(context, activeStore),
                 ),
-              ),
-            ],
+                // ✅ Usa o novo OrderDetailsPanel adaptado
+                if (_selectedOrder != null)
+
+
+                  OrderDetailsPanel(
+                    order: _selectedOrder!,
+                    store: activeStore,
+                    onClose: () => setState(() => _selectedOrder = null),
+                  ),
+              ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
+
+// MODIFIQUE O MÉTODO _buildMainContentPanel PARA RENDERIZAÇÃO CONDICIONAL
+  Widget _buildMainContentPanel(BuildContext context, Store? activeStore) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, _selectedOrder == null ? 16 : 8, 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            _buildFiltersBar(context),
+            const Divider(height: 1),
+            Expanded(
+              child: BlocBuilder<OrderCubit, OrderState>(
+                builder: (context, orderState) {
+                  if (orderState is! OrdersLoaded) {
+                    return const Center(child: DotLoading());
+                  }
+                  final filteredOrders = _filterOrders(orderState.orders);
+
+                  if (filteredOrders.isEmpty) {
+                    return const EmptyOrdersView();
+                  }
+
+                  // ✅ LÓGICA CONDICIONAL AQUI
+                  // Se a aba "Delivery" (índice 1) estiver selecionada, mostra o Kanban.
+                  // Caso contrário, mostra a tabela de dados.
+                  if (_selectedOrderTypeIndex == 1) {
+                    return _buildKanbanView(filteredOrders, activeStore);
+                  } else {
+                    return _buildOrdersDataTable(filteredOrders);
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// WIDGET DA BARRA SUPERIOR ATUALIZADO
+  Widget _buildTopBar(BuildContext context, Store? activeStore) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Row(
+        children: [
+          // Tabs
+          OrderTypeTab(
+              icon: Icons.storefront, label: 'Balcão', count: 0,
+              isSelected: _selectedOrderTypeIndex == 0 && !_areTabsMerged,
+              onTap: () => setState(() { _selectedOrderTypeIndex = 0; _areTabsMerged = false; })),
+          OrderTypeTab(
+              icon: Icons.delivery_dining, label: 'Delivery', count: 1,
+              isSelected: _selectedOrderTypeIndex == 1 && !_areTabsMerged,
+              onTap: () => setState(() { _selectedOrderTypeIndex = 1; _areTabsMerged = false; })),
+          OrderTypeTab(
+              icon: Icons.table_restaurant, label: 'Mesas', count: 0,
+              isSelected: _selectedOrderTypeIndex == 2 && !_areTabsMerged,
+              onTap: () => setState(() { _selectedOrderTypeIndex = 2; _areTabsMerged = false; })),
+          const SizedBox(width: 8),
+
+
+
+          const Spacer(),
+
+          // ✅ BOTÕES DE IMPRESSORA E CONFIGURAÇÕES
+          if (activeStore != null) ...[
+            IconButton(
+              icon: const Icon(Icons.print_outlined),
+              tooltip: 'Configurações de Impressão',
+              onPressed: () => _showOverlaySidePanel(context, PrinterSettingsSidePanel(storeId: activeStore.id!)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Configurações da Loja',
+              onPressed: () => _showOverlaySidePanel(context, StoreSettingsSidePanel(storeId: activeStore.id!)),
+            ),
+          ],
+
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[700], foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18)),
+            child: const Text('Novo pedido'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// NOVO: WIDGET DA BARRA DE FILTROS
+  Widget _buildFiltersBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Row(
+        children: [
+          IconButton(onPressed: (){}, icon: const Icon(Icons.filter_list)),
+          FilterChip(
+            label: const Text('Tudo'),
+            selected: _selectedStatusFilterIndex == 0,
+            onSelected: (selected) => setState(() => _selectedStatusFilterIndex = 0),
+            selectedColor: Colors.blue[100],
+          ),
+          const SizedBox(width: 8),
+          FilterChip(
+            label: const Text('Pendente'),
+            selected: _selectedStatusFilterIndex == 1,
+            onSelected: (selected) => setState(() => _selectedStatusFilterIndex = 1),
+            selectedColor: Colors.orange[100],
+          ),
+          const SizedBox(width: 8),
+          FilterChip(
+            label: const Text('Em curso'),
+            selected: _selectedStatusFilterIndex == 2,
+            onSelected: (selected) => setState(() => _selectedStatusFilterIndex = 2),
+            selectedColor: Colors.green[100],
+          ),
+          const Spacer(),
+          const Text('Total: ', style: TextStyle(fontWeight: FontWeight.bold)),
+          IconButton(onPressed: (){}, icon: const Icon(Icons.visibility))
+        ],
+      ),
+    );
+  }
+
+// NOVO: WIDGET DA TABELA DE DADOS
+  Widget _buildOrdersDataTable(List<OrderDetails> orders) {
+    return DataTable(
+      columns: const [
+        DataColumn(label: Text('DATA')),
+        DataColumn(label: Text('ESTADO')),
+        DataColumn(label: Text('TOTAL')),
+        DataColumn(label: Text('CLIENTE')),
+        DataColumn(label: Text('')), // Coluna de ações
+      ],
+      rows: orders.map((order) {
+        return DataRow(
+          cells: [
+            DataCell(Text(order.createdAt.toString())), // Supondo que você tenha uma função para formatar data
+            DataCell(Text(order.orderStatus)),
+            DataCell(Text('R\$ ${order.totalPrice.toStringAsFixed(2)}')),
+            DataCell(Text(order.customerName)),
+            DataCell(Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(icon: const Icon(Icons.more_horiz), onPressed: (){}),
+              ],
+            )),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+
+
+  // Dentro da sua classe _OrdersPageState
+
+// NOVO: WIDGET PARA UMA COLUNA DO KANBAN
+  Widget _buildKanbanColumn({
+    required String title,
+    required Color backgroundColor,
+    required List<OrderDetails> orders,
+    required Store? store,
+  }) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: backgroundColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                '$title (${orders.length})',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.builder(
+                itemCount: orders.length,
+                itemBuilder: (context, index) {
+                  final order = orders[index];
+                  // Reutilizando seu OrderListItem
+                  return OrderListItem(
+                    order: order,
+                    store: store,
+                    onTap: () {
+                      // Atualiza o estado para mostrar o painel de detalhes
+                      setState(() {
+                        _selectedOrder = order;
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+// NOVO: WIDGET PRINCIPAL DO KANBAN QUE MONTA AS COLUNAS
+  Widget _buildKanbanView(List<OrderDetails> orders, Store? store) {
+    // Mapeia os status para as colunas
+    final analysisOrders = orders.where((o) => o.orderStatus == 'pending').toList();
+    final productionOrders = orders.where((o) => o.orderStatus == 'preparing').toList();
+    final readyOrders = orders.where((o) => ['ready', 'on_route'].contains(o.orderStatus)).toList();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Coluna 1: Em análise
+          _buildKanbanColumn(
+            title: 'Em análise',
+            backgroundColor: Colors.orange,
+            orders: analysisOrders,
+            store: store,
+          ),
+          // Coluna 2: Em produção
+          _buildKanbanColumn(
+            title: 'Em produção',
+            backgroundColor: Colors.amber,
+            orders: productionOrders,
+            store: store,
+          ),
+          // Coluna 3: Prontos para entrega
+          _buildKanbanColumn(
+            title: 'Prontos para entrega',
+            backgroundColor: Colors.green,
+            orders: readyOrders,
+            store: store,
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+
+  // Widget _buildDesktopLayout(BuildContext context, Store? activeStore, String? warningMessage) {
+  //   // Ouve o OrderCubit para obter a lista de pedidos e o estado de carregamento
+  //   return BlocBuilder<OrderCubit, OrderState>(
+  //     builder: (context, orderState) {
+  //       return Scaffold(
+  //         body: Column(
+  //           children: [
+  //             // NOVO: Adiciona o banner se existir uma mensagem
+  //             if (warningMessage != null) SubscriptionBlockedCard(message:warningMessage),
+  //             Expanded(
+  //               child: Row(
+  //                 children: [
+  //                   Expanded(
+  //                     flex: 3,
+  //                     child: _buildOrderListPanel(context, activeStore, orderState),
+  //                   ),
+  //                   Expanded(
+  //                     flex: 4,
+  //                     child: SummaryPanel(
+  //                       selectedOrder: _selectedOrderDetails,
+  //                       store: activeStore,
+  //                       orderState: orderState, // Passa o estado completo dos pedidos
+  //                       notifire: Provider.of<ColorNotifire>(context, listen: false),
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
+  //
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   Widget _buildOrderListPanel(BuildContext context, Store? activeStore, OrderState orderState) {
     return Container(
@@ -295,28 +686,39 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
 // Adicione este método na sua classe da página de Pedidos
 
   Widget _buildAutoAcceptToggle(BuildContext context, Store? activeStore) {
-    // Garante que só vamos construir o widget se tivermos uma loja e configurações válidas.
-    if (activeStore == null || activeStore.storeSettings == null) {
-      return const SizedBox.shrink(); // Retorna um widget vazio se não houver dados
+    // Retorna um widget vazio se não houver loja ou configurações.
+    // O '?' faz a checagem de nulo em cascata de forma segura e limpa.
+    if (activeStore?.storeSettings == null) {
+      return const SizedBox.shrink();
     }
 
-    final settings = activeStore.storeSettings!;
+    // A partir daqui, temos certeza que activeStore e storeSettings não são nulos.
+    final settings = activeStore!.storeSettings!;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center, // Garante alinhamento vertical
         children: [
-          const Text(
-            'Aceitar pedidos automaticamente',
-            style: TextStyle(fontSize: 16),
+          // ✅ AQUI ESTÁ A CORREÇÃO:
+          // Envolvemos o Text com Expanded para que ele quebre a linha
+          // se o texto for muito longo para o espaço disponível.
+          const Expanded(
+            child: Text(
+              'Aceitar pedidos automaticamente',
+              style: TextStyle(fontSize: 16),
+            ),
           ),
+          // Adiciona um pequeno espaçamento para garantir que não fiquem colados
+          const SizedBox(width: 8),
+
+          // O Switch ocupa seu espaço fixo.
           Switch(
             value: settings.autoAcceptOrders,
             onChanged: (newValue) {
-              // Chama o método do Cubit para atualizar a configuração no backend
               context.read<StoresManagerCubit>().updateStoreSettings(
-                activeStore.id!,
+                activeStore.id!, // Não precisa do '!' pois já foi checado
                 autoAcceptOrders: newValue,
               );
             },
@@ -325,7 +727,6 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       ),
     );
   }
-
   Widget _buildTabBar(OrderState orderState) {
     int nowCount = 0;
     int scheduledCount = 0;
@@ -367,4 +768,75 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   }
 
 
+}
+
+
+
+class OrderDetailsSidePanel extends StatelessWidget {
+  final OrderDetails order;
+  final VoidCallback onClose;
+  final Store? store;
+
+  const OrderDetailsSidePanel({
+    super.key,
+    required this.order,
+    required this.onClose,
+    this.store,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Usaremos o SummaryPanel que você já tinha, adaptado para este contexto
+    // Se não tiver mais, pode criar um widget simples aqui.
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.35, // Ocupa 35% da tela
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(
+          left: BorderSide(color: Colors.grey[300]!),
+        ),
+      ),
+      // O SummaryPanel antigo pode ser reutilizado aqui.
+      // Por simplicidade, vou criar um placeholder.
+      child: Column(
+        children: [
+          // Barra superior do painel de detalhes
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Detalhes do Pedido #${order.publicId}',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: onClose, // Usa a função passada para fechar
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Cliente: ${order.customerName}'),
+                  const SizedBox(height: 8),
+                  Text('Total: R\$ ${order.totalPrice.toStringAsFixed(2)}'),
+                  const SizedBox(height: 8),
+                  Text('Status: ${order.orderStatus}'),
+                  // Adicione mais detalhes do pedido aqui
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

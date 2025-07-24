@@ -24,6 +24,7 @@ import 'package:totem_pro_admin/pages/sign_in/sign_in_page.dart';
 import 'package:totem_pro_admin/pages/sign_up/sign_up_page.dart';
 import 'package:totem_pro_admin/pages/splash/splash_page.dart';
 
+import '../cubits/auth_state.dart';
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
 import '../models/order_details.dart';
@@ -43,7 +44,7 @@ import '../pages/edit_settings/delivery_locations_page.dart';
 import '../pages/edit_settings/hours_store_page.dart';
 import '../pages/edit_settings/edit_settings_page.dart';
 
-import '../pages/edit_subscription/edit_subscription_page.dart';
+import '../pages/plans/plans_page.dart';
 import '../pages/edit_variant/edit_variant_page.dart';
 import '../pages/integrations/integrations_page.dart';
 import '../pages/inventory/inventory_page.dart';
@@ -54,7 +55,7 @@ import '../pages/not_found/error_505_Page.dart';
 import '../pages/orders/order_page_cubit.dart';
 import '../pages/orders/orders_page.dart';
 
-import '../pages/orders/service/printer_manager.dart';
+import '../services/printer_manager.dart';
 import '../pages/orders/store_settings.dart';
 import '../pages/orders/widgets/order_details_mobile.dart';
 import '../pages/payables/payables_page.dart';
@@ -67,8 +68,8 @@ import '../repositories/realtime_repository.dart';
 import '../repositories/store_repository.dart';
 
 import '../services/auth_service.dart';
-import '../services/cubits/auth_cubit.dart';
-import '../services/cubits/auth_state.dart';
+import '../cubits/auth_cubit.dart';
+
 import 'guards/store_owner_guard.dart';
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 

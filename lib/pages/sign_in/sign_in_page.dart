@@ -6,9 +6,10 @@ import 'package:email_validator/email_validator.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 
+import '../../cubits/auth_state.dart';
 import '../../repositories/auth_repository.dart';
-import '../../services/cubits/auth_cubit.dart'; // Mantenha este import
-import '../../services/cubits/auth_state.dart'; // <--- Adicione este import para AuthState
+import '../../cubits/auth_cubit.dart'; // Mantenha este import
+
 import '../../widgets/app_primary_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_toasts.dart';

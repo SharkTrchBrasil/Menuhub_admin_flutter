@@ -7,24 +7,30 @@ import 'package:intl/intl.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
 
+// ✅ Imports dos modelos corretos
 import 'package:totem_pro_admin/models/address.dart';
 import 'package:totem_pro_admin/models/billing_customer.dart';
 import 'package:totem_pro_admin/models/credit_card.dart';
-import 'package:totem_pro_admin/models/new_subscription.dart';
-import 'package:totem_pro_admin/models/page_status.dart';
-import 'package:totem_pro_admin/models/subscription_plan.dart';
+import 'package:totem_pro_admin/models/create_subscription_payload.dart';
+import 'package:totem_pro_admin/models/plan.dart';
+import 'package:totem_pro_admin/models/tokenized_card.dart';
+
 import 'package:totem_pro_admin/repositories/store_repository.dart';
-import 'package:totem_pro_admin/widgets/app_page_status_builder.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart';
 
+import '../../models/page_status.dart';
+
 class NewSubscriptionDialog extends StatefulWidget {
-  const NewSubscriptionDialog(
-      {super.key, required this.plan, required this.storeId});
+  const NewSubscriptionDialog({
+    super.key,
+    required this.plan,
+    required this.storeId,
+  });
 
   final int storeId;
-  final SubscriptionPlan plan;
+  final Plan plan;
 
   @override
   State<NewSubscriptionDialog> createState() => _NewSubscriptionDialogState();
@@ -33,76 +39,125 @@ class NewSubscriptionDialog extends StatefulWidget {
 class _NewSubscriptionDialogState extends State<NewSubscriptionDialog> {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
-  PageStatus zipCodeStatus = PageStatusIdle();
-  BillingCustomer billingCustomer = BillingCustomer();
-  CreditCard creditCard = CreditCard();
+  // Variáveis para guardar os dados do formulário
+  Address _address =  Address(street: '', number: '', neighborhood: '', city: '', state: '', zipcode: '');
+  BillingCustomer _billingCustomer =  BillingCustomer();
+  CreditCard _creditCard = CreditCard();
 
-  final StoreRepository storeRepository = getIt();
+  PageStatus _zipCodeStatus = PageStatusIdle();
+  final StoreRepository _storeRepository = getIt<StoreRepository>();
 
-  Future<void> searchZipCode(String zipcode) async {
+  Future<void> _searchZipCode(String zipcode) async {
+    setState(() => _zipCodeStatus = PageStatusLoading());
+    final result = await _storeRepository.getZipcodeAddress(zipcode);
+
+    // ✅ Envolve a atualização em setState para reconstruir o formulário com os novos dados
     setState(() {
-      zipCodeStatus = PageStatusLoading();
-    });
-
-    final result = await storeRepository.getZipcodeAddress(zipcode);
-
-    setState(() {
-      zipCodeStatus = result.fold(
-            (l) => PageStatusError('CEP não encontrado'),
-            (r) => PageStatusSuccess(r),
+      result.fold(
+            (failure) => _zipCodeStatus = PageStatusError(failure.message),
+            (address) {
+          _address = address; // Atualiza a variável de estado principal
+          _zipCodeStatus = PageStatusSuccess(address);
+        },
       );
     });
   }
 
+  Future<void> _submitSubscription() async {
+    // Valida o formulário apenas se for um plano pago
+    if (widget.plan.price > 0 && !formKey.currentState!.validate()) {
+      showError('Algum campo necessita de atenção');
+      return;
+    }
+
+    final VoidCallback hideLoading = showLoading();
+
+    try {
+      // Lógica para plano pago
+      if (widget.plan.price > 0) {
+        final tokenizeResult = await _storeRepository.generateCardToken(_creditCard);
+
+        await tokenizeResult.fold(
+              (failure) async {
+            showError(failure.message);
+          },
+              (tokenizedCard) async {
+            final payload = CreateSubscriptionPayload(
+              planId: widget.plan.id,
+              customer: _billingCustomer,
+              card: tokenizedCard,
+              address: _address, // ✅ Usa a variável de estado _address
+            );
+            await _createSubscription(payload);
+          },
+        );
+      } else {
+        // Lógica para plano gratuito
+        final payload = CreateSubscriptionPayload(planId: widget.plan.id);
+        await _createSubscription(payload);
+      }
+    } finally {
+      hideLoading(); // Garante que o loading seja fechado mesmo se ocorrer um erro
+    }
+  }
+
+  Future<void> _createSubscription(CreateSubscriptionPayload payload) async {
+    final result = await _storeRepository.createSubscription(widget.storeId, payload);
+
+    result.fold(
+          (failure) {
+        showError(failure.message);
+      },
+          (success) {
+        showSuccess('Assinatura realizada com sucesso');
+        if (context.mounted) context.pop();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool isPaidPlan = widget.plan.price > 0;
+
     return Center(
       child: SingleChildScrollView(
         child: Dialog(
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Container(
             width: 500,
             padding: const EdgeInsets.all(24),
             child: Form(
               key: formKey,
-              autovalidateMode: AutovalidateMode.onUnfocus,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // --- CABEÇALHO ---
                   Row(
                     children: [
                       Expanded(
                         child: Text(
-                          widget.plan.isPaid
-                              ? '${widget.plan.name}: ${widget.plan.price.toPrice()}/${widget.plan.interval == 1 ? 'mês' : '${widget.plan.interval} meses'}'
-                              : '${widget.plan.name}: Grátis',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          isPaidPlan
+                              ? '${widget.plan.planName}: ${widget.plan.price.toPrice()}/${widget.plan.interval == 1 ? 'mês' : '${widget.plan.interval} meses'}'
+                              : '${widget.plan.planName}: Grátis',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      const CloseButton(),
+                      IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.close)),
                     ],
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'ATENÇÃO: Seu plano atual será cancelado',
-                  ),
+                  const Text('ATENÇÃO: Seu plano atual será cancelado e substituído por este.'),
                   const SizedBox(height: 24),
-                  if (widget.plan.isPaid) ...[
-                    const Text(
-                      'Endereço de cobrança',
-                      textAlign: TextAlign.start,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+
+                  // --- FORMULÁRIO (APENAS PARA PLANOS PAGOS) ---
+                  if (isPaidPlan) ...[
+                    // --- ENDEREÇO DE COBRANÇA ---
+                    const Text('Endereço de cobrança', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
+
+
                     AppTextField(
                       title: 'CEP',
                       hint: 'Ex: 12345-678',
@@ -120,200 +175,121 @@ class _NewSubscriptionDialogState extends State<NewSubscriptionDialog> {
                       },
                       onChanged: (c) {
                         if (c!.length == 10) {
-                          searchZipCode(c);
+                          _searchZipCode(c);
                         } else {
                           setState(() {
-                            zipCodeStatus = PageStatusIdle();
+                            _zipCodeStatus = PageStatusIdle();
                           });
                         }
                       },
                     ),
-                    AppPageStatusBuilder<Address>(
-                      status: zipCodeStatus,
-                      successBuilder: (address) {
-                        return Column(
-                          children: [
-                            const SizedBox(height: 16),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: AppTextField(
-                                    initialValue: address.state,
-                                    title: 'Estado',
-                                    hint: 'Ex: SP',
-                                    enabled: false,
-                                    validator: (v) {
-                                      if (v == null || v.isEmpty) {
-                                        return 'Campo obrigatório';
-                                      }
-                                      return null;
-                                    },
-                                    onChanged: (c) {},
-                                  ),
+
+
+
+
+
+                    const SizedBox(height: 16),
+
+                    if (_zipCodeStatus is PageStatusSuccess<Address>)
+                      Column(
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: AppTextField(
+                                  initialValue: _address.state, // ✅ Usa a variável de estado _address
+                                  title: 'Estado',
+                                  hint: 'Ex: SP',
+                                  enabled: false,
+                                  onChanged: (c) {},
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: AppTextField(
-                                    initialValue: address.city,
-                                    title: 'Cidade',
-                                    hint: 'Ex: São Paulo',
-                                    enabled: false,
-                                    validator: (v) {
-                                      if (v == null || v.isEmpty) {
-                                        return 'Campo obrigatório';
-                                      }
-                                      return null;
-                                    },
-                                    onChanged: (c) {},
-                                  ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: AppTextField(
+                                  initialValue: _address.city, // ✅ Usa a variável de estado _address
+                                  title: 'Cidade',
+                                  hint: 'Ex: São Paulo',
+                                  enabled: false,
+                                  onChanged: (c) {},
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            AppTextField(
-                              initialValue: address.street,
-                              title: 'Endereço',
-                              hint: 'Ex: Rua ABC',
-                              validator: (v) {
-                                if (v == null || v.isEmpty) {
-                                  return 'Campo obrigatório';
-                                }
-                                return null;
-                              },
-                              onChanged: (c) {
-                                setState(() {
-                                  zipCodeStatus = PageStatusSuccess(
-                                    address.copyWith(street: c),
-                                  );
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            AppTextField(
-                              initialValue: address.neighborhood,
-                              title: 'Bairro',
-                              hint: 'Ex: Brooklin',
-                              validator: (v) {
-                                if (v == null || v.isEmpty) {
-                                  return 'Campo obrigatório';
-                                }
-                                return null;
-                              },
-                              onChanged: (c) {
-                                setState(() {
-                                  zipCodeStatus = PageStatusSuccess(
-                                    address.copyWith(neighborhood: c),
-                                  );
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: AppTextField(
-                                    title: 'Número',
-                                    hint: 'Ex: 123',
-                                    validator: (v) {
-                                      if (v == null || v.isEmpty) {
-                                        return 'Campo obrigatório';
-                                      }
-                                      return null;
-                                    },
-                                    onChanged: (c) {
-                                      setState(() {
-                                        zipCodeStatus = PageStatusSuccess(
-                                          address.copyWith(number: c),
-                                        );
-                                      });
-                                    },
-                                  ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          AppTextField(
+                            initialValue: _address.street, // ✅ Usa a variável de estado _address
+                            title: 'Endereço',
+                            hint: 'Ex: Rua ABC',
+                            validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
+                            // ✅ Atualiza a variável de estado _address
+                            onChanged: (c) => _address = _address.copyWith(street: c),
+                          ),
+                          const SizedBox(height: 16),
+                          AppTextField(
+                            initialValue: _address.neighborhood, // ✅ Usa a variável de estado _address
+                            title: 'Bairro',
+                            hint: 'Ex: Brooklin',
+                            validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
+                            // ✅ Atualiza a variável de estado _address
+                            onChanged: (c) => _address = _address.copyWith(neighborhood: c),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: AppTextField(
+                                  title: 'Número',
+                                  hint: 'Ex: 123',
+                                  validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
+                                  // ✅ Atualiza a variável de estado _address
+                                  onChanged: (c) => _address = _address.copyWith(number: c),
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: AppTextField(
-                                    title: 'Complemento',
-                                    hint: 'Ex: Apto 101',
-                                    onChanged: (c) {
-                                      setState(() {
-                                        zipCodeStatus = PageStatusSuccess(
-                                          address.copyWith(complement: c),
-                                        );
-                                      });
-                                    },
-                                  ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: AppTextField(
+                                  title: 'Complemento',
+                                  hint: 'Ex: Apto 101',
+                                  // ✅ Atualiza a variável de estado _address
+                                  onChanged: (c) => _address = _address.copyWith(complement: c),
                                 ),
-                              ],
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    else if (_zipCodeStatus is PageStatusLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else if (_zipCodeStatus is PageStatusError)
+                        Center(child: Text((_zipCodeStatus as PageStatusError).message, style: const TextStyle(color: Colors.red))),
+
                     const SizedBox(height: 24),
-                    const Text(
-                      'Dados do proprietário do cartão',
-                      textAlign: TextAlign.start,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    // --- DADOS DO PROPRIETÁRIO ---
+                    const Text('Dados do proprietário do cartão', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     AppTextField(
-                      initialValue: billingCustomer.name,
                       title: 'Nome completo',
                       hint: '',
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Campo obrigatório';
-                        } else if (v.split(' ').length < 2) {
-                          return 'Informe o nome completo';
-                        }
-                        return null;
-                      },
-                      onChanged: (c) {
-                        billingCustomer = billingCustomer.copyWith(name: c);
-                      },
+                      validator: (v) => (v == null || v.split(' ').length < 2) ? 'Informe o nome completo' : null,
+                      onChanged: (c) => _billingCustomer = _billingCustomer.copyWith(name: c),
                     ),
                     const SizedBox(height: 16),
                     AppTextField(
-                      initialValue: billingCustomer.cpf,
                       title: 'CPF',
                       hint: 'Ex: 123.456.789-09',
-                      formatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        CpfInputFormatter(),
-                      ],
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Campo obrigatório';
-                        } else if (v.length < 14) {
-                          return 'CPF inválido';
-                        }
-                        return null;
-                      },
-                      onChanged: (c) {
-                        billingCustomer = billingCustomer.copyWith(cpf: c);
-                      },
+                      formatters: [FilteringTextInputFormatter.digitsOnly, CpfInputFormatter()],
+                      validator: (v) => (v == null || v.length < 14) ? 'CPF inválido' : null,
+                      onChanged: (c) => _billingCustomer = _billingCustomer.copyWith(cpf: c),
                     ),
                     const SizedBox(height: 16),
                     AppTextField(
-                      initialValue: billingCustomer.email,
                       title: 'E-mail',
                       hint: 'Ex: email@email.com',
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Campo obrigatório';
-                        } else if (!EmailValidator.validate(v)) {
-                          return 'E-mail inválido';
-                        }
-                        return null;
-                      },
-                      onChanged: (c) {
-                        billingCustomer = billingCustomer.copyWith(email: c);
-                      },
+                      validator: (v) => (v == null || !EmailValidator.validate(v)) ? 'E-mail inválido' : null,
+                      onChanged: (c) => _billingCustomer = _billingCustomer.copyWith(email: c),
                     ),
                     const SizedBox(height: 16),
                     AppTextField(
@@ -336,13 +312,13 @@ class _NewSubscriptionDialogState extends State<NewSubscriptionDialog> {
                         return null;
                       },
                       onChanged: (c) {
-                        billingCustomer = billingCustomer.copyWith(
+                        _billingCustomer = _billingCustomer.copyWith(
                             birthday: DateFormat('dd/MM/yyyy').tryParse(c!));
                       },
                     ),
                     const SizedBox(height: 16),
                     AppTextField(
-                      initialValue: billingCustomer.phone,
+                      initialValue: _billingCustomer.phone,
                       title: 'Celular',
                       hint: 'Ex: (11) 91234-5678',
                       formatters: [
@@ -358,38 +334,19 @@ class _NewSubscriptionDialogState extends State<NewSubscriptionDialog> {
                         return null;
                       },
                       onChanged: (c) {
-                        billingCustomer = billingCustomer.copyWith(phone: c);
+                        _billingCustomer = _billingCustomer.copyWith(phone: c);
                       },
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Dados do cartão de crédito',
-                      textAlign: TextAlign.start,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    // --- DADOS DO CARTÃO ---
+                    const Text('Dados do cartão de crédito', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     AppTextField(
-                      initialValue: creditCard.number,
                       title: 'Número do cartão',
                       hint: 'Ex: 1234 5678 9012 3456',
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Campo obrigatório';
-                        } else if (v.length < 19) {
-                          return 'Número inválido';
-                        }
-                        return null;
-                      },
-                      formatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        CartaoBancarioInputFormatter(),
-                      ],
-                      onChanged: (c) {
-                        creditCard = creditCard.copyWith(number: c);
-                      },
+                      validator: (v) => (v == null || v.length < 19) ? 'Número inválido' : null,
+                      formatters: [FilteringTextInputFormatter.digitsOnly, CartaoBancarioInputFormatter()],
+                      onChanged: (c) => _creditCard = _creditCard.copyWith(number: c),
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -399,127 +356,35 @@ class _NewSubscriptionDialogState extends State<NewSubscriptionDialog> {
                           child: AppTextField(
                             hint: 'MM/YY',
                             title: 'Vencimento',
-                            formatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              ValidadeCartaoInputFormatter()
-                            ],
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Campo obrigatório';
-                              }
-                              final date = DateFormat('MM/yy').tryParse(v);
-                              if (date == null) {
-                                return 'Data inválida';
-                              }
-                              return null;
-                            },
+                            formatters: [FilteringTextInputFormatter.digitsOnly, ValidadeCartaoInputFormatter()],
+                            validator: (v) => (v == null || v.length < 5) ? 'Data inválida' : null,
                             onChanged: (c) {
-                              creditCard = creditCard.copyWith(
-                                  expirationDate:
-                                  DateFormat('MM/yy').tryParse(c!));
+                              if (c != null && c.length == 5) {
+                                _creditCard = _creditCard.copyWith(expirationDate: DateFormat('MM/yy').tryParse(c));
+                              }
                             },
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: AppTextField(
-                            initialValue: creditCard.cvv,
                             title: 'CVV',
                             hint: 'Ex: 123',
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Campo obrigatório';
-                              } else if (v.length != 3) {
-                                return 'CVV inválido';
-                              }
-                              return null;
-                            },
-                            formatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onChanged: (c) {
-                              creditCard = creditCard.copyWith(cvv: c);
-                            },
+                            validator: (v) => (v == null || v.length < 3) ? 'CVV inválido' : null,
+                            formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)],
+                            onChanged: (c) => _creditCard = _creditCard.copyWith(cvv: c),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    AppPrimaryButton(
-                      label: 'Assinar',
-                      onPressed: () async {
-                        if (formKey.currentState!.validate() &&
-                            (zipCodeStatus is PageStatusSuccess || !widget.plan.isPaid)) {
-                          final l = showLoading();
+                  ],
 
-                          final tokenizeResult = await storeRepository.generateCardToken(creditCard);
-
-                          if (tokenizeResult.isLeft) {
-                            showError(
-                                'Erro ao processar o cartão. Verifique os dados e tente novamente.');
-                            l();
-                            return;
-                          }
-
-                          final tokenizedCard = tokenizeResult.right;
-
-                          final newSubscription = NewSubscription(
-                            plan: widget.plan,
-                            customer: billingCustomer,
-                            card: tokenizedCard,
-                            address: (zipCodeStatus as PageStatusSuccess<Address>)
-                                .data,
-                          );
-
-                          final result = await storeRepository.createSubscription(
-                              widget.storeId, newSubscription);
-
-                          if (result.isLeft) {
-                            showError(
-                                'Erro ao processar a assinatura. Tente novamente mais tarde.');
-                            l();
-                            return;
-                          }
-
-                          showSuccess('Assinatura realizada com sucesso');
-                          if (context.mounted) {
-                            context.pop();
-                          }
-                          l();
-                        } else {
-                          showError('Algum campo necessita de atenção');
-                        }
-                      },
-                    ),
-                  ] else ... [
-                    AppPrimaryButton(
-                      label: 'Voltar ao plano gratuito',
-                      onPressed: () async {
-                        final l = showLoading();
-
-                        final newSubscription = NewSubscription(
-                          plan: widget.plan,
-                        );
-
-                        final result = await storeRepository.createSubscription(
-                            widget.storeId, newSubscription);
-
-                        if (result.isLeft) {
-                          showError(
-                              'Erro ao processar a assinatura. Tente novamente mais tarde.');
-                          l();
-                          return;
-                        }
-
-                        showSuccess('Assinatura realizada com sucesso');
-                        if (context.mounted) {
-                          context.pop();
-                        }
-                        l();
-                      },
-                    ),
-                  ]
-
+                  const SizedBox(height: 24),
+                  // ✅ BOTÃO ÚNICO E FUNCIONAL
+                  AppPrimaryButton(
+                    label: isPaidPlan ? 'Assinar' : 'Voltar ao plano gratuito',
+                    onPressed: _submitSubscription,
+                  ),
                 ],
               ),
             ),

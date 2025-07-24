@@ -36,9 +36,9 @@ class SummaryPanel extends StatelessWidget {
     if (selectedOrder != null) {
       return Padding(
         padding: const EdgeInsets.all(16.0),
-        child: OrderDetailsElegant(
+        child: OrderDetailsPanel(
           order: selectedOrder!,
-          store: store, // Passa a loja para o widget de detalhes
+          store: store, onClose: () {  }, // Passa a loja para o widget de detalhes
         ),
       );
     }

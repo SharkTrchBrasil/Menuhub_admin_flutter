@@ -3,14 +3,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:rxdart/rxdart.dart';
 
 
 import '../../UI TEMP/controller/get_code.dart';
 
 import '../../cubits/store_manager_cubit.dart';
 import '../../cubits/store_manager_state.dart';
+import '../../models/order_details.dart';
+import '../../models/print_job.dart';
+import '../../repositories/realtime_repository.dart';
+import '../../services/printer_manager.dart';
 import '../../widgets/appbarcode.dart';
 import '../../widgets/drawercode.dart';
 import '../base/BasePage.dart';
@@ -44,8 +50,76 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // ✅ O LISTENER DE IMPRESSÃO É INICIADO AQUI
+    _setupPrintingListener();
     navHelper = StoreNavigationHelper(widget.storeId);
   }
+
+
+
+  /// O ouvinte que conecta o RealtimeRepository ao PrintManager.
+  void _setupPrintingListener() {
+    print('🚀 Iniciando o ouvinte de impressão...');
+
+    // Pega as instâncias dos seus serviços (registrados via GetIt)
+    final realtimeRepo = GetIt.I<RealtimeRepository>();
+    final printManager = GetIt.I<PrintManager>();
+    final storesManagerCubit = GetIt.I<StoresManagerCubit>();
+
+    // Ouve o stream de trabalhos de impressão do repositório
+    realtimeRepo.onNewPrintJobsAvailable.listen((PrintJobPayload payload) {
+      print('👨‍💼 Supervisor: Novos trabalhos de impressão recebidos para o pedido #${payload.orderId}');
+
+      final currentState = storesManagerCubit.state;
+      if (currentState is StoresManagerLoaded) {
+
+        // ✅ CORREÇÃO APLICADA AQUI
+        // 1. Pegue o ID da loja ativa e o mapa de lojas do estado.
+        final activeStoreId = currentState.activeStoreId;
+        final allStores = currentState.stores; // Supondo que 'stores' é o mapa: Map<int, StoreWithRole>
+
+        // 2. Use o ID para buscar o objeto StoreWithRole no mapa.
+        final activeStoreWithRole = allStores[activeStoreId];
+
+        // 3. Extraia o objeto Store de dentro do StoreWithRole (pode ser nulo).
+        final activeStore = activeStoreWithRole?.store;
+
+        // O resto da sua lógica continua a mesma, mas agora usando o 'activeStore' obtido corretamente.
+        final order = _findOrderInState(realtimeRepo, activeStore?.id, payload.orderId);
+
+        if (activeStore != null && order != null) {
+          // Ouve apenas os jobs da loja ativa na tela
+          if (order.storeId == activeStore.id) {
+            // Delega a tarefa para o PrintManager
+            printManager.processPrintJobs(payload, order, activeStore);
+          }
+        }
+      }
+    });
+  }
+  /// Função auxiliar para buscar o pedido no stream de dados do repositório.
+  OrderDetails? _findOrderInState(RealtimeRepository repo, int? storeId, int orderId) {
+    if (storeId == null) return null;
+
+    final ordersStream = repo.listenToOrders(storeId);
+    if (ordersStream is BehaviorSubject<List<OrderDetails>>) {
+      final currentOrders = ordersStream.value;
+      try {
+        return currentOrders.firstWhere((o) => o.id == orderId);
+      } catch (e) {
+        return null; // Pedido não encontrado na lista atual
+      }
+    }
+    return null;
+  }
+
+
+
+
+
+
+
+
 
 
 

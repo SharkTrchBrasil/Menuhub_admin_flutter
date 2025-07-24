@@ -4,6 +4,8 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:totem_pro_admin/models/store_with_role.dart';
 
+import '../models/store.dart';
+
 @immutable
 abstract class StoresManagerState {
   const StoresManagerState();
@@ -32,6 +34,10 @@ class StoresManagerLoaded extends StoresManagerState {
   // --- NOVO: Campo para contagem de notificações ---
   final Map<int, int> notificationCounts;
 
+  // ✅ GETTER ADICIONADO AQUI
+  /// Retorna o objeto Store completo da loja que está ativa no momento.
+  /// Ele faz a busca no mapa de 'stores' usando o 'activeStoreId'.
+  Store? get activeStore => stores[activeStoreId]?.store;
 
 
   final DateTime lastUpdate;

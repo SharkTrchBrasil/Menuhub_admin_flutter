@@ -1,18 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
-import 'package:totem_pro_admin/pages/orders/service/print.dart';
+import 'package:totem_pro_admin/services/print.dart';
 
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/order_details.dart';
 import '../../../models/order_product.dart';
 import '../../../models/store.dart';
+import '../../../widgets/order_printing_actions_widget.dart';
 import '../utils/order_helpers.dart';
 
-class OrderDetailsElegant extends StatelessWidget {
+// O nome foi alterado para refletir sua nova função como painel
+class OrderDetailsPanel extends StatelessWidget {
   final OrderDetails order;
   final Store? store;
-  const OrderDetailsElegant({super.key, required this.order, required this.store,});
+  final VoidCallback onClose; // ✅ Callback para notificar o pai que deve fechar
+  final printerService = GetIt.I<PrinterService>();
+
+  OrderDetailsPanel({
+    super.key,
+    required this.order,
+    required this.store,
+    required this.onClose, // ✅ Adicionado ao construtor
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,46 +35,63 @@ class OrderDetailsElegant extends StatelessWidget {
       symbol: 'R\$',
     );
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            _buildHeader(theme, dateFormat, timeFormat, context),
-
-            const SizedBox(height: 24),
-
-            // Status Card
-            _buildStatusCard(theme, context),
-
-            const SizedBox(height: 24),
-
-            // Delivery Address
-            if (order.deliveryType == 'delivery') _buildAddressCard(theme),
-            if (order.deliveryType != 'delivery') const SizedBox(height: 24),
-
-            const SizedBox(height: 24),
-
-            // Items List
-            _buildItemsList(theme, currencyFormat),
-
-            const SizedBox(height: 24),
-
-            // Payment Summary
-            _buildPaymentSummary(theme, currencyFormat),
-
-            const SizedBox(height: 24),
-
-            // Actions
-            _buildActionButtons(context),
-          ],
+    // ✅ O Scaffold foi removido. A raiz agora é um Column.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ✅ NOVO CABEÇALHO DO PAINEL
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Detalhes do Pedido #${order.publicId}',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: onClose, // Chama o callback para fechar
+              ),
+            ],
+          ),
         ),
-      ),
+        const Divider(height: 1),
+
+        // ✅ Conteúdo original agora dentro de um Expanded + SingleChildScrollView
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header original (agora sub-header)
+                _buildHeader(theme, dateFormat, timeFormat, context),
+                const SizedBox(height: 24),
+                // Status Card
+
+                    _buildStatusCard(theme, context),
+
+                const SizedBox(height: 24),
+                // Delivery Address
+                if (order.deliveryType == 'delivery') _buildAddressCard(theme),
+                if (order.deliveryType != 'delivery') const SizedBox(height: 24),
+                // Items List
+                _buildItemsList(theme, currencyFormat),
+                const SizedBox(height: 24),
+                // Payment Summary
+                _buildPaymentSummary(theme, currencyFormat),
+                const SizedBox(height: 24),
+                // Actions
+                _buildActionButtons(context),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
+
 
   Widget _buildHeader(
     ThemeData theme,
@@ -364,8 +392,6 @@ class OrderDetailsElegant extends StatelessWidget {
 
   Widget _buildActionButtons(BuildContext context) {
 
-
-
     return Row(
       children: [
         Expanded(
@@ -382,19 +408,19 @@ class OrderDetailsElegant extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () => PrinterService().printOrder(order, store!),
 
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Imprimir Pedido'),
-          ),
-        ),
+
+// Simplesmente adicione o widget!
+    Expanded(
+      child: OrderPrintingActionsWidget(
+      order: order,
+      store: store!,
+      printerService: printerService,
+      ),
+    )
+
+
+
       ],
     );
   }
@@ -644,42 +670,46 @@ class OrderDetailsElegant extends StatelessWidget {
         completed: order.orderStatus == 'delivered',
       ),
     ];
-    final currentIndex = statusSteps.indexWhere(
-      (step) => step.status == order.orderStatus,
-    );
+    final currentIndex = statusSteps.indexWhere((step) => step.status == order.orderStatus);
     final primaryColor = _getStatusColor('on_route'); // Roxo
     final greyLineColor = Colors.grey[300]!;
 
     return Column(
       children: [
+        // ✅ O `width: double.infinity` foi REMOVIDO daqui.
+        // O SizedBox agora apenas define a altura e permite que seu filho determine a largura.
         SizedBox(
-          width: double.infinity,
           height: 85,
           child: Stack(
+            alignment: Alignment.center, // Alinha a linha no centro vertical do Stack
             children: [
               // Linha cinza completa
-              Positioned(
-                left: 24,
-                right: 24,
-                top: 24,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(height: 2, color: greyLineColor),
               ),
 
               // Linha colorida de progresso
-              if (currentIndex > 0)
-                Positioned(
-                  left: 24,
-                  right: 24,
-                  top: 24,
+              if (currentIndex >= 0) // Usar >= 0 para segurança
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final segmentWidth =
-                          constraints.maxWidth / (statusSteps.length - 1);
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        width: segmentWidth * currentIndex,
-                        height: 2,
-                        color: primaryColor,
+                      final totalWidth = constraints.maxWidth;
+                      // Calcula a largura do progresso. Se não houver passos, a largura é 0.
+                      final progressWidth = statusSteps.length > 1
+                          ? (totalWidth / (statusSteps.length - 1)) * currentIndex
+                          : 0;
+
+                      return Row(
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: progressWidth.toDouble(),
+                            height: 2,
+                            color: primaryColor,
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -688,78 +718,58 @@ class OrderDetailsElegant extends StatelessWidget {
               // Bolinhas + títulos
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children:
-                    statusSteps.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final step = entry.value;
-                      final isCurrent = index == currentIndex;
-                      final isPast = index < currentIndex;
-                      final isFuture = index > currentIndex;
+                children: statusSteps.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final step = entry.value;
+                  final isCurrent = index == currentIndex;
+                  final isPast = index < currentIndex;
 
-                      Widget dot;
+                  Widget dot;
+                  // Lógica para criar os dots (bolinhas)
+                  if (isCurrent) {
+                    dot = Container(
+                      width: 30, height: 30,
+                      decoration: BoxDecoration(color: primaryColor, shape: BoxShape.circle),
+                      child: Icon(step.icon, size: 16, color: Colors.white),
+                    );
+                  } else if (isPast) {
+                    dot = Container(
+                      width: 12, height: 12,
+                      decoration: BoxDecoration(color: primaryColor, shape: BoxShape.circle),
+                    );
+                  } else {
+                    dot = Container(
+                      width: 12, height: 12,
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: greyLineColor, width: 2)),
+                    );
+                  }
 
-                      if (isCurrent) {
-                        // Bolinha grande com ícone (status atual)
-                        dot = Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: primaryColor,
-                            shape: BoxShape.circle,
+                  // ✅ CADA PASSO AGORA É ENVOLVIDO POR UM EXPANDED
+                  return Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // O Center não é mais necessário dentro de um SizedBox
+                        // pois a Column pai já está centralizando.
+                        dot,
+                        const SizedBox(height: 8),
+                        Text(
+                          step.title,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isCurrent ? Colors.grey[800] : isPast ? Colors.grey[600] : Colors.grey[400],
+                            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
                           ),
-                          child: Icon(step.icon, size: 16, color: Colors.white),
-                        );
-                      } else if (isPast) {
-                        // Bolinha pequena preenchida
-                        dot = Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                        );
-                      } else {
-                        // Bolinha cinza clara com borda
-                        dot = Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: greyLineColor, width: 2),
-                          ),
-                        );
-                      }
-
-                      return Column(
-                        children: [
-                          SizedBox(height: 48, child: Center(child: dot)),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            width: 70,
-                            child: Text(
-                              step.title,
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color:
-                                    isCurrent
-                                        ? Colors.grey[800]
-                                        : isPast
-                                        ? Colors.grey[600]
-                                        : Colors.grey[400],
-                                fontWeight:
-                                    isCurrent
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
             ],
           ),
@@ -767,6 +777,7 @@ class OrderDetailsElegant extends StatelessWidget {
       ],
     );
   }
+
 
   // Método auxiliar para cores de status
   Color _getStatusColor(String status) {

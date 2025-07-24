@@ -26,9 +26,11 @@ import 'package:totem_pro_admin/repositories/user_repository.dart';
 import 'package:totem_pro_admin/services/auth_service.dart';
 
 
-import '../pages/orders/service/print.dart';
-import '../pages/orders/service/printer_manager.dart';
-import '../services/cubits/auth_cubit.dart';
+import '../cubits/active_store_cubit.dart';
+import '../services/device_settings_service.dart';
+import '../services/print.dart';
+import '../services/printer_manager.dart';
+import '../cubits/auth_cubit.dart';
 
 final getIt = GetIt.instance;
 final apiUrl = dotenv.env['API_URL'];
@@ -37,6 +39,9 @@ final apiUrl = dotenv.env['API_URL'];
 Future<void> configureDependencies() async {
   final sharedPreferences = await SharedPreferences.getInstance();
 
+
+
+
   // --- PASSO 1: Dependências básicas ---
   final dio = Dio(BaseOptions(baseUrl: '$apiUrl/admin'))
     ..interceptors.addAll([
@@ -44,9 +49,17 @@ Future<void> configureDependencies() async {
       PrettyDioLogger(requestBody: true, requestHeader: true),
     ]);
 
+  getIt.registerSingleton<SharedPreferences>(sharedPreferences);
+
+  // 2. Registre o novo DeviceSettingsService
+  getIt.registerSingleton<DeviceSettingsService>(
+    DeviceSettingsService(getIt<SharedPreferences>()),
+  );
+
   getIt.registerSingleton(dio);
   getIt.registerSingleton(const FlutterSecureStorage());
-  getIt.registerSingleton(sharedPreferences);
+
+
 
   // Repositórios simples
   getIt.registerSingleton(AuthRepository(getIt(), getIt()));
@@ -63,16 +76,16 @@ Future<void> configureDependencies() async {
     ),
   );
 
-  // É crucial que o RealtimeRepository receba a instância do StoresManagerCubit
-  // DEPOIS que ambos já foram registrados no GetIt.
-//  getIt<RealtimeRepository>().setStoresManagerCubit(getIt<StoresManagerCubit>());
 
-  // ✅ PrintManager com async factory
   final printManager = await PrintManager.create(
 
-    prefs: sharedPreferences,
+
     printerService: getIt<PrinterService>(),
+    realtimeRepository: GetIt.I<RealtimeRepository>(),
+    deviceSettingsService: getIt<DeviceSettingsService>(),
   );
+
+
   getIt.registerSingleton<PrintManager>(printManager);
 
   // Repositórios com factory (podem ser criados sob demanda)
@@ -112,5 +125,16 @@ Future<void> configureDependencies() async {
 
   // ✅ ADICIONE ESTA LINHA AQUI, NO FINAL DE configureDependencies()
   getIt.registerSingleton<bool>(true, instanceName: 'isInitialized');
+
+  // Registra os Cubits que faltavam para manter o padrão
+  getIt.registerFactory<AuthCubit>(() => AuthCubit(
+    authService: getIt<AuthService>(),
+    realtimeRepository: getIt<RealtimeRepository>(),
+  ));
+
+  getIt.registerFactory<ActiveStoreCubit>(() => ActiveStoreCubit(
+    realtimeRepository: getIt<RealtimeRepository>(),
+  ));
+
 
 }

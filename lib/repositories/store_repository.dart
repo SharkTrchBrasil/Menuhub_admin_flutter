@@ -9,20 +9,23 @@ import 'package:totem_pro_admin/models/store_with_role.dart';
 
 
 
+import '../core/failures.dart';
 import '../core/payment_token.dart';
 import '../models/address.dart';
 import '../models/cash_session.dart';
 import '../models/cash_transaction.dart';
+import '../models/create_subscription_payload.dart';
 import '../models/credit_card.dart';
 import '../models/full_store_data_model.dart';
-import '../models/new_subscription.dart';
+
+import '../models/plan.dart';
 import '../models/store_city.dart';
 import '../models/store_customer.dart';
 import '../models/store_hour.dart';
 import '../models/store_neig.dart';
 import '../models/store_payable.dart';
 import '../models/store_pix_config.dart';
-import '../models/subscription_plan.dart';
+
 import '../models/tokenized_card.dart';
 
 
@@ -761,95 +764,121 @@ class StoreRepository {
 
 
 
-
-  Future<Either<void, List<SubscriptionPlan>>> getPlans() async {
+// ✅ Função Refatorada
+  Future<Either<Failure, List<Plan>>> getPlans() async {
     try {
       final response = await _dio.get('/plans');
-      return Right(
-        response.data
-            .map<SubscriptionPlan>((s) => SubscriptionPlan.fromJson(s))
-            .toList(),
-      );
+
+      // Verificação de segurança: garante que a resposta é uma lista
+      if (response.data is! List) {
+        return Left(Failure('Resposta inesperada do servidor.'));
+      }
+
+      // Mapeia a lista para os seus objetos Plan
+      final plans = (response.data as List)
+          .map<Plan>((json) => Plan.fromJson(json))
+          .toList();
+
+      return Right(plans);
+
+    } on DioException catch (e) {
+      // Erro específico de rede (sem internet, timeout, 404, 500, etc.)
+      debugPrint('DioException em getPlans: $e');
+      return Left(Failure('Erro de comunicação com o servidor. Tente novamente.'));
+
     } catch (e) {
-      debugPrint('$e');
-      return const Left(null);
+      // Outros erros (ex: falha no parsing do JSON, erro de programação)
+      debugPrint('Erro inesperado em getPlans: $e');
+      return Left(Failure('Ocorreu um erro inesperado.'));
     }
   }
 
-  Future<Either<void, Address>> getZipcodeAddress(String zipcode) async {
-    try {
-      return Right(
-        Address(
-          zipcode: '13087000',
-          street: 'Rua Exemplo',
-          neighborhood: 'Bairro Exemplo',
-          city: 'Cidade Exemplo',
-          state: 'SP',
-          complement: 'Complemento Exemplo',
-          number: '123',
-        ),
-      );
 
+
+  /// Busca um endereço a partir do CEP.
+  Future<Either<Failure, Address>> getZipcodeAddress(String zipcode) async {
+    try {
+      // Removemos o código de teste hardcoded.
       final response = await _dio.get(
-        '/zipcodes/${UtilBrasilFields.removeCaracteres(zipcode)}',
+        'https://viacep.com.br/ws/${UtilBrasilFields.removeCaracteres(zipcode)}/json/',
       );
+      if (response.data['erro'] == true) {
+        return Left(Failure('CEP não encontrado.'));
+      }
       return Right(Address.fromJson(response.data));
+    } on DioException catch (e) {
+      debugPrint('DioException em getZipcodeAddress: $e');
+      return Left(Failure('Não foi possível buscar o CEP.'));
     } catch (e) {
-      debugPrint('$e');
-      return const Left(null);
+      debugPrint('Erro inesperado em getZipcodeAddress: $e');
+      return Left(Failure('Ocorreu um erro inesperado.'));
     }
   }
 
-  Future<Either<void, TokenizedCard>> generateCardToken(CreditCard card) async {
+
+// Gera um token de pagamento para um cartão de crédito.
+  Future<Either<Failure, TokenizedCard>> generateCardToken(CreditCard card) async {
+    // Substitua pelo seu ID de conta real, se necessário
+    const accountId = 'b58c97a1ec95e962ec0ebc9d5098fd76';
+
     try {
+      // ✅ VALIDAÇÃO ADICIONAL: Garante que a data de expiração não é nula
+      if (card.expirationDate == null) {
+        return Left(Failure('Data de vencimento do cartão é inválida.'));
+      }
+
+      // Lógica para determinar a bandeira do cartão deve ser implementada aqui
+      // Por enquanto, usaremos 'visa' como placeholder
+      final cardBrand = 'visa';
+
       final result = await PaymentToken.generate(
         {
-          'brand': 'visa', // TODO: Determine card brand dynamically
+          'brand': cardBrand,
           'number': UtilBrasilFields.removeCaracteres(card.number),
           'cvv': card.cvv,
           'expiration_month': card.expirationDate!.month.toString(),
           'expiration_year': card.expirationDate!.year.toString(),
           'reuse': true,
         },
-        {'accountId': '3e7b68aadfca624cc414ac8b42c36290', 'sandbox': true},
+        {'accountId': accountId, 'sandbox': false},
       );
 
-      print('RESULT TOKEN $result');
+      // ✅ CORREÇÃO PRINCIPAL: Verifica se o resultado da API é nulo
+      if (result == null) {
+        debugPrint('Erro: A API de geração de token retornou um valor nulo.');
+        return Left(Failure('Falha ao comunicar com o serviço de pagamento. Tente novamente.'));
+      }
 
       return Right(TokenizedCard.fromJson(result));
-    } catch (e, s) {
-      debugPrint('$e $s');
-      return const Left(null);
+
+    } catch (e) {
+      debugPrint('Erro ao gerar token do cartão: $e');
+      return Left(Failure('Não foi possível validar o cartão. Verifique os dados e tente novamente.'));
     }
   }
 
-  Future<Either<void, void>> createSubscription(
+  /// Cria a assinatura no backend.
+  Future<Either<Failure, void>> createSubscription(
       int storeId,
-      NewSubscription subscription,
+      CreateSubscriptionPayload subscription, // ✅ Usa o payload correto
       ) async {
     try {
       await _dio.post(
         '/stores/$storeId/subscriptions',
         data: subscription.toJson(),
       );
-      await getStores();
+      // await getStores(); // Opcional: Idealmente, o BLoC/Cubit decide quando recarregar
       return const Right(null);
+    } on DioException catch (e) {
+      debugPrint('DioException em createSubscription: $e');
+      final errorMsg = e.response?.data?['detail'] ?? 'Falha ao criar assinatura.';
+      return Left(Failure(errorMsg));
     } catch (e) {
-      debugPrint('$e');
-      return const Left(null);
+      debugPrint('Erro inesperado em createSubscription: $e');
+      return Left(Failure('Ocorreu um erro inesperado.'));
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
 
 
 

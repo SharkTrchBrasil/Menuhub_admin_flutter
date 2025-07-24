@@ -5,12 +5,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart'; // Importe o modelo Store
 import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
-import 'package:totem_pro_admin/pages/orders/service/printer_manager.dart';
+import 'package:totem_pro_admin/services/printer_manager.dart';
 
-import '../service/print.dart'; // Corrija o import se necessário
+import '../../../services/print.dart'; // Corrija o import se necessário
 
 class OrderStatusButton extends StatelessWidget {
   final OrderDetails order;
@@ -34,16 +35,34 @@ class OrderStatusButton extends StatelessWidget {
 
     // Lógica para o botão principal de avanço de status
     switch (order.orderStatus) {
+    // ... dentro do seu switch/case
+
       case 'pending':
         buttonText = 'Aceitar Pedido';
         buttonColor = Colors.green;
         onPressed = () {
-
+          // 1. A atualização de status sempre acontece.
           context.read<OrderCubit>().updateOrderStatus(order.id, 'preparing');
-          PrinterService().printOrder(order, store!);
 
+          // ✅ 2. A CONDIÇÃO: Só imprime se a configuração for explicitamente 'false'.
+          // A verificação `store?.storeSettings?` lida com segurança caso store ou settings sejam nulos.
+          if (store?.storeSettings?.autoPrintOrders == false) {
+            print('Impressão automática desligada. Imprimindo manualmente ao aceitar...');
+
+            // Usando GetIt para pegar a instância do PrinterService (melhor prática)
+            final printerService = GetIt.I<PrinterService>();
+
+            // Chama a impressão, provavelmente para a cozinha.
+            printerService.printOrder(
+                order,
+                store!,
+                destination: 'cozinha' // ou 'balcao', dependendo do seu fluxo
+            );
+          }
         };
         break;
+
+// ... resto do seu switch/case
 
       case 'preparing':
       // Lógica condicional baseada no tipo de pedido

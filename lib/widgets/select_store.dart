@@ -78,8 +78,7 @@ class StorePopupMenu extends StatelessWidget {
     );
 
     return PopupMenuButton<int>(
-      // ... (o resto do seu widget PopupMenuButton fica exatamente igual)
-      // ... (apenas a propriedade `child` e o `itemBuilder`)
+
       color: Theme.of(context).scaffoldBackgroundColor,
       tooltip: 'Selecionar loja',
       offset: const Offset(0, 40),

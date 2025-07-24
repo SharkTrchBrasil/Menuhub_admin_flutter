@@ -9,10 +9,11 @@ import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../core/di.dart';
+import '../../cubits/auth_state.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/auth_service.dart';
-import '../../services/cubits/auth_cubit.dart';
-import '../../services/cubits/auth_state.dart';
+import '../../cubits/auth_cubit.dart';
+
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_toasts.dart';
 

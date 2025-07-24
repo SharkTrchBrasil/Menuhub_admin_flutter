@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
-import 'package:totem_pro_admin/pages/orders/service/printer_manager.dart';
+import 'package:totem_pro_admin/services/printer_manager.dart';
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
@@ -121,10 +121,11 @@ class OrderCubit extends Cubit<OrderState> {
         SoundAlertUtil.playNewOrderSound();
         print('[SOM] Pedido novo: #${order.id}');
 
-        // Lógica de impressão automática para o novo pedido
-        if (activeStore != null) {
-          await _printManager.processOrder(order, activeStore);
-        }
+        // COMENATDO AQUI
+        // // Lógica de impressão automática para o novo pedido
+        // if (activeStore != null) {
+        //   await _printManager.processOrder(order, activeStore);
+        // }
       }
     }
 
@@ -161,16 +162,15 @@ class OrderCubit extends Cubit<OrderState> {
     await _realtimeRepository.updateOrderStatus(orderId, newStatus);
   }
 
-  bool isOrderPrinted(int orderId) => _printManager.isOrderPrinted(orderId);
 
-  Future<void> reprintOrder(OrderDetails order, Store store) async {
-    await _printManager.reprintOrder(order, store);
-    final currentState = state;
-    if (currentState is OrdersLoaded) {
-      // Re-emite o estado para a UI reconstruir (caso mostre um ícone de "impresso")
-      _emitFilteredOrders(currentState.activeStoreId!);
-    }
-  }
+  // Future<void> reprintOrder(OrderDetails order, Store store) async {
+  //   await _printManager.reprintOrder(order, store);
+  //   final currentState = state;
+  //   if (currentState is OrdersLoaded) {
+  //     // Re-emite o estado para a UI reconstruir (caso mostre um ícone de "impresso")
+  //     _emitFilteredOrders(currentState.activeStoreId!);
+  //   }
+  // }
 
   @override
   Future<void> close() {

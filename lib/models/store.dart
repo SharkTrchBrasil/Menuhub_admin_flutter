@@ -7,6 +7,7 @@ import 'package:totem_pro_admin/models/store_hour.dart';
 import 'package:totem_pro_admin/models/store_neig.dart';
 import 'package:totem_pro_admin/models/store_settings.dart';
 import 'package:totem_pro_admin/models/store_subscription.dart';
+import 'package:totem_pro_admin/models/subscription_summary.dart';
 import 'image_model.dart';
 import 'package:dio/dio.dart';
 
@@ -69,7 +70,7 @@ class Store {
   final List<StoreCity>? cities; // NOVO: Adicionar aqui
   final List<StoreNeighborhood>? neighborhoods; // NOVO: Adicionar aqui
   final StoreSettings? storeSettings;
-  final StoreSubscription? subscription;
+  final SubscriptionSummary? subscription;
 
 
   factory Store.fromJson(Map<String, dynamic> json) {
@@ -138,7 +139,7 @@ class Store {
 
 
       subscription: json['subscription'] != null && json['subscription'] is Map<String, dynamic>
-          ? StoreSubscription.fromJson(json['subscription'])
+          ? SubscriptionSummary.fromJson(json['subscription'])
           : null,
 
     );
