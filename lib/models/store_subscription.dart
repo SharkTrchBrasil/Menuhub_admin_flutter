@@ -1,6 +1,6 @@
 // lib/models/store_subscription.dart
 
-import 'package:totem_pro_admin/models/plan.dart';
+import 'package:totem_pro_admin/models/plans.dart';
 import 'package:totem_pro_admin/models/plans_addon.dart';
 
 class StoreSubscription {
@@ -8,7 +8,7 @@ class StoreSubscription {
   final String status;
   final DateTime currentPeriodStart;
   final DateTime currentPeriodEnd;
-  final Plan plan;
+  final Plans plan;
   final List<PlansAddon> subscribedAddons;
 
   const StoreSubscription({
@@ -26,7 +26,7 @@ class StoreSubscription {
       status: json['status'],
       currentPeriodStart: DateTime.parse(json['current_period_start']),
       currentPeriodEnd: DateTime.parse(json['current_period_end']),
-      plan: Plan.fromJson(json['plan']),
+      plan: Plans.fromJson(json['plan']),
       subscribedAddons: (json['subscribed_addons'] as List<dynamic>? ?? [])
           .map((addonJson) => PlansAddon.fromJson(addonJson))
           .toList(),
@@ -38,7 +38,7 @@ class StoreSubscription {
     String? status,
     DateTime? currentPeriodStart,
     DateTime? currentPeriodEnd,
-    Plan? plan,
+    Plans? plan,
     List<PlansAddon>? subscribedAddons,
   }) {
     return StoreSubscription(

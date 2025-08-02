@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/store.dart';
 import '../orders_page.dart';
-import '../printer_settings.dart';
+import '../../../services/print/printer_settings.dart';
 import '../store_settings.dart';
 
 

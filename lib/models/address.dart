@@ -25,7 +25,7 @@ class Address {
       // Usa as chaves corretas da API ViaCEP
       zipcode: json['cep'] ?? '',
       city: json['localidade'] ?? '',
-      state: json['uf'] ?? '',
+      state: json['estado'] ?? '',
       neighborhood: json['bairro'] ?? '',
       street: json['logradouro'] ?? '',
       complement: json['complemento'] ?? '',

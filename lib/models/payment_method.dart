@@ -1,151 +1,166 @@
-import 'package:dio/dio.dart';
-import 'package:totem_pro_admin/widgets/app_selection_form_field.dart';
+// Em: lib/models/payment_method.dart
 
-class StorePaymentMethod implements SelectableItem {
-  const StorePaymentMethod({
-    this.id,
+import 'package:equatable/equatable.dart';
 
-    required this.paymentType,        // 'Cash', 'Card', 'Pix', 'Other'…
-    required this.customName,
-    this.customIcon,                  // ex.: 'cash.svg'
+// --- Nível 1: A Configuração da Loja (O que foi ativado) ---
+// Corresponde ao schema 'StorePaymentMethodActivationOut' do Pydantic
+class StorePaymentMethodActivation extends Equatable {
+  final int id;
+  final bool isActive;
+  final double feePercentage;
+  final Map<String, dynamic>? details; // Para a chave Pix, etc.
+  final bool isForDelivery;
+  final bool isForPickup;
+  final bool isForInStore;
 
-    this.isActive       = true,
-    this.activeOnDelivery = true,
-    this.activeOnPickup   = true,
-    this.activeOnCounter  = true,
-    this.taxRate        = 0.0,
-
-
-    this.pixKey,
-
+  const StorePaymentMethodActivation({
+    required this.id,
+    required this.isActive,
+    required this.feePercentage,
+    this.details,
+    required this.isForDelivery,
+    required this.isForPickup,
+    required this.isForInStore,
   });
 
-  final int? id;
-
-
-  // obrigatórios
-  final String paymentType;
-  final String customName;
-
-  // opcionais
-  final String? customIcon;
-
-  // flags
-
-  final bool isActive;
-
-  // canais
-  final bool activeOnDelivery;
-  final bool activeOnPickup;
-  final bool activeOnCounter;
-
-  // financeiro
-  final double taxRate;
-
-
-
-  // Pix
-  final String? pixKey;
-
-
-  /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
-  /* JSON <‑‑> MODEL                                            */
-  /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
-
-  factory StorePaymentMethod.fromJson(Map<String, dynamic> json) {
-
-
-
-    return StorePaymentMethod(
-      id                : json['id'] as int?,
-
-      paymentType       : json['payment_type'] as String,
-      customName        : json['custom_name'] as String,
-      customIcon       : json['custom_icon'] as String?,
-      isActive          : json['is_active'] as bool? ?? true,
-      activeOnDelivery  : json['active_on_delivery'] as bool? ?? true,
-      activeOnPickup    : json['active_on_pickup'] as bool? ?? true,
-      activeOnCounter   : json['active_on_counter'] as bool? ?? true,
-      taxRate           : json['tax_rate'] as double ?? 0.0,
-
-      pixKey            : json['pix_key'] as String?,
-
+  // Factory para criar a partir de um JSON
+  factory StorePaymentMethodActivation.fromJson(Map<String, dynamic> json) {
+    return StorePaymentMethodActivation(
+      id: json['id'],
+      isActive: json['is_active'],
+      feePercentage: (json['fee_percentage'] as num).toDouble(),
+      details: json['details'] != null ? Map<String, dynamic>.from(json['details']) : null,
+      isForDelivery: json['is_for_delivery'],
+      isForPickup: json['is_for_pickup'],
+      isForInStore: json['is_for_in_store'],
     );
   }
+  // ✅ ADICIONE ESTE MÉTODO
+  // Converte o objeto Dart para um Map JSON que o backend entende
+  Map<String, dynamic> toJson() {
+    return {
+      'is_active': isActive,
+      'fee_percentage': feePercentage,
+      'details': details,
+      'is_for_delivery': isForDelivery,
+      'is_for_pickup': isForPickup,
+      'is_for_in_store': isForInStore,
+    };
+  }
 
-  Map<String, dynamic> toJson() => {
-    'id'                 : id,
-
-    'payment_type'       : paymentType,
-    'custom_name'        : customName,
-    'custom_icon'        : customIcon,
-
-    'is_active'          : isActive,
-    'active_on_delivery' : activeOnDelivery,
-    'active_on_pickup'   : activeOnPickup,
-    'active_on_counter'  : activeOnCounter,
-    'tax_rate'           : taxRate,
-
-    'pix_key'            : pixKey,
-
-  };
-
-  /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
-  /* Envio em multipart (FormData) – para API FastAPI            */
-  /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
-  StorePaymentMethod copyWith({
+  // ✅ ADICIONE ESTE MÉTODO COMPLETO
+  /// Cria uma cópia deste objeto, mas com os valores fornecidos.
+  StorePaymentMethodActivation copyWith({
     int? id,
-
-    String? paymentType,
-    String? customName,
-    String? customIcon,
-
     bool? isActive,
-    bool? activeOnDelivery,
-    bool? activeOnPickup,
-    bool? activeOnCounter,
-    double? taxRate,
-
-    String? pixKey,
-
+    double? feePercentage,
+    Map<String, dynamic>? details,
+    bool? isForDelivery,
+    bool? isForPickup,
+    bool? isForInStore,
   }) {
-    return StorePaymentMethod(
+    return StorePaymentMethodActivation(
       id: id ?? this.id,
-
-      paymentType: paymentType ?? this.paymentType,
-      customName: customName ?? this.customName,
-      customIcon: customIcon ?? this.customIcon,
-
       isActive: isActive ?? this.isActive,
-      activeOnDelivery: activeOnDelivery ?? this.activeOnDelivery,
-      activeOnPickup: activeOnPickup ?? this.activeOnPickup,
-      activeOnCounter: activeOnCounter ?? this.activeOnCounter,
-      taxRate: taxRate ?? this.taxRate,
-      pixKey: pixKey ?? this.pixKey,
+      feePercentage: feePercentage ?? this.feePercentage,
+      details: details ?? this.details,
+      isForDelivery: isForDelivery ?? this.isForDelivery,
+      isForPickup: isForPickup ?? this.isForPickup,
+      isForInStore: isForInStore ?? this.isForInStore,
+    );
+  }
+  // Equatable props para comparações
+  @override
+  List<Object?> get props => [id, isActive, feePercentage, details, isForDelivery, isForPickup, isForInStore];
+}
 
+
+// --- Nível 2: A Opção Final (O Método de Pagamento) ---
+// Corresponde ao schema 'PlatformPaymentMethodOut'
+class PlatformPaymentMethod extends Equatable {
+  final int id;
+  final String name;
+  final String? iconKey;
+
+  // Aninha a configuração específica da loja dentro do método
+  // Pode ser nulo se a loja nunca configurou este método
+  final StorePaymentMethodActivation? activation;
+
+  const PlatformPaymentMethod({
+    required this.id,
+    required this.name,
+    this.iconKey,
+    this.activation,
+  });
+
+  factory PlatformPaymentMethod.fromJson(Map<String, dynamic> json) {
+    return PlatformPaymentMethod(
+      id: json['id'],
+      name: json['name'],
+      iconKey: json['icon_key'],
+      // Verifica se a ativação não é nula antes de tentar parsear
+      activation: json['activation'] != null
+          ? StorePaymentMethodActivation.fromJson(json['activation'])
+          : null,
     );
   }
 
-  Future<FormData> toFormData() async {
-    return FormData.fromMap({
-      'payment_type'       : paymentType,
-      'custom_name'        : customName,
-      'custom_icon'        : customIcon,     // nome/slug do asset
+  @override
+  List<Object?> get props => [id, name, iconKey, activation];
+}
 
-      'is_active'          : isActive,
-      'active_on_delivery' : activeOnDelivery,
-      'active_on_pickup'   : activeOnPickup,
-      'active_on_counter'  : activeOnCounter,
-      'tax_rate'           : taxRate,
 
-      'pix_key'            : pixKey,
+// --- Nível 3: A Categoria ---
+// Corresponde ao schema 'PaymentMethodCategoryOut'
+class PaymentMethodCategory extends Equatable {
+  final String name;
+  final List<PlatformPaymentMethod> methods;
 
-    });
+  const PaymentMethodCategory({
+    required this.name,
+    required this.methods,
+  });
+
+  factory PaymentMethodCategory.fromJson(Map<String, dynamic> json) {
+    // Mapeia a lista de métodos
+    final methodsList = (json['methods'] as List)
+        .map((methodJson) => PlatformPaymentMethod.fromJson(methodJson))
+        .toList();
+
+    return PaymentMethodCategory(
+      name: json['name'],
+      methods: methodsList,
+    );
   }
 
-  /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
-  /* SelectableItem interface                                   */
-  /*–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
   @override
-  String get title => customName;
+  List<Object?> get props => [name, methods];
+}
+
+
+// --- Nível 4: O Grupo Principal ---
+// Corresponde ao schema 'PaymentMethodGroupOut'
+class PaymentMethodGroup extends Equatable {
+  final String name;
+  final List<PaymentMethodCategory> categories;
+
+  const PaymentMethodGroup({
+    required this.name,
+    required this.categories,
+  });
+
+  factory PaymentMethodGroup.fromJson(Map<String, dynamic> json) {
+    // Mapeia a lista de categorias
+    final categoriesList = (json['categories'] as List)
+        .map((categoryJson) => PaymentMethodCategory.fromJson(categoryJson))
+        .toList();
+
+    return PaymentMethodGroup(
+      name: json['name'],
+      categories: categoriesList,
+    );
+  }
+
+  @override
+  List<Object?> get props => [name, categories];
 }

@@ -7,6 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 import '../../core/di.dart';
 import '../../cubits/auth_state.dart';
@@ -37,285 +38,249 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 800;
-
     return Scaffold(
-      body: BlocListener<AuthCubit, AuthState>(
-        listener: (context, state) {
+      resizeToAvoidBottomInset: true, // ✅ Importante para o teclado empurrar o conteúdo
 
-          if (state is AuthSignUpError) {
-            // Chama o método para exibir o erro com base na mensagem do AuthError
-            _handleSignUpError(state.error);
-          }
+      body: SafeArea(
+        child: BlocListener<AuthCubit, AuthState>(
+          listener: (context, state) {
+            if (state is AuthSignUpError) {
+              _handleSignUpError(state.error);
+            }
+          },
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final isDesktop = constraints.maxWidth > 800;
+              final form = _buildFormSection();
 
-
-
-
-
-        },
-        child: Stack(
-          children: [
-            if (!isMobile) _buildBackground(),
-            Center(
-              child: Container(
-                margin: const EdgeInsets.all(30),
-                constraints: const BoxConstraints(maxWidth: 1000),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  color: Colors.white,
-
-                  border: Border.all(color: Color(0xFFE67E22), width: 1),
+              return Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 720, // tanto desktop quanto mobile
+                    ),
+                    child: form,
+                  ),
                 ),
-                child:
-                    isMobile
-                        ? _buildFormSection()
-                        : Row(
-                          children: [
-                            Expanded(child: _buildVisualSection()),
-                            Expanded(child: _buildFormSection()),
-                          ],
-                        ),
+              );
+
+            },
+          ),
+        ),
+      ),
+
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(18.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton(
+              onPressed: () {
+                context.go('/sign-in${widget.redirectTo != null ? '?redirectTo=${widget.redirectTo!}' : ''}');
+              },
+              child: const Text('‹ Voltar'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final loading = showLoading();
+
+                  await context.read<AuthCubit>().signUp(
+                    name: name,
+                    phone: phone,
+                    email: email,
+                    password: password,
+                  );
+
+                  loading();
+                }
+              },
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(160, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Continuar',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+
   }
 
   Widget _buildFormSection() {
     final isMobile = MediaQuery.of(context).size.width < 800;
 
     return Padding(
-      padding: const EdgeInsets.all(40),
-      child: Form(
-        key: formKey,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF39C12),
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                    ),
-                    child: const FaIcon(
-                      FontAwesomeIcons.bolt,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'PDVix',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Criar nova conta',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
+      padding:  EdgeInsets.all(isMobile ? 10 : 40.0),
+      child: Container(
+      //  margin: EdgeInsets.all(58),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.grey[100]!), // ✅ Borda cinza
+          borderRadius: BorderRadius.circular(16), // ✅ Radius de 8
+        ),
 
-              if (!isMobile)
-                const Text(
-                  'Preencha os dados abaixo para começar',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-
-              const SizedBox(height: 50),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      title: 'Seu nome',
-                      hint: 'enter_your_full_name'.tr(),
-                      validator: (s) {
-                        if (s == null || s.isEmpty) {
-                          return 'name_required'.tr();
-                        } else if (s.trim().split(' ').length < 2) {
-                          return 'enter_valid_full_name'.tr();
-                        }
-                        return null;
-                      },
-                      onChanged: (s) => name = s ?? '',
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              AppTextField(
-                title: 'Seu melhor email',
-                hint: 'enter_your_email'.tr(),
-                validator: (s) {
-                  if (s == null || !EmailValidator.validate(s)) {
-                    return 'invalid_email'.tr();
-                  }
-                  return null;
-                },
-                onChanged: (s) => email = s ?? '',
-              ),
-
-              const SizedBox(height: 24),
-
-              AppTextField(
-                title: 'password'.tr(),
-                hint: 'enter_your_password'.tr(),
-                isHidden: true,
-                validator: (s) {
-                  if (s == null || s.isEmpty) {
-                    return 'field_required'.tr();
-                  } else if (s.length < 8) {
-                    return 'password_too_short'.tr();
-                  }
-                  return null;
-                },
-                onChanged: (s) => password = s ?? '',
-              ),
-
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFFF39C12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      final loading = showLoading();
-
-                      await context.read<AuthCubit>().signUp(
-                        name: name,
-                        email: email,
-                        password: password,
-                      );
-
-                      loading();
-                    }
-                  },
-
-                  label: const Text(
-                    'Criar conta',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (!isMobile)
-                    Flexible(
-                      child: const Text(
-                        'Já tem uma conta? ',
-                        overflow: TextOverflow.ellipsis,
+        child: Padding(
+          padding:  EdgeInsets.all(isMobile ? 8 : 22.0),
+          child: Center(
+            child: Form(
+              key: formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding:  EdgeInsets.all(isMobile ? 8 : 18.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 20),
+                      Text(
+                        'Estamos felizes em ter você por aqui!',
+                        style: TextStyle(
+                          fontSize: isMobile ? 18 : 30,
+                          overflow: TextOverflow.ellipsis,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  InkWell(
-                    onTap: () {
-                      context.go(
-                        '/sign-in${widget.redirectTo != null ? '?redirectTo=${widget.redirectTo!}' : ''}',
-                      );
-                    },
-                    child: const Text(
-                      'Faça login aqui',
-                      style: TextStyle(
-                        color: Color(0xFFF39C12),
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(height: 12),
+                      Text(
+                        'Precisamos de algumas informações para começar o cadastro do seu restaurante.',
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        style: TextStyle(
+                          fontSize: isMobile ? 12 : 14,
+                          color: Colors.black87,
+
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
+
+                      const SizedBox(height: 50),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppTextField(
+                              title: 'Nome completo*',
+                              hint: 'enter_your_full_name'.tr(),
+                              validator: (s) {
+                                if (s == null || s.isEmpty) {
+                                  return 'name_required'.tr();
+                                } else if (s.trim().split(' ').length < 2) {
+                                  return 'enter_valid_full_name'.tr();
+                                }
+                                return null;
+                              },
+                              onChanged: (s) => name = s ?? '',
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      AppTextField(
+                        title: 'Celular*',
+                        hint: 'enter_your_phone'.tr(),
+                        validator: (s) {
+                          if (s == null || s.trim().isEmpty) {
+                            return 'Campo obrigatório';
+                          }
+
+                          try {
+                            // Tenta parsear o número de telefone
+                            final phone = PhoneNumber.parse(
+                              s,
+                              destinationCountry: IsoCode.BR,
+                            );
+
+                            // Valida se é um número de celular
+                            final isValidMobile = phone.isValid(
+                              type: PhoneNumberType.mobile,
+                            );
+
+                            if (!isValidMobile) {
+                              return 'Número de celular inválido';
+                            }
+
+                            return null; // ✅ Válido
+                          } catch (e) {
+                            return 'Número inválido';
+                          }
+                        },
+                        onChanged: (s) {
+                          if (s != null && s.trim().isNotEmpty) {
+                            try {
+                              final parsedPhone = PhoneNumber.parse(
+                                s,
+                                destinationCountry: IsoCode.BR,
+                              );
+
+                              if (parsedPhone.isValid(
+                                type: PhoneNumberType.mobile,
+                              )) {
+                                phone =
+                                    parsedPhone
+                                        .international; // ✅ "+55 31 99999-8888"
+                              } else {
+                                phone =
+                                    phoneMask.getUnmaskedText(); // fallback bruto
+                              }
+                            } catch (e) {
+                              phone = phoneMask.getUnmaskedText(); // fallback bruto
+                            }
+                          }
+                        },
+
+                        formatters: [phoneMask], // Aplica a máscara
+                      ),
+                      const SizedBox(height: 20),
+                      AppTextField(
+                        title: 'Email',
+                        hint: 'enter_your_email'.tr(),
+                        validator: (s) {
+                          if (s == null || !EmailValidator.validate(s)) {
+                            return 'invalid_email'.tr();
+                          }
+                          return null;
+                        },
+                        onChanged: (s) => email = s ?? '',
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      AppTextField(
+                        title: 'password'.tr(),
+                        hint: 'enter_your_password'.tr(),
+                        isHidden: true,
+                        validator: (s) {
+                          if (s == null || s.isEmpty) {
+                            return 'field_required'.tr();
+                          } else if (s.length < 8) {
+                            return 'password_too_short'.tr();
+                          }
+                          return null;
+                        },
+                        onChanged: (s) => password = s ?? '',
+                      ),
+
+
+                    ],
                   ),
-                ],
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVisualSection() {
-    return Container(
-      padding: const EdgeInsets.all(40),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(22),
-          bottomLeft: Radius.circular(22),
-        ),
-
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF39C12), Color(0xFFE67E22)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: Colors.white24,
-            child: FaIcon(
-              FontAwesomeIcons.store,
-              color: Colors.white,
-              size: 40,
             ),
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Cadastro de Lojista',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Cadastre seu restaurante e aumente suas vendas',
-            style: TextStyle(color: Colors.white70),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 30),
-          _buildFeature('Plataforma completa de gestão'),
-          _buildFeature('Comissões competitivas'),
-          _buildFeature('Marketing digital incluído'),
-          _buildFeature('Relatórios detalhados'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeature(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: Colors.white, size: 20),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Text(
-              text,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -328,18 +293,7 @@ class _SignUpPageState extends State<SignUpPage> {
     type: MaskAutoCompletionType.lazy,
   );
 
-  Widget _buildBackground() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        // gradient: LinearGradient(
-        //   colors: [Color(0xFFF39C12), Color(0xFFE67E22)],
-        //   begin: Alignment.topLeft,
-        //   end: Alignment.bottomRight,
-        // ),
-      ),
-    );
-  }
+
 
   void _handleSignUpError(SignUpError error) {
     switch (error) {
@@ -363,9 +317,10 @@ class _SignUpPageState extends State<SignUpPage> {
         showError('Erro inesperado ao criar a conta. Tente novamente.');
     }
   }
-
-
-
-
 }
+
+
+
+
+
 

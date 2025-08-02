@@ -27,10 +27,14 @@ import 'package:totem_pro_admin/services/auth_service.dart';
 
 
 import '../cubits/active_store_cubit.dart';
-import '../services/device_settings_service.dart';
-import '../services/print.dart';
-import '../services/printer_manager.dart';
+
 import '../cubits/auth_cubit.dart';
+import '../pages/create_store/cubit/store_setup_cubit.dart';
+import '../services/print/device_settings_service.dart';
+import '../services/print/print.dart';
+import '../services/print/printer_manager.dart';
+import '../services/print/printer_mapping_service.dart';
+import '../services/subscription/subscription_service.dart';
 
 final getIt = GetIt.instance;
 final apiUrl = dotenv.env['API_URL'];
@@ -40,9 +44,6 @@ Future<void> configureDependencies() async {
   final sharedPreferences = await SharedPreferences.getInstance();
 
 
-
-
-  // --- PASSO 1: Dependências básicas ---
   final dio = Dio(BaseOptions(baseUrl: '$apiUrl/admin'))
     ..interceptors.addAll([
       TokenInterceptor(),
@@ -51,9 +52,14 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<SharedPreferences>(sharedPreferences);
 
-  // 2. Registre o novo DeviceSettingsService
+
   getIt.registerSingleton<DeviceSettingsService>(
     DeviceSettingsService(getIt<SharedPreferences>()),
+  );
+
+
+  getIt.registerSingleton<PrinterMappingService>(
+    PrinterMappingService(getIt<SharedPreferences>()),
   );
 
   getIt.registerSingleton(dio);
@@ -64,7 +70,9 @@ Future<void> configureDependencies() async {
   // Repositórios simples
   getIt.registerSingleton(AuthRepository(getIt(), getIt()));
   getIt.registerSingleton(StoreRepository(getIt()));
-  getIt.registerLazySingleton(() => PrinterService());
+
+  getIt.registerLazySingleton(() => PrinterService(getIt<PrinterMappingService>()));
+
 
   // Realtime e StoreManager (devem ser Singletons)
   getIt.registerSingleton<RealtimeRepository>(RealtimeRepository());
@@ -93,7 +101,7 @@ Future<void> configureDependencies() async {
   getIt.registerFactory(() => ProductRepository(getIt()));
   getIt.registerFactory(() => TotemsRepository(getIt()));
   getIt.registerFactory(() => CouponRepository(getIt()));
-  getIt.registerFactory(() => StorePaymentMethodRepository(getIt()));
+  getIt.registerFactory(() => PaymentMethodRepository(getIt()));
   getIt.registerFactory(() => SegmentRepository(getIt()));
   getIt.registerFactory(() => UserRepository(getIt()));
   getIt.registerFactory(() => ChatBotConfigRepository(getIt()));
@@ -126,15 +134,21 @@ Future<void> configureDependencies() async {
   // ✅ ADICIONE ESTA LINHA AQUI, NO FINAL DE configureDependencies()
   getIt.registerSingleton<bool>(true, instanceName: 'isInitialized');
 
-  // Registra os Cubits que faltavam para manter o padrão
-  getIt.registerFactory<AuthCubit>(() => AuthCubit(
+  getIt.registerSingleton<AuthCubit>(AuthCubit( // Use registerSingleton
     authService: getIt<AuthService>(),
+
+  ));
+
+// Mude de registerFactory para registerSingleton
+  getIt.registerSingleton<ActiveStoreCubit>(ActiveStoreCubit(
     realtimeRepository: getIt<RealtimeRepository>(),
   ));
 
-  getIt.registerFactory<ActiveStoreCubit>(() => ActiveStoreCubit(
-    realtimeRepository: getIt<RealtimeRepository>(),
-  ));
+  getIt.registerSingleton<AccessControlService>(
+    AccessControlService(getIt<StoresManagerCubit>()),
+  );
+
+
 
 
 }

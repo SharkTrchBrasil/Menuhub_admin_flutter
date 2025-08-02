@@ -34,7 +34,7 @@ class PayablePage extends StatefulWidget {
 
 class _PayablePageState extends State<PayablePage> {
   final StoreRepository storeRepository = getIt();
-  final paymentRepository = GetIt.I<StorePaymentMethodRepository>();
+//  final paymentRepository = GetIt.I<StorePaymentMethodRepository>();
   final formKey = GlobalKey<FormState>();
 
   late final AppListController<StorePayable> categoriesController =

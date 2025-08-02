@@ -16,7 +16,8 @@ import '../../cubits/store_manager_state.dart';
 import '../../models/order_details.dart';
 import '../../models/print_job.dart';
 import '../../repositories/realtime_repository.dart';
-import '../../services/printer_manager.dart';
+
+import '../../services/print/printer_manager.dart';
 import '../../widgets/appbarcode.dart';
 import '../../widgets/drawercode.dart';
 import '../base/BasePage.dart';

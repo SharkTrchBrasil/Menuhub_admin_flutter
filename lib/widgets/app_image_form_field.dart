@@ -8,6 +8,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/widgets/app_crop_dialog.dart';
 
+
+
 class AppProductImageFormField extends StatelessWidget {
   const AppProductImageFormField({
     super.key,
@@ -22,12 +24,37 @@ class AppProductImageFormField extends StatelessWidget {
   final String? Function(ImageModel?) validator;
   final Function(ImageModel?) onChanged;
 
-  Future<XFile?> _saveTempFile(Uint8List data, String filename) async {
-    if (kIsWeb) return null;
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$filename');
-    await file.writeAsBytes(data);
-    return XFile(file.path);
+  // ✅ Lógica de seleção de imagem extraída para uma função reutilizável
+  Future<void> _pickAndCropImage(BuildContext context, FormFieldState<ImageModel> state) async {
+    const double idealProductImageSize = 1200.0;
+
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: idealProductImageSize,
+      maxHeight: idealProductImageSize,
+      imageQuality: 85,
+    );
+    if (picked == null || !context.mounted) return;
+
+    final cropResult = await showDialog<Uint8List>(
+      context: context,
+      builder: (_) => AppCropDialog(image: picked, aspectRatio: 1.0),
+    );
+
+    if (cropResult == null) return;
+
+    ImageModel model;
+    if (kIsWeb) {
+      model = ImageModel(file: XFile.fromData(cropResult, name: picked.name));
+    } else {
+      final tempFile = await _saveTempFile(cropResult, 'product_image_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      if (tempFile == null) return;
+      model = ImageModel(file: tempFile);
+    }
+
+    // Atualiza o estado do formulário e chama o callback
+    state.didChange(model);
+    onChanged(model);
   }
 
   @override
@@ -36,154 +63,231 @@ class AppProductImageFormField extends StatelessWidget {
       initialValue: initialValue,
       validator: validator,
       builder: (state) {
-        return LayoutBuilder(builder: (context, constraints) {
-          // Tamanhos conforme padrão iFood para produtos
-          const double idealProductImageSize = 1200.0;
-          const double minProductImageSize = 800.0;
+        final double displaySize = MediaQuery.of(context).size.width.clamp(200.0, 300.0);
 
-          // Tamanho de exibição no formulário
-          final double displaySize = constraints.maxWidth.clamp(200.0, 300.0);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
+            // ✅ Lógica condicional para exibir o widget correto
+            if (state.value == null)
+              _buildImagePickerHorizontal(context, state, displaySize) // Mostra o seletor
 
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        else
+        // ✅ A única alteração é chamar o novo _buildImagePreviewHorizontal
+        _buildImagePreviewHorizontal(context, state, displaySize),
+
+            if (state.hasError)
               Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.withOpacity(0.4)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      // Área de upload
-                      InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: () async {
-                          final picked = await ImagePicker().pickImage(
-                            source: ImageSource.gallery,
-                            maxWidth: idealProductImageSize,
-                            maxHeight: idealProductImageSize,
-                            imageQuality: 85,
-                          );
-                          if (picked == null || !context.mounted) return;
-
-                          // Força crop 1:1
-                          final cropResult = await showDialog<Uint8List>(
-                            context: context,
-                            builder: (_) => AppCropDialog(
-                              image: picked,
-                              aspectRatio: 1.0,
-
-                            ),
-                          );
-
-                          if (cropResult == null) return;
-
-                          ImageModel model;
-                          if (kIsWeb) {
-                            model = ImageModel(file: XFile.fromData(cropResult));
-                          } else {
-                            final xfile = await _saveTempFile(
-                                cropResult,
-                                'product_image_${DateTime.now().millisecondsSinceEpoch}.jpg'
-                            );
-                            if (xfile != null) {
-                              model = ImageModel(file: xfile);
-                            } else {
-                              return;
-                            }
-                          }
-
-                          state.didChange(model);
-                          onChanged(model);
-                        },
-                        child: Container(
-                          width: displaySize,
-                          height: displaySize,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.grey[100],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                if (state.value != null)
-                                  _buildImage(state.value!, displaySize),
-                                if (state.value == null)
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.fastfood, size: 48, color: Colors.grey),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        title,
-                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                          color: Colors.grey[600],
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Recomendado: 1200x1200px',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                // Overlay para feedback visual
-                                Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Theme.of(context).primaryColor.withOpacity(0.3),
-                                      width: 2,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Dicas de qualidade
-                      if (state.value == null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Use fundo branco e boa iluminação',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                padding: const EdgeInsets.only(left: 12, top: 6),
+                child: Text(
+                  state.errorText!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
                 ),
               ),
-              // Mensagem de erro
-              if (state.hasError)
-                Padding(
-                  padding: const EdgeInsets.only(left: 12, top: 6),
-                  child: Text(
-                    state.errorText!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-            ],
-          );
-        });
+          ],
+        );
       },
     );
   }
+
+  // --- Widgets de Construção ---
+  /// ✅ WIDGET ATUALIZADO para o placeholder HORIZONTAL
+  Widget _buildImagePickerHorizontal(BuildContext context, FormFieldState<ImageModel> state, double displayWidth) {
+    const double imagePreviewSize = 80.0;
+
+    return InkWell(
+      onTap: () => _pickAndCropImage(context, state),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // 1. Placeholder da imagem à esquerda
+            Container(
+              width: imagePreviewSize,
+              height: imagePreviewSize,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.add_a_photo_outlined, size: 40, color: Colors.grey[600]),
+            ),
+            const SizedBox(width: 16),
+
+            // 2. Textos de instrução à direita
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Adicionar Imagem',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[800]),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Recomendado: 1200x1200px',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  // Widget para quando NENHUMA imagem foi selecionada
+  Widget _buildImagePicker(BuildContext context, FormFieldState<ImageModel> state, double displaySize) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => _pickAndCropImage(context, state),
+      child: Container(
+        width: displaySize,
+        height: displaySize,
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey[100],
+            border: Border.all(color: Colors.grey.shade300)
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_a_photo_outlined, size: 48, color: Colors.grey[600]),
+            const SizedBox(height: 8),
+            Text(
+              'Adicionar Imagem',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Recomendado: 1200x1200px',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  /// ✅ NOVO WIDGET para a pré-visualização HORIZONTAL
+  Widget _buildImagePreviewHorizontal(BuildContext context, FormFieldState<ImageModel> state, double displaySize) {
+    final imageModel = state.value!;
+    const double imagePreviewSize = 80.0; // Tamanho menor para a prévia na linha
+
+    return Container(
+
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300)
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 1. Imagem à esquerda
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: _buildImage(imageModel, imagePreviewSize),
+          ),
+          const SizedBox(width: 16),
+
+          // 2. Spacer para empurrar os botões para a direita
+          const Spacer(),
+
+          // 3. Botões de ação à direita
+          // Botão de Alterar
+          IconButton(
+            icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
+            tooltip: 'Alterar foto',
+            onPressed: () => _pickAndCropImage(context, state),
+          ),
+          // Botão de Remover
+          IconButton(
+            icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+            tooltip: 'Remover foto',
+            onPressed: () {
+              state.didChange(null);
+              onChanged(null);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ NOVO WIDGET para quando UMA IMAGEM já foi selecionada (Layout iFood)
+  Widget _buildImagePreview(BuildContext context, FormFieldState<ImageModel> state, double displaySize) {
+    final imageModel = state.value!;
+
+    return Container(
+      width: displaySize,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300)
+      ),
+      child: Column(
+        children: [
+          // 1. A imagem
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: _buildImage(imageModel, displaySize - 16), // -16 para compensar o padding
+          ),
+          const SizedBox(height: 12),
+          // 2. A barra de ações
+          Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  imageModel.file?.name ?? 'imagem.jpg',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Botão de Alterar
+              IconButton(
+                icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
+                tooltip: 'Alterar foto',
+                onPressed: () => _pickAndCropImage(context, state),
+              ),
+              // Botão de Remover
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                tooltip: 'Remover foto',
+                onPressed: () {
+                  state.didChange(null);
+                  onChanged(null);
+                },
+              ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+
+
+  Future<XFile?> _saveTempFile(Uint8List data, String filename) async {
+    if (kIsWeb) return null;
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(data);
+    return XFile(file.path);
+  }
+
+
+
 
   Widget _buildImage(ImageModel model, double displaySize) {
     if (model.file != null) {

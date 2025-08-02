@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
-import 'package:totem_pro_admin/services/print.dart';
+
 
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/order_details.dart';
 import '../../../models/order_product.dart';
 import '../../../models/store.dart';
+import '../../../services/print/print.dart';
 import '../../../widgets/order_printing_actions_widget.dart';
 import '../utils/order_helpers.dart';
+import 'order_status_button.dart';
 
 // O nome foi alterado para refletir sua nova função como painel
 class OrderDetailsPanel extends StatelessWidget {
@@ -36,59 +38,83 @@ class OrderDetailsPanel extends StatelessWidget {
     );
 
     // ✅ O Scaffold foi removido. A raiz agora é um Column.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ✅ NOVO CABEÇALHO DO PAINEL
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Detalhes do Pedido #${order.publicId}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: onClose, // Chama o callback para fechar
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Material(
+        elevation: 16,
+        child: Container(
+          width: 600, // Largura fixa para o painel de detalhes. Ajuste se necessário.
+          height: double.infinity, // Ocupa toda a altura
+          color: Colors.grey[50],
+          child: SafeArea(
 
-        // ✅ Conteúdo original agora dentro de um Expanded + SingleChildScrollView
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header original (agora sub-header)
-                _buildHeader(theme, dateFormat, timeFormat, context),
-                const SizedBox(height: 24),
-                // Status Card
 
-                    _buildStatusCard(theme, context),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Detalhes do pedido',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      // Espaçador para separar os botões
+                      const Spacer(),
 
-                const SizedBox(height: 24),
-                // Delivery Address
-                if (order.deliveryType == 'delivery') _buildAddressCard(theme),
-                if (order.deliveryType != 'delivery') const SizedBox(height: 24),
-                // Items List
-                _buildItemsList(theme, currencyFormat),
-                const SizedBox(height: 24),
-                // Payment Summary
-                _buildPaymentSummary(theme, currencyFormat),
-                const SizedBox(height: 24),
-                // Actions
-                _buildActionButtons(context),
+                      // ✅ WIDGET DE IMPRESSÃO ADICIONADO AQUI
+                      OrderPrintingActionsWidget(
+                        order: order, // Passe o objeto do pedido
+                        store: store!, // Passe o objeto da loja
+                        printerService: printerService, // Passe a instância do serviço
+                      ),
+
+                      // Botão de fechar
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ✅ Conteúdo original agora dentro de um Expanded + SingleChildScrollView
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 20, left: 20, right: 20, top: 5),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header original (agora sub-header)
+                        _buildHeader(theme, dateFormat, timeFormat, context),
+                        const SizedBox(height: 15),
+                        // Status Card
+
+                            _buildStatusCard(theme, context),
+
+                        const SizedBox(height: 24),
+                        // Delivery Address
+                        if (order.deliveryType == 'delivery') _buildAddressCard(theme),
+                        if (order.deliveryType != 'delivery') const SizedBox(height: 24),
+                        // Items List
+                        _buildItemsList(theme, currencyFormat),
+                        const SizedBox(height: 24),
+                        // Payment Summary
+                        _buildPaymentSummary(theme, currencyFormat),
+                        const SizedBox(height: 24),
+                        // Actions
+                        _buildActionButtons(context),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -116,7 +142,7 @@ class OrderDetailsPanel extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Text(
                 '${order.sequentialId}',
-                style: theme.textTheme.bodyLarge?.copyWith(
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
@@ -125,14 +151,14 @@ class OrderDetailsPanel extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               order.customerName,
-              style: theme.textTheme.bodyLarge?.copyWith(
+              style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 20),
 
         // Loja + horário + localizador + botão de ajuda + badge via iFood
         Wrap(
@@ -394,6 +420,7 @@ class OrderDetailsPanel extends StatelessWidget {
 
     return Row(
       children: [
+
         Expanded(
           child: OutlinedButton(
             onPressed: () => showCancelConfirmationDialog(context, order),
@@ -409,15 +436,22 @@ class OrderDetailsPanel extends StatelessWidget {
         ),
         const SizedBox(width: 16),
 
+        Expanded(
+          child: OrderStatusButton(
+            order: order,
+            // AJUSTADO: Passa o 'store' recebido para o botão filho.
+            store: store,
+          ),
+        ),
 
-// Simplesmente adicione o widget!
-    Expanded(
-      child: OrderPrintingActionsWidget(
-      order: order,
-      store: store!,
-      printerService: printerService,
-      ),
-    )
+// // Simplesmente adicione o widget!
+//     Expanded(
+//       child: OrderPrintingActionsWidget(
+//       order: order,
+//       store: store!,
+//       printerService: printerService,
+//       ),
+//     )
 
 
 

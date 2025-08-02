@@ -19,7 +19,8 @@ class AppTextField extends StatefulWidget {
     this.controller,
     this.readOnly = false,
     this.enabled = true,
-    this.suffix,
+    this.suffixIcon, // ✅ Renomeado de 'suffix' para 'suffixIcon'
+    this.focusNode,  // ✅ Adicionado o novo parâmetro 'focusNode'
   });
 
   final String title;
@@ -34,7 +35,8 @@ class AppTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final bool readOnly;
   final bool enabled;
-  final Widget? suffix;
+  final Widget? suffixIcon; // ✅ Renomeado de 'suffix' para 'suffixIcon'
+  final FocusNode? focusNode; // ✅ Adicionado o novo parâmetro 'focusNode'
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -45,7 +47,7 @@ class _AppTextFieldState extends State<AppTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(12);
+    final borderRadius = BorderRadius.circular(8);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,17 +56,18 @@ class _AppTextFieldState extends State<AppTextField> {
           widget.title,
           overflow: TextOverflow.ellipsis,
           style: Typographyy.bodySmallMedium.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
             color: Theme.of(context).textTheme.bodyMedium?.color,
           ),
         ),
         const SizedBox(height: 8),
         TextFormField(
-
+          focusNode: widget.focusNode, // ✅ Passa o focusNode para o TextFormField
           style: TextStyle(
-            color: Theme.of(context).textTheme.displayLarge?.color, // Cor do texto digitado
-            fontSize: 16, // Tamanho opcional
+            color: Theme.of(context).textTheme.displayLarge?.color,
+            fontSize: 16,
           ),
-
           readOnly: widget.readOnly,
           enabled: widget.enabled,
           controller: widget.controller,
@@ -74,16 +77,13 @@ class _AppTextFieldState extends State<AppTextField> {
           onChanged: widget.onChanged,
           keyboardType: widget.keyboardType,
           inputFormatters: widget.formatters,
-          cursorColor: const Color(0xFFF39C12), // laranja
-
+          cursorColor: const Color(0xFFF39C12),
           decoration: InputDecoration(
             filled: true,
-
             hintText: widget.hint,
             hintStyle: Theme.of(context).inputDecorationTheme.hintStyle?.copyWith(
-              color: Colors.grey.shade500,
+              color: Colors.grey,
             ),
-
             isDense: true,
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             border: OutlineInputBorder(
@@ -96,7 +96,7 @@ class _AppTextFieldState extends State<AppTextField> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: borderRadius,
-              borderSide: const BorderSide(color: Color(0xFFF39C12), width: 1), // laranja
+              borderSide: const BorderSide(color: Color(0xFFF39C12), width: 1),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: borderRadius,
@@ -106,7 +106,7 @@ class _AppTextFieldState extends State<AppTextField> {
               borderRadius: borderRadius,
               borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
-
+            // ✅ Lógica do ícone de sufixo atualizada
             suffixIcon: widget.isHidden
                 ? IconButton(
               icon: Icon(
@@ -119,7 +119,7 @@ class _AppTextFieldState extends State<AppTextField> {
                 });
               },
             )
-                : widget.suffix ??
+                : widget.suffixIcon ?? // Prioriza o novo 'suffixIcon'
                 (widget.icon != null
                     ? Padding(
                   padding: const EdgeInsets.all(12.0),
@@ -134,8 +134,6 @@ class _AppTextFieldState extends State<AppTextField> {
                   ),
                 )
                     : null),
-            // sombra leve da caixa
-            // Flutter InputDecoration não tem sombra, então aplicamos na caixa externa
           ),
         ),
       ],

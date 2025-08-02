@@ -379,9 +379,9 @@ class _SettingsState extends State<Settings> {
 
                                       Expanded(
                                         child:   AppTextField(
-                                          initialValue: store.zip_code,
+                                          initialValue: store.zipCode,
                                           onChanged: (v) {
-                                            controller.onChanged(store.copyWith(zip_code: v));
+                                            controller.onChanged(store.copyWith(zipCode: v));
                                           },
                                           title: 'Cep',
                                           hint: '11999-222',
@@ -461,16 +461,7 @@ class _SettingsState extends State<Settings> {
                                       ),
                                       const SizedBox( width: 8,),
 
-                                      Expanded(
-                                        child: AppTextField(
-                                          initialValue: store.reference,
-                                          onChanged: (v) {
-                                            controller.onChanged(store.copyWith(reference: v));
-                                          },
-                                          title: 'Referência',
-                                          hint: 'Próximo ao mercado',
-                                        ),
-                                      ),
+
 
                                     ],
                                   ),
@@ -556,9 +547,9 @@ class _SettingsState extends State<Settings> {
 
                                       Expanded(
                                         child:   AppTextField(
-                                          initialValue: store.zip_code,
+                                          initialValue: store.zipCode,
                                           onChanged: (v) {
-                                            controller.onChanged(store.copyWith(zip_code: v));
+                                            controller.onChanged(store.copyWith(zipCode: v));
                                           },
                                           title: 'Cep',
                                           hint: '11999-222',
@@ -638,16 +629,7 @@ class _SettingsState extends State<Settings> {
                                       ),
                                       const SizedBox( width: 8,),
 
-                                      Expanded(
-                                        child: AppTextField(
-                                          initialValue: store.reference,
-                                          onChanged: (v) {
-                                            controller.onChanged(store.copyWith(reference: v));
-                                          },
-                                          title: 'Referência',
-                                          hint: 'Próximo ao mercado',
-                                        ),
-                                      ),
+
 
                                     ],
                                   ),
@@ -1041,9 +1023,9 @@ class _SettingsState extends State<Settings> {
 
                       Expanded(
                         child:   AppTextField(
-                          initialValue: store.zip_code,
+                          initialValue: store.zipCode,
                           onChanged: (v) {
-                            controller.onChanged(store.copyWith(zip_code: v));
+                            controller.onChanged(store.copyWith(zipCode: v));
                           },
                           title: 'Cep',
                           hint: '11999-222',
@@ -1123,16 +1105,6 @@ class _SettingsState extends State<Settings> {
                       ),
                       const SizedBox( width: 8,),
 
-                      Expanded(
-                        child: AppTextField(
-                          initialValue: store.reference,
-                          onChanged: (v) {
-                            controller.onChanged(store.copyWith(reference: v));
-                          },
-                          title: 'Referência',
-                          hint: 'Próximo ao mercado',
-                        ),
-                      ),
 
                     ],
                   ),

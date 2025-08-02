@@ -50,7 +50,7 @@ class _CashPageState extends State<CashPage> {
   double totalSaidas = 0.0;
   double totalFinal = 0.0;
 
-  List<StorePaymentMethod> _storePaymentMethods = []; //
+  //List<PaymentMethods> _storePaymentMethods = []; //
 
   List<ChartDataT> _currentDayInflowChartData = [];
   List<ChartDataT> _currentDayOutflowChartData = [];
@@ -64,7 +64,7 @@ class _CashPageState extends State<CashPage> {
   void initState() {
     super.initState();
     _loadAllCashData();
-    _loadPaymentMethods();
+   // _loadPaymentMethods();
   }
 
   @override
@@ -333,27 +333,27 @@ class _CashPageState extends State<CashPage> {
     );
   }
 
-  Future<void> _loadPaymentMethods() async {
-    final paymentMethodsResult = await getIt<StorePaymentMethodRepository>()
-        .getPaymentMethods(widget.storeId);
-
-    if (paymentMethodsResult.isLeft) {
-      debugPrint('Erro ao carregar métodos de pagamento.');
-      _storePaymentMethods = [];
-    } else {
-      _storePaymentMethods = paymentMethodsResult.right;
-
-      final cashMethod = _storePaymentMethods.firstWhere(
-        (method) => method.paymentType == 'Cash',
-        orElse: () => _storePaymentMethods.first,
-      );
-
-      _cashPaymentMethodId = cashMethod.id!;
-      debugPrint(
-        'Método de pagamento "Dinheiro" encontrado com ID: $_cashPaymentMethodId',
-      );
-    }
-  }
+  // Future<void> _loadPaymentMethods() async {
+  //   final paymentMethodsResult = await getIt<PaymentMethodRepository>()
+  //       .getPaymentMethods(widget.storeId);
+  //
+  //   if (paymentMethodsResult.isLeft) {
+  //     debugPrint('Erro ao carregar métodos de pagamento.');
+  //     _storePaymentMethods = [];
+  //   } else {
+  //     _storePaymentMethods = paymentMethodsResult.right;
+  //
+  //     final cashMethod = _storePaymentMethods.firstWhere(
+  //       (method) => method.paymentType == 'Cash',
+  //       orElse: () => _storePaymentMethods.first,
+  //     );
+  //
+  //     _cashPaymentMethodId = cashMethod.id!;
+  //     debugPrint(
+  //       'Método de pagamento "Dinheiro" encontrado com ID: $_cashPaymentMethodId',
+  //     );
+  //   }
+  // }
 
   Future<void> _loadAllCashData() async {
     if (!mounted) return;

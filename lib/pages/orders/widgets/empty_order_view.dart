@@ -1,36 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 
+// ✅ WIDGET ATUALIZADO COM A LÓGICA DE CORES CORRIGIDA
 class EmptyOrdersView extends StatelessWidget {
-  const EmptyOrdersView({super.key});
+  final Color? color; // Cor para o tema do widget
+
+  const EmptyOrdersView({super.key, this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.restaurant_menu, size: 48, color: Colors.blue[700]),
-          const SizedBox(height: 16),
-          const Text(
-            'Criar pedidos para cada tipo de serviço.',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              // TODO: Implementar ação de novo pedido
-            },
-            icon: const Icon(Icons.add, size: 28),
-            label: const Text('Novo pedido'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[700],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
-              textStyle: const TextStyle(fontSize: 18),
+return
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Container(
+        color: color,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Lottie.asset(
+                  'assets/animations/empty.json',
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.cover,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Nenhum item encontrado.',
+                  style: TextStyle(fontSize: 16, color: Colors.black, fontWeight: FontWeight.w600),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

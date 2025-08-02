@@ -1,3 +1,4 @@
+import 'order_print_log.dart';
 import 'order_product.dart';
 
 class OrderStatuses {
@@ -56,6 +57,10 @@ class OrderDetails {
 
   final int? customerOrderCount;
 
+  // ✅ 2. Adicione a lista de logs de impressão como uma propriedade
+  final List<OrderPrintLog> printLogs;
+
+
   OrderDetails({
     required this.id,
     required this.sequentialId,
@@ -98,6 +103,7 @@ class OrderDetails {
     this.couponId,
     this.couponCode,
     this.customerOrderCount,
+    required this.printLogs, // ✅ 3. Adicione ao construtor
   });
 
   factory OrderDetails.fromJson(Map<String, dynamic> json) {
@@ -147,6 +153,10 @@ class OrderDetails {
       couponId: json['coupon_id'],
       couponCode: json['coupon_code'],
       customerOrderCount: json['customer_order_count'] as int?,
+      // ✅ 4. Adicione a lógica de parsing para a nova lista
+      printLogs: (json['print_logs'] as List<dynamic>? ?? [])
+          .map((log) => OrderPrintLog.fromJson(log as Map<String, dynamic>))
+          .toList(),
 
     );
   }

@@ -1,18 +1,18 @@
+// Em: widgets/OrderPrintingActionsWidget.dart
+
 import 'package:flutter/material.dart';
+import 'package:totem_pro_admin/core/di.dart';
+
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
+import '../services/print/constants/print_destinations.dart';
+import '../services/print/print.dart';
+import '../services/subscription/subscription_service.dart';
 
-import '../services/print.dart';
-
-
-/// Um widget reutilizável que exibe um botão com um menu de ações
-/// para imprimir ou compartilhar um pedido.
 class OrderPrintingActionsWidget extends StatelessWidget {
   final OrderDetails order;
   final Store store;
   final PrinterService printerService;
-
-  // Opções para customizar quais itens do menu são exibidos
   final bool showPrintReceipt;
   final bool showPrintKitchen;
   final bool showShare;
@@ -27,62 +27,87 @@ class OrderPrintingActionsWidget extends StatelessWidget {
     this.showShare = true,
   });
 
+  // ✅ PASSO 1: Criamos um método 'async' para lidar com a lógica.
+  // Isso mantém o 'build' e o 'onSelected' síncronos e limpos.
+  void _handlePrintAction(BuildContext context, String destination) async {
+    final accessControl = getIt<AccessControlService>();
+    final canPrintDirectly = accessControl.canAccess('auto_printing');
+
+    if (destination == 'share') {
+      printerService.generateAndShareOrderPDF(order, store);
+    } else {
+      if (canPrintDirectly) {
+        print('[Printing Actions] Usando impressão direta para o destino: $destination');
+
+        // ✅ PASSO 2: Usamos 'await' para esperar o resultado da impressão.
+        final bool success = await printerService.printOrder(
+          order,
+          store,
+          destination: destination,
+        );
+
+        // ✅ PASSO 3: Se a impressão foi bem-sucedida, mostramos o SnackBar.
+        // A verificação 'context.mounted' é uma boa prática de segurança.
+        if (success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('Enviado para a impressão com sucesso!'),
+                ],
+              ),
+              backgroundColor: Colors.green[700], // Cor verde, como pedido
+              behavior: SnackBarBehavior.floating, // Estilo moderno
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(10),
+            ),
+          );
+        }
+
+      } else {
+        print('[Printing Actions] Usando diálogo de impressão do sistema para o destino: $destination');
+        // A impressão com diálogo não retorna um status, então não mostramos o snackbar aqui.
+        printerService.printOrderWithDialog(
+          order,
+          store,
+          destination: destination,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
-      // O 'child' é o que o usuário vê como o botão principal.
-      child: ElevatedButton.icon(
-        onPressed: null, // Deixamos nulo para que o PopupMenuButton controle o toque.
-        icon: const Icon(Icons.print),
-        label: const Text('Imprimir / Ações'),
-        style: ElevatedButton.styleFrom(
-          // Estilo para que o botão pareça ativo mesmo estando "disabled"
-          disabledBackgroundColor: Theme.of(context).colorScheme.primary,
-          disabledForegroundColor: Theme.of(context).colorScheme.onPrimary,
-        ),
-      ),
+      icon: const Icon(Icons.print_outlined),
+      tooltip: 'Opções de Impressão',
 
-      // 'onSelected' é chamado com o 'value' da opção que o usuário escolheu.
-      onSelected: (String destination) {
-        if (destination == 'share') {
-          printerService.generateAndShareOrderPDF(order, store);
-        } else {
-          printerService.printOrder(
-            order,
-            store,
-            destination: destination, // Passa o destino escolhido!
-          );
-        }
-      },
+      // ✅ PASSO 4: O 'onSelected' agora simplesmente chama nosso método assíncrono.
+      onSelected: (String destination) => _handlePrintAction(context, destination),
 
-      // 'itemBuilder' constrói a lista de opções que aparecerão no menu.
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-
-        // Renderiza o item do menu apenas se a flag 'showPrintReceipt' for verdadeira
         if (showPrintReceipt)
           const PopupMenuItem<String>(
-            value: 'balcao', // O destino para o recibo do cliente
+            value: PrintDestinations.counter,
             child: ListTile(
               leading: Icon(Icons.receipt_long),
-              title: Text('Imprimir Recibo do Cliente'),
+              title: Text('Imprimir Pedido'),
             ),
           ),
-
-        // Renderiza o item do menu apenas se 'showPrintKitchen' for verdadeira
         if (showPrintKitchen)
           const PopupMenuItem<String>(
-            value: 'cozinha',
+            value: PrintDestinations.kitchen,
             child: ListTile(
               leading: Icon(Icons.kitchen),
-              title: Text('Imprimir Via da Cozinha'),
+              title: Text('Imprimir Via Resumida'),
             ),
           ),
-
-        // Adiciona um divisor se ambas as opções de impressão e o compartilhamento estiverem ativos
         if ((showPrintReceipt || showPrintKitchen) && showShare)
           const PopupMenuDivider(),
-
-        // Renderiza o item do menu apenas se 'showShare' for verdadeira
         if (showShare)
           const PopupMenuItem<String>(
             value: 'share',

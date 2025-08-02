@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:totem_pro_admin/ConstData/typography.dart';
 
 import '../../core/di.dart';
+import '../../cubits/auth_cubit.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/store_repository.dart';
 import '../../widgets/app_toasts.dart';
@@ -15,9 +17,9 @@ import '../base/BasePage.dart';
 class VerifyCodePage extends StatefulWidget {
   final String email;
 
-  final String password;
 
-  const VerifyCodePage({required this.email, super.key, required this.password,});
+
+  const VerifyCodePage({required this.email, super.key, });
 
   @override
   State<VerifyCodePage> createState() => _VerifyCodePageState();
@@ -193,60 +195,11 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: () async {
+                            onPressed: () {
                               if (formKey.currentState!.validate()) {
-                                final authRepository = getIt<AuthRepository>();
-                                final l = showLoading();
                                 final code = textEditingController.text;
-
-                                final result = await authRepository.verifyCode(
-                                  email: widget.email,
-                                  code: code,
-                                );
-                                l();
-                                if (!context.mounted) return;
-
-                                result.fold(
-                                      (error) {
-                                    switch (error) {
-                                      case CodeError.invalidCode:
-                                        showError('Código inválido.');
-                                        break;
-                                      case CodeError.alreadyVerified:
-                                        showInfo('Este e-mail já foi verificado.');
-                                        break;
-                                      case CodeError.userNotFound:
-                                        showError('Usuário não encontrado.');
-                                        break;
-                                      case CodeError.unknown:
-                                        showError('Erro desconhecido. Tente novamente.');
-                                        break;
-                                    }
-                                  },
-                                      (_) async {
-                                    showSuccess('Código verificado com sucesso!');
-
-                                    final loginResult = await authRepository.signIn(
-                                      email: widget.email,
-                                      password: widget.password,
-                                    );
-
-                                    if (!context.mounted) return;
-
-                                    if (loginResult.isRight) {
-                                      final getStoresResult = await getIt<StoreRepository>().getStores();
-                                      if (!context.mounted) return;
-
-                                      if (getStoresResult.isLeft || getStoresResult.right.isEmpty) {
-                                        context.go('/stores/new');
-                                      } else {
-                                        context.go('/stores');
-                                      }
-                                    } else {
-                                      showError('Erro ao fazer login após verificar código.');
-                                    }
-                                  },
-                                );
+                                // Simplesmente chame o Cubit. A UI não faz mais login nem navega.
+                                context.read<AuthCubit>().verifyCodeAndLogin(code: code);
                               }
                             },
                             child: const Center(
@@ -466,60 +419,11 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                onPressed: () async {
+                                onPressed: () {
                                   if (formKey.currentState!.validate()) {
-                                    final authRepository = getIt<AuthRepository>();
-                                    final l = showLoading();
                                     final code = textEditingController.text;
-
-                                    final result = await authRepository.verifyCode(
-                                      email: widget.email,
-                                      code: code,
-                                    );
-                                    l();
-                                    if (!context.mounted) return;
-
-                                    result.fold(
-                                          (error) {
-                                        switch (error) {
-                                          case CodeError.invalidCode:
-                                            showError('Código inválido.');
-                                            break;
-                                          case CodeError.alreadyVerified:
-                                            showInfo('Este e-mail já foi verificado.');
-                                            break;
-                                          case CodeError.userNotFound:
-                                            showError('Usuário não encontrado.');
-                                            break;
-                                          case CodeError.unknown:
-                                            showError('Erro desconhecido. Tente novamente.');
-                                            break;
-                                        }
-                                      },
-                                          (_) async {
-                                        showSuccess('Código verificado com sucesso!');
-
-                                        final loginResult = await authRepository.signIn(
-                                          email: widget.email,
-                                          password: widget.password,
-                                        );
-
-                                        if (!context.mounted) return;
-
-                                        if (loginResult.isRight) {
-                                          final getStoresResult = await getIt<StoreRepository>().getStores();
-                                          if (!context.mounted) return;
-
-                                          if (getStoresResult.isLeft || getStoresResult.right.isEmpty) {
-                                            context.go('/stores/new');
-                                          } else {
-                                            context.go('/stores');
-                                          }
-                                        } else {
-                                          showError('Erro ao fazer login após verificar código.');
-                                        }
-                                      },
-                                    );
+                                    // Simplesmente chame o Cubit. A UI não faz mais login nem navega.
+                                    context.read<AuthCubit>().verifyCodeAndLogin(code: code);
                                   }
                                 },
                                 child: const Center(

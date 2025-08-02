@@ -1,8 +1,8 @@
 
-import 'package:totem_pro_admin/models/plan.dart';
+import 'package:totem_pro_admin/models/plans.dart';
 
 class AvailablePlan {
-  final Plan plan;
+  final Plans plan;
   final bool isCurrent; // True se este for o plano atual da loja
 
   const AvailablePlan({

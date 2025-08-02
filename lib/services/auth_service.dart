@@ -1,3 +1,6 @@
+// =======================================================================
+// ARQUIVO 1: services/auth_service.dart (Refatorado e Limpo)
+// =======================================================================
 import 'dart:async';
 import 'dart:io';
 
@@ -22,148 +25,74 @@ class AuthService {
         _storeRepository = storeRepository ?? GetIt.I<StoreRepository>(),
         _realtimeRepository = realtimeRepository ?? GetIt.I<RealtimeRepository>();
 
-  // TODO: The 'accessToken' getter is missing from your AuthRepository.
-  // This line is commented out to fix the compile error. You will need to
-  // expose the access token from your AuthRepository for other parts of the
-  // app (like RealtimeRepository) to work correctly.
-  // String? get accessToken => _authRepository.accessToken;
 
-  /// **REFACTORED:** This method was rewritten to avoid nested .fold() calls,
-  /// which improves readability and resolves potential type errors.
+
+
   Future<Either<SignInError, TotemAuthAndStores>> signIn({
     required String email,
     required String password,
   }) async {
     print('[AuthService] Tentando login para: $email');
-    final authResult = await _authRepository.signIn(email: email, password: password);
 
+    // 1. Autentica via /auth/login e salva o JWT (JSON Web Token).
+    final authResult = await _authRepository.signIn(email: email, password: password);
     if (authResult.isLeft) {
-      print('[AuthService] Erro no login: ${authResult.left}');
       return Left(authResult.left);
     }
 
-    print('[AuthService] Login bem-sucedido. Buscando lojas...');
-    final storesResult = await _storeRepository.getStores();
 
-    if (storesResult.isLeft) {
-      print('[AuthService] Erro ao carregar lojas após login: ${storesResult.toString()}');
+
+
+    // ✅ MUDANÇA 1: Pega o usuário que o repositório acabou de buscar.
+    final user = _authRepository.user;
+    if (user == null) {
+      // Isso não deve acontecer se o login foi bem-sucedido.
       return Left(SignInError.unknown);
     }
-
-    final stores = storesResult.right;
-    if (stores.isEmpty) {
-      print('[AuthService] Nenhuma loja disponível para o usuário após login.');
-      return Left(SignInError.noStoresAvailable);
-    }
-    print('[AuthService] Lojas carregadas: ${stores.map((s) => s.store.name).join(', ')}');
-
-    // Conecta ao socket da primeira loja como padrão
-    final connectResult = await _connectToSocket(stores.first.store.store_url!);
-    if (connectResult.isLeft) {
-      print('[AuthService] Erro ao conectar ao socket após login: ${connectResult.left}');
-      return Left(connectResult.left);
-    }
-
-    return Right(TotemAuthAndStores(totemAuth: connectResult.right, stores: stores));
-  }
-
-  /// **REFACTORED:** This method was also rewritten for clarity and correctness.
-  Future<Either<SignInError, TotemAuthAndStores>> initializeApp() async {
-    print('[AuthService] Inicializando o aplicativo...');
-    final isLoggedIn = await _authRepository.initialize();
-
-    if (!isLoggedIn) {
-      print('[AuthService] Usuário não logado.');
-      return Left(SignInError.notLoggedIn);
-    }
-
-    print('[AuthService] Usuário autenticado. Buscando lojas...');
+    // 2. Busca as lojas associadas ao usuário.
     final storesResult = await _storeRepository.getStores();
-
     if (storesResult.isLeft) {
-      print('[AuthService] Erro ao carregar lojas na inicialização do app: ${storesResult}');
       return Left(SignInError.unknown);
     }
-
     final stores = storesResult.right;
-    if (stores.isEmpty) {
-      print('[AuthService] Nenhuma loja disponível para o usuário na inicialização do app.');
-      return Left(SignInError.noStoresAvailable);
+
+
+
+
+    // if (stores.isEmpty) {
+    //   return Left(SignInError.noStoresAvailable);
+    // }
+
+
+
+
+    // 3. Pega o JWT que foi salvo e inicializa a conexão do WebSocket.
+    final jwt = _authRepository.accessToken;
+    if (jwt == null) {
+      return Left(SignInError.unknown); // Não deveria acontecer
     }
-    print('[AuthService] Lojas carregadas na inicialização: ${stores.map((s) => s.store.name).join(', ')}');
+    await _realtimeRepository.initialize(jwt);
 
-    final connectionResult = await _connectToSocket(stores.first.store.store_url!);
+    // ✅ MUDANÇA 2: Retorna o objeto completo, agora incluindo o usuário.
+    return Right(TotemAuthAndStores(
+      totemAuth: TotemAuth.dummy(),
+      stores: stores,
+      user: user, // <--- DADOS DO USUÁRIO INCLUÍDOS!
+    ));
 
-    if (connectionResult.isLeft) {
-      print('[AuthService] Erro ao conectar ao socket na inicialização: ${connectionResult.left}');
-      return Left(connectionResult.left);
-    }
-
-    return Right(TotemAuthAndStores(totemAuth: connectionResult.right, stores: stores));
   }
 
-  /// Método privado para obter o token de sessão do socket e inicializar o RealtimeRepository.
-  Future<Either<SignInError, TotemAuth>> _connectToSocket(String storeUrl) async {
-    final tokenResult = await _authRepository.getToken(storeUrl);
-
-    return tokenResult.fold(
-          (error) {
-        print('[AuthService] Erro ao obter token para $storeUrl: {error}');
-        return Left(SignInError.invalidCredentials);
-      },
-          (totemAuth) {
-        if (!totemAuth.granted) {
-          print('[AuthService] Erro: Acesso não concedido para $storeUrl');
-          return Left(SignInError.invalidCredentials);
-        }
-
-        print('[AuthService] Token recebido para $storeUrl. SID: ${totemAuth.sid}');
-        _registerAuthSingleton(totemAuth);
-
-        // Agora passamos o objeto 'totemAuth' completo para o RealtimeRepository.
-        _realtimeRepository.initialize(totemAuth);
-
-        return Right(totemAuth);
-      },
-    );
-  }
-
-  void _registerAuthSingleton(TotemAuth auth) {
-    if (GetIt.I.isRegistered<TotemAuth>()) {
-      GetIt.I.unregister<TotemAuth>();
-    }
-    GetIt.I.registerSingleton<TotemAuth>(auth);
-    print('[AuthService] TotemAuth registrado no GetIt.');
-  }
-
-  Future<void> logout() async {
-    print('[AuthService] Executando logout...');
-
-    // TODO: The 'logout' method is missing from your AuthRepository.
-    // This line is commented out to fix the compile error. You will need to
-    // implement a logout method in your repository to clear persistent tokens.
-    // await _authRepository.logout();
-
-    _realtimeRepository.dispose(); // O dispose do repo cuida de fechar o socket e os streams.
-    print('[AuthService] RealtimeRepository disposed.');
-
-    if (GetIt.I.isRegistered<TotemAuth>()) {
-      GetIt.I.unregister<TotemAuth>();
-      print('[AuthService] TotemAuth removido do GetIt.');
-    }
-    print('[AuthService] Logout completo.');
-  }
-
-  // --- Métodos de Cadastro (sem alterações) ---
 
   Future<Either<SignUpError, void>> signUp({
     required String name,
+    required String phone,
     required String email,
     required String password,
   }) async {
     try {
       final result = await _authRepository.signUp(
         name: name,
+        phone: phone,
         email: email,
         password: password,
       );
@@ -182,6 +111,75 @@ class AuthService {
       return Left(_handleSignUpError(e));
     }
   }
+
+
+
+// 👇 ADICIONE ESTE NOVO MÉTODO AQUI 👇
+  Future<Either<CodeError, void>> verifyCode({
+    required String email,
+    required String code,
+  }) {
+    // O serviço simplesmente delega a chamada para o repositório correto.
+    return _authRepository.verifyCode(email: email, code: code);
+  }
+
+
+  Future<Either<SignInError, TotemAuthAndStores>> initializeApp() async {
+    print('[AuthService] Inicializando o aplicativo...');
+
+    // 1. Verifica se há um JWT salvo e o valida.
+    final isLoggedIn = await _authRepository.initialize();
+    if (!isLoggedIn) {
+      return Left(SignInError.notLoggedIn);
+    }
+
+
+    // ✅ MUDANÇA 3: Pega o usuário que foi carregado durante a inicialização.
+    final user = _authRepository.user;
+    if (user == null) {
+      return Left(SignInError.unknown);
+    }
+
+
+    // 2. Busca as lojas.
+    final storesResult = await _storeRepository.getStores();
+    if (storesResult.isLeft) {
+      return Left(SignInError.unknown);
+    }
+    final stores = storesResult.right;
+
+    // if (stores.isEmpty) {
+    //   return Left(SignInError.noStoresAvailable);
+    // }
+
+    // 3. Pega o JWT salvo e inicializa o socket.
+    final jwt = _authRepository.accessToken!;
+    await _realtimeRepository.initialize(jwt);
+
+    // ✅ MUDANÇA 4: Retorna o objeto completo na inicialização também.
+    return Right(TotemAuthAndStores(
+      totemAuth: TotemAuth.dummy(),
+      stores: stores,
+      user: user, // <--- DADOS DO USUÁRIO INCLUÍDOS!
+    ));
+
+  }
+
+  /// ✅ CORREÇÃO: O método de logout agora chama o método correto do repositório.
+  Future<void> logout() async {
+    print('[AuthService] Executando logout...');
+    await _authRepository.logout();
+    _realtimeRepository.dispose();
+    if (GetIt.I.isRegistered<TotemAuth>()) {
+      GetIt.I.unregister<TotemAuth>();
+    }
+    print('[AuthService] Logout completo.');
+  }
+
+  // --- Métodos de Cadastro (sem alterações) ---
+
+
+
 
   SignUpError _handleSignUpError(dynamic error) {
     if (error is SocketException || error is TimeoutException) {

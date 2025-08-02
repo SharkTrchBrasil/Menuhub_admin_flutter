@@ -47,3 +47,14 @@ class AuthSignUpError extends AuthState {
   @override
   List<Object> get props => [error];
 }
+
+// NOVO ESTADO!
+class AuthNeedsVerification extends AuthState {
+  final String email;
+  final String password; // <-- ADICIONE ESTE CAMPO
+
+  const AuthNeedsVerification({required this.email, required this.password});
+
+  @override
+  List<Object> get props => [email, password];
+}

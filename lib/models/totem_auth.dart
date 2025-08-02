@@ -1,4 +1,3 @@
-
 class TotemAuth {
   TotemAuth({
     required this.id,
@@ -10,7 +9,6 @@ class TotemAuth {
     this.grantedById,
     this.sid,
     required this.storeUrl,
-
   });
 
   final int id;
@@ -23,6 +21,21 @@ class TotemAuth {
   final String? sid;
   final String storeUrl;
 
+  /// ✅ MÉTODO ADICIONADO:
+  /// Cria uma instância "vazia" do TotemAuth.
+  /// É útil como um placeholder no novo fluxo de autenticação,
+  /// onde o token JWT do usuário é o principal, e não mais os dados do totem.
+  factory TotemAuth.dummy() {
+    return TotemAuth(
+      id: 0,
+      token: '',
+      name: '',
+      publicKey: '',
+      storeId: 0,
+      granted: false,
+      storeUrl: '',
+    );
+  }
 
   factory TotemAuth.fromJson(Map<String, dynamic> json) {
     return TotemAuth(
@@ -35,7 +48,6 @@ class TotemAuth {
       grantedById: json['granted_by_id'] as int?,
       sid: json['sid'] as String?,
       storeUrl: json['store_url'] as String,
-
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart'; // Importe o modelo Store
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
+import '_reprint_button.dart';
 import 'order_status_button.dart';
 
 class OrderListItem extends StatelessWidget {
@@ -79,35 +80,40 @@ class OrderListItem extends StatelessWidget {
               const SizedBox(height: 8),
 
               // Info Entrega
-              Row(
-                children: [
-                  Icon(
-                    _getDeliveryIcon(order.deliveryType),
-                    size: 20,
-                    color: Colors.grey.shade600,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _getDeliveryTypeName(order.deliveryType),
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.access_time,
-                    size: 20,
-                    color: Colors.grey.shade600,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    DateFormat('HH:mm').format(order.createdAt),
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+              // Row(
+              //   children: [
+              //     Icon(
+              //       _getDeliveryIcon(order.deliveryType),
+              //       size: 20,
+              //       color: Colors.grey.shade600,
+              //     ),
+              //     const SizedBox(width: 8),
+              //     Text(
+              //       _getDeliveryTypeName(order.deliveryType),
+              //       style: theme.textTheme.bodyMedium,
+              //     ),
+              //     const Spacer(),
+              //     Icon(
+              //       Icons.access_time,
+              //       size: 20,
+              //       color: Colors.grey.shade600,
+              //     ),
+              //     const SizedBox(width: 8),
+              //     Text(
+              //       DateFormat('HH:mm').format(order.createdAt),
+              //       style: theme.textTheme.bodyMedium,
+              //     ),
+              //   ],
+              // ),
 
               const SizedBox(height: 16),
 
-              // Footer (Botões)
+
+              if (store != null)
+               // ReprintButton(order: order, store: store!),
+
+              // Adiciona um espaçamento se ambos os botões estiverem visíveis
+              const SizedBox(width: 8),
               Row(
                 children: [
                   Expanded(

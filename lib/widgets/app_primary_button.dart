@@ -34,27 +34,25 @@ class AppPrimaryButton extends StatelessWidget {
         child: Row(
 
           children: [
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: isMobile ? 28: 8.0),
-                child: ElevatedButton(
-                  onPressed: onPressed,
-                  style: ElevatedButton.styleFrom(
-                   backgroundColor: Theme.of(context).primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    fixedSize: const Size.fromHeight(40),
-                    elevation: 0,
-                    shadowColor: Colors.transparent,
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 28: 8.0),
+              child: ElevatedButton(
+                onPressed: onPressed,
+                style: ElevatedButton.styleFrom(
+                 backgroundColor: Theme.of(context).primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: Typographyy.bodyLargeSemiBold.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w400,
-                      ),
+                  fixedSize: const Size.fromHeight(40),
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                ),
+                child: Center(
+                  child: Text(
+                    label,
+                    style: Typographyy.bodyLargeSemiBold.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ),

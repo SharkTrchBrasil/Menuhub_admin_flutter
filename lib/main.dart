@@ -91,10 +91,7 @@ class MyApp extends StatelessWidget {
     final storesManagerCubit = context.read<StoresManagerCubit>();
     final themeProvider = context.watch<ThemeProvider>();
 
-    final router = createRouter(
-      authCubit: authCubit,
-      storesManagerCubit: storesManagerCubit,
-    );
+
 
     return MaterialApp.router(
       title: 'PDVix - Admin',
@@ -106,7 +103,7 @@ class MyApp extends StatelessWidget {
       locale: context.locale,
       supportedLocales: context.supportedLocales,
       localizationsDelegates: context.localizationDelegates,
-      routerConfig: router,
+      routerConfig: AppRouter.router,
 
       // ✅ CORREÇÃO APLICADA AQUI
       // O builder recebe o 'context' e o 'child' (que é o seu app roteado).

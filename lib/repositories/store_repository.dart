@@ -16,9 +16,9 @@ import '../models/cash_session.dart';
 import '../models/cash_transaction.dart';
 import '../models/create_subscription_payload.dart';
 import '../models/credit_card.dart';
-import '../models/full_store_data_model.dart';
 
-import '../models/plan.dart';
+
+import '../models/plans.dart';
 import '../models/store_city.dart';
 import '../models/store_customer.dart';
 import '../models/store_hour.dart';
@@ -27,6 +27,7 @@ import '../models/store_payable.dart';
 import '../models/store_pix_config.dart';
 
 import '../models/tokenized_card.dart';
+import '../pages/create_store/cubit/store_setup-state.dart';
 
 
 class StoreRepository {
@@ -51,41 +52,42 @@ class StoreRepository {
     }
   }
 
-
-
-  Future<Either<String, FullStoreDataModel>> getFullStore(int storeId) async {
+// Em StoreRepository
+  Future<bool> urlExists(String url) async {
     try {
-      final response = await _dio.get('/stores/$storeId/full');
-  //    print('Resposta da API (getFullStore): ${response.data}'); // Log da resposta bruta
-      return Right(FullStoreDataModel.fromJson(response.data));
-    } catch (e) {
-      print('Erro capturado no getFullStore: $e, tipo: ${e.runtimeType}'); // Log do erro e seu tipo
-      String errorMessage = 'Erro ao buscar dados completos da loja.';
-      if (e is DioError) {
-        if (e.response != null) {
-          errorMessage = 'Erro HTTP ${e.response?.statusCode}: ${e.response?.data}';
-          print('Erro Dio com resposta: $errorMessage');
-        } else {
-          errorMessage = 'Erro de conexão: ${e.message}';
-          print('Erro Dio sem resposta: $errorMessage');
-        }
-      } else {
-        print('Outro tipo de erro: $e');
+      // Substitua pela sua chamada de API real
+      await _dio.get('/stores/check-url/$url');
+      return false; // Se a API retornar sucesso (ex: 200 OK), a URL está livre
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 409) { // Conflict
+        return true; // Se a API retornar conflito, a URL está em uso
       }
-      return Left(errorMessage);
+      return false; // Trata outros erros como "URL livre" para não bloquear o usuário
     }
   }
 
-  Future<Either<void, StoreWithRole>> createStore(String name, String phone) async {
+
+  // ✅ NOVO MÉTODO COMPLETO PARA CRIAR A LOJA
+  Future<Either<Failure, Store>> createStore(StoreSetupState setupData) async {
     try {
-      final response = await _dio.post('/stores', data: {'name': name, 'phone': phone});
-      final newStore = StoreWithRole.fromJson(response.data);
-      _stores!.add(newStore);
-      return Right(newStore);
+      // 1. Converte o estado inteiro para um mapa JSON.
+      final jsonData = setupData.toJson();
+      // 2. Envia os dados para o endpoint de criação de lojas.
+      final response = await _dio.post('/stores', data: jsonData);
+
+      final createdStore = Store.fromJson(response.data['store']);
+
+      return Right(createdStore);
+
+    } on DioException catch (e) {
+      debugPrint('DioException em createStore: $e');
+      return Left(Failure('Não foi possível criar a loja. Tente novamente.'));
     } catch (e) {
-      return const Left(null);
+      debugPrint('Erro inesperado em createStore: $e');
+      return Left(Failure('Ocorreu um erro inesperado ao criar a loja.'));
     }
   }
+
 
 
   Future<Either<void, Store>> updateStore(
@@ -765,7 +767,7 @@ class StoreRepository {
 
 
 // ✅ Função Refatorada
-  Future<Either<Failure, List<Plan>>> getPlans() async {
+  Future<Either<Failure, List<Plans>>> getPlans() async {
     try {
       final response = await _dio.get('/plans');
 
@@ -776,7 +778,7 @@ class StoreRepository {
 
       // Mapeia a lista para os seus objetos Plan
       final plans = (response.data as List)
-          .map<Plan>((json) => Plan.fromJson(json))
+          .map<Plans>((json) => Plans.fromJson(json))
           .toList();
 
       return Right(plans);

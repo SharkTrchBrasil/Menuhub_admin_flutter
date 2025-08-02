@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
-import 'package:totem_pro_admin/services/printer_manager.dart';
+
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
@@ -12,11 +12,17 @@ import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/utils/sounds/sound_util.dart';
 import 'package:totem_pro_admin/pages/orders/order_page_state.dart';
 
+import '../../models/print_job.dart';
+import '../../services/print/printer_manager.dart';
+
 class OrderCubit extends Cubit<OrderState> {
   final RealtimeRepository _realtimeRepository;
   final StoresManagerCubit _storesManagerCubit;
   final PrintManager _printManager;
-// NOVO: Uma variável para guardar a nossa "inscrição" no stream
+
+  // ✅ Novo campo para rastrear impressões manuais pendentes
+  int _pendingManualPrintsCount = 0;
+
   StreamSubscription? _connectionSubscription;
 
   StreamSubscription? _storesManagerSubscription;
@@ -107,46 +113,127 @@ class OrderCubit extends Cubit<OrderState> {
   }
 
   Future<void> _onOrdersReceived(List<OrderDetails> newOrders, int storeId) async {
-    final storeState = _storesManagerCubit.state;
-    Store? activeStore;
-    if (storeState is StoresManagerLoaded) {
-      activeStore = storeState.stores[storeId]?.store;
-    }
+    // ✅ 2. A verificação de impressão pendente é a primeira coisa a se fazer
+    // Isso garante que tanto a carga inicial quanto as atualizações sejam verificadas.
+   await _checkForPendingPrints(newOrders);
 
-    // LÓGICA MELHORADA: Identifica pedidos que são genuinamente novos (status 'pending' e não estavam no cache antes).
+    // Lógica para tocar som de novo pedido
     final oldOrderIds = _ordersCache.map((o) => o.id).toSet();
     for (final order in newOrders) {
       if (order.orderStatus == 'pending' && !oldOrderIds.contains(order.id)) {
         _lastNotifiedOrderId = order.id.toString();
         SoundAlertUtil.playNewOrderSound();
         print('[SOM] Pedido novo: #${order.id}');
-
-        // COMENATDO AQUI
-        // // Lógica de impressão automática para o novo pedido
-        // if (activeStore != null) {
-        //   await _printManager.processOrder(order, activeStore);
-        // }
       }
     }
 
-    _ordersCache = newOrders; // Atualiza o cache com a lista mais recente
+    _ordersCache = newOrders;
     _emitFilteredOrders(storeId);
   }
 
+
+
+  Future<void> _checkForPendingPrints(List<OrderDetails> orders) async {
+    print('[OrderCubit] Verificando ${orders.length} pedidos por impressões pendentes...');
+
+    int manualPrintCounter = 0;
+
+    // Usamos um loop 'for...in' com 'await' para processar um pedido de cada vez.
+    for (final order in orders) {
+      final pendingJobs =
+      order.printLogs.where((log) => log.status == 'pending').toList();
+
+      if (pendingJobs.isNotEmpty) {
+        final storeState = _storesManagerCubit.state;
+        Store? store;
+        if (storeState is StoresManagerLoaded) {
+          store = storeState.stores[order.storeId]?.store;
+        }
+
+        if (store != null && store.storeSettings!.autoPrintOrders) {
+          print('[OrderCubit] Encontrados ${pendingJobs.length} trabalhos de impressão pendentes para o pedido #${order.id}. Impressão automática ATIVADA.');
+
+          final printPayload = PrintJobPayload(
+            jobs: pendingJobs
+                .map((job) => PrintJob(
+              id: job.id,
+              destination: job.printerDestination,
+            ))
+                .toList(),
+            orderId: order.id,
+          );
+
+          // 'await' garante que o processamento de um pedido termine antes de começar o próximo.
+          await _printManager.processPrintJobs(printPayload, order, store);
+
+        } else if (store == null) {
+          print('[OrderCubit] ERRO: Não foi possível encontrar a loja ${order.storeId} para imprimir o pedido #${order.id}');
+        } else {
+          print('[OrderCubit] Encontrados ${pendingJobs.length} trabalhos pendentes para o pedido #${order.id}, mas a impressão automática está DESATIVADA.');
+          manualPrintCounter++;
+        }
+      }
+    }
+    _pendingManualPrintsCount = manualPrintCounter;
+  }
+
+
+  Future<void> reprintOrder(OrderDetails order) async {
+    print('[OrderCubit] Iniciando reimpressão para o pedido #${order.id}');
+
+    // Filtra apenas os trabalhos que precisam de atenção (pendentes ou falhados)
+    final jobsToReprint = order.printLogs
+        .where((log) => log.status == 'pending' || log.status == 'failed')
+        .toList();
+
+    if (jobsToReprint.isEmpty) {
+      print('[OrderCubit] Nenhum trabalho de impressão pendente ou com falha para o pedido #${order.id}.');
+      // Opcional: Mostrar um SnackBar informando que não há nada a reimprimir.
+      return;
+    }
+
+    final storeState = _storesManagerCubit.state;
+    Store? store;
+    if (storeState is StoresManagerLoaded) {
+      store = storeState.stores[order.storeId]?.store;
+    }
+
+    if (store != null) {
+      final printPayload = PrintJobPayload(
+        jobs: jobsToReprint
+            .map((job) => PrintJob(
+          id: job.id,
+          destination: job.printerDestination,
+        ))
+            .toList(),
+        orderId: order.id,
+      );
+
+      // Envia os trabalhos para o PrintManager processar novamente.
+      await _printManager.processPrintJobs(printPayload, order, store);
+      // Opcional: Mostrar um SnackBar de "Enviado para reimpressão".
+    } else {
+      print('[OrderCubit] ERRO: Não foi possível encontrar a loja para reimprimir o pedido #${order.id}');
+    }
+  }
+
   void _emitFilteredOrders(int activeStoreId) {
-    // A ordenação agora é opcional aqui, pois a UI (MobileOrderLayout) pode cuidar disso.
-    // Mas manter aqui garante que o estado sempre tenha uma lista ordenada.
     final sortedOrders = sortOrdersByStatusAndDate(_ordersCache);
     final filteredOrders = filterOrders(sortedOrders, _currentFilter);
 
-    // CORRIGIDO: Passa o `_currentFilter` para o estado.
+    // ✅ NOTA: Seu `OrdersLoaded` state precisa ser atualizado para aceitar
+    // o novo parâmetro `pendingManualPrintsCount`.
     emit(OrdersLoaded(
       orders: filteredOrders,
       activeStoreId: activeStoreId,
       lastNotifiedOrderId: _lastNotifiedOrderId,
       filter: _currentFilter,
+      // Passa a contagem de impressões manuais para o estado da UI
+      pendingManualPrintsCount: _pendingManualPrintsCount,
     ));
   }
+
+
 
   void applyFilter(OrderFilter filter) {
     if (_currentFilter == filter) return;

@@ -23,26 +23,30 @@ class OrdersLoaded extends OrderState {
   final int? activeStoreId;
   final String? lastNotifiedOrderId;
   final OrderFilter filter;
-
-  // ✨ 1. NOVO CAMPO ADICIONADO ✨
   final bool isConnected;
+
+  // ✅ 1. NOVO CAMPO ADICIONADO
+  // Conta quantos pedidos estão aguardando impressão manual.
+  final int pendingManualPrintsCount;
 
   const OrdersLoaded({
     required this.orders,
     this.activeStoreId,
     this.lastNotifiedOrderId,
     required this.filter,
-    this.isConnected = true, // Valor padrão é 'true'
+    this.isConnected = true,
+    // ✅ 2. ADICIONADO AO CONSTRUTOR
+    this.pendingManualPrintsCount = 0, // Valor padrão é 0
   });
 
-  // ✨ 2. MÉTODO ESSENCIAL ADICIONADO ✨
-  // Permite criar uma cópia do estado atual, alterando apenas alguns campos.
   OrdersLoaded copyWith({
     List<OrderDetails>? orders,
     int? activeStoreId,
     String? lastNotifiedOrderId,
     OrderFilter? filter,
     bool? isConnected,
+    // ✅ 3. ADICIONADO AO MÉTODO copyWith
+    int? pendingManualPrintsCount,
   }) {
     return OrdersLoaded(
       orders: orders ?? this.orders,
@@ -50,11 +54,12 @@ class OrdersLoaded extends OrderState {
       lastNotifiedOrderId: lastNotifiedOrderId ?? this.lastNotifiedOrderId,
       filter: filter ?? this.filter,
       isConnected: isConnected ?? this.isConnected,
+      // ✅ 4. ATRIBUÍDO NO copyWith
+      pendingManualPrintsCount:
+      pendingManualPrintsCount ?? this.pendingManualPrintsCount,
     );
   }
 
-  // ✨ 3. LISTA DE PROPS ATUALIZADA ✨
-  // Garante que o Bloc/Equatable compare todos os campos corretamente.
   @override
   List<Object?> get props => [
     orders,
@@ -62,6 +67,8 @@ class OrdersLoaded extends OrderState {
     lastNotifiedOrderId,
     filter,
     isConnected,
+    // ✅ 5. ADICIONADO AOS PROPS PARA COMPARAÇÃO
+    pendingManualPrintsCount,
   ];
 }
 

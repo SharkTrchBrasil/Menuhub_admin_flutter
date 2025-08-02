@@ -8,6 +8,7 @@ import 'package:totem_pro_admin/models/variant.dart';
 import '../models/category.dart';
 import '../models/minimal_product.dart';
 import '../models/product_availability.dart';
+import '../models/product_variant_link.dart';
 import '../models/variant_option.dart';
 
 class ProductRepository {
@@ -176,17 +177,24 @@ class ProductRepository {
     VariantOption option,
   ) async {
     try {
+
+      // ✅ Crie uma nova instância da opção com o variantId correto
+      final dataToSend = option.copyWith(variantId: variantId);
+
+
+
+
       if (option.id != null) {
         final response = await _dio.patch(
           '/stores/$storeId/variants/$variantId/options/${option.id}',
-          data: option.toJson(),
+          data: dataToSend.toJson(), // Usa o objeto com o ID
         );
 
         return Right(VariantOption.fromJson(response.data));
       } else {
         final response = await _dio.post(
           '/stores/$storeId/variants/$variantId/options',
-          data: option.toJson(),
+          data: dataToSend.toJson(), // Usa o objeto com o ID
         );
 
         return Right(VariantOption.fromJson(response.data));
@@ -266,5 +274,28 @@ class ProductRepository {
     }
   }
 
+
+  Future<Either<String, ProductVariantLink>> linkVariantToProduct({
+    required int storeId,
+    required int productId,
+    required int variantId,
+    required ProductVariantLink linkData, // Contém as regras (min/max, etc.)
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/stores/$storeId/products/$productId/variants/$variantId',
+        // O body da requisição são as regras, convertidas para JSON
+        data: linkData.toJson(),
+      );
+      return Right(ProductVariantLink.fromJson(response.data));
+    } on DioException catch (e) {
+      debugPrint('Erro ao ligar variante ao produto: $e');
+      // Retorna a mensagem de erro da API, se houver
+      return Left(e.response?.data['detail'] ?? 'Erro desconhecido');
+    } catch (e) {
+      debugPrint('Erro inesperado: $e');
+      return Left(e.toString());
+    }
+  }
 
 }

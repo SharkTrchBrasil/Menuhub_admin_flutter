@@ -11,7 +11,9 @@ import 'package:totem_pro_admin/pages/orders/widgets/store_header.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/order_product.dart';
 import '../../../models/store.dart';
-import '../../../services/print.dart'; // Para statusColors, deliveryTypeIcons, formatOrderDate, statusInternalMap
+import '../../../services/print/print.dart';
+import '../../../widgets/order_printing_actions_widget.dart';
+// Para statusColors, deliveryTypeIcons, formatOrderDate, statusInternalMap
 
 class OrderDetailsPageMobile extends StatefulWidget {
   final OrderDetails order;
@@ -34,7 +36,7 @@ class _OrderDetailsPageMobileState extends State<OrderDetailsPageMobile> {
 
   final ScrollController _scrollController = ScrollController();
   bool _collapsed = false;
-
+  final printerService = GetIt.I<PrinterService>();
   @override
   void initState() {
     super.initState();
@@ -128,60 +130,14 @@ class _OrderDetailsPageMobileState extends State<OrderDetailsPageMobile> {
               ),
             ),
             actions: [
-              // ✅ WIDGET CORRIGIDO E ATUALIZADO
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert), // Ícone padrão de três pontos
-                onSelected: (String value) {
-                  // É uma boa prática obter a instância do serviço uma vez
-                  final printerService = GetIt.I<PrinterService>();
-                  final store = widget.store;
-
-                  if (store == null) return; // Proteção para caso a loja seja nula
-
-                  // Nova lógica para tratar os diferentes valores
-                  if (value.startsWith('print_')) {
-                    // Extrai o destino do valor (ex: 'print_cozinha' -> 'cozinha')
-                    final destination = value.split('_').last;
-                    printerService.printOrder(
-                      widget.order,
-                      store,
-                      destination: destination,
-                    );
-                  } else if (value == 'pdf') {
-                    printerService.generateAndShareOrderPDF(widget.order, store);
-                  }
-                },
-                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                  // Opção 1: Imprimir Recibo Completo (Balcão/Caixa)
-                  const PopupMenuItem<String>(
-                    value: 'print_balcao', // Valor específico para o balcão
-                    child: ListTile(
-                      leading: Icon(Icons.receipt_long),
-                      title: Text('Imprimir Recibo'),
-                    ),
-                  ),
-
-                  // Opção 2: Imprimir Via da Cozinha
-                  const PopupMenuItem<String>(
-                    value: 'print_cozinha', // Valor específico para a cozinha
-                    child: ListTile(
-                      leading: Icon(Icons.kitchen),
-                      title: Text('Imprimir Via da Cozinha'),
-                    ),
-                  ),
-
-                  const PopupMenuDivider(),
-
-                  // Opção 3: Compartilhar PDF
-                  const PopupMenuItem<String>(
-                    value: 'pdf',
-                    child: ListTile(
-                      leading: Icon(Icons.share),
-                      title: Text('Compartilhar PDF'),
-                    ),
-                  ),
-                ],
+              // ✅ WIDGET DE IMPRESSÃO ADICIONADO AQUI
+              OrderPrintingActionsWidget(
+                order: widget.order, // Passe o objeto do pedido
+                store: widget.store, // Passe o objeto da loja
+                printerService: printerService, // Passe a instância do serviço
               ),
+
+
             ],
           ),
 

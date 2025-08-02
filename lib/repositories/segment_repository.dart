@@ -1,57 +1,34 @@
+// lib/repositories/segment_repository.dart
+
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/segment.dart';
+
+
+import '../core/failures.dart';
+import '../models/segment.dart';
 
 class SegmentRepository {
+  final Dio _dio;
   SegmentRepository(this._dio);
 
-  final Dio _dio;
-
-  Future<Either<void, List<Segment>>> getSegments() async {
+  /// Busca a lista de especialidades ativas na API.
+  Future<Either<Failure, List<Segment>>> getSegments() async {
     try {
-      final response = await _dio.get('/stores/segments');
-      return Right(
-        response.data.map<Segment>((c) => Segment.fromJson(c)).toList(),
-      );
-    } catch (e) {
-      debugPrint('$e');
-      return const Left(null);
-    }
-  }
+      // Faz a chamada GET para o endpoint que criamos no backend.
+      final response = await _dio.get('/segments/');
 
-  Future<Either<void, Segment>> getSegment(int storeId, int id) async {
-    try {
-      final response = await _dio.get('/stores/$storeId/segments/$id');
-      return Right(Segment.fromJson(response.data));
-    } catch (e) {
-      debugPrint('$e');
-      return const Left(null);
-    }
-  }
+      // Converte a lista de JSONs em uma lista de objetos Segment.
+      final segments = (response.data as List)
+          .map((json) => Segment.fromJson(json))
+          .toList();
 
-  Future<Either<void, Segment>> saveSegment(
-    int storeId,
-    Segment category,
-  ) async {
-    try {
-      if (category.id != null) {
-        final response = await _dio.patch(
-          '/stores/$storeId/segments/${category.id}',
-          data: await category.toFormData(),
-        );
-        return Right(Segment.fromJson(response.data));
-      } else {
-        final response = await _dio.post(
-          '/stores/$storeId/segments',
-          data: await category.toFormData(),
-        );
-        return Right(Segment.fromJson(response.data));
-      }
-    } catch (e) {
-      debugPrint('$e');
-      return Left(null);
+      // Retorna o resultado com sucesso (Right).
+      return Right(segments);
+
+    } on DioException catch (e) {
+      // Em caso de erro na chamada, retorna uma falha (Left).
+      print('Erro ao buscar segmentos: $e');
+      return Left(Failure('Não foi possível buscar as especialidades. Tente novamente.'));
     }
   }
 }

@@ -9,9 +9,9 @@ import 'package:get_it/get_it.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart'; // Importe o modelo Store
 import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
-import 'package:totem_pro_admin/services/printer_manager.dart';
 
-import '../../../services/print.dart'; // Corrija o import se necessário
+import '../../../services/print/print.dart';
+
 
 class OrderStatusButton extends StatelessWidget {
   final OrderDetails order;
@@ -160,21 +160,21 @@ class OrderStatusButton extends StatelessWidget {
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
-        if (order.orderStatus != 'delivered' && order.orderStatus != 'canceled')
-          Padding(
-            padding: EdgeInsets.only(top: onPressed != null ? 8.0 : 0.0),
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red),
-                minimumSize: const Size(double.infinity, 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: () => _showCancelDialog(context),
-              child: const Text('Cancelar Pedido', style: TextStyle(color: Colors.red)),
-            ),
-          ),
+        // if (order.orderStatus != 'delivered' && order.orderStatus != 'canceled')
+        //   Padding(
+        //     padding: EdgeInsets.only(top: onPressed != null ? 8.0 : 0.0),
+        //     child: OutlinedButton(
+        //       style: OutlinedButton.styleFrom(
+        //         side: const BorderSide(color: Colors.red),
+        //         minimumSize: const Size(double.infinity, 40),
+        //         shape: RoundedRectangleBorder(
+        //           borderRadius: BorderRadius.circular(8),
+        //         ),
+        //       ),
+        //       onPressed: () => _showCancelDialog(context),
+        //       child: const Text('Cancelar Pedido', style: TextStyle(color: Colors.red)),
+        //     ),
+        //   ),
       ],
     );
   }

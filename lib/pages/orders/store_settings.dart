@@ -120,20 +120,20 @@ class StoreSettingsSidePanel extends StatelessWidget {
                                   .updateStoreSettings(storeId, autoAcceptOrders: !settings.autoAcceptOrders),
                             ),
                           ),
-                          ListTile(
-                            title: const Text('Imprimir pedidos automaticamente'),
-                            // ✅ DESCRIÇÃO ADICIONADA
-                            subtitle: Text(
-                              'Envia novos pedidos para a impressora configurada.',
-                              style: subtitleStyle,
-                            ),
-                            trailing: Switch(
-                              value: settings.autoPrintOrders,
-                              onChanged: (_) => context
-                                  .read<StoresManagerCubit>()
-                                  .updateStoreSettings(storeId, autoPrintOrders: !settings.autoPrintOrders),
-                            ),
-                          ),
+                          // ListTile(
+                          //   title: const Text('Imprimir pedidos automaticamente'),
+                          //   // ✅ DESCRIÇÃO ADICIONADA
+                          //   subtitle: Text(
+                          //     'Envia novos pedidos para a impressora configurada.',
+                          //     style: subtitleStyle,
+                          //   ),
+                          //   trailing: Switch(
+                          //     value: settings.autoPrintOrders,
+                          //     onChanged: (_) => context
+                          //         .read<StoresManagerCubit>()
+                          //         .updateStoreSettings(storeId, autoPrintOrders: !settings.autoPrintOrders),
+                          //   ),
+                          // ),
                         ],
                       );
                     }

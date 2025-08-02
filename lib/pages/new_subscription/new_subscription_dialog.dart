@@ -12,7 +12,7 @@ import 'package:totem_pro_admin/models/address.dart';
 import 'package:totem_pro_admin/models/billing_customer.dart';
 import 'package:totem_pro_admin/models/credit_card.dart';
 import 'package:totem_pro_admin/models/create_subscription_payload.dart';
-import 'package:totem_pro_admin/models/plan.dart';
+import 'package:totem_pro_admin/models/plans.dart';
 import 'package:totem_pro_admin/models/tokenized_card.dart';
 
 import 'package:totem_pro_admin/repositories/store_repository.dart';
@@ -30,7 +30,7 @@ class NewSubscriptionDialog extends StatefulWidget {
   });
 
   final int storeId;
-  final Plan plan;
+  final Plans plan;
 
   @override
   State<NewSubscriptionDialog> createState() => _NewSubscriptionDialogState();

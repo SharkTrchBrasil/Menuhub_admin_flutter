@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:totem_pro_admin/widgets/access_wrapper.dart';
 
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
@@ -30,10 +31,13 @@ class StoreSelectorWidget extends StatelessWidget {
         final int selectedStoreId = state.activeStoreId;
 
         if (stores.isEmpty) {
-          return IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => context.go('/stores/new'),
-            tooltip: 'Adicionar loja',
+          return AccessWrapper(
+            featureKey: 'extra_store_location',
+            child: IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => context.go('/stores/new'),
+              tooltip: 'Adicionar loja',
+            ),
           );
         }
 
@@ -131,22 +135,30 @@ class StorePopupMenu extends StatelessWidget {
         ),
         const PopupMenuDivider(),
         PopupMenuItem<int>(
-          value: -1,
-          child: Row(
-            children: [
-              Icon(
+          // 1. Desabilitamos a ação de clique padrão do PopupMenuItem
+          //    para que o AccessWrapper possa controlar o toque.
+          enabled: false,
+
+          // 2. Removemos o padding para que o nosso widget ocupe todo o espaço.
+          padding: EdgeInsets.zero,
+
+          // 3. Envolvemos o conteúdo com o AccessWrapper.
+          child: AccessWrapper(
+            featureKey: 'extra_store_location',
+            child: ListTile( // Usamos um ListTile para um visual e alinhamento consistentes
+              leading: Icon(
                 Icons.add,
-                size: 20,
                 color: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(width: 12),
-              Text(
+              title: Text(
                 'Adicionar loja',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
-            ],
+              // O onTap do ListTile só será chamado se houver permissão.
+              onTap: onAddStore,
+            ),
           ),
         ),
       ],

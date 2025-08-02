@@ -15,7 +15,7 @@ import 'package:totem_pro_admin/pages/create_store/create_store_page.dart';
 import 'package:totem_pro_admin/pages/edit_category/edit_category_page.dart';
 import 'package:totem_pro_admin/pages/edit_product/edit_product_page.dart';
 
-import 'package:totem_pro_admin/pages/edit_variant_option/edit_variant_option_page.dart';
+
 import 'package:totem_pro_admin/pages/home/home_page.dart';
 import 'package:totem_pro_admin/pages/more/more_page.dart';
 import 'package:totem_pro_admin/pages/payment_methods/payment_methods_page.dart';
@@ -27,15 +27,19 @@ import 'package:totem_pro_admin/pages/splash/splash_page.dart';
 import '../cubits/auth_state.dart';
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
+import '../models/category.dart';
 import '../models/order_details.dart';
+import '../models/product.dart';
 import '../models/store.dart';
+import '../models/store_with_role.dart';
 import '../pages/accesses/accesses_page.dart';
 
 import '../pages/banners/banners_page.dart';
-import '../pages/catalog_page/catalog_page.dart';
+
 import '../pages/chatbot/qrcode.dart';
 import '../pages/coupons/coupons_page.dart';
 
+import '../pages/create_store/cubit/store_setup_cubit.dart';
 import '../pages/customers/customers_page.dart';
 import '../pages/delivery_options/delivery_options_page.dart';
 import '../pages/edit_coupon/edit_coupon_page.dart';
@@ -45,7 +49,7 @@ import '../pages/edit_settings/hours_store_page.dart';
 import '../pages/edit_settings/edit_settings_page.dart';
 
 import '../pages/plans/plans_page.dart';
-import '../pages/edit_variant/edit_variant_page.dart';
+
 import '../pages/integrations/integrations_page.dart';
 import '../pages/inventory/inventory_page.dart';
 import '../pages/kds/kds_page.dart';
@@ -55,98 +59,142 @@ import '../pages/not_found/error_505_Page.dart';
 import '../pages/orders/order_page_cubit.dart';
 import '../pages/orders/orders_page.dart';
 
-import '../services/printer_manager.dart';
-import '../pages/orders/store_settings.dart';
+
 import '../pages/orders/widgets/order_details_mobile.dart';
 import '../pages/payables/payables_page.dart';
 import '../pages/reports/reports_page.dart';
 import '../pages/splash/splash_page_cubit.dart';
 import '../pages/totems/totems_page.dart';
-import '../pages/variants/variants_page.dart';
+
 import '../pages/verify_code/verify_code_page.dart';
 import '../repositories/realtime_repository.dart';
+import '../repositories/segment_repository.dart';
 import '../repositories/store_repository.dart';
 
+import '../repositories/user_repository.dart';
 import '../services/auth_service.dart';
 import '../cubits/auth_cubit.dart';
 
+import '../services/print/printer_manager.dart';
 import 'guards/store_owner_guard.dart';
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
-GoRouter createRouter({
-  required AuthCubit authCubit,
-  required StoresManagerCubit storesManagerCubit,
-}) {
-  return GoRouter(
+// NÃO use mais uma função. Crie uma classe ou uma variável final.
+class AppRouter {
+  static final router = GoRouter(
     navigatorKey: globalNavigatorKey,
     initialLocation: '/splash',
     debugLogDiagnostics: true,
     redirectLimit: 10,
     observers: [BotToastNavigatorObserver()],
-    refreshListenable: Listenable.merge([
-      GoRouterRefreshStream(authCubit.stream),
-      GoRouterRefreshStream(storesManagerCubit.stream),
-    ]),
 
 
-// Dentro da sua configuração do GoRouter
+      refreshListenable: Listenable.merge([
+        GoRouterRefreshStream(getIt<AuthCubit>().stream),
+        GoRouterRefreshStream(getIt<StoresManagerCubit>().stream),
+      ]),
+
+
+
+// Em lib/core/router.dart, dentro do GoRouter
 
       redirect: (BuildContext context, GoRouterState state) {
-        final authCubit = context.read<AuthCubit>();
-        final authState = authCubit.state;
         final location = state.uri.toString();
-
-        // Variáveis para facilitar a leitura da lógica
-        final isLoading = authState is AuthInitial || authState is AuthLoading;
+        final authState = context
+            .read<AuthCubit>()
+            .state;
         final isAuthenticated = authState is AuthAuthenticated;
 
+        // Imprime o estado atual em cada execução do redirect
+        print('--- GoRouter Redirect ---');
+        print('Location: $location');
+        print('AuthState: ${authState.runtimeType}');
+        print('isAuthenticated: $isAuthenticated');
 
-        final isGoingToSplash = location == '/loading';
+        // Rotas que não exigem login
+        const publicRoutes = [
+          '/splash',
+          '/loading',
+          '/sign-in',
+          '/sign-up',
+          '/verify-email'
+        ];
+        final isGoingToPublicRoute = publicRoutes.any((r) =>
+            location.startsWith(r));
 
-
-        const authRoutes = ['/sign-in', '/sign-up'];
-        final isGoingToAuthRoute = authRoutes.any((route) => location.startsWith(route));
-
-
-        // REGRA 1: Se o app ainda está carregando o status de autenticação...
-        if (isLoading) {
-
-
-          if (isGoingToSplash || isGoingToAuthRoute) {
-            return null;
-          }
-          return '/loading';
-
-
-
+        // 👇👇👇 AQUI: redireciona para verificação se for necessário
+        if (authState is AuthNeedsVerification &&
+            !location.startsWith('/verify-email')) {
+          final email = Uri.encodeComponent(authState.email);
+          return '/verify-email?email=$email';
         }
 
-        // REGRA 2: Se o usuário ESTÁ autenticado...
+
+
+        // Trava de segurança para quando já estamos no destino correto
+        if (isAuthenticated && authState.data.stores.isEmpty &&
+            location == '/stores/new') {
+          print('Decisão: Deixar passar (já no destino /stores/new).');
+          print('-------------------------\n');
+          return null;
+        }
+        if (isAuthenticated && authState.data.stores.isNotEmpty &&
+            location.startsWith('/stores/')) {
+          print('Decisão: Deixar passar (já dentro de uma loja).');
+          print('-------------------------\n');
+          return null;
+        }
+
+        // Se estiver autenticado e tentando ir para uma rota pública, redireciona para dentro
+        if (isAuthenticated && isGoingToPublicRoute) {
+          final stores = authState.data.stores;
+          final destination = stores.isEmpty ? '/stores/new' : '/stores/${stores
+              .first.store.id}/orders';
+          print('Decisão: Redirecionar para dentro do app -> $destination');
+          print('-------------------------\n');
+          return destination;
+        }
+
+        // Se NÃO estiver autenticado e tentando ir para uma rota protegida...
+        if (!isAuthenticated && !isGoingToPublicRoute) {
+          final destination = '/sign-in?redirectTo=$location';
+          print('Decisão: Redirecionar para o login -> $destination');
+          print('-------------------------\n');
+          return destination;
+        }
+
         if (isAuthenticated) {
-          // ... e está na tela de splash ou de login, redireciona para dentro do app.
-          if (isGoingToSplash || isGoingToAuthRoute) {
-            final stores = authState.data.stores;
-            if (stores.isEmpty) {
-              return '/stores/new';
-            } else {
-              final activeStoreId = stores.first.store.id;
-              return '/stores/$activeStoreId/orders';
+          // 👇 LÓGICA DE VERIFICAÇÃO DE "DONO" CORRIGIDA 👇
+          final ownerOnlyRoutes = ['/settings', '/integrations', '/plans'];
+          final isGoingToOwnerRoute = ownerOnlyRoutes.any((r) =>
+              location.contains(r));
+
+          if (isGoingToOwnerRoute) {
+            final storeId = int.tryParse(state.pathParameters['storeId'] ?? '');
+            if (storeId != null) {
+              final storeRepo = getIt<StoreRepository>();
+              StoreWithRole? store; // Declara a variável como anulável
+
+              try {
+                // Tenta encontrar a loja. Se não encontrar, vai para o catch.
+                store =
+                    storeRepo.stores.firstWhere((s) => s.store.id == storeId);
+              } catch (e) {
+                // Se a loja não for encontrada na lista, o 'store' continua null.
+                // Isso é normal e esperado se a lista ainda estiver carregando.
+                store = null;
+              }
+
+              // Se a loja foi encontrada e o usuário não é o dono, redireciona.
+              if (store != null && store.role != StoreAccessRole.owner) {
+                print(
+                    'Decisão: Acesso negado (não é dono). Redirecionando para /products.');
+                return '/stores/$storeId/orders';
+              }
             }
           }
         }
-
-        // REGRA 3: Se o usuário NÃO ESTÁ autenticado (e não está carregando)...
-        if (!isAuthenticated) {
-          // ... e tenta acessar qualquer rota que não seja a de login, redireciona para o login.
-          if (!isGoingToAuthRoute) {
-            return '/sign-in';
-          }
-        }
-
-        // Se nenhuma regra acima foi acionada, permite a navegação.
-        return null;
       },
-
 
   errorPageBuilder:
       (context, state) => MaterialPage(
@@ -154,53 +202,91 @@ GoRouter createRouter({
       ),
 
   routes: [
+
+
     GoRoute(
-      path: '/splash',
-      builder: (_, state) {
-        return BlocProvider(
-          create: (_) => SplashPageCubit(),
-          child: SplashPage(
-            redirectTo: state.uri.queryParameters['redirectTo'],
-          ),
-        );
-      },
-      redirect: (context, state) {
-        final isInitialized = getIt.isRegistered<bool>(
-          instanceName: 'isInitialized',
-        );
-        if (isInitialized) {
-          return '/sign-in';
+        path: '/splash',
+        builder: (_, state) {
+          return BlocProvider(
+            create: (_) => SplashPageCubit(),
+            child: SplashPage(
+              redirectTo: state.uri.queryParameters['redirectTo'],
+            ),
+          );
+        },
+        redirect: (context, state) {
+          final isInitialized = getIt.isRegistered<bool>(
+            instanceName: 'isInitialized',
+          );
+
+          if (!isInitialized) return null;
+
+          final authState = context.read<AuthCubit>().state;
+
+          if (authState is AuthAuthenticated) {
+            final stores = authState.data.stores;
+            return stores.isEmpty
+                ? '/stores/new'
+                : '/stores/${stores.first.store.id}/orders';
+          }
+
+          if (authState is AuthUnauthenticated) {
+            return '/sign-in';
+          }
+
+          return null;
         }
-        return null;
-      },
+
 
     ),
 
     GoRoute(
       path: '/sign-in',
-      redirect: (_, state) {
-        return RouteGuard.apply(state, [AuthGuard(invert: true)]);
-      },
+      // redirect: (_, state) {
+      //   return RouteGuard.apply(state, [AuthGuard(invert: true)]);
+      // },
       builder: (_, state) {
         return SignInPage(redirectTo: state.uri.queryParameters['redirectTo']);
       },
     ),
     GoRoute(
       path: '/sign-up',
-      redirect: (_, state) {
-        return RouteGuard.apply(state, [AuthGuard(invert: true)]);
-      },
+      // redirect: (_, state) {
+      //   return RouteGuard.apply(state, [AuthGuard(invert: true)]);
+      // },
       builder: (_, state) {
         return SignUpPage(redirectTo: state.uri.queryParameters['redirectTo']);
       },
     ),
     GoRoute(
       path: '/stores/new',
-      redirect: (_, state) {
-        return RouteGuard.apply(state, [AuthGuard()]);
-      },
-      builder: (_, state) {
-        return CreateStorePage();
+      builder: (context, state) {
+        // 👇 É AQUI que você coloca a lógica de criação 👇
+        return BlocProvider<StoreSetupCubit>(
+          create: (context) {
+            // 1. Acessa o AuthCubit que já deve estar disponível no contexto
+            final authState = context.read<AuthCubit>().state;
+            String? userName;
+
+            // 2. Verifica se o usuário está autenticado
+            if (authState is AuthAuthenticated) {
+              // 3. Pega o nome do usuário a partir do estado de autenticação
+              //    Ajuste o caminho se necessário (ex: authState.data.user.name)
+              userName = authState.data.user.name;
+            }
+
+            // 4. Cria uma NOVA instância do StoreSetupCubit, passando as dependências
+            //    e o nome que acabamos de pegar!
+            return StoreSetupCubit(
+              getIt<StoreRepository>(),   // Pega os repositórios do getIt
+              getIt<SegmentRepository>(),
+               getIt<UserRepository>(),       // ✅ Passe a dependência
+              context.read<AuthCubit>(),
+              initialResponsibleName: userName, // <--- A CONEXÃO ACONTECE AQUI!
+            )..fetchPlans()..fetchSpecialties();
+          },
+          child: const StoreSetupPage(), // O widget que inicia o fluxo
+        );
       },
     ),
 
@@ -210,38 +296,47 @@ GoRouter createRouter({
     ),
 
     GoRoute(
-      path: '/verify-code',
+      path: '/verify-email',
       builder: (context, state) {
-        final extra = state.extra as Map<String, String>;
-        final email = extra['email']!;
-        final password = extra['password']!;
-        return VerifyCodePage(email: email, password: password);
+        // CORREÇÃO: Leia o e-mail dos parâmetros da URL em vez de 'extra'.
+        final email = state.uri.queryParameters['email'];
+
+        // É uma boa prática verificar se o e-mail não é nulo.
+        if (email == null) {
+          // Retorna uma tela de erro ou redireciona se o e-mail não for encontrado.
+          return const Scaffold(
+            body: Center(
+              child: Text('Erro: E-mail não fornecido.'),
+            ),
+          );
+        }
+
+        return VerifyCodePage(email: email);
       },
     ),
-
     GoRoute(
       path: '/stores',
       builder: (_, __) => Container(),
-      redirect: (_, state) {
-        if (state.fullPath == '/stores') {
-          final StoreRepository storeRepository = getIt();
-          if (storeRepository.stores.isNotEmpty) {
-            return '/stores/${storeRepository.stores.first.store.id}';
-          } else {
-            return '/stores/new';
-          }
-        }
-        return null;
-      },
+      // redirect: (_, state) {
+      //   if (state.fullPath == '/stores') {
+      //     final StoreRepository storeRepository = getIt();
+      //     if (storeRepository.stores.isNotEmpty) {
+      //       return '/stores/${storeRepository.stores.first.store.id}';
+      //     } else {
+      //       return '/stores/new';
+      //     }
+      //   }
+      //   return null;
+      // },
       routes: [
         GoRoute(
           path: ':storeId',
-          redirect: (_, state) {
-            if (state.fullPath == '/stores/:storeId') {
-              return '/stores/${state.pathParameters['storeId']}/products';
-            }
-            return null;
-          },
+          // redirect: (_, state) {
+          //   if (state.fullPath == '/stores/:storeId') {
+          //     return '/stores/${state.pathParameters['storeId']}/products';
+          //   }
+          //   return null;
+          // },
           builder: (_, state) {
             return Container();
           },
@@ -439,82 +534,37 @@ GoRouter createRouter({
                       routes: [
                         GoRoute(
                           path: 'new',
-                          builder:
-                              (_, state) =>
-                                  EditProductPage(storeId: state.storeId),
+                          builder: (_, state) {
+                            // ✅ CORRETO: Chama a EditProductPage sem o 'id',
+                            // ativando o modo de criação.
+                            final category = state.extra as Category?; // Permite passar a categoria
+                            return EditProductPage(
+                              storeId: state.storeId,
+                              category: category,
+                            );
+                          },
                         ),
                         GoRoute(
                           path: ':productId',
-                          pageBuilder:
-                              (_, state) => NoTransitionPage(
-                                key: UniqueKey(),
-                                child: EditProductPage(
-                                  storeId: state.storeId,
-                                  id: state.productId,
-                                ),
+                          pageBuilder: (_, state) {
+                            // ✅ PASSO 2: Pega o objeto do 'extra'
+                            final product = state.extra as Product?;
+
+                            return NoTransitionPage(
+                              key: UniqueKey(),
+                              child: EditProductPage(
+                                storeId: state.storeId,
+                                id: state.productId,
+                                product: product, // ✅ Passa o produto para a página
                               ),
+                            );
+                          },
                         ),
                       ],
                     ),
                   ],
                 ),
 
-                StatefulShellBranch(
-                  routes: [
-                    GoRoute(
-                      path: '/variants',
-                      pageBuilder:
-                          (_, state) => NoTransitionPage(
-                            key: UniqueKey(),
-                            child: VariantsPage(storeId: state.storeId),
-                          ),
-                      routes: [
-                        GoRoute(
-                          path: 'new',
-                          builder:
-                              (_, state) => EditVariantPage(
-                                storeId: state.storeId,
-                                id: null,
-                              ),
-                        ),
-                        GoRoute(
-                          path: ':variantId',
-                          pageBuilder:
-                              (_, state) => NoTransitionPage(
-                                key: UniqueKey(),
-                                child: EditVariantPage(
-                                  storeId: state.storeId,
-                                  id: state.variantId,
-                                ),
-                              ),
-                          routes: [
-                            GoRoute(
-                              path: 'options/new',
-                              builder:
-                                  (_, state) => EditVariantOptionPage(
-                                    storeId: state.storeId,
-                                    variantId: state.variantId,
-                                    id: null,
-                                  ),
-                            ),
-                            GoRoute(
-                              path: 'options/:optionId',
-                              pageBuilder:
-                                  (_, state) => NoTransitionPage(
-                                    key: UniqueKey(),
-                                    child: EditVariantOptionPage(
-                                      storeId: state.storeId,
-                                      variantId: state.variantId,
-                                      id: state.optionId,
-                                    ),
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
 
                 // CATEGORIAS
                 StatefulShellBranch(
@@ -777,28 +827,14 @@ GoRouter createRouter({
                         //
                         //
                       ],
-                      redirect:
-                          (_, state) =>
-                              RouteGuard.apply(state, [StoreOwnerGuard()]),
+                      // redirect:
+                      //     (_, state) =>
+                      //         RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
 
-                StatefulShellBranch(
-                  routes: [
-                    GoRoute(
-                      path: '/catalog',
-                      pageBuilder:
-                          (_, state) => NoTransitionPage(
-                            key: UniqueKey(),
-                            child: CatalogPage(storeId: state.storeId),
-                          ),
-                      redirect:
-                          (_, state) =>
-                              RouteGuard.apply(state, [StoreOwnerGuard()]),
-                    ),
-                  ],
-                ),
+
 
                 StatefulShellBranch(
                   routes: [
@@ -809,9 +845,9 @@ GoRouter createRouter({
                             key: UniqueKey(),
                             child: MorePage(storeId: state.storeId),
                           ),
-                      redirect:
-                          (_, state) =>
-                              RouteGuard.apply(state, [StoreOwnerGuard()]),
+                      // redirect:
+                      //     (_, state) =>
+                      //         RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
@@ -825,9 +861,9 @@ GoRouter createRouter({
                             key: UniqueKey(),
                             child: ReportsPage(storeId: state.storeId),
                           ),
-                      redirect:
-                          (_, state) =>
-                              RouteGuard.apply(state, [StoreOwnerGuard()]),
+                      // redirect:
+                      //     (_, state) =>
+                      //         RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
@@ -841,9 +877,9 @@ GoRouter createRouter({
                             key: UniqueKey(),
                             child: InventoryPage(storeId: state.storeId),
                           ),
-                      redirect:
-                          (_, state) =>
-                              RouteGuard.apply(state, [StoreOwnerGuard()]),
+                      // redirect:
+                      //     (_, state) =>
+                      //         RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
@@ -857,9 +893,9 @@ GoRouter createRouter({
                             key: UniqueKey(),
                             child: CustomersPage(storeId: state.storeId),
                           ),
-                      redirect:
-                          (_, state) =>
-                              RouteGuard.apply(state, [StoreOwnerGuard()]),
+                      // redirect:
+                      //     (_, state) =>
+                      //         RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
@@ -873,9 +909,9 @@ GoRouter createRouter({
                             key: UniqueKey(),
                             child: PayablePage(storeId: state.storeId),
                           ),
-                      redirect:
-                          (_, state) =>
-                              RouteGuard.apply(state, [StoreOwnerGuard()]),
+                      // redirect:
+                      //     (_, state) =>
+                      //         RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),
@@ -894,9 +930,9 @@ GoRouter createRouter({
                                   )!,
                             ),
                           ),
-                      redirect:
-                          (_, state) =>
-                              RouteGuard.apply(state, [StoreOwnerGuard()]),
+                      // redirect:
+                      //     (_, state) =>
+                      //         RouteGuard.apply(state, [StoreOwnerGuard()]),
                     ),
                   ],
                 ),

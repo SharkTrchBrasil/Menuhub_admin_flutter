@@ -1,71 +1,96 @@
+
+
+enum UIDisplayMode { SINGLE, MULTIPLE, QUANTITY, UNKNOWN }
+
+
 class VariantOption {
-
-  const VariantOption(
-
-       {
-    this.isFree = false,
-    this.id,
-    this.name = '',
-    this.description = '',
-    this.price = 0,
-    this.maxQuantity = 1,
-    this.discountPrice = 0,
-    this.available = true,
-  });
-
   final int? id;
-  final String name;
-  final String description;
-  final int price;
-  final int discountPrice;
-  final int maxQuantity;
+  final int? variantId;
+
+  // Estes são os nomes e preços "finais", calculados no backend.
+  // Eles podem ser diferentes dos overrides se a opção estiver ligada a um produto.
+  final String resolvedName;
+  final int resolvedPrice;
+  final String? imagePath;
+
+  // Estes são os campos que enviamos para a API ao criar/editar.
+  final String? name_override;
+  final int? price_override;
   final bool available;
-  final bool isFree; // já com default false no construtor, se possível
+  final String? pos_code;
+  final int? linked_product_id;
 
+  // ✅ CONSTRUTOR CORRIGIDO E INTELIGENTE
+  VariantOption({
+    this.id,
+    this.imagePath,
+    this.name_override,
+    this.price_override,
+    this.available = true,
+    this.pos_code,
+    this.linked_product_id,
+  this.variantId,
 
-  VariantOption copyWith({
-    String? name,
-    String? description,
-    int? price,
-    int? discountPrice,
-    int? maxQuantity,
-    bool? available,
-    bool? isFree
-  }) {
-    return VariantOption(
-      id: id,
-      name: name ?? this.name,
-      description: description ?? this.description,
-      price: price ?? this.price,
-      discountPrice: discountPrice ?? this.discountPrice,
-      maxQuantity:  maxQuantity ?? this.maxQuantity,
-      available: available ?? this.available,
-      isFree: isFree ?? this.isFree
-    );
-  }
+    // Parâmetros que vêm da API, mas que podemos deduzir ao criar
+    String? resolvedName,
+    int? resolvedPrice,
+  })  : // Esta é a parte inteligente:
+  // Se resolvedName não for passado, use name_override. Se nem esse existir, use um padrão.
+        this.resolvedName = resolvedName ?? name_override ?? '',
+  // Se resolvedPrice não for passado, use price_override. Se nem esse existir, use 0.
+        this.resolvedPrice = resolvedPrice ?? price_override ?? 0;
+
 
   Map<String, dynamic> toJson() {
     return {
-      'name': name,
-      'description': description,
-      'price': price,
-      'discount_price': discountPrice,
-      'max_quantity': maxQuantity,
+      'variant_id': variantId, // ✅ ADICIONE AO JSON
+      'name_override': name_override,
+      'price_override': price_override,
       'available': available,
-      'is_free': isFree
+      'pos_code': pos_code,
+      'linked_product_id': linked_product_id,
     };
   }
 
-  factory VariantOption.fromJson(Map<String, dynamic> map) {
+  // ✅ ADICIONE ESTE MÉTODO COMPLETO DENTRO DA CLASSE
+  VariantOption copyWith({
+    int? id,
+    int? variantId,
+    String? resolvedName,
+    int? resolvedPrice,
+    String? imagePath,
+    String? name_override,
+    int? price_override,
+    bool? available,
+    String? pos_code,
+    int? linked_product_id,
+  }) {
     return VariantOption(
-      id: map['id'] as int,
-      name: map['name'] as String,
-      description: map['description'] as String,
-      price: map['price'] as int,
-      discountPrice: map['discount_price'] as int,
-      maxQuantity: map['max_quantity'] as int,
-      available: map['available'] as bool,
-      isFree: map['is_free'] as bool
+      id: id ?? this.id,
+      variantId: variantId ?? this.variantId,
+      resolvedName: resolvedName ?? this.resolvedName,
+      resolvedPrice: resolvedPrice ?? this.resolvedPrice,
+      imagePath: imagePath ?? this.imagePath,
+      name_override: name_override ?? this.name_override,
+      price_override: price_override ?? this.price_override,
+      available: available ?? this.available,
+      pos_code: pos_code ?? this.pos_code,
+      linked_product_id: linked_product_id ?? this.linked_product_id,
+    );
+  }
+
+  factory VariantOption.fromJson(Map<String, dynamic> json) {
+    return VariantOption(
+      id: json['id'],
+
+      resolvedName: json['resolved_name'],
+      resolvedPrice: json['resolved_price'],
+      imagePath: json['image_path'],
+      name_override: json['name_override'],
+      price_override: json['price_override'],
+      available: json['available'] ?? true,
+      pos_code: json['pos_code'],
+      linked_product_id: json['linked_product_id'],
     );
   }
 }

@@ -18,13 +18,14 @@ import '../models/order_notification.dart';
 import '../models/print_job.dart';
 import '../models/store.dart';
 import '../models/totem_auth.dart';
-import '../models/totem_auth_and_stores.dart'; // Para ter acesso ao TotemAuth
+import '../models/totem_auth_and_stores.dart';
+import 'auth_repository.dart'; // Para ter acesso ao TotemAuth
 
 class RealtimeRepository {
   // A variável do socket agora pode ser nula e será inicializada corretamente.
   IO.Socket? _socket;
-
-
+  final AuthRepository _authRepository = GetIt.I<AuthRepository>();
+  bool _isReconnecting = false; // Flag para evitar múltiplas tentativas
   int? _lastJoinedStoreId;
 
   // Streams de estado e notificações
@@ -65,20 +66,13 @@ class RealtimeRepository {
   Stream<List<Command>> listenToCommands(int storeId) => _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
 
 
-// Dentro da classe RealtimeRepository
+
 
   /// Reivindica um trabalho de impressão específico pelo seu ID.
   Future<Either<String, Map<String, dynamic>>> claimSpecificPrintJob(int jobId) {
     print('[RealtimeRepository] Enviando reivindicação para o trabalho de impressão #$jobId');
-    // O backend precisa ter um handler para este novo evento.
     return _emitWithAck('claim_specific_print_job', {'job_id': jobId});
   }
-
-
-
-
-
-
 
 
 
@@ -91,16 +85,15 @@ class RealtimeRepository {
     log('[RealtimeRepository] Instância criada, aguardando inicialização...');
   }
 
-  /// **CORREÇÃO PRINCIPAL:** O método 'initialize' agora recebe o objeto 'TotemAuth'.
-  /// Ele contém o 'sid' e o 'access_token' necessários para uma autenticação segura.
-  Future<void> initialize(TotemAuth totemAuth) async {
+
+  Future<void> initialize(String adminToken) async {
     // Se já existe um socket, desconecte antes de criar um novo para garantir uma conexão limpa.
     if (_socket != null && _socket!.connected) {
       _socket!.disconnect();
     }
 
     log('[RealtimeRepository] Inicializando conexão com o socket...');
-    log('[RealtimeRepository] Usando SID: ${totemAuth.sid}');
+    log('[RealtimeRepository] Usando SID: ${adminToken}');
 
 
 
@@ -109,8 +102,8 @@ class RealtimeRepository {
         .disableAutoConnect()
         .setReconnectionAttempts(9999)
         .setReconnectionDelay(1000)
-    // **CORREÇÃO APLICADA:** Usa .setQuery() para enviar o token na URL
-        .setQuery({'admin_token':  totemAuth.token,})
+
+        .setQuery({'admin_token':  adminToken,})
         .build();
 
 
@@ -161,10 +154,37 @@ class RealtimeRepository {
 
 
 
-    _socket!.on('disconnect', (reason) {
+    /// ✅ 3. LÓGICA DE RECONEXÃO AUTOMÁTICA
+    _socket!.on('disconnect', (reason) async {
       log('[Socket] 🔌 Desconectado: $reason');
       _connectionStatusController.add(false);
+
+      // Se a desconexão não foi intencional (logout) e não estamos já tentando reconectar
+      if (reason != 'io client disconnect' && !_isReconnecting) {
+        _isReconnecting = true;
+        log('[Socket] Desconexão inesperada. Tentando renovar token e reconectar...');
+
+        // Tenta renovar o token
+        final refreshResult = await _authRepository.refreshAccessToken();
+
+        if (refreshResult.isRight) {
+          log('[Socket] Token renovado com sucesso. Reinicializando a conexão...');
+          final newAccessToken = _authRepository.accessToken;
+          if (newAccessToken != null) {
+            // Reinicia a conexão do socket com o novo token
+            await initialize(newAccessToken);
+          }
+        } else {
+          log('[Socket] Falha ao renovar o token. O usuário será deslogado.');
+          // Aqui você pode notificar o AuthCubit para deslogar o usuário
+          // Ex: GetIt.I<AuthCubit>().forceLogout();
+          _isReconnecting = false; // Libera para futuras tentativas
+        }
+      }
     });
+
+
+
 
     _socket!.on('connect_error', (data) {
       log('[Socket] ❌ Erro de conexão: $data');
@@ -184,13 +204,14 @@ class RealtimeRepository {
       }
     });
     _socket!.on('store_full_updated', _handleStoreUpdated);
-    _socket!.on('products_updated', _handleProductsUpdated);
+    _socket!.on('products_updated', _handleProductsUpdated
+    );
     _socket!.on('orders_initial', _handleOrdersInitial);
     _socket!.on('order_updated', _handleOrderUpdated);
     _socket!.on('tables_and_commands', _handleTablesAndCommands);
 
     // No método _registerSocketListeners(), adicione o novo listener:
-    _socket!.on('new_print_jobs_available', _handleNewPrintJobsAvailable);
+ //   _socket!.on('new_print_jobs_available', _handleNewPrintJobsAvailable);
 
     // NOVO: Registra o listener para o evento de aviso de assinatura
 
@@ -248,6 +269,7 @@ class RealtimeRepository {
       if (subscriptionData != null) {
         storeData['subscription'] = subscriptionData;
       }
+   //   print(subscriptionData);
 
       // ✅ PASSO 4: Agora o 'storeData' tem tudo que o fromJson precisa.
       final store = Store.fromJson(storeData);
@@ -260,6 +282,9 @@ class RealtimeRepository {
   }
 
   void _handleProductsUpdated(dynamic data) {
+
+    print(data);
+
     try {
       if (data is! Map || !data.containsKey('store_id')) return;
       final storeId = data['store_id'] as int;
@@ -272,6 +297,7 @@ class RealtimeRepository {
 
   void _handleOrdersInitial(dynamic data) {
     try {
+    //  print(data);
       if (data is! Map || !data.containsKey('store_id')) return;
       final storeId = data['store_id'] as int;
       final orders = (data['orders'] as List? ?? []).map((e) => OrderDetails.fromJson(e as Map<String, dynamic>)).toList();
@@ -427,6 +453,23 @@ class RealtimeRepository {
     return result.isRight ? const Right(null) : Left(result.left);
   }
 
+
+  Future<Either<String, void>> updatePrintJobStatus(int jobId, String status) {
+    print('[RealtimeRepository] Atualizando status do trabalho de impressão #$jobId para "$status"');
+
+    // Usa o helper _emitWithAck que já trata erros e timeouts.
+    final result = _emitWithAck('update_print_job_status', {
+      'job_id': jobId,
+      'status': status,
+    });
+
+    // Converte o resultado para o tipo esperado (Either<String, void>)
+    return result.then((either) => either.isRight ? const Right(null) : Left(either.left));
+  }
+
+
+// ARQUIVO: realtime_repository.dart (CORRIGIDO)
+
   Future<Either<String, Map<String, dynamic>>> updateStoreSettings({
     required int storeId,
     bool? isDeliveryActive,
@@ -435,6 +478,9 @@ class RealtimeRepository {
     bool? isStoreOpen,
     bool? autoAcceptOrders,
     bool? autoPrintOrders,
+    String? mainPrinterDestination,
+    String? kitchenPrinterDestination,
+    String? barPrinterDestination,
   }) {
     final data = <String, dynamic>{
       'store_id': storeId,
@@ -444,9 +490,14 @@ class RealtimeRepository {
       if (isStoreOpen != null) 'is_store_open': isStoreOpen,
       if (autoAcceptOrders != null) 'auto_accept_orders': autoAcceptOrders,
       if (autoPrintOrders != null) 'auto_print_orders': autoPrintOrders,
+      'main_printer_destination': mainPrinterDestination,
+      'kitchen_printer_destination': kitchenPrinterDestination,
+      'bar_printer_destination': barPrinterDestination,
     };
+
     return _emitWithAck('update_store_settings', data);
   }
+
 
   // --- Métodos Auxiliares e de Limpeza ---
 
@@ -467,11 +518,21 @@ class RealtimeRepository {
     try {
       final completer = Completer<Either<String, Map<String, dynamic>>>();
       _socket!.emitWithAck(event, payload, ack: ([dynamic args]) {
-        final data = (args is List && args.isNotEmpty) ? args[0] : null;
+        dynamic data;
+        // Tenta extrair os dados, seja de uma lista ou diretamente.
+        if (args is List && args.isNotEmpty) {
+          data = args[0];
+        } else if (args is Map) {
+          data = args;
+        }
+
         if (data is Map && data['error'] != null) {
           completer.complete(Left(data['error'] as String));
+        } else if (data is Map<String, dynamic>) {
+          completer.complete(Right(data));
         } else {
-          completer.complete(Right(data as Map<String, dynamic>? ?? {}));
+          // Se não for um mapa válido, retorna um mapa vazio para evitar erros de null.
+          completer.complete(const Right({}));
         }
       });
       return await completer.future.timeout(const Duration(seconds: 10));

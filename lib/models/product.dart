@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
+import 'package:totem_pro_admin/models/product_variant_link.dart';
 import 'package:totem_pro_admin/models/variant.dart';
 
 import 'package:totem_pro_admin/widgets/app_selection_form_field.dart';
@@ -28,7 +29,7 @@ class Product implements SelectableItem {
     this.maxStock = 0,
     this.unit = '',
 
-    this.variants, // Certifique-se de que `variants` está sendo recebido/passado corretamente
+    this.variantLinks,
   });
 
   final int? id;
@@ -53,7 +54,8 @@ class Product implements SelectableItem {
   final int maxStock;
   final String unit;
 
-  final List<Variant>? variants; // Se `variants` for ProductVariant, certifique-se de mapear para IDs
+  // ✅ CORREÇÃO: O campo agora se chama 'variantLinks' e armazena as regras.
+  final List<ProductVariantLink>? variantLinks;// Se `variants` for ProductVariant, certifique-se de mapear para IDs
 
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
@@ -77,18 +79,16 @@ class Product implements SelectableItem {
       maxStock: json['max_stock'] ?? 0,
       unit: json['unit'] ?? '',
 
-      variants: (json['variants'] as List)
-          .map((variant) => Variant.fromJson(variant))
+      // ✅ CORREÇÃO: Lendo a chave 'variant_links' da API
+      variantLinks: (json['variant_links'] as List<dynamic>? ?? [])
+          .map((link) => ProductVariantLink.fromJson(link))
           .toList(),
 
-      // variantss: (json['variants'] != null)
-      //     ? (json['variants'] as List)
-      //     .map((variant) => Variant.fromJson(variant))
-      //     .toList()
-      //     : [], // ou null, dependendo do seu modelo
+
     );
   }
 
+  /// ✅ MÉTODO copyWith CORRIGIDO
   Product copyWith({
     String? name,
     String? description,
@@ -99,17 +99,15 @@ class Product implements SelectableItem {
     bool? featured,
     bool? activatePromotion,
     ValueGetter<Category?>? category,
-
     ImageModel? image,
     String? ean,
-
     int? stockQuantity,
     bool? controlStock,
     int? minStock,
     int? maxStock,
     String? unit,
-
-    ValueGetter<List<Variant>?>? variants, // Adicionado para copyWith
+    // ✅ CORREÇÃO: Tipo e nome do parâmetro atualizados
+    ValueGetter<List<ProductVariantLink>?>? variantLinks,
   }) {
     return Product(
       id: id,
@@ -129,10 +127,10 @@ class Product implements SelectableItem {
       minStock: minStock ?? this.minStock,
       maxStock: maxStock ?? this.maxStock,
       unit: unit ?? this.unit,
-      variants: variants != null ? variants() : this.variants, // Usando ValueGetter para variantes
+      // ✅ CORREÇÃO: Usando o campo e o parâmetro corretos
+      variantLinks: variantLinks != null ? variantLinks() : this.variantLinks,
     );
   }
-
 
   Future<FormData> toFormData() async {
     final formData = FormData();
@@ -163,14 +161,7 @@ class Product implements SelectableItem {
       }
     });
 
-    // Adiciona os variant_ids, se houver
-    if (variants != null && variants!.isNotEmpty) {
-      for (final variant in variants!) {
-        if (variant.id != null) {
-          formData.fields.add(MapEntry('variant_ids', variant.id.toString()));
-        }
-      }
-    }
+
 
     // Adiciona o arquivo de imagem
     if (image?.file != null) {

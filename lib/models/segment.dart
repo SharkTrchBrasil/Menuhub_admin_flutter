@@ -1,35 +1,43 @@
-import 'package:dio/dio.dart';
-import 'package:totem_pro_admin/models/image_model.dart';
-import 'package:totem_pro_admin/widgets/app_selection_form_field.dart';
+// lib/models/segment.dart
 
-class Segment implements SelectableItem {
-  const Segment({this.id, this.name = '', this.is_active = true});
+import 'package:equatable/equatable.dart';
 
-  final int? id;
+class Segment extends Equatable {
+  final int id;
   final String name;
+  final String? description;
+  final bool isActive;
 
-  final bool is_active;
+  const Segment({
+    required this.id,
+    required this.name,
+    this.description,
+    required this.isActive,
+  });
 
-  factory Segment.fromJson(Map<String, dynamic> map) {
+  // Factory constructor para criar uma instância de Segment a partir de um JSON (mapa).
+  // É aqui que a "mágica" da conversão de API para objeto acontece.
+  factory Segment.fromJson(Map<String, dynamic> json) {
     return Segment(
-      id: map['id'] as int,
-      name: map['name'] as String,
-      is_active: map['is_active'] as bool,
-
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      isActive: json['is_active'],
     );
   }
 
 
 
-  Future<FormData> toFormData() async {
-    return FormData.fromMap({
-      'name': name,
-
-      'is_active': is_active,
-
-    });
+  bool filter(String query) {
+    return name.toLowerCase().contains(query.toLowerCase());
   }
 
   @override
-  String get title => name;
+  String toString() {
+    return name;
+  }
+  // Equatable ajuda a comparar objetos Segment pelo seu conteúdo, não pela referência de memória.
+  // Essencial para o flutter_bloc funcionar corretamente.
+  @override
+  List<Object?> get props => [id, name, description, isActive];
 }

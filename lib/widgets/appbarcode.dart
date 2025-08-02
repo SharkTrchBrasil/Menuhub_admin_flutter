@@ -65,9 +65,6 @@ class _appberState extends State<appber> {
       actions: [
         ThemeSwitcher(),
 
-        DesktopToolbar(activeStore: widget.store),
-
-        SizedBox(width: 30,),
 
 
         Row(

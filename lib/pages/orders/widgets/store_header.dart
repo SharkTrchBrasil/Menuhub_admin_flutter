@@ -68,7 +68,7 @@ class StoreHeader extends StatelessWidget {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             Text(
-              store!.phone,
+              store!.phone!,
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
           ],

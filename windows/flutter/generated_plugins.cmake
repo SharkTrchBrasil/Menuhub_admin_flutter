@@ -4,8 +4,11 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
+  directprint
   file_selector_windows
   flutter_secure_storage_windows
+  permission_handler_windows
+  print_bluetooth_thermal
   printing
   screen_retriever_windows
   share_plus
