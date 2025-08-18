@@ -11,7 +11,7 @@ class EscposReceiptLayout {
       OrderDetails order, Store store, Generator generator) async {
     List<int> bytes = [];
     bytes += generator.setGlobalCodeTable('CP1252');
-    bytes += generator.text(store.name, styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2));
+    bytes += generator.text(store.core.name, styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2));
     bytes += generator.hr();
     bytes += generator.row([
       PosColumn(text: 'Pedido #${order.sequentialId}', width: 6),

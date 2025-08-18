@@ -72,7 +72,7 @@ class DesktopToolbar extends StatelessWidget {
               _showSidePanel(
                 context,
                 // Criaremos este widget de placeholder abaixo
-                PrinterSettingsSidePanel(storeId: activeStore!.id!),
+                PrinterSettingsSidePanel(storeId: activeStore!.core.id!),
               );
             }
                 : null,
@@ -88,7 +88,7 @@ class DesktopToolbar extends StatelessWidget {
               _showSidePanel(
                 context,
                 // Usa o seu painel já pronto
-                StoreSettingsSidePanel(storeId: activeStore!.id!),
+                StoreSettingsSidePanel(storeId: activeStore!.core.id!),
               );
             }
                 : null,

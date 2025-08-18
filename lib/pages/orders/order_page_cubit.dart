@@ -13,7 +13,7 @@ import 'package:totem_pro_admin/utils/sounds/sound_util.dart';
 import 'package:totem_pro_admin/pages/orders/order_page_state.dart';
 
 import '../../models/print_job.dart';
-import '../../services/print/printer_manager.dart';
+import '../../services/print/print_manager.dart';
 
 class OrderCubit extends Cubit<OrderState> {
   final RealtimeRepository _realtimeRepository;
@@ -150,7 +150,7 @@ class OrderCubit extends Cubit<OrderState> {
           store = storeState.stores[order.storeId]?.store;
         }
 
-        if (store != null && store.storeSettings!.autoPrintOrders) {
+        if (store != null && store.relations.storeOperationConfig!.autoPrintOrders) {
           print('[OrderCubit] Encontrados ${pendingJobs.length} trabalhos de impressão pendentes para o pedido #${order.id}. Impressão automática ATIVADA.');
 
           final printPayload = PrintJobPayload(

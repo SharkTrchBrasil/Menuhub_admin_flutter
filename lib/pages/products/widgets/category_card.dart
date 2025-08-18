@@ -266,9 +266,7 @@ class CategoryCard extends StatelessWidget {
 
 
 
-      DialogService.showProductDialog(context, storeId, category: category, onSaved: (_) {
 
-      });
 
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Limite de produtos atingido.')));

@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../enums/cashback_type.dart';
+
 
 
 extension BuildContextX on BuildContext {
@@ -64,5 +66,29 @@ extension GoRouterStateX on GoRouterState {
     }
     return int.parse(optionId);
   }
+
+
+
 }
 
+
+extension DateFilterRangeExtension on DateFilterRange {
+  // Helper para obter o texto de exibição
+  Map<String, String> get displayTexts {
+    switch (this) {
+      case DateFilterRange.today:
+        return {'line1': 'Hoje', 'line2': ''};
+      case DateFilterRange.last7Days:
+        return {'line1': 'Últimos 7', 'line2': 'dias'};
+      case DateFilterRange.last30Days:
+        return {'line1': 'Últimos 30', 'line2': 'dias'};
+    }
+  }
+}
+
+
+
+extension TimeOfDayExtension on TimeOfDay {
+  /// Converte TimeOfDay para um valor double (ex: 9:30 -> 9.5).
+  double toDouble() => hour + minute / 60.0;
+}

@@ -62,7 +62,7 @@ class EditSubscriptionPageController extends ChangeNotifier {
         if (allPlans.isEmpty) {
           _status = PageStatusEmpty("Nenhum plano de assinatura foi encontrado.");
         } else {
-         final currentPlanId = activeStore?.subscription?.planId;
+         final currentPlanId = activeStore?.relations.subscription?.planId;
           final finalPlans = allPlans.map((plan) {
             return AvailablePlan(
               plan: plan,

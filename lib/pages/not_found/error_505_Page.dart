@@ -89,7 +89,7 @@ class NotFoundPageState extends State<NotFoundPage> {
           const SizedBox(height: 10,),
           ElevatedButton(
             onPressed: () {
-              context.go('/stores/');
+              context.go('/');
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xff5E81F4),fixedSize: const Size(140, 35)),
             child:  const Text('Home'),

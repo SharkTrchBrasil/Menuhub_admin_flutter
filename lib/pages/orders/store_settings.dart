@@ -56,7 +56,7 @@ class StoreSettingsSidePanel extends StatelessWidget {
                     if (state is StoresManagerLoaded) {
                       final storeWithRole = state.stores[storeId];
                       final store = storeWithRole?.store;
-                      final settings = store?.storeSettings;
+                      final settings = store?.relations.storeOperationConfig;
 
                       if (store == null || settings == null) {
                         return const Center(child: Text('Loja não encontrada'));
@@ -86,10 +86,10 @@ class StoreSettingsSidePanel extends StatelessWidget {
                               style: subtitleStyle,
                             ),
                             trailing: Switch(
-                              value: !settings.isDeliveryActive, // Lógica invertida para "Pausar"
+                              value: !settings.deliveryEnabled, // Lógica invertida para "Pausar"
                               onChanged: (_) => context
                                   .read<StoresManagerCubit>()
-                                  .updateStoreSettings(storeId, isDeliveryActive: !settings.isDeliveryActive),
+                                  .updateStoreSettings(storeId, isDeliveryActive: !settings.deliveryEnabled),
                             ),
                           ),
                           ListTile(
@@ -100,10 +100,10 @@ class StoreSettingsSidePanel extends StatelessWidget {
                               style: subtitleStyle,
                             ),
                             trailing: Switch(
-                              value: !settings.isTakeoutActive, // Lógica invertida para "Pausar"
+                              value: !settings.pickupEnabled, // Lógica invertida para "Pausar"
                               onChanged: (_) => context
                                   .read<StoresManagerCubit>()
-                                  .updateStoreSettings(storeId, isTakeoutActive: !settings.isTakeoutActive),
+                                  .updateStoreSettings(storeId, isTakeoutActive: !settings.pickupEnabled),
                             ),
                           ),
                           ListTile(

@@ -6,7 +6,7 @@ import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:totem_pro_admin/core/token_interceptor.dart';
 
-import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
+// Repositórios
 import 'package:totem_pro_admin/repositories/auth_repository.dart';
 import 'package:totem_pro_admin/repositories/category_repository.dart';
 import 'package:totem_pro_admin/repositories/coupons_repository.dart';
@@ -14,89 +14,60 @@ import 'package:totem_pro_admin/repositories/payment_method_repository.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/repositories/segment_repository.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
-import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
-import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
 import 'package:totem_pro_admin/repositories/banner_repository.dart';
 import 'package:totem_pro_admin/repositories/chatbot_repository.dart';
-import 'package:totem_pro_admin/repositories/delivery_options_repository.dart';
+import 'package:totem_pro_admin/repositories/store_operation_config_repository.dart';
 import 'package:totem_pro_admin/repositories/order_repository.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
 import 'package:totem_pro_admin/repositories/totems_repository.dart';
 import 'package:totem_pro_admin/repositories/user_repository.dart';
+import 'package:totem_pro_admin/repositories/dashboard_repository.dart';
+
+// Serviços
 import 'package:totem_pro_admin/services/auth_service.dart';
+import 'package:totem_pro_admin/services/print/device_settings_service.dart';
+import 'package:totem_pro_admin/services/print/print_layout_service.dart';
+import 'package:totem_pro_admin/services/print/printing_service.dart';
+import 'package:totem_pro_admin/services/print/print_manager.dart';
+import 'package:totem_pro_admin/services/print/printer_mapping_service.dart';
+import 'package:totem_pro_admin/services/subscription/subscription_service.dart';
 
+// Cubits
+import 'package:totem_pro_admin/cubits/active_store_cubit.dart';
+import 'package:totem_pro_admin/cubits/auth_cubit.dart';
+import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
+import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart';
+import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
+import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
 
-import '../cubits/active_store_cubit.dart';
-
-import '../cubits/auth_cubit.dart';
-import '../pages/create_store/cubit/store_setup_cubit.dart';
-import '../services/print/device_settings_service.dart';
-import '../services/print/print.dart';
-import '../services/print/printer_manager.dart';
-import '../services/print/printer_mapping_service.dart';
-import '../services/subscription/subscription_service.dart';
 
 final getIt = GetIt.instance;
 final apiUrl = dotenv.env['API_URL'];
 
-// ✅ Agora async para poder usar `await`
 Future<void> configureDependencies() async {
+  // --- 1. DEPENDÊNCIAS EXTERNAS E CONFIGURAÇÕES ---
   final sharedPreferences = await SharedPreferences.getInstance();
-
+  getIt.registerSingleton<SharedPreferences>(sharedPreferences);
 
   final dio = Dio(BaseOptions(baseUrl: '$apiUrl/admin'))
     ..interceptors.addAll([
       TokenInterceptor(),
       PrettyDioLogger(requestBody: true, requestHeader: true),
     ]);
-
-  getIt.registerSingleton<SharedPreferences>(sharedPreferences);
-
-
-  getIt.registerSingleton<DeviceSettingsService>(
-    DeviceSettingsService(getIt<SharedPreferences>()),
-  );
-
-
-  getIt.registerSingleton<PrinterMappingService>(
-    PrinterMappingService(getIt<SharedPreferences>()),
-  );
-
   getIt.registerSingleton(dio);
   getIt.registerSingleton(const FlutterSecureStorage());
 
-
-
-  // Repositórios simples
+  // --- 2. REPOSITÓRIOS ---
+  // Singletons (compartilhados e vivem para sempre)
   getIt.registerSingleton(AuthRepository(getIt(), getIt()));
   getIt.registerSingleton(StoreRepository(getIt()));
 
-  getIt.registerLazySingleton(() => PrinterService(getIt<PrinterMappingService>()));
-
-
-  // Realtime e StoreManager (devem ser Singletons)
-  getIt.registerSingleton<RealtimeRepository>(RealtimeRepository());
-
-  getIt.registerSingleton<StoresManagerCubit>(
-    StoresManagerCubit(
-      storeRepository: getIt<StoreRepository>(),
-      realtimeRepository: getIt<RealtimeRepository>(),
-    ),
+  getIt.registerLazySingleton<RealtimeRepository>(
+        () => RealtimeRepository(),
   );
 
 
-  final printManager = await PrintManager.create(
-
-
-    printerService: getIt<PrinterService>(),
-    realtimeRepository: GetIt.I<RealtimeRepository>(),
-    deviceSettingsService: getIt<DeviceSettingsService>(),
-  );
-
-
-  getIt.registerSingleton<PrintManager>(printManager);
-
-  // Repositórios com factory (podem ser criados sob demanda)
+  // Factories (criados toda vez que são pedidos)
   getIt.registerFactory(() => CategoryRepository(getIt()));
   getIt.registerFactory(() => ProductRepository(getIt()));
   getIt.registerFactory(() => TotemsRepository(getIt()));
@@ -105,50 +76,75 @@ Future<void> configureDependencies() async {
   getIt.registerFactory(() => SegmentRepository(getIt()));
   getIt.registerFactory(() => UserRepository(getIt()));
   getIt.registerFactory(() => ChatBotConfigRepository(getIt()));
-  getIt.registerFactory(() => DeliveryOptionRepository(getIt()));
+  getIt.registerFactory(() => DashboardRepository(getIt()));
+  getIt.registerFactory(() => StoreOperationConfigRepository(getIt()));
   getIt.registerFactory(() => BannerRepository(getIt()));
   getIt.registerFactory(() => OrderRepository(getIt()));
 
-  // Serviços (AuthService precisa do AuthRepository, StoreRepository e RealtimeRepository)
-// Em configureDependencies()
+
+
+  // --- 3. SERVIÇOS (Dependem dos Repositórios) ---
   getIt.registerSingleton<AuthService>(
     AuthService(
       authRepository: getIt<AuthRepository>(),
       storeRepository: getIt<StoreRepository>(),
-      realtimeRepository: getIt<RealtimeRepository>(),
-     // storesManagerCubit: getIt<StoresManagerCubit>(), // <--- Adicione isto!
+
     ),
   );
 
+  // --- 4. CUBITS (Dependem dos Repositórios e Serviços) ---
 
-  // Outros Cubits
+  getIt.registerSingleton<AuthCubit>(AuthCubit(authService: getIt<AuthService>()));
+
+
+  getIt.registerSingleton<StoresManagerCubit>(
+    StoresManagerCubit(
+      storeRepository: getIt<StoreRepository>(),
+      realtimeRepository: getIt<RealtimeRepository>(),
+      authCubit: getIt<AuthCubit>(),
+    ),
+  );
+  getIt.registerSingleton<ActiveStoreCubit>(ActiveStoreCubit(realtimeRepository: getIt<RealtimeRepository>()));
+  getIt.registerSingleton<SplashPageCubit>(SplashPageCubit());
+
+  // --- 5. SERVIÇOS QUE DEPENDEM DE CUBITS ---
+  // Agora registramos o AccessControlService, pois o StoresManagerCubit já existe.
+  getIt.registerSingleton<AccessControlService>(
+    AccessControlService(getIt<StoresManagerCubit>()),
+  );
+
+  // --- 6. SISTEMA DE IMPRESSÃO (Ordem correta) ---
+  getIt.registerSingleton<DeviceSettingsService>(DeviceSettingsService(getIt<SharedPreferences>()));
+  getIt.registerSingleton<PrinterMappingService>(PrinterMappingService(getIt<SharedPreferences>()));
+  getIt.registerSingleton<PrintLayoutService>(PrintLayoutService());
+  getIt.registerSingleton<PrintManager>(PrintManager(getIt(), getIt()));
+
   getIt.registerLazySingleton<OrderCubit>(() => OrderCubit(
     realtimeRepository: getIt<RealtimeRepository>(),
     storesManagerCubit: getIt<StoresManagerCubit>(),
     printManager: getIt<PrintManager>(),
   ));
 
-  getIt.registerSingleton<SplashPageCubit>(SplashPageCubit());
-
-
-  // ✅ ADICIONE ESTA LINHA AQUI, NO FINAL DE configureDependencies()
-  getIt.registerSingleton<bool>(true, instanceName: 'isInitialized');
-
-  getIt.registerSingleton<AuthCubit>(AuthCubit( // Use registerSingleton
-    authService: getIt<AuthService>(),
-
-  ));
-
-// Mude de registerFactory para registerSingleton
-  getIt.registerSingleton<ActiveStoreCubit>(ActiveStoreCubit(
-    realtimeRepository: getIt<RealtimeRepository>(),
-  ));
-
-  getIt.registerSingleton<AccessControlService>(
-    AccessControlService(getIt<StoresManagerCubit>()),
+  // Serviços que dependem dos Cubits e precisam ser inicializados.
+  getIt.registerSingleton<PrintingService>(
+    PrintingService(
+      // ✅ Usa o getter do AuthService para pegar a instância ATIVA
+      realtimeRepo:getIt<RealtimeRepository>(),
+      printManager: getIt<PrintManager>(),
+      storesManagerCubit: getIt<StoresManagerCubit>(),
+    ),
   );
 
 
-
+  // Adicione o registro do seu cubit
+  getIt.registerFactory<StoreSetupCubit>(
+        () => StoreSetupCubit(
+      getIt<StoreRepository>(),
+      getIt<SegmentRepository>(),
+      getIt<UserRepository>(),
+      getIt<AuthCubit>(),
+      getIt<AuthService>(),
+    ),
+  );
 
 }

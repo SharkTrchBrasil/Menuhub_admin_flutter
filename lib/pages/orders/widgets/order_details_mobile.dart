@@ -8,23 +8,21 @@ import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/store_header.dart';
 
+import '../../../core/di.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/order_product.dart';
 import '../../../models/store.dart';
-import '../../../services/print/print.dart';
+import '../../../services/print/print_manager.dart';
+import '../../../services/print/printing_service.dart';
 import '../../../widgets/order_printing_actions_widget.dart';
-// Para statusColors, deliveryTypeIcons, formatOrderDate, statusInternalMap
-
+import 'order_status_button.dart';
 class OrderDetailsPageMobile extends StatefulWidget {
   final OrderDetails order;
-
-  // AJUSTADO: A página agora recebe o objeto Store completo.
   final Store store;
 
   const OrderDetailsPageMobile({
     super.key,
     required this.order,
-
     required this.store,
   });
 
@@ -33,10 +31,9 @@ class OrderDetailsPageMobile extends StatefulWidget {
 }
 
 class _OrderDetailsPageMobileState extends State<OrderDetailsPageMobile> {
-
   final ScrollController _scrollController = ScrollController();
   bool _collapsed = false;
-  final printerService = GetIt.I<PrinterService>();
+
   @override
   void initState() {
     super.initState();
@@ -44,10 +41,10 @@ class _OrderDetailsPageMobileState extends State<OrderDetailsPageMobile> {
   }
 
   void _handleScroll() {
-    if (_scrollController.offset > 60 && !_collapsed) {
-      setState(() => _collapsed = true);
-    } else if (_scrollController.offset <= 60 && _collapsed) {
-      setState(() => _collapsed = false);
+    if (!mounted) return;
+    final shouldCollapse = _scrollController.offset > 60;
+    if (shouldCollapse != _collapsed) {
+      setState(() => _collapsed = shouldCollapse);
     }
   }
 
@@ -58,35 +55,12 @@ class _OrderDetailsPageMobileState extends State<OrderDetailsPageMobile> {
     super.dispose();
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   @override
   Widget build(BuildContext context) {
-    final Color statusColor = statusColors[widget.order.orderStatus] ?? Colors.grey;
-    final String deliveryType = widget.order.deliveryType;
-    // Pega o tipo de entrega
+    final currencyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     final theme = Theme.of(context);
 
-    final currencyFormat = NumberFormat.currency(
-      locale: 'pt_BR',
-      symbol: 'R\$',
-    );
-
-
-    return  Scaffold(
+    return Scaffold(
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
@@ -96,173 +70,77 @@ class _OrderDetailsPageMobileState extends State<OrderDetailsPageMobile> {
             foregroundColor: Colors.black,
             elevation: 1,
             expandedHeight: 80,
-            collapsedHeight: kToolbarHeight,
             centerTitle: true,
-            title: _collapsed
-                ? Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  widget.order.customerName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(width: 8,),
-                Text(
-                  'Pedido ${widget.order.sequentialId}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            )
-                : const Text(
-              'Detalhes do pedido',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black,
-                fontWeight: FontWeight.w500,
+            title: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _collapsed ? 1.0 : 0.0,
+              child: Text(
+                '#${widget.order.sequentialId} - ${widget.order.customerName}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ),
             actions: [
-              // ✅ WIDGET DE IMPRESSÃO ADICIONADO AQUI
+              // ✅ CORREÇÃO: Passando o 'store' que faltava
               OrderPrintingActionsWidget(
-                order: widget.order, // Passe o objeto do pedido
-                store: widget.store, // Passe o objeto da loja
-                printerService: printerService, // Passe a instância do serviço
+                order: widget.order,
+                store: widget.store,
               ),
-
-
             ],
           ),
-
-
-          // Agora todo o conteúdo vira um SliverToBoxAdapter
           SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-
-                _collapsed ? SizedBox.shrink(): Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.order.customerName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Pedido ${widget.order.sequentialId}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-
-
-                if (widget.order.customerOrderCount != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-                    child: Row(
-                      children: [
-                        Text(
-                          widget.order.customerOrderCount == 1
-                              ? 'Cliente novo na sua loja!'
-                              : '${_ordinal(widget.order.customerOrderCount!)} pedido na loja',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
+                if (!_collapsed) _buildHeader(),
                 const SizedBox(height: 24),
                 _buildStatusBar(widget.order.orderStatus),
-                Divider(color: Colors.grey[300], thickness: 0.4, height: 35),
-
+                const Divider(thickness: 1, height: 35),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: StoreHeader(store: widget.store),
                 ),
-
-                Divider(color: Colors.grey[300], thickness: 0.4, height: 24),
+                const Divider(thickness: 1, height: 24),
                 _buildItemsList(theme, currencyFormat),
-                Divider(color: Colors.grey[300], thickness: 0.4, height: 24),
+                const Divider(thickness: 1, height: 24),
                 _buildPaymentSummary(theme, currencyFormat),
-                Divider(color: Colors.grey[300], thickness: 0.4, height: 24),
-
+                const Divider(thickness: 1, height: 24),
                 if (widget.order.deliveryType == 'delivery') _buildAddressCard(theme),
-                if (widget.order.deliveryType != 'delivery') const SizedBox(height: 24),
-
-                Divider(color: Colors.grey[300], thickness: 0.4, height: 14),
+                const Divider(thickness: 1, height: 14),
                 _buildPaymentMethodCard(theme, currencyFormat),
-                const SizedBox(height: 80),
+                const SizedBox(height: 100), // Espaço para o BottomAppBar não cobrir
               ],
             ),
           ),
         ],
       ),
+      // ✅ MUDANÇA PRINCIPAL: Reutilizando o OrderStatusButton
       bottomNavigationBar: BottomAppBar(
         elevation: 10.0,
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              if (canStoreCancelOrder(widget.order.orderStatus))
+              if (canStoreCancelOrder(widget.order.orderStatus)) ...[
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.red),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       minimumSize: const Size(double.infinity, 50),
                     ),
                     onPressed: () => showCancelConfirmationDialog(context, widget.order),
-                    child: const Text(
-                      'Cancelar Pedido',
-                      style: TextStyle(color: Colors.red),
-                    ),
+                    child: const Text('Cancelar Pedido', style: TextStyle(color: Colors.red)),
                   ),
                 ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
+              ],
+              // O botão principal agora é o nosso widget reutilizável!
+              // Ele já contém toda a lógica de status, cor, texto e impressão manual.
               Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: statusColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  onPressed: () {
-                    _changeOrderStatus(context);
-                  },
-                  child: Text(
-                    getButtonTextForStatus(widget.order.orderStatus, deliveryType),
-                    style: const TextStyle(color: Colors.white),
-                  ),
+                flex: 2, // Dando mais espaço para o botão principal
+                child: OrderStatusButton(
+                  order: widget.order,
+                  store: widget.store,
                 ),
               ),
             ],
@@ -270,10 +148,6 @@ class _OrderDetailsPageMobileState extends State<OrderDetailsPageMobile> {
         ),
       ),
     );
-
-
-
-
   }
 
   String _ordinal(int number) {
@@ -299,6 +173,31 @@ class _OrderDetailsPageMobileState extends State<OrderDetailsPageMobile> {
       default:
         return '${number}º';
     }
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '#${widget.order.sequentialId} - ${widget.order.customerName}',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          if (widget.order.customerOrderCount != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                widget.order.customerOrderCount == 1
+                    ? 'Cliente novo!'
+                    : '${_ordinal(widget.order.customerOrderCount!)} pedido na loja',
+                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildItemsList(ThemeData theme, NumberFormat currencyFormat) {
@@ -919,48 +818,6 @@ class _OrderDetailsPageMobileState extends State<OrderDetailsPageMobile> {
     );
   }
 
-
-  void _changeOrderStatus(BuildContext context) {
-    String? nextStatus;
-
-    switch (widget.order.orderStatus) {
-      case 'pending':
-        nextStatus = 'preparing';
-
-        // ✅ CORREÇÃO APLICADA AQUI
-        // 1. Verifica se a impressão automática está DESLIGADA.
-        if (widget.store.storeSettings?.autoPrintOrders == false) {
-          print('Impressão automática desligada. Imprimindo via da cozinha ao aceitar...');
-
-          // 2. Obtém a instância do PrinterService via GetIt (melhor prática).
-          final printerService = GetIt.I<PrinterService>();
-
-          // 3. Chama a impressão com o destino específico.
-          printerService.printOrder(
-            widget.order,
-            widget.store,
-            destination: 'cozinha',
-          );
-        }
-        break;
-
-      case 'preparing':
-        nextStatus = 'ready';
-        break;
-      case 'ready':
-        nextStatus = 'on_route';
-        break;
-      case 'on_route':
-        nextStatus = 'delivered';
-        break;
-      default:
-        nextStatus = null;
-    }
-
-    if (nextStatus != null) {
-      context.read<OrderCubit>().updateOrderStatus(widget.order.id, nextStatus);
-    }
-  }
 
 }
 

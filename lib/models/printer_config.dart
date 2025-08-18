@@ -1,4 +1,4 @@
-enum PrinterType { bluetooth, desktop }
+enum PrinterType { bluetooth, desktop, dialog }
 
 class PrinterConfig {
   final String identifier; // MAC Address (Bluetooth) ou Nome (Desktop)

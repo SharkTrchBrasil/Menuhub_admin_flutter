@@ -8,7 +8,7 @@ import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/order_details.dart';
 import '../../../models/order_product.dart';
 import '../../../models/store.dart';
-import '../../../services/print/print.dart';
+import '../../../services/print/printing_service.dart';
 import '../../../widgets/order_printing_actions_widget.dart';
 import '../utils/order_helpers.dart';
 import 'order_status_button.dart';
@@ -18,7 +18,7 @@ class OrderDetailsPanel extends StatelessWidget {
   final OrderDetails order;
   final Store? store;
   final VoidCallback onClose; // ✅ Callback para notificar o pai que deve fechar
-  final printerService = GetIt.I<PrinterService>();
+  final printerService = GetIt.I<PrintingService>();
 
   OrderDetailsPanel({
     super.key,
@@ -68,7 +68,7 @@ class OrderDetailsPanel extends StatelessWidget {
                       OrderPrintingActionsWidget(
                         order: order, // Passe o objeto do pedido
                         store: store!, // Passe o objeto da loja
-                        printerService: printerService, // Passe a instância do serviço
+                         // Passe a instância do serviço
                       ),
 
                       // Botão de fechar
@@ -166,15 +166,15 @@ class OrderDetailsPanel extends StatelessWidget {
           runSpacing: 8,
           spacing: 8,
           children: [
-            if (store?.image?.url != null)
+            if (store?.media!.image?.url != null)
               CircleAvatar(
                 radius: 14,
-                backgroundImage: NetworkImage(store!.image!.url!),
+                backgroundImage: NetworkImage(store!.media!.image!.url!),
               ),
 
             if (store != null)
               Text(
-                store!.name,
+                store!.core.name,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),

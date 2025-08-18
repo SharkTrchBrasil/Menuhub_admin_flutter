@@ -24,16 +24,16 @@ class StoreFilterSection extends StatelessWidget {
         const Text('Exibir pedidos das lojas:', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         ...stores.map((store) {
-          final storeId = store.store.id;
+          final storeId = store.store.core.id;
           final isSelected = selectedStoreIds.contains(storeId);
 
           return SwitchListTile(
             value: isSelected,
-            title: Text(store.store.name),
+            title: Text(store.store.core.name),
             secondary: CircleAvatar(
               radius: 12,
-              backgroundImage: (store.store.image?.url != null && store.store.image!.url!.isNotEmpty)
-                  ? NetworkImage(store.store.image!.url!)
+              backgroundImage: (store.store.media!.image?.url != null && store.store.media!.image!.url!.isNotEmpty)
+                  ? NetworkImage(store.store.media!.image!.url!)
                   : const AssetImage('assets/images/avatar.png') as ImageProvider,
             ),
             onChanged: (bool selected) {

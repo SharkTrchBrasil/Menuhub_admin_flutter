@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class ResponsiveBuilder extends StatelessWidget {
   const ResponsiveBuilder({
     required this.mobileBuilder,
-    required this.tabletBuilder,
+ //   required this.tabletBuilder,
     required this.desktopBuilder,
     Key? key,
   }) : super(key: key);
@@ -13,10 +13,10 @@ class ResponsiveBuilder extends StatelessWidget {
       BoxConstraints constraints,
       ) mobileBuilder;
 
-  final Widget Function(
-      BuildContext context,
-      BoxConstraints constraints,
-      ) tabletBuilder;
+  // final Widget Function(
+  //     BuildContext context,
+  //     BoxConstraints constraints,
+  //     ) tabletBuilder;
 
   final Widget Function(
       BuildContext context,
@@ -41,10 +41,11 @@ class ResponsiveBuilder extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= 1024) {
-          return desktopBuilder(context, constraints);
-        } else if (constraints.maxWidth >= 768) {
-          return tabletBuilder(context, constraints);
-        } else {
+          return desktopBuilder(context, constraints);}
+        // } else if (constraints.maxWidth >= 768) {
+        //   return tabletBuilder(context, constraints);
+        // }
+           else {
           return mobileBuilder(context, constraints);
         }
       },

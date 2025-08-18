@@ -39,11 +39,11 @@ class ComplementGroupsScreen extends StatelessWidget {
         // Pega as dependências do contexto (assumindo que já estão providas em um nível superior)
         final storesState = context.read<StoresManagerCubit>().state as StoresManagerLoaded;
         return CreateComplementGroupCubit(
-          storeId: storesState.activeStore!.id!,
+          storeId: storesState.activeStore!.core.id!,
           productId: product.id!,
           productRepository: getIt<ProductRepository>(),
-          allExistingVariants: storesState.activeStore!.variants ?? [],
-          allExistingProducts: storesState.activeStore!.products ?? [],
+          allExistingVariants: storesState.activeStore!.relations.variants ?? [],
+          allExistingProducts: storesState.activeStore!.relations.products ?? [],
         );
       },
       // ✅ PASSO 2: O BlocListener "ouve" o estado do Cubit para tomar ações.

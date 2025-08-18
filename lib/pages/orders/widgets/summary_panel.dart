@@ -49,9 +49,9 @@ class SummaryPanel extends StatelessWidget {
 
   Widget _buildDashboard(BuildContext context) {
     // A lógica agora usa os dados recebidos via construtor, sem BlocBuilder interno.
-    final storeName = store?.name ?? "Loja";
-    final isStoreOpen = store?.storeSettings?.isStoreOpen ?? false;
-    final storeHours = store?.hours ?? [];
+    final storeName = store?.core.name ?? "Loja";
+    final isStoreOpen = store?.relations.storeOperationConfig?.isStoreOpen ?? false;
+    final storeHours = store?.relations.hours ?? [];
 
     if (orderState is OrdersLoading || orderState is OrdersInitial) {
       return const Center(child: DotLoading());
@@ -106,7 +106,7 @@ class SummaryPanel extends StatelessWidget {
             onChanged: (newValue) {
               if (store != null) {
                 context.read<StoresManagerCubit>().updateStoreSettings(
-                  store!.id!,
+                  store!.core.id!,
                   isStoreOpen: newValue,
                 );
               }

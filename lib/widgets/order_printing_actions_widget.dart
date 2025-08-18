@@ -1,18 +1,20 @@
-// Em: widgets/OrderPrintingActionsWidget.dart
-
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/di.dart';
-
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
-import '../services/print/constants/print_destinations.dart';
-import '../services/print/print.dart';
-import '../services/subscription/subscription_service.dart';
+import 'package:totem_pro_admin/services/print/print_manager.dart';
+import 'package:totem_pro_admin/services/subscription/subscription_service.dart';
+
+// Constantes para os destinos, para evitar erros de digitação.
+class PrintDestinations {
+  static const String receipt = 'balcao'; // ou 'caixa', dependendo da sua configuração
+  static const String kitchen = 'cozinha';
+  static const String share = 'share';
+}
 
 class OrderPrintingActionsWidget extends StatelessWidget {
   final OrderDetails order;
   final Store store;
-  final PrinterService printerService;
   final bool showPrintReceipt;
   final bool showPrintKitchen;
   final bool showShare;
@@ -21,63 +23,69 @@ class OrderPrintingActionsWidget extends StatelessWidget {
     super.key,
     required this.order,
     required this.store,
-    required this.printerService,
     this.showPrintReceipt = true,
     this.showPrintKitchen = true,
     this.showShare = true,
   });
 
-  // ✅ PASSO 1: Criamos um método 'async' para lidar com a lógica.
-  // Isso mantém o 'build' e o 'onSelected' síncronos e limpos.
-  void _handlePrintAction(BuildContext context, String destination) async {
+  /// Lida com a ação selecionada no menu.
+  void _handleAction(BuildContext context, String action) async {
+    // Pega os serviços necessários do GetIt
+    final printManager = getIt<PrintManager>();
     final accessControl = getIt<AccessControlService>();
+
+    // Ação de compartilhar é tratada separadamente
+    if (action == PrintDestinations.share) {
+      // O PrintManager agora pode ter uma função para isso, ou chamamos o layout service
+      // Vamos assumir que o PrintManager tem um método para compartilhar
+      await printManager.shareOrderAsPdf(order, store);
+      return;
+    }
+
+    // Para impressão, verificamos a permissão de impressão direta
     final canPrintDirectly = accessControl.canAccess('auto_printing');
 
-    if (destination == 'share') {
-      printerService.generateAndShareOrderPDF(order, store);
-    } else {
-      if (canPrintDirectly) {
-        print('[Printing Actions] Usando impressão direta para o destino: $destination');
+    if (canPrintDirectly) {
+      print('[Printing Actions] Usando impressão direta para o destino: $action');
+      final bool success = await printManager.manualPrint(
+        order: order,
+        store: store,
+        destination: action,
+      );
 
-        // ✅ PASSO 2: Usamos 'await' para esperar o resultado da impressão.
-        final bool success = await printerService.printOrder(
-          order,
-          store,
-          destination: destination,
-        );
-
-        // ✅ PASSO 3: Se a impressão foi bem-sucedida, mostramos o SnackBar.
-        // A verificação 'context.mounted' é uma boa prática de segurança.
-        if (success && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.check_circle_outline, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text('Enviado para a impressão com sucesso!'),
-                ],
-              ),
-              backgroundColor: Colors.green[700], // Cor verde, como pedido
-              behavior: SnackBarBehavior.floating, // Estilo moderno
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              margin: const EdgeInsets.all(10),
-            ),
-          );
-        }
-
-      } else {
-        print('[Printing Actions] Usando diálogo de impressão do sistema para o destino: $destination');
-        // A impressão com diálogo não retorna um status, então não mostramos o snackbar aqui.
-        printerService.printOrderWithDialog(
-          order,
-          store,
-          destination: destination,
-        );
+      if (success && context.mounted) {
+        _showSuccessSnackbar(context);
       }
+    } else {
+      print('[Printing Actions] Usando diálogo de impressão do sistema para o destino: $action');
+      // A impressão com diálogo é uma responsabilidade do PrintManager também
+      await printManager.printWithDialog(
+        order: order,
+        store: store,
+        destination: action,
+      );
     }
+  }
+
+  /// Mostra um feedback visual de sucesso.
+  void _showSuccessSnackbar(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.white),
+            SizedBox(width: 8),
+            Text('Enviado para a impressão com sucesso!'),
+          ],
+        ),
+        backgroundColor: Colors.green[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: const EdgeInsets.all(10),
+      ),
+    );
   }
 
   @override
@@ -85,17 +93,14 @@ class OrderPrintingActionsWidget extends StatelessWidget {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.print_outlined),
       tooltip: 'Opções de Impressão',
-
-      // ✅ PASSO 4: O 'onSelected' agora simplesmente chama nosso método assíncrono.
-      onSelected: (String destination) => _handlePrintAction(context, destination),
-
+      onSelected: (String action) => _handleAction(context, action),
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
         if (showPrintReceipt)
           const PopupMenuItem<String>(
-            value: PrintDestinations.counter,
+            value: PrintDestinations.receipt,
             child: ListTile(
               leading: Icon(Icons.receipt_long),
-              title: Text('Imprimir Pedido'),
+              title: Text('Imprimir Pedido (Via Cliente)'),
             ),
           ),
         if (showPrintKitchen)
@@ -103,14 +108,14 @@ class OrderPrintingActionsWidget extends StatelessWidget {
             value: PrintDestinations.kitchen,
             child: ListTile(
               leading: Icon(Icons.kitchen),
-              title: Text('Imprimir Via Resumida'),
+              title: Text('Imprimir Via da Cozinha'),
             ),
           ),
         if ((showPrintReceipt || showPrintKitchen) && showShare)
           const PopupMenuDivider(),
         if (showShare)
           const PopupMenuItem<String>(
-            value: 'share',
+            value: PrintDestinations.share,
             child: ListTile(
               leading: Icon(Icons.share),
               title: Text('Compartilhar PDF'),

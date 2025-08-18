@@ -49,11 +49,11 @@ class StoreSelectorPanel extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final storeWithRole = state.stores.values.elementAt(index);
                   final store = storeWithRole.store;
-                  final isActive = state.activeStoreId == store.id;
-                  final isConsolidated = consolidatedIds.contains(store.id);
+                  final isActive = state.activeStoreId == store.core.id;
+                  final isConsolidated = consolidatedIds.contains(store.core.id);
 
                   // 2. Pega a contagem de notificações para a loja atual.
-                  final notificationCount = notificationCounts[store.id] ?? 0;
+                  final notificationCount = notificationCounts[store.core.id] ?? 0;
 
                   return ListTile(
                     leading: Icon(
@@ -62,7 +62,7 @@ class StoreSelectorPanel extends StatelessWidget {
                     ),
                     title: Row(
                       children: [
-                        Flexible(child: Text(store.name, overflow: TextOverflow.ellipsis)),
+                        Flexible(child: Text(store.core.name, overflow: TextOverflow.ellipsis)),
                         const SizedBox(width: 8),
                         // 3. Exibe o badge se houver notificações!
                         if (notificationCount > 0)
@@ -77,7 +77,7 @@ class StoreSelectorPanel extends StatelessWidget {
                       color: isConsolidated ? Colors.amber : Colors.grey,
                     ),
                     onTap: () {
-                      onStoreSelected(store.id!);
+                      onStoreSelected(store.core.id!);
                       // Fecha o painel após a seleção
                       if (onClose != null) {
                         onClose!();

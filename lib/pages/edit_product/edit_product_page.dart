@@ -21,6 +21,8 @@ import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import 'package:totem_pro_admin/widgets/mobile_mockup.dart';
 import 'package:brasil_fields/brasil_fields.dart';
 
+import '../../core/enums/cashback_type.dart';
+
 class EditProductPage extends StatefulWidget {
   const EditProductPage({
     super.key,
@@ -29,19 +31,23 @@ class EditProductPage extends StatefulWidget {
     this.product,
     this.category,
     this.onSaved,
+    this.isInWizard = false, // ✅ 1. NOVO PARÂMETRO
   });
 
   final int storeId;
   final Category? category;
-  final Product? product; // Objeto recebido via 'extra' do go_router
-  final int?  id;
+  final Product? product;
+  final int? id;
   final void Function(Product)? onSaved;
+  final bool isInWizard;
 
   @override
-  State<EditProductPage> createState() => _EditProductPageState();
+  // ✅ 2. STATE COM NOME PÚBLICO
+  State<EditProductPage> createState() => EditProductPageState();
 }
 
-class _EditProductPageState extends State<EditProductPage> {
+
+class EditProductPageState extends State<EditProductPage> {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final ProductRepository repository = getIt();
 
@@ -54,6 +60,26 @@ class _EditProductPageState extends State<EditProductPage> {
   void initState() {
     super.initState();
     _loadInitialData();
+  }
+
+
+  Future<bool> save() async {
+    if (!(formKey.currentState?.validate() ?? false)) return false;
+    if (_editedProduct == null) return false;
+
+    // A lógica de salvamento que já estava no seu botão
+    final result = await repository.saveProduct(widget.storeId, _editedProduct!);
+
+    return result.fold(
+          (error) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro ao salvar: error")));
+        return false; // Falha
+      },
+          (savedProduct) {
+        widget.onSaved?.call(savedProduct);
+        return true; // Sucesso
+      },
+    );
   }
 
   void _loadInitialData() {
@@ -84,7 +110,7 @@ class _EditProductPageState extends State<EditProductPage> {
         final currentState = context.read<StoresManagerCubit>().state;
         if (currentState is StoresManagerLoaded) {
           try {
-            final productFromState = currentState.activeStore?.products.firstWhere((p) => p.id == widget.id);
+            final productFromState = currentState.activeStore?.relations.products.firstWhere((p) => p.id == widget.id);
             setState(() {
               _editedProduct = productFromState;
               _isLoading = false;
@@ -101,22 +127,19 @@ class _EditProductPageState extends State<EditProductPage> {
 
 
 
+
   @override
   Widget build(BuildContext context) {
-    // O BlocListener mantém a página sincronizada com o estado global
     return BlocListener<StoresManagerCubit, StoresManagerState>(
       listener: (context, state) {
         if (state is StoresManagerLoaded && _editedProduct != null) {
           try {
-            final updatedProduct = state.activeStore?.products.firstWhere((p) => p.id == _editedProduct!.id);
+            // ✅ 4. CORREÇÃO NO ACESSO AOS DADOS
+            final updatedProduct = state.activeStore?.relations.products.firstWhere((p) => p.id == _editedProduct!.id);
             if (updatedProduct != null && updatedProduct != _editedProduct) {
-              print("🔄 EditProductPage: Recebendo atualização externa e atualizando a UI.");
-              setState(() {
-                _editedProduct = updatedProduct;
-              });
+              setState(() { _editedProduct = updatedProduct; });
             }
           } catch (e) {
-            print("Produto ID ${_editedProduct!.id} foi excluído externamente. Fechando a tela.");
             if (mounted) {
               context.pop();
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Este produto foi removido.")));
@@ -124,52 +147,81 @@ class _EditProductPageState extends State<EditProductPage> {
           }
         }
       },
-      // ✅ 3. BUILD SIMPLIFICADO
-      // Removemos AnimatedBuilder e AppPageStatusBuilder
-      child: _buildContent(),
+      // ✅ 5. BUILD CONDICIONAL
+      child: widget.isInWizard
+          ? _buildWizardContent()
+          : _buildStandalonePage(),
     );
   }
 
-  Widget _buildContent() {
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: DotLoading()));
-    }
-    if (_editedProduct == null) {
-      return const Scaffold(body: Center(child: Text("Produto não encontrado.")));
-    }
-    final product = _editedProduct!;
+  // MÉTODO PARA A PÁGINA COMPLETA (MODO NORMAL)
+  Widget _buildStandalonePage() {
+    if (_isLoading) return const Scaffold(body: Center(child: DotLoading()));
+    if (_editedProduct == null) return const Scaffold(body: Center(child: Text("Produto não encontrado.")));
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        appBar: ResponsiveBuilder.isMobile(context) ? AppBar(title: Text(product.name.isEmpty ? "Novo Produto" : product.name)) : null,
+        appBar: ResponsiveBuilder.isMobile(context) ? AppBar(title: Text(_editedProduct!.name.isEmpty ? "Novo Produto" : _editedProduct!.name)) : null,
         backgroundColor: Colors.white,
-        body: Form(
-          key: formKey,
-          child: Column(
-            children: [
-              if (ResponsiveBuilder.isDesktop(context)) _buildHeader(product),
-              const TabBar(
-                labelColor: Colors.black, indicatorColor: Colors.red, isScrollable: true, tabAlignment: TabAlignment.start,
-                tabs: [
-                  Tab(text: 'Sobre o produto'), Tab(text: 'Grupo de complementos'), Tab(text: 'Opções Avançadas'),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _buildAboutProductTab(product),
-                    ComplementGroupsScreen(product: product),
-                    _buildOptionsTab(product),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        body: _buildWizardContent(),
         bottomNavigationBar: _buildBottomBar(),
       ),
     );
   }
+
+  // MÉTODO PARA O CONTEÚDO DO FORMULÁRIO (REUTILIZADO)
+  Widget _buildWizardContent() {
+    if (_isLoading) return const Center(child: DotLoading());
+    if (_editedProduct == null) return const Scaffold(body: Center(child: Text("Crie seu primeiro produto.")));
+
+    final product = _editedProduct!;
+    return Form(
+      key: formKey,
+      child: Column(
+        children: [
+          if (ResponsiveBuilder.isDesktop(context) && !widget.isInWizard) _buildHeader(product),
+          if (!widget.isInWizard) ...[ // Mostra abas apenas no modo standalone
+            const TabBar(
+              tabs: [
+                Tab(text: 'Sobre o produto'), Tab(text: 'Grupo de complementos'), Tab(text: 'Opções Avançadas'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildAboutProductTab(product),
+                  ComplementGroupsScreen(product: product),
+                  _buildOptionsTab(product),
+                ],
+              ),
+            ),
+          ] else ...[ // No modo wizard, mostra apenas o formulário principal
+            Expanded(
+                child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildAboutProductTab(product)
+                )
+            )
+          ]
+        ],
+      ),
+    );
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // --- WIDGETS DE CONSTRUÇÃO ---
 
@@ -331,6 +383,92 @@ class _EditProductPageState extends State<EditProductPage> {
           title: 'EAN/GTIN',
           onChanged: (value) => setState(() => _editedProduct = product.copyWith(ean: value)), hint: '',
         ),
+
+
+
+        // ✅ --- INÍCIO DA NOVA SEÇÃO DE CASHBACK ---
+        const Divider(height: 48),
+        Text('Regra de Cashback', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 16),
+
+        // Dropdown para selecionar o TIPO de cashback
+        DropdownButtonFormField<CashbackType>(
+          value: product.cashbackType,
+          decoration: const InputDecoration(
+            labelText: 'Tipo de Cashback',
+            border: OutlineInputBorder(),
+          ),
+          items: CashbackType.values.map((type) {
+            return DropdownMenuItem<CashbackType>(
+              value: type,
+              child: Text(type.displayName),
+            );
+          }).toList(),
+          onChanged: (newValue) {
+            if (newValue != null) {
+              // Se mudar para 'none', zera o valor.
+              final resetValue = (newValue == CashbackType.none) ? 0 : product.cashbackValue;
+              setState(() {
+                _editedProduct = product.copyWith(
+                  cashbackType: newValue,
+                  cashbackValue: resetValue,
+                );
+              });
+            }
+          },
+        ),
+
+        // O campo de VALOR só aparece se o tipo não for 'Nenhum'
+        if (product.cashbackType != CashbackType.none) ...[
+          const SizedBox(height: 24),
+          AppTextField(
+            // Usamos um `key` para forçar o widget a reconstruir quando o tipo muda,
+            // atualizando assim o `initialValue` e os formatters.
+            key: ValueKey('cashback_value_${product.cashbackType.name}'),
+
+            // O valor inicial depende do tipo
+            initialValue: product.cashbackType == CashbackType.fixed
+                ? UtilBrasilFields.obterReal(product.cashbackValue / 100)
+                : product.cashbackValue.toString(),
+
+            // O título também é dinâmico
+            title: product.cashbackType == CashbackType.fixed
+                ? 'Valor Fixo (R\$)'
+                : 'Percentual (%)',
+
+            keyboardType: TextInputType.number,
+
+            // O formatador também é dinâmico
+            formatters: product.cashbackType == CashbackType.fixed
+                ? [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)]
+                : [FilteringTextInputFormatter.digitsOnly],
+
+            onChanged: (value) {
+              if (product.cashbackType == CashbackType.fixed) {
+                final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
+                setState(() => _editedProduct = product.copyWith(cashbackValue: (money * 100).round()));
+              } else {
+                setState(() => _editedProduct = product.copyWith(cashbackValue: int.tryParse(value ?? '0')));
+              }
+            },
+            hint: '',
+          ),
+        ],
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       ],
     );
   }

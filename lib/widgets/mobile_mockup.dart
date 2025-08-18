@@ -76,7 +76,7 @@ final bool showVar;
             children: [
               // Imagem do produto no topo
               CachedNetworkImage(
-                imageUrl: product.image!.url!,
+                imageUrl: product.image?.url ?? "https://via.placeholder.com/150.png/CCCCCC/FFFFFF?text=Logo",
                 height: imageHeight,
                 width: double.infinity,
                 fit: BoxFit.cover,

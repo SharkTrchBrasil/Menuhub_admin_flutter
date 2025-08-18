@@ -1,15 +1,28 @@
-import 'package:totem_pro_admin/models/totem_auth.dart';
+import 'package:totem_pro_admin/models/auth_tokens.dart'; // ✅ Importe o modelo correto
 import 'package:totem_pro_admin/models/store_with_role.dart';
-import 'package:totem_pro_admin/models/user.dart'; // ✅ IMPORTE O NOVO MODELO
+import 'package:totem_pro_admin/models/user.dart';
 
 class TotemAuthAndStores {
-  final TotemAuth totemAuth;
+  // ✅ O campo agora é do tipo AuthTokens
+  final AuthTokens authTokens;
+  final User user;
   final List<StoreWithRole> stores;
-  final User user; // ✅ ADICIONE A PROPRIEDADE DO USUÁRIO AQUI
 
   TotemAuthAndStores({
-    required this.totemAuth,
+    required this.authTokens, // ✅
+    required this.user,
     required this.stores,
-    required this.user, // ✅ ADICIONE AO CONSTRUTOR
   });
+
+  TotemAuthAndStores copyWith({
+    AuthTokens? authTokens, // ✅
+    User? user,
+    List<StoreWithRole>? stores,
+  }) {
+    return TotemAuthAndStores(
+      authTokens: authTokens ?? this.authTokens, // ✅
+      user: user ?? this.user,
+      stores: stores ?? this.stores,
+    );
+  }
 }

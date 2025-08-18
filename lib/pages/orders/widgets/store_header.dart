@@ -45,7 +45,7 @@ class StoreHeader extends StatelessWidget {
     }
 
     // Usa o objeto 'store' que foi passado pelo construtor.
-    final String? imageUrl = store!.image?.url;
+    final String? imageUrl = store!.media!.image?.url;
 
     return Row(
       children: [
@@ -64,11 +64,11 @@ class StoreHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              store!.name,
+              store!.core.name,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             Text(
-              store!.phone!,
+              store!.core.phone!,
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
           ],

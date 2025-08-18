@@ -20,7 +20,7 @@ class ReprintButton extends StatelessWidget {
   Widget build(BuildContext context) {
     // Lógica para decidir se o botão deve aparecer
     final hasFailedJobs = order.printLogs.any((log) => log.status == 'failed');
-    final needsManualPrint = store.storeSettings!.autoPrintOrders &&
+    final needsManualPrint = store.relations.storeOperationConfig!.autoPrintOrders &&
         order.printLogs.any((log) => log.status == 'pending');
 
     // Se não houver falhas e a impressão automática estiver ligada, não mostra nada.

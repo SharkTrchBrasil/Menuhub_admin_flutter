@@ -77,7 +77,7 @@ class StorePopupMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedStore = stores.firstWhere(
-          (s) => s.store.id == selectedStoreId,
+          (s) => s.store.core.id == selectedStoreId,
       orElse: () => stores.first,
     );
 
@@ -95,7 +95,7 @@ class StorePopupMenu extends StatelessWidget {
           _StoreAvatar(store: selectedStore.store),
           const SizedBox(width: 8),
           Text(
-            selectedStore.store.name,
+            selectedStore.store.core.name,
             style: Theme.of(context).textTheme.labelLarge,
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
@@ -118,16 +118,16 @@ class StorePopupMenu extends StatelessWidget {
       itemBuilder: (BuildContext context) => [
         ...stores.map(
               (s) => PopupMenuItem<int>(
-            value: s.store.id,
+            value: s.store.core.id,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: _StoreAvatar(store: s.store),
               title: Text(
-                s.store.name,
+                s.store.core.name,
                 style: Theme.of(context).textTheme.bodyMedium,
                 overflow: TextOverflow.ellipsis,
               ),
-              trailing: s.store.id == selectedStoreId
+              trailing: s.store.core.id == selectedStoreId
                   ? Icon(Icons.check, color: Theme.of(context).primaryColor)
                   : null,
             ),
@@ -176,11 +176,11 @@ class _StoreAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: 16,
       backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-      backgroundImage: (store.image?.url != null && store.image!.url!.isNotEmpty)
-          ? NetworkImage(store.image!.url!)
+      backgroundImage: (store.media!.image?.url != null && store.media!.image!.url!.isNotEmpty)
+          ? NetworkImage(store.media!.image!.url!)
           : const AssetImage('assets/images/avatar.png')
       as ImageProvider,
-      child: (store.image?.url == null || store.image!.url!.isEmpty)
+      child: (store.media!.image?.url == null || store.media!.image!.url!.isEmpty)
           ? Icon(
         Icons.store,
         size: 16,

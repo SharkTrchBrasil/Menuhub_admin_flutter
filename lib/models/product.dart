@@ -6,6 +6,7 @@ import 'package:totem_pro_admin/models/variant.dart';
 
 import 'package:totem_pro_admin/widgets/app_selection_form_field.dart';
 
+import '../core/enums/cashback_type.dart';
 import 'category.dart';
 
 class Product implements SelectableItem {
@@ -30,6 +31,8 @@ class Product implements SelectableItem {
     this.unit = '',
 
     this.variantLinks,
+    this.cashbackType = CashbackType.none,
+    this.cashbackValue = 0,
   });
 
   final int? id;
@@ -53,9 +56,10 @@ class Product implements SelectableItem {
   final int minStock;
   final int maxStock;
   final String unit;
-
-  // ✅ CORREÇÃO: O campo agora se chama 'variantLinks' e armazena as regras.
   final List<ProductVariantLink>? variantLinks;// Se `variants` for ProductVariant, certifique-se de mapear para IDs
+  final CashbackType cashbackType;
+  final int cashbackValue; // Valor em centavos para 'fixed', ou o percentual para 'percentage'
+
 
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
@@ -83,6 +87,9 @@ class Product implements SelectableItem {
       variantLinks: (json['variant_links'] as List<dynamic>? ?? [])
           .map((link) => ProductVariantLink.fromJson(link))
           .toList(),
+      // ✅ ADICIONADO: Lendo os dados de cashback da API
+      cashbackType: CashbackType.fromString(json['cashback_type']),
+      cashbackValue: json['cashback_value'] ?? 0,
 
 
     );
@@ -108,6 +115,9 @@ class Product implements SelectableItem {
     String? unit,
     // ✅ CORREÇÃO: Tipo e nome do parâmetro atualizados
     ValueGetter<List<ProductVariantLink>?>? variantLinks,
+    // ✅ ADICIONADO: Parâmetros de cashback no copyWith
+    CashbackType? cashbackType,
+    int? cashbackValue,
   }) {
     return Product(
       id: id,
@@ -129,6 +139,9 @@ class Product implements SelectableItem {
       unit: unit ?? this.unit,
       // ✅ CORREÇÃO: Usando o campo e o parâmetro corretos
       variantLinks: variantLinks != null ? variantLinks() : this.variantLinks,
+      // ✅ ADICIONADO: Atribuições de cashback no copyWith
+      cashbackType: cashbackType ?? this.cashbackType,
+      cashbackValue: cashbackValue ?? this.cashbackValue,
     );
   }
 
@@ -151,6 +164,9 @@ class Product implements SelectableItem {
       'min_stock': minStock,
       'max_stock': maxStock,
       'unit': unit,
+      'cashback_type': cashbackType.name,
+      'cashback_value': cashbackValue,
+
 
     };
 

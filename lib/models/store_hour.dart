@@ -1,8 +1,8 @@
-import 'package:dio/dio.dart';
+
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/widgets/app_selection_form_field.dart';
 
-import '../core/helpers/mask.dart';
+
 
 class StoreHour implements SelectableItem {
   const StoreHour({
@@ -59,15 +59,28 @@ class StoreHour implements SelectableItem {
     );
   }
 
-  Future<FormData> toFormData() async {
-    return FormData.fromMap({
+
+
+  // ✅ MÉTODO PARA CONVERTER PARA JSON
+  Map<String, dynamic> toJson() {
+    // Helper para formatar TimeOfDay para 'HH:mm'
+    String formatTime(TimeOfDay time) {
+      final hour = time.hour.toString().padLeft(2, '0');
+      final minute = time.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    }
+
+    return {
       'day_of_week': dayOfWeek,
-      'open_time': formatTime(openingTime), // ✅ CORRIGIDO
-      'close_time': formatTime(closingTime), // ✅ CORRIGIDO
+      'open_time': formatTime(openingTime!),
+      'close_time': formatTime(closingTime!),
       'shift_number': shiftNumber,
       'is_active': isActive,
-    });
+    };
   }
+
+
+
 
   @override
   String get title => 'Hora de funcionamento $id'; // Você pode ajustar isso conforme necessário

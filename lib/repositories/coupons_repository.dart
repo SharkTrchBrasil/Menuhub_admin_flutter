@@ -82,25 +82,40 @@ class CouponRepository {
       Coupon coupon,
       ) async {
     try {
+      Response response;
       if (coupon.id != null) {
-        final response = await _dio.patch(
+        response = await _dio.patch(
           '/stores/$storeId/coupons/${coupon.id}',
           data: coupon.toJson(),
         );
-        return Right(Coupon.fromJson(response.data));
       } else {
-        final response = await _dio.post(
+        response = await _dio.post(
           '/stores/$storeId/coupons',
           data: coupon.toJson(),
         );
-        return Right(Coupon.fromJson(response.data));
       }
+      return Right(Coupon.fromJson(response.data));
+
     } on DioException catch (e) {
-      debugPrint('$e');
-      if(e.response?.data?['detail']?['code'] == 'CODE_ALREADY_EXISTS') {
-        return const Left(CouponError.codeAlreadyExists);
+      // ✅ INÍCIO DA CORREÇÃO
+      debugPrint("Erro no saveCoupon. Resposta do servidor: ${e.response?.data}");
+
+      // Verifica se a resposta e o corpo da resposta existem e são um Mapa
+      if (e.response?.data is Map<String, dynamic>) {
+        final responseData = e.response!.data as Map<String, dynamic>;
+        final detail = responseData['detail'];
+
+        // Verifica se o 'detail' é um Mapa e contém o nosso código de erro específico
+        if (detail is Map<String, dynamic> && detail['code'] == 'CODE_ALREADY_EXISTS') {
+          debugPrint("Erro detectado: Código de cupom já existe.");
+          return const Left(CouponError.codeAlreadyExists);
+        }
       }
-      return Left(CouponError.unknown);
+
+      // Para todos os outros casos de erro (500, 422 com lista, etc.), retorna 'unknown'
+      debugPrint("Erro não específico ou em formato inesperado. Retornando 'unknown'.");
+      return const Left(CouponError.unknown);
+      // ✅ FIM DA CORREÇÃO
     }
   }
 }

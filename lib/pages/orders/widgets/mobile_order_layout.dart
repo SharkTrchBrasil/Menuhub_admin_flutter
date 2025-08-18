@@ -77,13 +77,13 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> with SingleTicker
   @override
   void didUpdateWidget(MobileOrderLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.store?.deliveryOptions != oldWidget.store?.deliveryOptions) {
+    if (widget.store?.relations.storeOperationConfig != oldWidget.store?.relations.storeOperationConfig) {
       _updateTabController();
     }
   }
 
   void _updateTabController() {
-    final options = widget.store?.deliveryOptions;
+    final options = widget.store?.relations.storeOperationConfig;
     final newTabs = <Map<String, String>>[];
 
     if (options?.deliveryEnabled ?? false) {
@@ -146,7 +146,7 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> with SingleTicker
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: Text(widget.store?.name ?? 'Pedidos', style: const TextStyle(fontWeight: FontWeight.bold)),
+      title: Text(widget.store?.core.name ?? 'Pedidos', style: const TextStyle(fontWeight: FontWeight.bold)),
       backgroundColor: Colors.white,
       foregroundColor: Colors.black,
       elevation: 0,
@@ -159,7 +159,7 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> with SingleTicker
 
               if (state is StoresManagerLoaded) {
                 activeStoreId = state.activeStoreId;
-                final settings = state.activeStore?.storeSettings;
+                final settings = state.activeStore?.relations.storeOperationConfig;
                 if (settings == null || (settings.mainPrinterDestination == null && settings.kitchenPrinterDestination == null)) {
                   needsConfiguration = true;
                 }
@@ -197,7 +197,7 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> with SingleTicker
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Configurações da Loja',
-            onPressed: () => showResponsiveSidePanel(context, StoreSettingsSidePanel(storeId: widget.store!.id!)),
+            onPressed: () => showResponsiveSidePanel(context, StoreSettingsSidePanel(storeId: widget.store!.core.id!)),
           ),
         ],
         IconButton(

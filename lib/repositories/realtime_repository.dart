@@ -137,15 +137,15 @@ class RealtimeRepository {
     _socket!.on('connect', (_) {
 
       Future.microtask(() {
-      log('[Socket] ✅ Conectado com sucesso! ID: ${_socket!.id}');
-      _connectionStatusController.add(true);
-      _joinedStores.clear();
-      _joiningInProgress.clear();
+        log('[Socket] ✅ Conectado com sucesso! ID: ${_socket!.id}');
+        _connectionStatusController.add(true);
+        _joinedStores.clear();
+        _joiningInProgress.clear();
 
-      if (_lastJoinedStoreId != null) {
-        log('[Socket] Reconectado. Tentando reentrar automaticamente na sala da loja $_lastJoinedStoreId...');
-       joinStoreRoom(_lastJoinedStoreId!);
-      }
+        if (_lastJoinedStoreId != null) {
+          log('[Socket] Reconectado. Tentando reentrar automaticamente na sala da loja $_lastJoinedStoreId...');
+          joinStoreRoom(_lastJoinedStoreId!);
+        }
 
       });
     });
@@ -198,6 +198,8 @@ class RealtimeRepository {
 
 
     _socket!.on('admin_stores_list', (data) {
+      // ✅ LOG ADICIONADO
+      log('✅ Evento recebido: admin_stores_list');
       if (data is Map && data['stores'] is List) {
         final stores = (data['stores'] as List).map((s) => StoreWithRole.fromJson(s)).toList();
         _adminStoresListController.add(stores);
@@ -211,7 +213,7 @@ class RealtimeRepository {
     _socket!.on('tables_and_commands', _handleTablesAndCommands);
 
     // No método _registerSocketListeners(), adicione o novo listener:
- //   _socket!.on('new_print_jobs_available', _handleNewPrintJobsAvailable);
+    _socket!.on('new_print_jobs_available', _handleNewPrintJobsAvailable);
 
     // NOVO: Registra o listener para o evento de aviso de assinatura
 
@@ -219,6 +221,8 @@ class RealtimeRepository {
 
 
   void _handleNewOrderNotification(dynamic data) {
+    // ✅ LOG ADICIONADO
+    log('✅ Evento recebido: new_order_notification');
     try {
 
 
@@ -246,9 +250,10 @@ class RealtimeRepository {
 
 
   void _handleStoreUpdated(dynamic data) {
+    // ✅ LOG ADICIONADO
+    log('✅ Evento recebido: store_full_updated');
     try {
       final Map<String, dynamic> payload;
-    print(data);
       if (data is List && data.length > 1 && data[1] is Map<String, dynamic>) {
         payload = data[1] as Map<String, dynamic>;
       } else if (data is Map<String, dynamic>) {
@@ -258,22 +263,36 @@ class RealtimeRepository {
         return;
       }
 
-      // ✅ PASSO 1: Extraia o 'storeData' como mutável para poder editá-lo.
-      // Usamos Map.from para criar uma cópia que pode ser modificada.
-      final Map<String, dynamic> storeData = Map.from(payload['store'] as Map<String, dynamic>);
 
-      // ✅ PASSO 2: Extraia a 'subscription' do payload principal.
-      final subscriptionData = payload['subscription'] as Map<String, dynamic>?;
+      // 1. Comece com os dados do 'store' como base. Crie uma cópia que pode ser modificada.
+      final Map<String, dynamic> completeStoreData = Map.from(payload['store'] as Map<String, dynamic>);
 
-      // ✅ PASSO 3: Se a 'subscription' existir, adicione-a ao 'storeData'.
-      if (subscriptionData != null) {
-        storeData['subscription'] = subscriptionData;
+      // 2. Adicione os outros objetos de análise do payload principal a este mapa.
+      if (payload['dashboard'] != null) {
+        completeStoreData['dashboard'] = payload['dashboard'];
       }
-   //   print(subscriptionData);
+      if (payload['product_analytics'] != null) {
+        completeStoreData['product_analytics'] = payload['product_analytics'];
+      }
+      if (payload['customer_analytics'] != null) {
+        completeStoreData['customer_analytics'] = payload['customer_analytics'];
+      }
+      if (payload['subscription'] != null) {
+        completeStoreData['subscription'] = payload['subscription'];
+      }
+      // ✅ ADICIONE A VERIFICAÇÃO PARA OS HORÁRIOS DE PICO AQUI
+      if (payload['peak_hours'] != null) {
+        completeStoreData['peak_hours'] = payload['peak_hours'];
+      }
 
-      // ✅ PASSO 4: Agora o 'storeData' tem tudo que o fromJson precisa.
-      final store = Store.fromJson(storeData);
+
+
+      final store = Store.fromJson(completeStoreData);
+      print(completeStoreData);
       _activeStoreController.add(store);
+
+
+
 
     } catch (e, st) {
       log('[Socket] ❌ Erro em store_full_updated', error: e, stackTrace: st);
@@ -282,9 +301,8 @@ class RealtimeRepository {
   }
 
   void _handleProductsUpdated(dynamic data) {
-
-    print(data);
-
+    // ✅ LOG ADICIONADO
+    log('✅ Evento recebido: products_updated');
     try {
       if (data is! Map || !data.containsKey('store_id')) return;
       final storeId = data['store_id'] as int;
@@ -296,8 +314,9 @@ class RealtimeRepository {
   }
 
   void _handleOrdersInitial(dynamic data) {
+    // ✅ LOG ADICIONADO
+    log('✅ Evento recebido: orders_initial');
     try {
-    //  print(data);
       if (data is! Map || !data.containsKey('store_id')) return;
       final storeId = data['store_id'] as int;
       final orders = (data['orders'] as List? ?? []).map((e) => OrderDetails.fromJson(e as Map<String, dynamic>)).toList();
@@ -308,6 +327,8 @@ class RealtimeRepository {
   }
 
   void _handleOrderUpdated(dynamic data) {
+    // ✅ LOG ADICIONADO
+    log('✅ Evento recebido: order_updated');
     try {
       final Map<String, dynamic> orderDataPayload = (data is List && data.isNotEmpty) ? data[0] : data;
       final updatedOrder = OrderDetails.fromJson(orderDataPayload);
@@ -335,6 +356,8 @@ class RealtimeRepository {
   }
 
   void _handleTablesAndCommands(dynamic data) {
+    // ✅ LOG ADICIONADO
+    log('✅ Evento recebido: tables_and_commands');
     try {
       if (data is! Map || !data.containsKey('store_id')) return;
       final storeId = data['store_id'] as int;
@@ -349,8 +372,9 @@ class RealtimeRepository {
   }
 
   void _handleNewPrintJobsAvailable(dynamic data) {
+    // ✅ LOG ADICIONADO E AJUSTADO
+    log('✅ Evento recebido: new_print_jobs_available');
     try {
-      log('[Socket] ✅ Recebido comando de impressão: $data');
       final payload = data is List ? data[1] : data; // Lida com o formato do seu socket
 
       final jobsList = (payload['jobs'] as List)
@@ -394,7 +418,7 @@ class RealtimeRepository {
     _joiningInProgress.add(storeId);
     try {
       _clearNotificationForStore(storeId);
-    //  _initializeStoreStreams(storeId);
+      //  _initializeStoreStreams(storeId);
       final completer = Completer<void>();
       _socket!.emitWithAck('join_store_room', {'store_id': storeId}, ack: ([dynamic args]) {
         final data = (args is List && args.isNotEmpty) ? args[0] : null;
@@ -468,7 +492,7 @@ class RealtimeRepository {
   }
 
 
-// ARQUIVO: realtime_repository.dart (CORRIGIDO)
+
 
   Future<Either<String, Map<String, dynamic>>> updateStoreSettings({
     required int storeId,
@@ -567,14 +591,6 @@ class RealtimeRepository {
 
 
 
-  void _initializeStoreStreams(int storeId) {
-
-    _productsStreams.putIfAbsent(storeId, () => BehaviorSubject());
-    _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject());
-    _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject());
-    _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject());
-  }
-
   void _closeStoreStreams(int storeId) {
     log('[Socket] Fechando streams e limpando cache para loja $storeId');
 
@@ -583,55 +599,6 @@ class RealtimeRepository {
     _tablesStreams.remove(storeId)?.close();
     _commandsStreams.remove(storeId)?.close();
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

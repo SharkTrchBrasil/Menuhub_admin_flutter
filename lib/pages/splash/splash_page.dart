@@ -1,145 +1,59 @@
-
-// pages/splash/splash_page.dart
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:totem_pro_admin/cubits/auth_cubit.dart';
+import 'package:totem_pro_admin/cubits/auth_state.dart';
+import 'package:totem_pro_admin/widgets/app_logo.dart'; // Supondo que seu logo esteja aqui
 
-import 'package:totem_pro_admin/widgets/app_logo.dart';
-
-import '../../core/di.dart';
-import '../../cubits/auth_cubit.dart';
-
-class SplashPage extends StatefulWidget {
-  const SplashPage({super.key, this.redirectTo}); // Remova 'required' se não for sempre fornecido
-
-  final String? redirectTo;
-
-  @override
-  State<SplashPage> createState() => _SplashPageState();
-}
-
-class _SplashPageState extends State<SplashPage> {
-  @override
-  void initState() {
-    super.initState();
-
-  }
+class SplashPage extends StatelessWidget {
+  const SplashPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // A splash page agora é passiva; o GoRouter fará o redirecionamento
-    // com base nos estados do AuthCubit e StoresManagerCubit.
-    return const Scaffold(
-      body: Center(
-        child: AppLogo(size: 50),
+    return BlocListener<AuthCubit, AuthState>(
+      // O listener que vai "despachar" o usuário para a rota correta
+      listener: (context, state) {
+        // Usamos um pequeno delay para garantir que a transição seja suave
+        // e não aconteça no mesmo frame da construção da splash.
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (!context.mounted) return;
+
+          // Cenário 1: Autenticado com sucesso
+          if (state is AuthAuthenticated) {
+            final stores = state.data.stores;
+            if (stores.isNotEmpty) {
+              // Se tiver lojas, vai para a primeira loja da lista
+              final firstStoreId = stores.first.store.core.id;
+              context.go('/stores/$firstStoreId/orders');
+            } else {
+              // Se não tiver lojas, vai para a tela de criação de loja
+              context.go('/stores/new');
+            }
+          }
+          // Cenário 2: Não autenticado ou erro no login
+          else if (state is AuthUnauthenticated || state is AuthError) {
+            context.go('/sign-in');
+          }
+          // Cenário 3: Precisa verificar o e-mail
+          else if (state is AuthNeedsVerification) {
+            final email = Uri.encodeComponent(state.email);
+            context.go('/verify-email?email=$email');
+          }
+        });
+      },
+      // A UI da splash page é simples: apenas o logo e um indicador
+      child: const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AppLogo(size: 80), // Um pouco maior para destaque
+              SizedBox(height: 32),
+            Text('Carregando...', style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-// import 'package:flutter_bloc/flutter_bloc.dart';
-// import 'package:go_router/go_router.dart';
-// import 'package:totem_pro_admin/core/di.dart';
-// import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
-// import 'package:totem_pro_admin/services/auth_service.dart';
-// import 'package:totem_pro_admin/widgets/app_logo.dart';
-// import 'package:totem_pro_admin/widgets/app_toasts.dart';
-//
-// import '../../repositories/auth_repository.dart';
-// import '../../repositories/store_repository.dart';
-//
-// class SplashPage extends StatefulWidget {
-//   const SplashPage({super.key, required this.redirectTo});
-//
-//   final String? redirectTo;
-//
-//   @override
-//   State<SplashPage> createState() => _SplashPageState();
-// }
-//
-// class _SplashPageState extends State<SplashPage> {
-//   late final AuthService _authService;
-//   late final SplashPageCubit _cubit;
-//
-//   @override
-//   void initState() {
-//     super.initState();
-//     _authService = getIt<AuthService>();
-//     _cubit = getIt<SplashPageCubit>();
-//     _initializeApp();
-//   }
-//   Future<void> _initializeApp() async {
-//     final authService = getIt<AuthService>();
-//
-//     final result = await authService.initializeApp();
-//
-//     if (!mounted) return;
-//
-//     result.fold(
-//           (error) => _handleAuthError(error),
-//           (totemAuth) async {
-//         // Busca as lojas novamente para garantir consistência
-//         final storesResult = await getIt<StoreRepository>().getStores();
-//
-//         if (!mounted) return;
-//
-//         storesResult.fold(
-//               (_) => showError('Não foi possível buscar suas lojas.'),
-//               (stores) {
-//             if (stores.isNotEmpty) {
-//               context.go(widget.redirectTo ?? '/stores/${stores.first.store.id}/orders');
-//             } else {
-//               context.go('/stores/new');
-//             }
-//           },
-//         );
-//       },
-//     );
-//   }
-//
-//
-//   void _handleAuthError(SignInError error) {
-//     switch (error) {
-//       case SignInError.notLoggedIn:
-//       case SignInError.invalidCredentials:
-//       case SignInError.sessionExpired:
-//         context.go('/sign-in');
-//         break;
-//       case SignInError.inactiveAccount:
-//         showError('Conta inativa. Entre em contato com o suporte.');
-//         break;
-//       case SignInError.noStoresAvailable:
-//         context.go('/stores/new');
-//         break;
-//       case SignInError.networkError:
-//         showError('Sem conexão com a internet. Tente novamente.');
-//         break;
-//       case SignInError.emailNotVerified:
-//         context.go('/verify-email');
-//         break;
-//       default:
-//         showError('Erro inesperado. Tente novamente.');
-//         context.go('/sign-in');
-//     }
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return const Scaffold(
-//       body: Center(
-//         child: AppLogo(size: 50),
-//       ),
-//     );
-//   }
-// }

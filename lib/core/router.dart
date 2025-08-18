@@ -7,8 +7,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
-import 'package:totem_pro_admin/core/guards/auth_guard.dart';
-import 'package:totem_pro_admin/core/guards/route_guard.dart';
+
 import 'package:totem_pro_admin/pages/cash/cash_page.dart';
 import 'package:totem_pro_admin/pages/categories/categories_page.dart';
 import 'package:totem_pro_admin/pages/create_store/create_store_page.dart';
@@ -16,9 +15,10 @@ import 'package:totem_pro_admin/pages/edit_category/edit_category_page.dart';
 import 'package:totem_pro_admin/pages/edit_product/edit_product_page.dart';
 
 
-import 'package:totem_pro_admin/pages/home/home_page.dart';
+
 import 'package:totem_pro_admin/pages/more/more_page.dart';
-import 'package:totem_pro_admin/pages/payment_methods/payment_methods_page.dart';
+import 'package:totem_pro_admin/pages/operation_configuration/operation_configuration_page.dart';
+
 import 'package:totem_pro_admin/pages/products/products_page.dart';
 import 'package:totem_pro_admin/pages/sign_in/sign_in_page.dart';
 import 'package:totem_pro_admin/pages/sign_up/sign_up_page.dart';
@@ -28,26 +28,31 @@ import '../cubits/auth_state.dart';
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
 import '../models/category.dart';
+import '../models/coupon.dart';
 import '../models/order_details.dart';
 import '../models/product.dart';
 import '../models/store.dart';
+import '../models/store_hour.dart';
 import '../models/store_with_role.dart';
 import '../pages/accesses/accesses_page.dart';
 
+import '../pages/analytics/analytics_page.dart';
 import '../pages/banners/banners_page.dart';
 
+import '../pages/categories/create_category_page.dart';
 import '../pages/chatbot/qrcode.dart';
 import '../pages/coupons/coupons_page.dart';
 
 import '../pages/create_store/cubit/store_setup_cubit.dart';
 import '../pages/customers/customers_page.dart';
-import '../pages/delivery_options/delivery_options_page.dart';
-import '../pages/edit_coupon/edit_coupon_page.dart';
-import '../pages/edit_payment_methods/edit_payment_methods.dart';
-import '../pages/edit_settings/delivery_locations_page.dart';
-import '../pages/edit_settings/hours_store_page.dart';
-import '../pages/edit_settings/edit_settings_page.dart';
 
+import '../pages/dashboard/dashboard.dart';
+import '../pages/edit_coupon/edit_coupon_page.dart';
+import '../pages/edit_settings/citys/delivery_locations_page.dart';
+import '../pages/edit_settings/hours/hours_store_page.dart';
+import '../pages/edit_settings/general/store_profile_page.dart';
+
+import '../pages/edit_settings/payment_methods/payment_methods_page.dart';
 import '../pages/plans/plans_page.dart';
 
 import '../pages/integrations/integrations_page.dart';
@@ -62,11 +67,14 @@ import '../pages/orders/orders_page.dart';
 
 import '../pages/orders/widgets/order_details_mobile.dart';
 import '../pages/payables/payables_page.dart';
+import '../pages/platform_payment_methods/gateway-payment.dart';
 import '../pages/reports/reports_page.dart';
 import '../pages/splash/splash_page_cubit.dart';
 import '../pages/totems/totems_page.dart';
 
 import '../pages/verify_code/verify_code_page.dart';
+import '../pages/welcome/settings_wizard_page.dart';
+import '../pages/welcome/welcome_page.dart';
 import '../repositories/realtime_repository.dart';
 import '../repositories/segment_repository.dart';
 import '../repositories/store_repository.dart';
@@ -75,11 +83,11 @@ import '../repositories/user_repository.dart';
 import '../services/auth_service.dart';
 import '../cubits/auth_cubit.dart';
 
-import '../services/print/printer_manager.dart';
-import 'guards/store_owner_guard.dart';
+import '../services/print/print_manager.dart';
+import '../widgets/app_shell.dart';
+
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
-// NÃO use mais uma função. Crie uma classe ou uma variável final.
 class AppRouter {
   static final router = GoRouter(
     navigatorKey: globalNavigatorKey,
@@ -96,104 +104,85 @@ class AppRouter {
 
 
 
-// Em lib/core/router.dart, dentro do GoRouter
-
       redirect: (BuildContext context, GoRouterState state) {
         final location = state.uri.toString();
-        final authState = context
-            .read<AuthCubit>()
-            .state;
+        final authCubit = context.read<AuthCubit>();
+        final authState = authCubit.state;
         final isAuthenticated = authState is AuthAuthenticated;
 
-        // Imprime o estado atual em cada execução do redirect
         print('--- GoRouter Redirect ---');
         print('Location: $location');
         print('AuthState: ${authState.runtimeType}');
-        print('isAuthenticated: $isAuthenticated');
 
-        // Rotas que não exigem login
-        const publicRoutes = [
-          '/splash',
-          '/loading',
-          '/sign-in',
-          '/sign-up',
-          '/verify-email'
-        ];
-        final isGoingToPublicRoute = publicRoutes.any((r) =>
-            location.startsWith(r));
+        // Rotas públicas que não exigem login
+        const publicRoutes = ['/splash', '/loading', '/sign-in', '/sign-up', '/verify-email'];
+        final isGoingToPublicRoute = publicRoutes.any((r) => location.startsWith(r));
 
-        // 👇👇👇 AQUI: redireciona para verificação se for necessário
-        if (authState is AuthNeedsVerification &&
-            !location.startsWith('/verify-email')) {
+        // Regra 1: Se precisa verificar e-mail, vai para a tela de verificação.
+        if (authState is AuthNeedsVerification && !location.startsWith('/verify-email')) {
           final email = Uri.encodeComponent(authState.email);
           return '/verify-email?email=$email';
         }
 
-
-
-        // Trava de segurança para quando já estamos no destino correto
-        if (isAuthenticated && authState.data.stores.isEmpty &&
-            location == '/stores/new') {
-          print('Decisão: Deixar passar (já no destino /stores/new).');
-          print('-------------------------\n');
-          return null;
-        }
-        if (isAuthenticated && authState.data.stores.isNotEmpty &&
-            location.startsWith('/stores/')) {
-          print('Decisão: Deixar passar (já dentro de uma loja).');
-          print('-------------------------\n');
-          return null;
-        }
-
-        // Se estiver autenticado e tentando ir para uma rota pública, redireciona para dentro
-        if (isAuthenticated && isGoingToPublicRoute) {
-          final stores = authState.data.stores;
-          final destination = stores.isEmpty ? '/stores/new' : '/stores/${stores
-              .first.store.id}/orders';
-          print('Decisão: Redirecionar para dentro do app -> $destination');
-          print('-------------------------\n');
-          return destination;
-        }
-
-        // Se NÃO estiver autenticado e tentando ir para uma rota protegida...
+        // Regra 2: Se não está logado e tenta acessar uma rota protegida, vai para o login.
         if (!isAuthenticated && !isGoingToPublicRoute) {
           final destination = '/sign-in?redirectTo=$location';
           print('Decisão: Redirecionar para o login -> $destination');
-          print('-------------------------\n');
           return destination;
         }
 
+        // Regra 3: Se está logado...
         if (isAuthenticated) {
-          // 👇 LÓGICA DE VERIFICAÇÃO DE "DONO" CORRIGIDA 👇
-          final ownerOnlyRoutes = ['/settings', '/integrations', '/plans'];
-          final isGoingToOwnerRoute = ownerOnlyRoutes.any((r) =>
-              location.contains(r));
+
+
+          if (isGoingToPublicRoute) {
+            print('Decisão: Autenticado. Redirecionando para /loading para buscar dados da loja.');
+            return '/loading';
+          }
+
+          // Guarda de "Setup Incompleto"
+          const setupRequiredRoutes = [
+            '/orders', '/customers', '/inventory', '/coupons',
+            '/variants', '/reports', '/payables',
+          ];
+
+
+          final ownerOnlyRoutes = ['/integrations', '/plans'];
+          final isGoingToOwnerRoute = ownerOnlyRoutes.any((r) => location.contains(r));
 
           if (isGoingToOwnerRoute) {
-            final storeId = int.tryParse(state.pathParameters['storeId'] ?? '');
-            if (storeId != null) {
-              final storeRepo = getIt<StoreRepository>();
-              StoreWithRole? store; // Declara a variável como anulável
-
+            final storeIdParam = state.pathParameters['storeId'];
+            if (storeIdParam != null) {
               try {
-                // Tenta encontrar a loja. Se não encontrar, vai para o catch.
-                store =
-                    storeRepo.stores.firstWhere((s) => s.store.id == storeId);
-              } catch (e) {
-                // Se a loja não for encontrada na lista, o 'store' continua null.
-                // Isso é normal e esperado se a lista ainda estiver carregando.
-                store = null;
-              }
+                final storeId = int.parse(storeIdParam);
 
-              // Se a loja foi encontrada e o usuário não é o dono, redireciona.
-              if (store != null && store.role != StoreAccessRole.owner) {
-                print(
-                    'Decisão: Acesso negado (não é dono). Redirecionando para /products.');
-                return '/stores/$storeId/orders';
+
+                final storesState = context.read<StoresManagerCubit>().state;
+
+                if (storesState is StoresManagerLoaded) {
+
+                  final storeWithRole = storesState.stores[storeId];
+
+                  if (storeWithRole != null && storeWithRole.role != StoreAccessRole.owner) {
+                    print('Decisão: Acesso negado (não é dono). Redirecionando para /orders.');
+                    // Redireciona para uma página segura, como a de pedidos.
+                    return '/stores/$storeId/orders';
+                  }
+                }
+              } catch (e) {
+                print('[GoRouter Guard] Erro ao verificar dono da loja: $e');
+                return '/'; // Em caso de erro, redireciona para a raiz.
               }
             }
           }
+
+
+
         }
+
+        // Se nenhuma regra de redirecionamento foi atendida, permite o acesso.
+        print('Decisão: Deixar passar (nenhuma regra de redirect acionada).');
+        return null;
       },
 
   errorPageBuilder:
@@ -205,40 +194,50 @@ class AppRouter {
 
 
     GoRoute(
-        path: '/splash',
-        builder: (_, state) {
-          return BlocProvider(
-            create: (_) => SplashPageCubit(),
-            child: SplashPage(
-              redirectTo: state.uri.queryParameters['redirectTo'],
-            ),
-          );
-        },
-        redirect: (context, state) {
-          final isInitialized = getIt.isRegistered<bool>(
-            instanceName: 'isInitialized',
-          );
-
-          if (!isInitialized) return null;
-
-          final authState = context.read<AuthCubit>().state;
-
-          if (authState is AuthAuthenticated) {
-            final stores = authState.data.stores;
-            return stores.isEmpty
-                ? '/stores/new'
-                : '/stores/${stores.first.store.id}/orders';
-          }
-
-          if (authState is AuthUnauthenticated) {
-            return '/sign-in';
-          }
-
-          return null;
-        }
-
-
+      path: '/splash',
+      builder: (context, state) {
+        // A rota agora apenas constrói a SplashPage.
+        // A SplashPage, com seu BlocListener, cuidará do resto.
+        return const SplashPage();
+      },
     ),
+
+    //
+    // GoRoute(
+    //     path: '/splash',
+    //     builder: (_, state) {
+    //       return BlocProvider(
+    //         create: (_) => SplashPageCubit(),
+    //         child: SplashPage(
+    //           redirectTo: state.uri.queryParameters['redirectTo'],
+    //         ),
+    //       );
+    //     },
+    //     redirect: (context, state) {
+    //       final isInitialized = getIt.isRegistered<bool>(
+    //         instanceName: 'isInitialized',
+    //       );
+    //
+    //       if (!isInitialized) return null;
+    //
+    //       final authState = context.read<AuthCubit>().state;
+    //
+    //       // if (authState is AuthAuthenticated) {
+    //       //   final stores = authState.data.stores;
+    //       //   return stores.isEmpty
+    //       //       ? '/stores/new'
+    //       //       : '/stores/${stores.first.store.id}/orders';
+    //       // }
+    //
+    //       if (authState is AuthUnauthenticated) {
+    //         return '/sign-in';
+    //       }
+    //
+    //       return null;
+    //     }
+    //
+    //
+    // ),
 
     GoRoute(
       path: '/sign-in',
@@ -261,39 +260,50 @@ class AppRouter {
     GoRoute(
       path: '/stores/new',
       builder: (context, state) {
-        // 👇 É AQUI que você coloca a lógica de criação 👇
-        return BlocProvider<StoreSetupCubit>(
-          create: (context) {
-            // 1. Acessa o AuthCubit que já deve estar disponível no contexto
-            final authState = context.read<AuthCubit>().state;
-            String? userName;
-
-            // 2. Verifica se o usuário está autenticado
-            if (authState is AuthAuthenticated) {
-              // 3. Pega o nome do usuário a partir do estado de autenticação
-              //    Ajuste o caminho se necessário (ex: authState.data.user.name)
-              userName = authState.data.user.name;
-            }
-
-            // 4. Cria uma NOVA instância do StoreSetupCubit, passando as dependências
-            //    e o nome que acabamos de pegar!
-            return StoreSetupCubit(
-              getIt<StoreRepository>(),   // Pega os repositórios do getIt
-              getIt<SegmentRepository>(),
-               getIt<UserRepository>(),       // ✅ Passe a dependência
-              context.read<AuthCubit>(),
-              initialResponsibleName: userName, // <--- A CONEXÃO ACONTECE AQUI!
-            )..fetchPlans()..fetchSpecialties();
-          },
-          child: const StoreSetupPage(), // O widget que inicia o fluxo
-        );
+        // A rota agora apenas constrói a página.
+        // A página será responsável por criar seu próprio Cubit.
+        return const StoreSetupPage();
       },
     ),
+    //
+    // GoRoute(
+    //   path: '/stores/new',
+    //   builder: (context, state) {
+    //     // 👇 É AQUI que você coloca a lógica de criação 👇
+    //     return BlocProvider<StoreSetupCubit>(
+    //       create: (context) {
+    //         // 1. Acessa o AuthCubit que já deve estar disponível no contexto
+    //         final authState = context.read<AuthCubit>().state;
+    //         String? userName;
+    //
+    //         // 2. Verifica se o usuário está autenticado
+    //         if (authState is AuthAuthenticated) {
+    //           // 3. Pega o nome do usuário a partir do estado de autenticação
+    //           //    Ajuste o caminho se necessário (ex: authState.data.user.name)
+    //           userName = authState.data.user.name;
+    //         }
+    //
+    //         // 4. Cria uma NOVA instância do StoreSetupCubit, passando as dependências
+    //         //    e o nome que acabamos de pegar!
+    //         return StoreSetupCubit(
+    //           getIt<StoreRepository>(),   // Pega os repositórios do getIt
+    //           getIt<SegmentRepository>(),
+    //            getIt<UserRepository>(),       // ✅ Passe a dependência
+    //           context.read<AuthCubit>(),
+    //           context.read<AuthService>(),
+    //           initialResponsibleName: userName, // <--- A CONEXÃO ACONTECE AQUI!
+    //         )..fetchPlans()..fetchSpecialties();
+    //       },
+    //       child: const StoreSetupPage(), // O widget que inicia o fluxo
+    //     );
+    //   },
+    // ),
 
     GoRoute(
       path: '/loading',
       builder: (_, state) => LoadingDataPage(), // <-- ADICIONE AQUI
     ),
+
 
     GoRoute(
       path: '/verify-email',
@@ -314,43 +324,59 @@ class AppRouter {
         return VerifyCodePage(email: email);
       },
     ),
+
+
+
     GoRoute(
       path: '/stores',
       builder: (_, __) => Container(),
-      // redirect: (_, state) {
-      //   if (state.fullPath == '/stores') {
-      //     final StoreRepository storeRepository = getIt();
-      //     if (storeRepository.stores.isNotEmpty) {
-      //       return '/stores/${storeRepository.stores.first.store.id}';
-      //     } else {
-      //       return '/stores/new';
-      //     }
-      //   }
-      //   return null;
-      // },
+
       routes: [
+
         GoRoute(
           path: ':storeId',
-          // redirect: (_, state) {
-          //   if (state.fullPath == '/stores/:storeId') {
-          //     return '/stores/${state.pathParameters['storeId']}/products';
-          //   }
-          //   return null;
-          // },
+
           builder: (_, state) {
             return Container();
           },
           routes: [
-            StatefulShellRoute.indexedStack(
-              builder: (context, state, shell) {
-                return HomePage(shell: shell, storeId: state.storeId);
-              },
 
+
+            // ✅ MOVA A ROTA PARA CÁ
+            GoRoute(
+              path: '/welcome', // O caminho completo será /stores/:storeId/welcome
+              builder: (context, state) {
+                final storeId = int.parse(state.pathParameters['storeId']!);
+                return WelcomeSetupPage(storeId: storeId);
+              },
+            ),
+            // ✅ ROTA DO WIZARD NO LUGAR CERTO
+            GoRoute(
+              path: 'wizard-settings', // Caminho relativo. O path completo será /stores/:storeId/wizard-settings
+              builder: (context, state) {
+                // Agora o storeId está disponível nos parâmetros da rota!
+                final storeId = int.parse(state.pathParameters['storeId']!);
+                return OnboardingWizardPage(storeId: storeId);
+              },
+            ),
+
+
+              StatefulShellRoute.indexedStack(
+              builder: (context, state, navigationShell) {
+                final storeId = int.parse(state.pathParameters['storeId']!);
+                return AppShell(navigationShell: navigationShell, storeId: storeId,);
+              },
               branches: [
-                // DASHBOARD
+
+                // ✅ DASHBOARD (AGORA A ROTA PRINCIPAL)
                 StatefulShellBranch(
                   routes: [
-                    GoRoute(path: '/home', builder: (_, state) => Container()),
+                    GoRoute(
+                      path: '/dashboard', // <-- MUDANÇA 1: O caminho agora é /dashboard
+                      pageBuilder: (_, state) => NoTransitionPage(
+                        child: DashboardPage(), // <-- MUDANÇA 2: Aponta para a DashboardPage
+                      ),
+                    ),
                   ],
                 ),
 
@@ -358,14 +384,10 @@ class AppRouter {
                 StatefulShellBranch(
                   routes: [
                     GoRoute(
-                      path: '/management',
-                      builder:
-                          (_, __) => const Center(
-                            child: Text(
-                              'Gestão',
-                              style: TextStyle(fontSize: 32),
-                            ),
-                          ),
+                      path: '/analytics',
+                      pageBuilder: (_, state) => NoTransitionPage(
+                        child: AnalyticsPage(), // <-- MUDANÇA 2: Aponta para a DashboardPage
+                      ),
                     ),
                   ],
                 ),
@@ -484,43 +506,6 @@ class AppRouter {
 
 
 
-
-
-
-
-
-
-
-                // StatefulShellBranch(
-                //   routes: [
-                //     GoRoute(
-                //       path: '/orders',
-                //       pageBuilder: (context, state) => NoTransitionPage(
-                //         key: UniqueKey(),
-                //         child: BlocProvider(
-                //           create: (_) => OrderCubit(GetIt.I<RealtimeRepository>()),
-                //           child: OrdersPage(storeId: state.storeId),
-                //         ),
-                //       ),
-                //       routes: [
-                //         GoRoute(
-                //           path: ':id',
-                //           pageBuilder: (context, state) => NoTransitionPage(
-                //             key: UniqueKey(),
-                //             child: BlocProvider.value(
-                //               value: context.read<OrderCubit>(),
-                //               child: OrderDetailsPage(
-                //                 storeId: state.storeId,
-                //             //    id: state.pathParameters['id']!, // ou state.id se tiver extensão
-                //               ),
-                //             ),
-                //           ),
-                //         ),
-                //       ],
-                //     ),
-                //   ],
-                // ),
-
                 // PRODUTOS
                 StatefulShellBranch(
                   routes: [
@@ -574,7 +559,7 @@ class AppRouter {
                       pageBuilder:
                           (_, state) => NoTransitionPage(
                             key: UniqueKey(),
-                            child: CategoriesPage(storeId: state.storeId),
+                            child: CreateCategoryPage(),
                           ),
                       routes: [
                         GoRoute(
@@ -643,29 +628,26 @@ class AppRouter {
                             child: PaymentMethodsPage(storeId: state.storeId),
                           ),
                       routes: [
-                        GoRoute(
-                          path: 'new',
-                          builder:
-                              (_, state) =>
-                                  EditPaymentMethods(storeId: state.storeId),
-                        ),
-                        GoRoute(
-                          path: ':id',
-                          pageBuilder: (_, state) {
-                            return NoTransitionPage(
-                              key: UniqueKey(),
-                              child: EditPaymentMethods(
-                                storeId: state.storeId,
-                                id: state.id,
-                              ),
-                            );
-                          },
-                        ),
+
                       ],
                     ),
                   ],
                 ),
+                StatefulShellBranch(
+                  routes: [
+                    GoRoute(
+                      path: '/platform-payment-methods',
+                      pageBuilder:
+                          (_, state) => NoTransitionPage(
+                        key: UniqueKey(),
+                        child: PlatformPaymentMethodsPage(storeId: state.storeId),
+                      ),
+                      routes: [
 
+                      ],
+                    ),
+                  ],
+                ),
                 StatefulShellBranch(
                   routes: [
                     GoRoute(
@@ -676,24 +658,28 @@ class AppRouter {
                             child: CouponsPage(storeId: state.storeId),
                           ),
                       routes: [
-                        // GoRoute(
-                        //   path: 'new',
-                        //   builder: (_, state) {
-                        //     return EditCouponPage(storeId: state.storeId);
-                        //   },
-                        // ),
-                        // GoRoute(
-                        //   path: ':id',
-                        //   pageBuilder: (_, state) {
-                        //     return NoTransitionPage(
-                        //       key: UniqueKey(),
-                        //       child: EditCouponPage(
-                        //         storeId: state.storeId,
-                        //         id: state.id,
-                        //       ),
-                        //     );
-                        //   },
-                        // ),
+                        GoRoute(
+                          path: 'new',
+                          builder: (_, state) {
+                            return EditCouponPage(storeId: state.storeId);
+                          },
+                        ),
+                        GoRoute(
+                          path: ':id',
+                          pageBuilder: (_, state) {
+                            // ✅ CORREÇÃO AQUI
+                            // Pega o cupom do parâmetro 'extra'
+                            final coupon = state.extra as Coupon?;
+                            return NoTransitionPage(
+                              key: UniqueKey(),
+                              child: EditCouponPage(
+                                storeId: state.storeId,
+                                id: state.id,
+                                coupon: coupon, // Passa o cupom para a página
+                              ),
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ],
@@ -759,17 +745,47 @@ class AppRouter {
                       pageBuilder:
                           (_, state) => NoTransitionPage(
                             key: UniqueKey(),
-                            child: Settings(storeId: state.storeId),
+                            child: StoreProfilePage(storeId: state.storeId),
                           ),
                       routes: [
                         // === HORÁRIOS DE ATENDIMENTO ===
+                        // Na sua configuração do GoRouter
+
                         GoRoute(
                           path: 'hours',
-                          pageBuilder:
-                              (_, state) => NoTransitionPage(
-                                key: UniqueKey(),
-                                child: OpeningHoursPage(storeId: state.storeId),
+                          pageBuilder: (context, state) { // ✅ 1. Usamos o 'context' que o pageBuilder nos dá.
+
+                            // Pega o storeId dos parâmetros da rota de forma segura
+                            final storeId = int.tryParse(state.pathParameters['storeId'] ?? '') ?? 0;
+
+                            // Se o ID for inválido, podemos mostrar uma página de erro
+                            if (storeId == 0) {
+                              return const NoTransitionPage(
+                                child: Scaffold(body: Center(child: Text("ID da loja inválido."))),
+                              );
+                            }
+
+                            // ✅ 2. Acessamos o StoresManagerCubit que está acima na árvore de widgets
+                            final cubit = context.read<StoresManagerCubit>();
+                            final cubitState = cubit.state;
+
+                            // ✅ 3. Pegamos a lista de horários do estado do Cubit.
+                            // Se o estado não estiver carregado ou não houver loja, passamos uma lista vazia.
+                            List<StoreHour> initialHours = [];
+                            if (cubitState is StoresManagerLoaded) {
+                              initialHours = cubitState.activeStore?.relations.hours ?? [];
+                            }
+
+                            // ✅ 4. Finalmente, construímos a página passando a lista de horários.
+                            return NoTransitionPage(
+                              key: UniqueKey(),
+                              child: OpeningHoursPage(
+                                storeId: storeId,
+                                initialHours: initialHours,
+                                // O `isInWizard: false` é o padrão, o que está correto para esta rota.
                               ),
+                            );
+                          },
                         ),
 
                         // === FORMAS DE ENTREGA ===
@@ -778,8 +794,7 @@ class AppRouter {
                           pageBuilder:
                               (_, state) => NoTransitionPage(
                                 key: UniqueKey(),
-                                child: DeliveryOptionsPage(
-                                  storeId: state.storeId,
+                                child: OperationConfigurationPage(storeId:  state.storeId,
                                 ),
                               ),
                         ),
@@ -796,9 +811,7 @@ class AppRouter {
                               ),
                         ),
                       ],
-                      redirect:
-                          (_, state) =>
-                              RouteGuard.apply(state, [StoreOwnerGuard()]),
+
                     ),
                   ],
                 ),
@@ -936,6 +949,10 @@ class AppRouter {
                     ),
                   ],
                 ),
+
+
+
+
               ],
 
               // MESAS
@@ -954,15 +971,6 @@ class AppRouter {
 
 
 
-bool _isPublicRoute(String path) {
-  return [
-    '/splash',
-    '/sign-in',
-    '/sign-up',
-    '/verify-code',
-    '/loading-data',
-  ].any((publicRoute) => path.startsWith(publicRoute));
-}
 
 
 

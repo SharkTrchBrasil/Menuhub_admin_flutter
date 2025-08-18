@@ -69,7 +69,7 @@ class PdfReceiptLayout {
             ),
 
             pw.SizedBox(height: 2),
-            pw.Center(child: pw.Text(store.name, style: textStyle)),
+            pw.Center(child: pw.Text(store.core.name, style: textStyle)),
             pw.SizedBox(height: 8),
 
             pw.Text('Cliente: ${order.customerName}', style: textStyle),
@@ -196,10 +196,10 @@ class PdfReceiptLayout {
               ),
 
             pw.SizedBox(height: 8),
-            pw.Center(child: pw.Text(store.name, style: textStyle)),
+            pw.Center(child: pw.Text(store.core.name, style: textStyle)),
             pw.Center(
               child: pw.Text(
-                PdfLayoutUtils.formatPhone(store.phone!),
+                PdfLayoutUtils.formatPhone(store.core.phone!),
                 style: textStyle,
               ),
             ),

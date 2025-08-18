@@ -78,7 +78,7 @@ class _MorePageState extends State<MorePage> {
       'icon': 'assets/images/33.png'
     },
     {
-      'title': 'Horários de Atendimento',
+      'title': 'Horários',
       'route': '/stores/{storeId}/settings/hours',
       'icon': 'assets/images/calendar-edit.png'
     },

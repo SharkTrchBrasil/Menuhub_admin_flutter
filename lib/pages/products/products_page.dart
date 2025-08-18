@@ -25,10 +25,12 @@ class CategoryProductPage extends StatefulWidget {
   const CategoryProductPage({super.key, required this.storeId});
 
   @override
-  State<CategoryProductPage> createState() => _CategoryProductPageState();
+  // ✅ TORNAR A CLASSE STATE PÚBLICA (REMOVER O '_')
+  State<CategoryProductPage> createState() => CategoryProductPageState();
 }
 
-class _CategoryProductPageState extends State<CategoryProductPage> {
+// ✅ CLASSE DE ESTADO PÚBLICA
+class CategoryProductPageState extends State<CategoryProductPage> {
   final _searchController = TextEditingController();
   String _searchText = '';
   String? _selectedCategoryId; // Alterado para usar o ID da categoria
@@ -49,6 +51,29 @@ class _CategoryProductPageState extends State<CategoryProductPage> {
     super.dispose();
   }
 
+  // ✅ MÉTODO PÚBLICO QUE O WIZARD VAI CHAMAR
+  // Ele verifica se o passo foi "concluído", ou seja, se existe ao menos uma categoria.
+  Future<bool> hasContent() async {
+    final state = context.read<StoresManagerCubit>().state;
+    if (state is StoresManagerLoaded) {
+      final hasCategories = state.activeStore?.relations.categories.isNotEmpty ?? false;
+      if (!hasCategories) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Você precisa criar pelo menos uma categoria para finalizar.'), backgroundColor: Colors.orange),
+        );
+      }
+      return hasCategories;
+    }
+    return false; // Se o estado não estiver carregado, considera como não concluído.
+  }
+
+  // ✅ FUNÇÃO PARA NAVEGAR PARA A TELA DE CRIAÇÃO
+  void _navigateToCreateCategory() {
+    // Navega para a página de criação que já projetamos.
+    // Adapte a rota se for diferente no seu GoRouter.
+    context.go('/stores/${widget.storeId}/categories');
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -59,8 +84,8 @@ class _CategoryProductPageState extends State<CategoryProductPage> {
             return const Scaffold(body: Center(child: DotLoading()));
           }
 
-          final allCategories = state.activeStore?.categories ?? [];
-          final allProducts = state.activeStore?.products ?? [];
+          final allCategories = state.activeStore?.relations.categories ?? [];
+          final allProducts = state.activeStore?.relations.products ?? [];
 
           // --- Lógica de Filtros ---
           final searchedProducts =
@@ -94,14 +119,7 @@ class _CategoryProductPageState extends State<CategoryProductPage> {
 
           return Scaffold(
             // ✅ DETALHE: AppBar condicional para aparecer só no mobile
-            appBar:
-            ResponsiveBuilder.isMobile(context)
-                ? AppBar(
-              title: const Text('Cardápio'),
-              automaticallyImplyLeading:
-              true, // Garante o botão de voltar
-            )
-                : appber(store: state.activeStore,),// Sem AppBar no desktop Sem AppBar no desktop
+
             backgroundColor: Colors.white,
             // ✅ CORREÇÃO PRINCIPAL: Substitua o Padding por este bloco
             body: Center(
@@ -176,18 +194,99 @@ class _CategoryProductPageState extends State<CategoryProductPage> {
                             ),
                           ),
 
-                          // 3. Conteúdo da Lista (sem alterações)
+
                           if (visibleCategories.isEmpty)
                             SliverFillRemaining(
+                              hasScrollBody: false, // Importante para o Center funcionar bem
                               child: Center(
-                                child: Text(
-                                  _searchText.isNotEmpty ||
-                                          _selectedCategoryId != null
-                                      ? "Nenhum item encontrado com os filtros aplicados."
-                                      : "Você ainda não tem categorias cadastradas.",
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // Ícone para dar um apelo visual
+                                      Icon(
+                                        Icons.location_city_outlined,
+                                        size: 80,
+                                        color: Colors.grey[400],
+                                      ),
+                                      const SizedBox(height: 24),
+
+                                      // O mesmo texto de antes
+                                      Text(
+                                        _searchText.isNotEmpty ||
+                                            _selectedCategoryId != null
+                                            ? "Nenhum item encontrado com os filtros aplicados."
+                                            : "Você ainda não tem categorias cadastradas.",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                                      ),
+                                      const SizedBox(height: 24),
+
+                                      // O botão que chama a função para adicionar uma nova cidade
+                                      ElevatedButton.icon(
+                                        onPressed: _navigateToCreateCategory, // Chama a mesma função do FAB
+                                        icon: const Icon(Icons.add),
+                                        label: const Text('Adicionar Primeira Cidade'),
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+
+
+
+
+
+
+
+
+                          // Lógica do estado vazio
+                          if (allCategories.isEmpty) // Verificação simplificada
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.category_outlined, size: 80, color: Colors.grey[400]),
+                                    const SizedBox(height: 24),
+                                    const Text(
+                                      "Vamos criar seu cardápio!",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      "Comece adicionando a sua primeira categoria de produtos.",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                                    ),
+                                    const SizedBox(height: 24),
+
+                                    // ✅ BOTÃO CORRIGIDO
+                                    ElevatedButton.icon(
+                                      onPressed: _navigateToCreateCategory, // Chama a função de navegação
+                                      icon: const Icon(Icons.add),
+                                      label: const Text('Adicionar Primeira Categoria'),
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             )
+
+
+
+
                           else
                             SliverPadding(
                               padding: const EdgeInsets.fromLTRB(

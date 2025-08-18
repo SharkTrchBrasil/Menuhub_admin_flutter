@@ -9,11 +9,14 @@ import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 
 import '../models/product.dart';
 import '../models/store.dart';
+import 'auth_cubit.dart';
 
 class StoresManagerCubit extends Cubit<StoresManagerState> {
   final StoreRepository _storeRepository;
   final RealtimeRepository _realtimeRepository;
+  final AuthCubit _authCubit;
 
+  StreamSubscription? _authSubscription;
   StreamSubscription? _adminStoresListSubscription;
   StreamSubscription? _notificationSubscription;
   // ✨ 1. ADICIONE UMA NOVA VARIÁVEL PARA A INSCRIÇÃO ✨
@@ -28,8 +31,10 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   StoresManagerCubit({
     required StoreRepository storeRepository,
     required RealtimeRepository realtimeRepository,
+    required AuthCubit authCubit,
   })  : _storeRepository = storeRepository,
         _realtimeRepository = realtimeRepository,
+        _authCubit = authCubit,
         super(const StoresManagerInitial()) {
     _startRealtimeListeners();
   }
@@ -59,9 +64,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       final currentActiveStore = currentState.activeStore;
       if (currentActiveStore == null) return;
 
-      // Cria uma versão atualizada da loja, trocando apenas a lista de produtos
-      final newActiveStore = currentActiveStore.copyWith(products: updatedProducts);
-
+      // Exemplo: atualizando a lista de produtos dentro do seu Cubit/Controller
+      final newActiveStore = currentActiveStore.copyWith(
+        relations: currentActiveStore.relations.copyWith( // <- Usando o copyWith de StoreRelations
+          products: updatedProducts,
+        ),
+      );
       // Atualiza o mapa de lojas com a versão mais recente da loja ativa
       final newStoresMap = Map<int, StoreWithRole>.from(currentState.stores);
       newStoresMap[currentState.activeStoreId] = newStoresMap[currentState.activeStoreId]!.copyWith(store: newActiveStore);
@@ -75,25 +83,28 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-  // ✨ 3. CRIE O MÉTODO QUE RECEBE A ATUALIZAÇÃO ✨
+  // em StoresManagerCubit
   void _onActiveStoreUpdated(Store? updatedStore) {
     if (updatedStore == null || isClosed) return;
 
+    // ✅ PRINT ADICIONADO PARA MONITORAMENTO DETALHADO
+    print('🟢 [CUBIT] Recebendo atualização para a loja ID ${updatedStore.core.id}. Novos dados: ${updatedStore.toJson()}');
+
     final currentState = state;
     if (currentState is StoresManagerLoaded) {
-      // Cria uma cópia do mapa de lojas atual
       final newStoresMap = Map<int, StoreWithRole>.from(currentState.stores);
 
-      // Se a loja atualizada existe no nosso mapa, vamos substituí-la
-      if (newStoresMap.containsKey(updatedStore.id)) {
-        final oldStoreWithRole = newStoresMap[updatedStore.id]!;
-        // Atualiza o objeto 'store' dentro do 'StoreWithRole', mantendo a 'role'
-        newStoresMap[updatedStore.id!] = oldStoreWithRole.copyWith(store: updatedStore);
+      if (newStoresMap.containsKey(updatedStore.core.id)) {
+        final oldStoreWithRole = newStoresMap[updatedStore.core.id]!;
+        newStoresMap[updatedStore.core.id!] = oldStoreWithRole.copyWith(store: updatedStore);
 
-        print("✅ StoresManagerCubit: Loja ID ${updatedStore.id} foi atualizada no estado.");
+        print("✅ [CUBIT] Loja ID ${updatedStore.core.id} foi atualizada no estado do Cubit.");
 
-        // Emite o novo estado com o mapa de lojas fresquinho
-        emit(currentState.copyWith(stores: newStoresMap));
+        // ✅ CORREÇÃO: Adicione o `lastUpdate` aqui também!
+        emit(currentState.copyWith(
+          stores: newStoresMap,
+          lastUpdate: DateTime.now(),
+        ));
       }
     }
   }
@@ -112,12 +123,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     final currentState = state;
     if (currentState is StoresManagerLoaded) {
       emit(currentState.copyWith(
-        stores: {for (var s in stores) s.store.id!: s},
+        stores: {for (var s in stores) s.store.core.id!: s},
       ));
     } else {
-      final firstStoreId = stores.first.store.id!;
+      final firstStoreId = stores.first.store.core.id!;
       emit(StoresManagerLoaded(
-        stores: {for (var s in stores) s.store.id!: s},
+        stores: {for (var s in stores) s.store.core.id!: s},
         activeStoreId: firstStoreId,
         consolidatedStores: const [],
         notificationCounts: const {},
@@ -229,55 +240,109 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   }
 
 
-  /// Força o recarregamento dos dados da loja ativa a partir do backend.
-  /// Essencial para manter a UI sincronizada após uma edição.
-  Future<void> reloadActiveStore() async {
-    if (state is! StoresManagerLoaded) return;
+  // /// Força o recarregamento dos dados da loja ativa a partir do backend.
+  // /// Essencial para manter a UI sincronizada após uma edição.
+  // Future<void> reloadActiveStore() async {
+  //   if (state is! StoresManagerLoaded) return;
+  //
+  //   final loadedState = state as StoresManagerLoaded;
+  //   final activeStoreId = loadedState.activeStoreId;
+  //
+  //   try {
+  //     // ✅ CORREÇÃO: Chama o método 'getStore' que existe no repositório.
+  //     final storeResult = await _storeRepository.getStore(activeStoreId);
+  //
+  //     storeResult.fold(
+  //       // Caso de falha
+  //           (failure) {
+  //         print("❌ StoresManagerCubit: Falha ao recarregar a loja ID $activeStoreId via getStore.");
+  //       },
+  //       // Caso de sucesso
+  //           (updatedStore) {
+  //         // Pega o 'role' do estado atual para manter a consistência.
+  //         final currentRole = loadedState.stores[activeStoreId]?.role;
+  //         if (currentRole == null) {
+  //           print("❌ StoresManagerCubit: Não foi possível encontrar o 'role' para a loja ID $activeStoreId no estado atual.");
+  //           return;
+  //         }
+  //
+  //         // Cria um novo 'StoreWithRole' com os dados atualizados da loja e o 'role' existente.
+  //         final updatedStoreWithRole = StoreWithRole(store: updatedStore, role: currentRole);
+  //
+  //         // Cria uma cópia do mapa de lojas e atualiza a loja modificada.
+  //         final newStoresMap = Map<int, StoreWithRole>.from(loadedState.stores);
+  //         newStoresMap[activeStoreId] = updatedStoreWithRole;
+  //
+  //         // Emite o novo estado com os dados atualizados.
+  //         emit(loadedState.copyWith(
+  //           stores: newStoresMap,
+  //           lastUpdate: DateTime.now(), // Importante para forçar a atualização
+  //         ));
+  //         print("✅ StoresManagerCubit: Loja ID $activeStoreId recarregada com sucesso.");
+  //       },
+  //     );
+  //   } catch (e) {
+  //     print("❌ StoresManagerCubit: Erro ao recarregar a loja ID $activeStoreId: $e");
+  //   }
+  // }
+  //
 
-    final loadedState = state as StoresManagerLoaded;
-    final activeStoreId = loadedState.activeStoreId;
+  // ✅ 1. MÉTODO PARA ADICIONAR UMA NOVA PAUSA
+  Future<bool> addPause({
+    required int storeId,
+    required String? reason,
+    required DateTime startTime,
+    required DateTime endTime,
+  }) async {
+    // O Cubit delega a chamada para o repositório
+    final result = await _storeRepository.createScheduledPause(
+      storeId: storeId,
+      reason: reason,
+      startTime: startTime,
+      endTime: endTime,
+    );
 
-    try {
-      // ✅ CORREÇÃO: Chama o método 'getStore' que existe no repositório.
-      final storeResult = await _storeRepository.getStore(activeStoreId);
-
-      storeResult.fold(
-        // Caso de falha
-            (failure) {
-          print("❌ StoresManagerCubit: Falha ao recarregar a loja ID $activeStoreId via getStore.");
-        },
-        // Caso de sucesso
-            (updatedStore) {
-          // Pega o 'role' do estado atual para manter a consistência.
-          final currentRole = loadedState.stores[activeStoreId]?.role;
-          if (currentRole == null) {
-            print("❌ StoresManagerCubit: Não foi possível encontrar o 'role' para a loja ID $activeStoreId no estado atual.");
-            return;
-          }
-
-          // Cria um novo 'StoreWithRole' com os dados atualizados da loja e o 'role' existente.
-          final updatedStoreWithRole = StoreWithRole(store: updatedStore, role: currentRole);
-
-          // Cria uma cópia do mapa de lojas e atualiza a loja modificada.
-          final newStoresMap = Map<int, StoreWithRole>.from(loadedState.stores);
-          newStoresMap[activeStoreId] = updatedStoreWithRole;
-
-          // Emite o novo estado com os dados atualizados.
-          emit(loadedState.copyWith(
-            stores: newStoresMap,
-            lastUpdate: DateTime.now(), // Importante para forçar a atualização
-          ));
-          print("✅ StoresManagerCubit: Loja ID $activeStoreId recarregada com sucesso.");
-        },
-      );
-    } catch (e) {
-      print("❌ StoresManagerCubit: Erro ao recarregar a loja ID $activeStoreId: $e");
-    }
+    // Retorna true para sucesso e false para falha
+    return result.fold(
+          (error) {
+        print("Erro no Cubit ao criar pausa: $error");
+        // O repositório já deve ter mostrado um AppToast de erro
+        return false;
+      },
+          (newPause) {
+        // Sucesso!
+        print("Pausa criada com sucesso no Cubit. ID: ${newPause.id}");
+        // Não precisa atualizar o estado aqui, pois o backend enviará um
+        // evento de socket que atualizará a UI automaticamente.
+        return true;
+      },
+    );
   }
+
+  // ✅ 2. MÉTODO PARA DELETAR UMA PAUSA EXISTENTE
+  Future<bool> deletePause({required int pauseId}) async {
+    final result = await _storeRepository.deleteScheduledPause(pauseId: pauseId);
+
+    return result.fold(
+          (error) {
+        print("Erro no Cubit ao deletar pausa: $error");
+        return false;
+      },
+          (_) {
+        // Sucesso! O backend também deve enviar um evento de socket aqui.
+        print("Pausa $pauseId deletada com sucesso no Cubit.");
+        return true;
+      },
+    );
+  }
+
+
+
+
   String? getStoreNameById(int storeId) {
     final currentState = state;
     if (currentState is StoresManagerLoaded) {
-      return currentState.stores[storeId]?.store.name;
+      return currentState.stores[storeId]?.store.core.name;
     }
     return null;
   }

@@ -20,7 +20,9 @@ class AppTextField extends StatefulWidget {
     this.readOnly = false,
     this.enabled = true,
     this.suffixIcon, // ✅ Renomeado de 'suffix' para 'suffixIcon'
-    this.focusNode,  // ✅ Adicionado o novo parâmetro 'focusNode'
+    this.focusNode,
+    this.maxLength, // ✅ novo
+    this.maxLines,  // ✅ novo// ✅ Adicionado o novo parâmetro 'focusNode'
   });
 
   final String title;
@@ -37,7 +39,9 @@ class AppTextField extends StatefulWidget {
   final bool enabled;
   final Widget? suffixIcon; // ✅ Renomeado de 'suffix' para 'suffixIcon'
   final FocusNode? focusNode; // ✅ Adicionado o novo parâmetro 'focusNode'
-
+// ✅ NOVOS PARÂMETROS
+  final int? maxLength;
+  final int? maxLines;
   @override
   State<AppTextField> createState() => _AppTextFieldState();
 }
@@ -77,6 +81,9 @@ class _AppTextFieldState extends State<AppTextField> {
           onChanged: widget.onChanged,
           keyboardType: widget.keyboardType,
           inputFormatters: widget.formatters,
+          maxLength: widget.maxLength,
+          maxLines: widget.maxLines ?? 1,
+
           cursorColor: const Color(0xFFF39C12),
           decoration: InputDecoration(
             filled: true,

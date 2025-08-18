@@ -79,7 +79,7 @@ dependencies:
   encrypt:
   pointycastle:
   path_provider:
-
+  pie_chart: ^5.4.0
   kanban_board:
   flutter_boardview_kanban: ^1.0.1
   #modal_side_sheet:
@@ -120,6 +120,7 @@ dependencies:
 
   boleto_utils: ^1.1.0
   flutter_barcode_scanner_plus: ^3.0.8
+  signature: ^6.3.0
 
 
 
@@ -153,6 +154,7 @@ flutter:
     - assets/animations/
     - assets/env
     - assets/sounds/
+    - assets/icons/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

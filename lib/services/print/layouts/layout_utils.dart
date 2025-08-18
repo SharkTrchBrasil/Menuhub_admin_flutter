@@ -179,7 +179,7 @@ class PdfLayoutUtils {
 
               pw.SizedBox(height: 2),
               pw.Center(
-                child: pw.Text(store.name, style: textStyle),
+                child: pw.Text(store.core.name, style: textStyle),
               ),
               pw.SizedBox(height: 8),
 
@@ -291,9 +291,9 @@ class PdfLayoutUtils {
                     order.changeAmount! / 100)}', style: textStyle),
 
               pw.SizedBox(height: 8),
-              pw.Center(child: pw.Text(store.name, style: textStyle)),
+              pw.Center(child: pw.Text(store.core.name, style: textStyle)),
               pw.Center(child: pw.Text(
-                  PdfLayoutUtils.formatPhone(store!.phone!), style: textStyle)),
+                  PdfLayoutUtils.formatPhone(store.core.phone!), style: textStyle)),
             ],
           );
         },
@@ -344,7 +344,7 @@ class PdfLayoutUtils {
 
                 pw.SizedBox(height: 2),
                 pw.Center(
-                  child: pw.Text(store.name, style: textStyle),
+                  child: pw.Text(store.core.name, style: textStyle),
                 ),
                 pw.SizedBox(height: 8),
 
@@ -439,8 +439,8 @@ class PdfLayoutUtils {
                   pw.Text('Troco para: ${currencyFormat.format(order.changeAmount! / 100)}', style: textStyle),
 
                 pw.SizedBox(height: 8),
-                pw.Center(child: pw.Text(store.name, style: textStyle)),
-                pw.Center(child: pw.Text(PdfLayoutUtils.formatPhone(store.phone!), style: textStyle)),
+                pw.Center(child: pw.Text(store.core.name, style: textStyle)),
+                pw.Center(child: pw.Text(PdfLayoutUtils.formatPhone(store.core.phone!), style: textStyle)),
               ],
             );
           },

@@ -189,14 +189,31 @@ class _StoreDetailsStepState extends State<StoreDetailsStep> {
               FilteringTextInputFormatter.digitsOnly,
               TelefoneInputFormatter(),
             ],
-            validator: (v) => (v == null || v.length < 14) ? 'Telefone inválido' : null,
+            validator: validMobilePhone,
             onChanged: (v) => cubit.updateStoreDetails(phone: v),
           ),
+
+
         ],
       ),
     );
   }
 
+  String? validMobilePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Telefone obrigatório';
+    }
+
+    // Remove qualquer caractere não numérico
+    final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
+
+    // Validação: DDD (2 dígitos) + 9 dígitos do celular = 11 números
+    if (digitsOnly.length != 11 || !digitsOnly.startsWith('1') && digitsOnly[2] != '9') {
+      return 'Telefone inválido';
+    }
+
+    return null;
+  }
 
   Widget _buildFeatureRow({
     required IconData icon,

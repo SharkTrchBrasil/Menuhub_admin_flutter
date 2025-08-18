@@ -88,14 +88,13 @@ class AuthRepository {
   AuthRepository(this._dio, this._secureStorage);
 
   final Dio _dio;
-
   AuthTokens? _authTokens;
-
+  // Getter para o objeto completo
   AuthTokens? get authTokens => _authTokens;
-  // ✅ ALTERAÇÃO 2: A propriedade principal agora é o token de acesso (JWT).
-  // Ele será guardado em memória para acesso rápido durante a sessão.
-  String? _accessToken;
-  String? get accessToken => _accessToken;
+
+  // Getter para o token de acesso, derivado do objeto principal
+  String? get accessToken => _authTokens?.accessToken; // ⬅️ Use um getter
+
 
   User? _user;
 
@@ -103,8 +102,7 @@ class AuthRepository {
 
   final FlutterSecureStorage _secureStorage;
 
-  /// ✅ ALTERAÇÃO 3: O método initialize agora foca em restaurar a sessão do ADMIN.
-  /// Ele lê o token JWT salvo e o valida.
+
   Future<bool> initialize() async {
     // Tenta renovar o token usando o refresh_token salvo.
     final refreshResult = await refreshAccessToken();
@@ -137,10 +135,11 @@ class AuthRepository {
       );
 
       final tokens = AuthTokens.fromJson(response.data);
-      _accessToken = tokens.accessToken;
+
+      _authTokens = tokens;
 
       // Salva ambos os tokens no armazenamento seguro.
-      await _secureStorage.write(key: SecureStorageKeys.accessToken, value: _accessToken);
+      await _secureStorage.write(key: SecureStorageKeys.accessToken, value: tokens.accessToken);
       await _secureStorage.write(key: SecureStorageKeys.refreshToken, value: tokens.refreshToken);
 
       final result = await _getUserInfo();
@@ -163,8 +162,7 @@ class AuthRepository {
     }
   }
 
-  /// ✅ ALTERAÇÃO 3: O método de refresh foi tornado público e corrigido.
-  /// Ele será chamado pelo RealtimeRepository quando a conexão cair.
+
   Future<Either<String, void>> refreshAccessToken() async {
     final refreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
     if (refreshToken == null) {
@@ -178,10 +176,11 @@ class AuthRepository {
       );
 
       final newTokens = AuthTokens.fromJson(response.data);
-      _accessToken = newTokens.accessToken;
+      _authTokens = newTokens;
+
 
       // Salva os novos tokens, sobrescrevendo os antigos.
-      await _secureStorage.write(key: SecureStorageKeys.accessToken, value: _accessToken);
+      await _secureStorage.write(key: SecureStorageKeys.accessToken, value: newTokens.accessToken);
       await _secureStorage.write(key: SecureStorageKeys.refreshToken, value: newTokens.refreshToken);
 
       print('[AuthRepository] Token de acesso renovado com sucesso.');
@@ -195,7 +194,7 @@ class AuthRepository {
 
   /// ✅ ALTERAÇÃO 4: O logout agora limpa AMBOS os tokens.
   Future<void> logout() async {
-    _accessToken = null;
+    _authTokens = null;
     _user = null;
     await _secureStorage.delete(key: SecureStorageKeys.accessToken);
     await _secureStorage.delete(key: SecureStorageKeys.refreshToken);
@@ -311,50 +310,7 @@ class AuthRepository {
 
 
 
-  Future<Either<void, TotemAuth>> checkToken() async {
-    try {
-      final token = await getTotemToken();
-      if (token.isEmpty) {
-        return Left(null);
-      }
 
-      final response = await _dio.post(
-        '/auth/check-token',
-        data: {'totem_token': token},
-      );
 
-      return Right(TotemAuth.fromJson(response.data));
-    } catch (e) {
-      print('Error in checkToken: $e');
-      return Left(null);
-    }
-  }
 
-  Future<Either<void, TotemAuth>> getToken(String storeSlug) async {
-    try {
-      final response = await _dio.post(
-        '/auth/subdomain',
-
-        data: {'store_url': storeSlug, 'totem_token': await getTotemToken()},
-      );
-
-      final TotemAuth totemAuth = TotemAuth.fromJson(response.data);
-
-      await _secureStorage.write(key: 'totem_token', value: totemAuth.token);
-
-      return Right(totemAuth);
-    } catch (e) {
-      print('Erro ao buscar token do subdomínio: $e');
-      return Left(null);
-    }
-  }
-
-  Future<String> getTotemToken() async {
-    String? token = await _secureStorage.read(key: 'totem_token');
-    if (token != null && token.isNotEmpty) return token;
-
-    token = const Uuid().v4();
-    await _secureStorage.write(key: 'totem_token', value: token);
-    return token;
-  }
 }

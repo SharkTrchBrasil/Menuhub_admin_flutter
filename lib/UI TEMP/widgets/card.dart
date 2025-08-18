@@ -6,7 +6,8 @@ import 'package:get/get.dart';
 
 import '../../ConstData/typography.dart';
 import '../../constdata/staticdata.dart';
-import '../controller/dashbordecontroller.dart';
+import '../../controller/dashbordecontroller.dart';
+
 
  cardss({required Color bgcolor, required String price, required Color textcolor}){
   return GetBuilder<DashBordeController>(

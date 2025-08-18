@@ -13,20 +13,21 @@ import '../../../models/store_with_role.dart';
 import '../../../repositories/segment_repository.dart';
 import '../../../repositories/store_repository.dart';
 import '../../../repositories/user_repository.dart';
+import '../../../services/auth_service.dart';
 
 class StoreSetupCubit extends Cubit<StoreSetupState> {
   final StoreRepository _storeRepository;
   final SegmentRepository _segmentRepository;
   final UserRepository _userRepository;
   final AuthCubit _authCubit;
+  final AuthService _authService;
 
   StoreSetupCubit(
     this._storeRepository,
     this._segmentRepository,
-      this._userRepository,
-      this._authCubit,
-
-      {
+    this._userRepository,
+    this._authCubit,
+    this._authService, {
     String? initialResponsibleName, // <-- Parâmetro para o nome
   }) : super(StoreSetupState(responsibleName: initialResponsibleName ?? ''));
 
@@ -108,8 +109,6 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
         )
         .toList();
   }
-
-
 
   Future<void> searchZipCode(String zipcode) async {
     // 1. Emite o estado de Loading
@@ -206,8 +205,6 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
     );
   }
 
-
-
   Future<void> submitStoreSetup() async {
     emit(state.copyWith(submissionStatus: const PageStatusLoading()));
 
@@ -218,7 +215,6 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
         state.copyWith(submissionStatus: PageStatusError(failure.message)),
       ),
       (newStore) async {
-
         // ✅ SUCESSO! A loja foi criada.
         // O 'newStore' que recebemos é do tipo 'Store'.
         // Precisamos criar um 'StoreWithRole' para adicionar ao AuthCubit.
@@ -230,9 +226,7 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
         // ✅ ATUALIZA O ESTADO GLOBAL DO APP COM A NOVA LOJA
         _authCubit.addNewStore(newStoreWithRole);
 
-
         final authState = _authCubit.state;
-
 
         if (authState is AuthAuthenticated) {
           final currentUser = authState.data.user;
@@ -276,11 +270,15 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
           }
         }
 
+        // try {
+        //   await _authService.reinitializeRealtimeConnection();
+        // } catch (e) {
+        //   // Loga qualquer erro que possa acontecer na reconexão
+        //   print('[StoreSetupCubit] Erro ao reinicializar a conexão: $e');
+        // }
+
         emit(state.copyWith(submissionStatus: PageStatusSuccess(newStore)));
       },
     );
   }
-
-
-
 }

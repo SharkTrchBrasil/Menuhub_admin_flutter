@@ -11,11 +11,12 @@ import 'package:permission_handler/permission_handler.dart';
 // pubspec.yaml -> dependencies:
 //   collection: ^1.18.0
 import 'package:collection/collection.dart';
+import 'package:totem_pro_admin/models/store_operation_config.dart';
 
 
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
-import '../../../models/store_settings.dart';
+
 import '../constants/print_destinations.dart';
 import '../device_settings_service.dart';
 
@@ -88,10 +89,10 @@ class PrinterSettingsCubit extends Cubit<PrinterSettingsState> {
       final desktopPrinters = await _fetchDesktopPrinters();
       final allPrinters = [...bluetoothPrinters, ...desktopPrinters];
 
-      StoreSettings? settings;
+      StoreOperationConfig? settings;
       final storeState = _storesManagerCubit.state;
       if (storeState is StoresManagerLoaded) {
-        settings = storeState.stores[storeState.activeStoreId]?.store?.storeSettings;
+        settings = storeState.stores[storeState.activeStoreId]?.store.relations.storeOperationConfig;
       }
 
       emit(state.copyWith(

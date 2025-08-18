@@ -1,1148 +1,422 @@
-import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/core/app_edit_controller.dart';
 import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/core/extensions/extensions.dart';
+import 'package:totem_pro_admin/core/responsive_builder.dart';
 import 'package:totem_pro_admin/models/coupon.dart';
-import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/coupon_rule.dart';
 import 'package:totem_pro_admin/repositories/coupons_repository.dart';
-import 'package:totem_pro_admin/repositories/product_repository.dart';
-import 'package:totem_pro_admin/widgets/app_counter_form_field.dart';
-
-import 'package:totem_pro_admin/widgets/app_image_form_field.dart';
-import 'package:totem_pro_admin/widgets/app_page_header.dart';
-import 'package:totem_pro_admin/widgets/app_page_status_builder.dart';
+import 'package:totem_pro_admin/widgets/app_date_time_form_field.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';
-import 'package:totem_pro_admin/widgets/app_selection_form_field.dart';
-import 'package:totem_pro_admin/widgets/app_table.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
-import 'package:totem_pro_admin/widgets/mobileappbar.dart';
+import 'package:totem_pro_admin/widgets/fixed_header.dart';
 
-import '../../widgets/app_date_time_form_field.dart';
-import '../../widgets/app_text_field_2.dart';
-import '../../widgets/app_toasts.dart';
-import '../../widgets/fixed_header.dart';
-import '../base/BasePage.dart';
+import 'package:brasil_fields/brasil_fields.dart';
 
 enum CouponError {
   codeAlreadyExists,
   unknown,
 }
 
-// class EditCouponPage extends StatefulWidget {
-//   const EditCouponPage({super.key, required this.storeId, this.id});
-//
-//   final int storeId;
-//   final int? id;
-//
-//  // @override
-// //  State<EditCouponPage> createState() => _EditCouponPageState();
-// }
+class EditCouponPage extends StatefulWidget {
+  const EditCouponPage({
+    super.key,
+    required this.storeId,
+    this.id,
+    this.coupon,
+  });
 
-// class _EditCouponPageState extends State<EditCouponPage> {
-//   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-//
-//   final CouponRepository repository = getIt();
-//
-//   late final AppEditController<CouponError, Coupon> controller = AppEditController(
-//       id: widget.id,
-//       fetch: (id) => repository.getCoupon(widget.storeId, id),
-//       save: (coupon) => repository.saveCoupon(widget.storeId, coupon),
-//       empty: () => Coupon(),
-//       errorHandler: (error) {
-//         switch(error) {
-//           case CouponError.codeAlreadyExists:
-//             showError('Código de cupom já cadastrado!');
-//           case CouponError.unknown:
-//             showError('Não foi possível realizar esta operação. Por favor, tente novamente.');
-//         }
-//       }
-//   );
-//   // @override
-//   // Widget build(BuildContext context) {
-//   //   return AnimatedBuilder(
-//   //     animation: controller,
-//   //     builder: (_, __) {
-//   //       return AppPageStatusBuilder<Coupon>(
-//   //         status: controller.status,
-//   //         successBuilder: (coupon) {
-//   //           return Form(
-//   //             key: formKey,
-//   //             child: BasePage(
-//   //               mobileAppBar: AppBarCustom(
-//   //                 title: widget.id == null ? 'Criar cupom' : 'Editar cupom',
-//   //               ),
-//   //               mobileBuilder: (BuildContext context) {
-//   //                 return Padding(
-//   //                   padding: const EdgeInsets.symmetric(horizontal: 18.0),
-//   //                   child: SingleChildScrollView(
-//   //                     child: Column(
-//   //                       children: [
-//   //                         const SizedBox(height: 15),
-//   //                         AppTextField(
-//   //                           initialValue: coupon.code,
-//   //                           title: 'Código do cupom',
-//   //                           hint: 'Ex: PROMO10OFF',
-//   //                           validator: (title) {
-//   //                             if (title == null || title.isEmpty) {
-//   //                               return 'Campo obrigatório';
-//   //                             } else if (title.length < 3) {
-//   //                               return 'Código muito curto';
-//   //                             }
-//   //                             return null;
-//   //                           },
-//   //                           onChanged: (name) {
-//   //                             controller.onChanged(coupon.copyWith(code: name));
-//   //                           },
-//   //                         ),
-//   //                         const SizedBox(height: 15),
-//   //
-//   //                         AppSelectionFormField<Product>(
-//   //                           title: 'Produto',
-//   //                           fetch:
-//   //                               () => getIt<ProductRepository>()
-//   //                               .getProducts(widget.storeId),
-//   //                           columns: [
-//   //                             AppTableColumnString(
-//   //                               title: 'Nome',
-//   //                               dataSelector: (p) => p.name,
-//   //                             ),
-//   //                           ],
-//   //                           onChanged: (product) {
-//   //                             controller.onChanged(
-//   //                               coupon.copyWith(product: product),
-//   //                             );
-//   //                           },
-//   //                         ),
-//   //
-//   //
-//   //
-//   //                         const SizedBox(height: 15),
-//   //                         AppDateTimeFormField(
-//   //                           initialValue: coupon.startDate,
-//   //                           title: 'Início da promoção *',
-//   //                           validator: (value) {
-//   //                             if (value == null) {
-//   //                               return 'Campo obrigatório';
-//   //                             }
-//   //                             return null;
-//   //                           },
-//   //                           onChanged: (v) {
-//   //                             controller.onChanged(coupon.copyWith(startDate: v));
-//   //                           },
-//   //                         ),
-//   //                         const SizedBox(height: 15),
-//   //
-//   //                         AppDateTimeFormField(
-//   //                           initialValue: coupon.startDate,
-//   //                           title: 'Fim da promoção *',
-//   //                           validator: (value) {
-//   //                             if (value == null) {
-//   //                               return 'Campo obrigatório';
-//   //                             }
-//   //                             return null;
-//   //                           },
-//   //                           onChanged: (v) {
-//   //                             controller.onChanged(coupon.copyWith(endDate: v));
-//   //                           },
-//   //                         ),
-//   //                         const SizedBox(height: 15),
-//   //                         Row(
-//   //                           children: [
-//   //                             Flexible(
-//   //                               child: AppTextField(
-//   //                                 initialValue: coupon.maxUses?.toString(),
-//   //                                 title: 'Limite de usos *',
-//   //                                 hint: 'Ex: 100 usos no total',
-//   //                                 validator: (value) {
-//   //                                   if (value == null || value.isEmpty) {
-//   //                                     return 'Campo obrigatório';
-//   //                                   }
-//   //                                   final integer = int.tryParse(value);
-//   //                                   if (integer == null) {
-//   //                                     return 'Número inválido';
-//   //                                   } else if (integer < 0 || integer > 1000000) {
-//   //                                     return 'O número deve ser entre 0 e 1000000';
-//   //                                   }
-//   //                                   return null;
-//   //                                 },
-//   //                                 formatters: [
-//   //                                   FilteringTextInputFormatter.digitsOnly,
-//   //                                 ],
-//   //                                 onChanged: (v) {
-//   //                                   controller.onChanged(
-//   //                                     coupon.copyWith(
-//   //                                       maxUses: int.tryParse(v ?? ''),
-//   //                                     ),
-//   //                                   );
-//   //                                 },
-//   //                               ),
-//   //                             ),
-//   //                             const SizedBox(width: 15),
-//   //                             Flexible(
-//   //                               child: AppTextField(
-//   //                                 title: 'Limite por cliente',
-//   //                                 hint: 'Ex: 1 uso por cliente',
-//   //                                 initialValue:
-//   //                                     coupon.maxUsesPerCustomer?.toString(),
-//   //                                 validator: (value) {
-//   //                                   final integer = int.tryParse(value ?? '');
-//   //                                   if (integer != null &&
-//   //                                       (integer < 0 || integer > 100)) {
-//   //                                     return 'Número inválido';
-//   //                                   }
-//   //                                   return null;
-//   //                                 },
-//   //                                 onChanged: (v) {
-//   //                                   controller.onChanged(
-//   //                                     coupon.copyWith(
-//   //                                       maxUsesPerCustomer: int.tryParse(v ?? ''),
-//   //                                     ),
-//   //                                   );
-//   //                                 },
-//   //                               ),
-//   //                             ),
-//   //                           ],
-//   //                         ),
-//   //                         const SizedBox(height: 15),
-//   //
-//   //                         Row(
-//   //                           children: [
-//   //                             Flexible(
-//   //                               child: AppTextField(
-//   //                                 title: 'Valor mínimo do pedido',
-//   //                                 hint: 'Ex: R\$ 50,00',
-//   //                                 initialValue: coupon.minOrderValue?.toPrice(),
-//   //                                 formatters: [
-//   //                                   FilteringTextInputFormatter.digitsOnly,
-//   //                                   CentavosInputFormatter(moeda: true),
-//   //                                 ],
-//   //                                 onChanged: (v) {
-//   //                                   final value =
-//   //                                       (UtilBrasilFields.converterMoedaParaDouble(
-//   //                                                 v ?? '',
-//   //                                               ) *
-//   //                                               100)
-//   //                                           .floor();
-//   //                                   controller.onChanged(
-//   //                                     coupon.copyWith(minOrderValue: value),
-//   //                                   );
-//   //                                 },
-//   //                               ),
-//   //                             ),
-//   //                           ],
-//   //                         ),
-//   //
-//   //                         const SizedBox(height: 15),
-//   //
-//   //                         Row(
-//   //                           children: [
-//   //                             Expanded(
-//   //                               child: AppTextField2(
-//   //                                 initialValue:
-//   //                                     coupon.discountPercent?.toString(),
-//   //                                 title: 'Percentual',
-//   //                                 hint: 'Ex: 10%',
-//   //                                 suffixText: '%',
-//   //                                 description:
-//   //                                     'Informe somente um tipo de desconto',
-//   //                                 validator: (value) {
-//   //                                   if (value == null || value.isEmpty) {
-//   //                                     if (coupon.discountFixed == null) {
-//   //                                       return 'Campo obrigatório';
-//   //                                     } else {
-//   //                                       return null;
-//   //                                     }
-//   //                                   }
-//   //                                   final integer = int.tryParse(value);
-//   //                                   if (integer == null) {
-//   //                                     return 'Número inválido';
-//   //                                   } else if (integer < 0 || integer > 1000000) {
-//   //                                     return 'O número deve ser entre 1 e 100';
-//   //                                   }
-//   //                                   return null;
-//   //                                 },
-//   //                                 formatters: [
-//   //                                   FilteringTextInputFormatter.digitsOnly,
-//   //                                 ],
-//   //                                 onChanged: (v) {
-//   //                                   controller.onChanged(
-//   //                                     coupon.copyWith(
-//   //                                       discountPercent:
-//   //                                           int.tryParse(v ?? '') ?? 0,
-//   //                                     ),
-//   //                                   );
-//   //                                 },
-//   //                               ),
-//   //                             ),
-//   //                             const SizedBox(width: 15),
-//   //
-//   //                             Expanded(
-//   //                               child: AppTextField2(
-//   //                                 initialValue: coupon.discountFixed?.toPrice(),
-//   //                                 title: 'Desconto fixo',
-//   //                                 hint: 'Ex: R\$ 10,00',
-//   //                                 description:
-//   //                                     'Informe somente um tipo de desconto',
-//   //                                 validator: (value) {
-//   //                                   if (value == null || value.isEmpty) {
-//   //                                     if (coupon.discountPercent == null) {
-//   //                                       return 'Campo obrigatório';
-//   //                                     } else {
-//   //                                       return null;
-//   //                                     }
-//   //                                   } else if (coupon.discountPercent != null) {
-//   //                                     return 'Informe somente um';
-//   //                                   }
-//   //                                   final money =
-//   //                                       UtilBrasilFields.converterMoedaParaDouble(
-//   //                                         value,
-//   //                                       );
-//   //                                   if (money == 0) {
-//   //                                     return 'Desconto inválido';
-//   //                                   } else if (money > 1000000) {
-//   //                                     return 'Número muito grande';
-//   //                                   }
-//   //                                   return null;
-//   //                                 },
-//   //                                 formatters: [
-//   //                                   FilteringTextInputFormatter.digitsOnly,
-//   //                                   CentavosInputFormatter(moeda: true),
-//   //                                 ],
-//   //                                 onChanged: (v) {
-//   //                                   final money =
-//   //                                       (UtilBrasilFields.converterMoedaParaDouble(
-//   //                                                 v ?? '',
-//   //                                               ) *
-//   //                                               100)
-//   //                                           .floor();
-//   //
-//   //                                   controller.onChanged(
-//   //                                     coupon.copyWith(discountFixed: money),
-//   //                                   );
-//   //                                 },
-//   //                               ),
-//   //                             ),
-//   //                           ],
-//   //                         ),
-//   //
-//   //                         const SizedBox(width: 25),
-//   //
-//   //                         Container(
-//   //                           // height: Get.height,
-//   //                           // width: 400,
-//   //                           decoration: BoxDecoration(
-//   //                             borderRadius: BorderRadius.circular(6),
-//   //                           ),
-//   //                           child: Column(
-//   //                             crossAxisAlignment: CrossAxisAlignment.start,
-//   //                             mainAxisAlignment: MainAxisAlignment.start,
-//   //                             children: [
-//   //                               Padding(
-//   //                                 padding: const EdgeInsets.only(
-//   //                                   left: 10,
-//   //                                   top: 8,
-//   //                                 ),
-//   //                                 child: Text(
-//   //                                   'Opções',
-//   //                                   style: TextStyle(
-//   //                                     //   color: notifire.textcolore,
-//   //                                   ),
-//   //                                 ),
-//   //                               ),
-//   //                               const SizedBox(height: 7),
-//   //
-//   //                               Padding(
-//   //                                 padding: const EdgeInsets.all(12.0),
-//   //                                 child: Column(
-//   //                                   children: [
-//   //                                     Row(
-//   //                                       children: [
-//   //                                         Flexible(
-//   //                                           child: Text(
-//   //                                             'Cupom disponível ?',
-//   //                                             style: TextStyle(
-//   //                                               // color:
-//   //                                               //   notifire
-//   //                                               // .textcolore,
-//   //                                             ),
-//   //                                             overflow: TextOverflow.ellipsis,
-//   //                                           ),
-//   //                                         ),
-//   //
-//   //                                         const SizedBox(width: 5),
-//   //                                         Switch(
-//   //                                           value: coupon.available,
-//   //
-//   //                                           onChanged: (bool value) {
-//   //                                             controller.onChanged(
-//   //                                               coupon.copyWith(available: value),
-//   //                                             );
-//   //                                           },
-//   //                                         ),
-//   //                                       ],
-//   //                                     ),
-//   //                                     const SizedBox(width: 15),
-//   //                                     Row(
-//   //                                       children: [
-//   //                                         Flexible(
-//   //                                           child: Text(
-//   //                                             'Ativar apenas para primeira compra',
-//   //                                             style: TextStyle(
-//   //                                               // color:
-//   //                                               // notifire
-//   //                                               //   .textcolore,
-//   //                                             ),
-//   //                                             overflow: TextOverflow.ellipsis,
-//   //                                           ),
-//   //                                         ),
-//   //
-//   //                                         const SizedBox(width: 5),
-//   //                                         Switch(
-//   //                                           value: coupon.onlyNewCustomers,
-//   //
-//   //                                           onChanged: (bool value) {
-//   //                                             controller.onChanged(
-//   //                                               coupon.copyWith(
-//   //                                                 onlyNewCustomers: value,
-//   //                                               ),
-//   //                                             );
-//   //                                           },
-//   //                                         ),
-//   //                                       ],
-//   //                                     ),
-//   //                                   ],
-//   //                                 ),
-//   //                               ),
-//   //                             ],
-//   //                           ),
-//   //                         ),
-//   //
-//   //                         const SizedBox(width: 25),
-//   //                       ],
-//   //                     ),
-//   //                   ),
-//   //                 );
-//   //               },
-//   //               desktopBuilder: (BuildContext context) {
-//   //                 return Column(
-//   //                   children: [
-//   //                     FixedHeader(
-//   //                       title: widget.id == null ? 'Criar cupom' : 'Editar cupom',
-//   //
-//   //                       actions: [
-//   //                         AppPrimaryButton(
-//   //                           label: 'Salvar',
-//   //
-//   //                           onPressed: () async {
-//   //                             if (formKey.currentState!.validate()) {
-//   //                               final result = await controller.saveData();
-//   //                               if (result.isRight && context.mounted) {
-//   //                                 context.go(
-//   //                                   '/stores/${widget.storeId}/coupons/${result.right.id}',
-//   //                                 );
-//   //                               }
-//   //                             }
-//   //                           },
-//   //                         ),
-//   //                       ],
-//   //                     ),
-//   //                     Expanded(
-//   //                       child: SingleChildScrollView(
-//   //                         child: Padding(
-//   //                           padding: const EdgeInsets.all(18.0),
-//   //                           child: Column(
-//   //                             children: [
-//   //                               Row(
-//   //                                 children: [
-//   //                                   Flexible(
-//   //                                     child: AppTextField(
-//   //                                       initialValue: coupon.code,
-//   //                                       title: 'Código do cupom',
-//   //                                       hint: 'Ex: PROMO10OFF',
-//   //                                       validator: (title) {
-//   //                                         if (title == null || title.isEmpty) {
-//   //                                           return 'Campo obrigatório';
-//   //                                         } else if (title.length < 3) {
-//   //                                           return 'Código muito curto';
-//   //                                         }
-//   //                                         return null;
-//   //                                       },
-//   //                                       onChanged: (name) {
-//   //                                         controller.onChanged(
-//   //                                           coupon.copyWith(code: name),
-//   //                                         );
-//   //                                       },
-//   //                                     ),
-//   //                                   ),
-//   //
-//   //                                   const SizedBox(width: 20),
-//   //
-//   //                                   AppSelectionFormField<Product>(
-//   //                                     title: 'Produto',
-//   //                                     fetch:
-//   //                                         () => getIt<ProductRepository>()
-//   //                                         .getProducts(widget.storeId),
-//   //                                     columns: [
-//   //                                       AppTableColumnString(
-//   //                                         title: 'Nome',
-//   //                                         dataSelector: (p) => p.name,
-//   //                                       ),
-//   //                                     ],
-//   //                                     onChanged: (product) {
-//   //                                       controller.onChanged(
-//   //                                         coupon.copyWith(product: product),
-//   //                                       );
-//   //                                     },
-//   //                                   ),
-//   //
-//   //
-//   //
-//   //
-//   //
-//   //                                 ],
-//   //                               ),
-//   //                               const SizedBox(height: 15),
-//   //
-//   //                               Row(
-//   //                                 children: [
-//   //                                   Flexible(
-//   //                                     child: AppTextField(
-//   //                                       initialValue: coupon.maxUses?.toString(),
-//   //                                       title: 'Limite de usos *',
-//   //                                       hint: 'Ex: 100 usos no total',
-//   //                                       validator: (value) {
-//   //                                         if (value == null || value.isEmpty) {
-//   //                                           return 'Campo obrigatório';
-//   //                                         }
-//   //                                         final integer = int.tryParse(value);
-//   //                                         if (integer == null) {
-//   //                                           return 'Número inválido';
-//   //                                         } else if (integer < 0 ||
-//   //                                             integer > 1000000) {
-//   //                                           return 'O número deve ser entre 0 e 1000000';
-//   //                                         }
-//   //                                         return null;
-//   //                                       },
-//   //                                       formatters: [
-//   //                                         FilteringTextInputFormatter.digitsOnly,
-//   //                                       ],
-//   //                                       onChanged: (v) {
-//   //                                         controller.onChanged(
-//   //                                           coupon.copyWith(
-//   //                                             maxUses: int.tryParse(v ?? ''),
-//   //                                           ),
-//   //                                         );
-//   //                                       },
-//   //                                     ),
-//   //                                   ),
-//   //                                   const SizedBox(width: 20),
-//   //                                   Flexible(
-//   //                                     child: AppTextField(
-//   //                                       title: 'Limite por cliente',
-//   //                                       hint: 'Ex: 1 uso por cliente',
-//   //                                       initialValue:
-//   //                                           coupon.maxUsesPerCustomer?.toString(),
-//   //                                       validator: (value) {
-//   //                                         final integer = int.tryParse(
-//   //                                           value ?? '',
-//   //                                         );
-//   //                                         if (integer != null &&
-//   //                                             (integer < 0 || integer > 100)) {
-//   //                                           return 'Número inválido';
-//   //                                         }
-//   //                                         return null;
-//   //                                       },
-//   //                                       onChanged: (v) {
-//   //                                         controller.onChanged(
-//   //                                           coupon.copyWith(
-//   //                                             maxUsesPerCustomer: int.tryParse(
-//   //                                               v ?? '',
-//   //                                             ),
-//   //                                           ),
-//   //                                         );
-//   //                                       },
-//   //                                     ),
-//   //                                   ),
-//   //                                 ],
-//   //                               ),
-//   //                               const SizedBox(height: 15),
-//   //                               Row(
-//   //                                 children: [
-//   //                                   Flexible(
-//   //                                     flex: 1,
-//   //
-//   //                                     child: AppTextField(
-//   //                                       title: 'Valor mínimo do pedido',
-//   //                                       hint: 'Ex: R\$ 50,00',
-//   //                                       initialValue:
-//   //                                           coupon.minOrderValue?.toPrice(),
-//   //                                       formatters: [
-//   //                                         FilteringTextInputFormatter.digitsOnly,
-//   //                                         CentavosInputFormatter(moeda: true),
-//   //                                       ],
-//   //                                       onChanged: (v) {
-//   //                                         final value =
-//   //                                             (UtilBrasilFields.converterMoedaParaDouble(
-//   //                                                       v ?? '',
-//   //                                                     ) *
-//   //                                                     100)
-//   //                                                 .floor();
-//   //                                         controller.onChanged(
-//   //                                           coupon.copyWith(minOrderValue: value),
-//   //                                         );
-//   //                                       },
-//   //                                     ),
-//   //                                   ),
-//   //                                   const SizedBox(width: 20),
-//   //
-//   //                                   Flexible(child: Container()),
-//   //                                 ],
-//   //                               ),
-//   //
-//   //                               const SizedBox(height: 15),
-//   //
-//   //                               Container(
-//   //                                 decoration: BoxDecoration(
-//   //                                   borderRadius: BorderRadius.circular(6),
-//   //                                 ),
-//   //                                 child: Padding(
-//   //                                   padding: const EdgeInsets.all(12.0),
-//   //                                   child: Column(
-//   //                                     children: [
-//   //                                       Row(
-//   //                                         children: [
-//   //                                           Flexible(
-//   //                                             child: AppDateTimeFormField(
-//   //                                               initialValue: coupon.startDate,
-//   //                                               title: 'Início da promoção *',
-//   //                                               validator: (value) {
-//   //                                                 if (value == null) {
-//   //                                                   return 'Campo obrigatório';
-//   //                                                 }
-//   //                                                 return null;
-//   //                                               },
-//   //                                               onChanged: (v) {
-//   //                                                 controller.onChanged(
-//   //                                                   coupon.copyWith(startDate: v),
-//   //                                                 );
-//   //                                               },
-//   //                                             ),
-//   //                                           ),
-//   //                                           const SizedBox(width: 20),
-//   //                                           Flexible(
-//   //                                             child: AppDateTimeFormField(
-//   //                                               initialValue: coupon.startDate,
-//   //                                               title: 'Fim da promoção *',
-//   //                                               validator: (value) {
-//   //                                                 if (value == null) {
-//   //                                                   return 'Campo obrigatório';
-//   //                                                 }
-//   //                                                 return null;
-//   //                                               },
-//   //                                               onChanged: (v) {
-//   //                                                 controller.onChanged(
-//   //                                                   coupon.copyWith(endDate: v),
-//   //                                                 );
-//   //                                               },
-//   //                                             ),
-//   //                                           ),
-//   //                                         ],
-//   //                                       ),
-//   //                                       const SizedBox(height: 15),
-//   //                                       Row(
-//   //                                         children: [
-//   //                                           Flexible(
-//   //                                             child: AppTextField2(
-//   //                                               initialValue:
-//   //                                                   coupon.discountPercent
-//   //                                                       ?.toString(),
-//   //                                               title: 'Percentual',
-//   //                                               hint: 'Ex: 10%',
-//   //                                               suffixText: '%',
-//   //                                               description:
-//   //                                                   'Informe somente um tipo de desconto',
-//   //                                               validator: (value) {
-//   //                                                 if (value == null ||
-//   //                                                     value.isEmpty) {
-//   //                                                   if (coupon.discountFixed ==
-//   //                                                       null) {
-//   //                                                     return 'Campo obrigatório';
-//   //                                                   } else {
-//   //                                                     return null;
-//   //                                                   }
-//   //                                                 }
-//   //                                                 final integer = int.tryParse(
-//   //                                                   value,
-//   //                                                 );
-//   //                                                 if (integer == null) {
-//   //                                                   return 'Número inválido';
-//   //                                                 } else if (integer < 0 ||
-//   //                                                     integer > 1000000) {
-//   //                                                   return 'O número deve ser entre 1 e 100';
-//   //                                                 }
-//   //                                                 return null;
-//   //                                               },
-//   //                                               formatters: [
-//   //                                                 FilteringTextInputFormatter
-//   //                                                     .digitsOnly,
-//   //                                               ],
-//   //                                               onChanged: (v) {
-//   //                                                 controller.onChanged(
-//   //                                                   coupon.copyWith(
-//   //                                                     discountPercent:
-//   //                                                         int.tryParse(v ?? '') ??
-//   //                                                         0,
-//   //                                                   ),
-//   //                                                 );
-//   //                                               },
-//   //                                             ),
-//   //                                           ),
-//   //                                           const SizedBox(width: 20),
-//   //                                           Flexible(
-//   //                                             child: AppTextField2(
-//   //                                               initialValue:
-//   //                                                   coupon.discountFixed
-//   //                                                       ?.toPrice(),
-//   //                                               title: 'Desconto fixo',
-//   //                                               hint: 'Ex: R\$ 10,00',
-//   //                                               description:
-//   //                                                   'Informe somente um tipo de desconto',
-//   //                                               validator: (value) {
-//   //                                                 if (value == null ||
-//   //                                                     value.isEmpty) {
-//   //                                                   if (coupon.discountPercent ==
-//   //                                                       null) {
-//   //                                                     return 'Campo obrigatório';
-//   //                                                   } else {
-//   //                                                     return null;
-//   //                                                   }
-//   //                                                 } else if (coupon
-//   //                                                         .discountPercent !=
-//   //                                                     null) {
-//   //                                                   return 'Informe somente um';
-//   //                                                 }
-//   //                                                 final money =
-//   //                                                     UtilBrasilFields.converterMoedaParaDouble(
-//   //                                                       value,
-//   //                                                     );
-//   //                                                 if (money == 0) {
-//   //                                                   return 'Desconto inválido';
-//   //                                                 } else if (money > 1000000) {
-//   //                                                   return 'Número muito grande';
-//   //                                                 }
-//   //                                                 return null;
-//   //                                               },
-//   //                                               formatters: [
-//   //                                                 FilteringTextInputFormatter
-//   //                                                     .digitsOnly,
-//   //                                                 CentavosInputFormatter(
-//   //                                                   moeda: true,
-//   //                                                 ),
-//   //                                               ],
-//   //                                               onChanged: (v) {
-//   //                                                 final money =
-//   //                                                     (UtilBrasilFields.converterMoedaParaDouble(
-//   //                                                               v ?? '',
-//   //                                                             ) *
-//   //                                                             100)
-//   //                                                         .floor();
-//   //
-//   //                                                 controller.onChanged(
-//   //                                                   coupon.copyWith(
-//   //                                                     discountFixed: money,
-//   //                                                   ),
-//   //                                                 );
-//   //                                               },
-//   //                                             ),
-//   //                                           ),
-//   //                                         ],
-//   //                                       ),
-//   //                                     ],
-//   //                                   ),
-//   //                                 ),
-//   //                               ),
-//   //                               const SizedBox(height: 25),
-//   //                               Container(
-//   //                                 // height: Get.height,
-//   //                                 // width: 400,
-//   //                                 decoration: BoxDecoration(
-//   //                                   borderRadius: BorderRadius.circular(6),
-//   //                                 ),
-//   //                                 child: Column(
-//   //                                   crossAxisAlignment: CrossAxisAlignment.start,
-//   //                                   mainAxisAlignment: MainAxisAlignment.start,
-//   //                                   children: [
-//   //                                     Padding(
-//   //                                       padding: const EdgeInsets.only(
-//   //                                         left: 10,
-//   //                                         top: 8,
-//   //                                       ),
-//   //                                       child: Text(
-//   //                                         'Opções',
-//   //                                         style: TextStyle(
-//   //                                           //     color: notifire.textcolore,
-//   //                                         ),
-//   //                                       ),
-//   //                                     ),
-//   //                                     const SizedBox(height: 7),
-//   //
-//   //                                     Padding(
-//   //                                       padding: const EdgeInsets.all(12.0),
-//   //                                       child: Column(
-//   //                                         children: [
-//   //                                           Row(
-//   //                                             children: [
-//   //                                               Flexible(
-//   //                                                 child: Text(
-//   //                                                   'Cupom disponível ?',
-//   //                                                   style: TextStyle(
-//   //                                                     //  color:
-//   //                                                     //    notifire
-//   //                                                     //     .textcolore,
-//   //                                                   ),
-//   //                                                   overflow:
-//   //                                                       TextOverflow.ellipsis,
-//   //                                                 ),
-//   //                                               ),
-//   //
-//   //                                               const SizedBox(width: 5),
-//   //                                               Switch(
-//   //                                                 value: coupon.available,
-//   //
-//   //                                                 onChanged: (bool value) {
-//   //                                                   controller.onChanged(
-//   //                                                     coupon.copyWith(
-//   //                                                       available: value,
-//   //                                                     ),
-//   //                                                   );
-//   //                                                 },
-//   //                                               ),
-//   //                                             ],
-//   //                                           ),
-//   //                                           const SizedBox(width: 15),
-//   //                                           Row(
-//   //                                             children: [
-//   //                                               Flexible(
-//   //                                                 child: Text(
-//   //                                                   'Ativar apenas para primeira compra',
-//   //                                                   style: TextStyle(
-//   //                                                     // color:
-//   //                                                     //   notifire
-//   //                                                     //   .textcolore,
-//   //                                                   ),
-//   //                                                   overflow:
-//   //                                                       TextOverflow.ellipsis,
-//   //                                                 ),
-//   //                                               ),
-//   //
-//   //                                               const SizedBox(width: 5),
-//   //                                               Switch(
-//   //                                                 value: coupon.onlyNewCustomers,
-//   //
-//   //                                                 onChanged: (bool value) {
-//   //                                                   controller.onChanged(
-//   //                                                     coupon.copyWith(
-//   //                                                       onlyNewCustomers: value,
-//   //                                                     ),
-//   //                                                   );
-//   //                                                 },
-//   //                                               ),
-//   //                                             ],
-//   //                                           ),
-//   //                                         ],
-//   //                                       ),
-//   //                                     ),
-//   //                                   ],
-//   //                                 ),
-//   //                               ),
-//   //                             ],
-//   //                           ),
-//   //                         ),
-//   //                       ),
-//   //                     ),
-//   //                   ],
-//   //                 );
-//   //               },
-//   //
-//   //               mobileBottomNavigationBar: AppPrimaryButton(
-//   //                 label: 'Salvar',
-//   //                 onPressed: () async {
-//   //                   if (formKey.currentState!.validate()) {
-//   //                     final result = await controller.saveData();
-//   //                     if (result.isRight && context.mounted) {
-//   //                       context.go(
-//   //                         '/stores/${widget.storeId}/coupons/${result.right.id}',
-//   //                       );
-//   //                     }
-//   //                   }
-//   //                 },
-//   //               ),
-//   //             ),
-//   //           );
-//   //         },
-//   //       );
-//   //     },
-//   //   );
-//   //
-//   //   //
-//   //   // SingleChildScrollView(
-//   //   //   padding: const EdgeInsets.symmetric(vertical: 24),
-//   //   //   child: Column(
-//   //   //     children: [
-//   //   //       AppPageHeader(
-//   //   //         title: 'Editar Cupom',
-//   //   //         actions: [
-//   //   //           AppPrimaryButton(
-//   //   //             label: 'Salvar',
-//   //   //             onPressed: () async {
-//   //   //
-//   //   //               if (formKey.currentState!.validate()) {
-//   //   //                 final result = await controller.saveData();
-//   //   //                 if (result.isRight && context.mounted) {
-//   //   //                   context.go(
-//   //   //                     '/stores/${widget.storeId}/coupons/${result.right.id}',
-//   //   //                   );
-//   //   //                 }
-//   //   //               }
-//   //   //             },
-//   //   //           ),
-//   //   //         ],
-//   //   //       ),
-//   //   //       const SizedBox(height: 24),
-//   //   //       AnimatedBuilder(
-//   //   //         animation: controller,
-//   //   //         builder: (_, __) {
-//   //   //
-//   //   //
-//   //   //           return AppPageStatusBuilder<Coupon>(
-//   //   //             status: controller.status,
-//   //   //             successBuilder: (coupon) {
-//   //   //               return Align(
-//   //   //                 alignment: Alignment.topLeft,
-//   //   //                 child: Padding(
-//   //   //                   padding: const EdgeInsets.symmetric(horizontal: 24),
-//   //   //                   child: Material(
-//   //   //                     color: Colors.white,
-//   //   //                     child: Padding(
-//   //   //                       padding: const EdgeInsets.all(24),
-//   //   //                       child: Form(
-//   //   //                         key: formKey,
-//   //   //                         autovalidateMode:
-//   //   //                             AutovalidateMode.onUserInteraction,
-//   //   //                         child: Wrap(
-//   //   //                           spacing: 24,
-//   //   //                           runSpacing: 24,
-//   //   //                           children: [
-//   //   //                             SizedBox(
-//   //   //                               width: 200,
-//   //   //                               child: AppTextField(
-//   //   //                                 initialValue: coupon.code,
-//   //   //                                 title: 'Código do cupom',
-//   //   //                                 hint: 'Ex: PROMO10OFF',
-//   //   //                                 validator: (title) {
-//   //   //                                   if (title == null || title.isEmpty) {
-//   //   //                                     return 'Campo obrigatório';
-//   //   //                                   } else if (title.length < 3) {
-//   //   //                                     return 'Código muito curto';
-//   //   //                                   }
-//   //   //                                   return null;
-//   //   //                                 },
-//   //   //                                 onChanged: (name) {
-//   //   //                                   controller.onChanged(
-//   //   //                                     coupon.copyWith(code: name),
-//   //   //                                   );
-//   //   //                                 },
-//   //   //                               ),
-//   //   //                             ),
-//   //   //                             SizedBox(
-//   //   //                               width: 200,
-//   //   //                               child: AppSelectionFormField<Product>(
-//   //   //                                 title: 'Produto',
-//   //   //                                 fetch:
-//   //   //                                     () => getIt<ProductRepository>()
-//   //   //                                         .getProducts(widget.storeId),
-//   //   //                                 columns: [
-//   //   //                                   AppTableColumnString(
-//   //   //                                     title: 'Nome',
-//   //   //                                     dataSelector: (p) => p.name,
-//   //   //                                   ),
-//   //   //                                 ],
-//   //   //                                 onChanged: (product) {
-//   //   //                                   controller.onChanged(
-//   //   //                                     coupon.copyWith(product: product),
-//   //   //                                   );
-//   //   //                                 },
-//   //   //                               ),
-//   //   //                             ),
-//   //   //                             SizedBox(
-//   //   //                               width: 400,
-//   //   //                               child: AppDateTimeFormField(
-//   //   //                                 initialValue: coupon.startDate,
-//   //   //                                 title: 'Início da promoção *',
-//   //   //                                 validator: (value) {
-//   //   //                                   if (value == null) {
-//   //   //                                     return 'Campo obrigatório';
-//   //   //                                   }
-//   //   //                                   return null;
-//   //   //                                 },
-//   //   //                                 onChanged: (v) {
-//   //   //                                   controller
-//   //   //                                       .onChanged(
-//   //   //                                       coupon.copyWith(startDate: v));
-//   //   //                                 },
-//   //   //                               ),
-//   //   //                             ),
-//   //   //                             SizedBox(
-//   //   //                               width: 400,
-//   //   //                               child: AppDateTimeFormField(
-//   //   //                                 initialValue: coupon.startDate,
-//   //   //                                 title: 'Fim da promoção *',
-//   //   //                                 validator: (value) {
-//   //   //                                   if (value == null) {
-//   //   //                                     return 'Campo obrigatório';
-//   //   //                                   }
-//   //   //                                   return null;
-//   //   //                                 },
-//   //   //                                 onChanged: (v) {
-//   //   //                                   controller
-//   //   //                                       .onChanged(coupon.copyWith(endDate: v));
-//   //   //                                 },
-//   //   //                               ),
-//   //   //                             ),
-//   //   //                             SizedBox(
-//   //   //                               width: 400,
-//   //   //                               child: AppTextField(
-//   //   //                                 initialValue: coupon.maxUses?.toString(),
-//   //   //                                 title: 'Limite de usos *',
-//   //   //                                 hint: 'Ex: 10',
-//   //   //                                 validator: (value) {
-//   //   //                                   if (value == null || value.isEmpty) {
-//   //   //                                     return 'Campo obrigatório';
-//   //   //                                   }
-//   //   //                                   final integer = int.tryParse(value);
-//   //   //                                   if (integer == null) {
-//   //   //                                     return 'Número inválido';
-//   //   //                                   } else if(integer < 0 || integer > 1000000) {
-//   //   //                                     return 'O número deve ser entre 0 e 1000000';
-//   //   //                                   }
-//   //   //                                   return null;
-//   //   //                                 },
-//   //   //                                 formatters: [
-//   //   //                                   FilteringTextInputFormatter.digitsOnly,
-//   //   //                                 ],
-//   //   //                                 onChanged: (v) {
-//   //   //                                   controller
-//   //   //                                       .onChanged(coupon.copyWith(
-//   //   //                                       maxUses: int.tryParse(v ?? '')));
-//   //   //                                 },
-//   //   //                               ),
-//   //   //                             ),
-//   //   //                             SizedBox(
-//   //   //                               width: 200 - 12,
-//   //   //                               child: AppTextField2(
-//   //   //                                 initialValue: coupon.discountPercent?.toString(),
-//   //   //                                 title: 'Percentual de desconto',
-//   //   //                                 hint: 'Ex: 10%',
-//   //   //                                 suffixText: '%',
-//   //   //                                 description: 'Informe somente um tipo de desconto',
-//   //   //                                 validator: (value) {
-//   //   //                                   if (value == null || value.isEmpty) {
-//   //   //                                     if(coupon.discountFixed == null) {
-//   //   //                                       return 'Campo obrigatório';
-//   //   //                                     } else {
-//   //   //                                       return null;
-//   //   //                                     }
-//   //   //                                   }
-//   //   //                                   final integer = int.tryParse(value);
-//   //   //                                   if (integer == null) {
-//   //   //                                     return 'Número inválido';
-//   //   //                                   } else if(integer < 0 || integer > 1000000) {
-//   //   //                                     return 'O número deve ser entre 1 e 100';
-//   //   //                                   }
-//   //   //                                   return null;
-//   //   //                                 },
-//   //   //                                 formatters: [
-//   //   //                                   FilteringTextInputFormatter.digitsOnly,
-//   //   //                                 ],
-//   //   //                                 onChanged: (v) {
-//   //   //                                   controller
-//   //   //                                       .onChanged(coupon.copyWith(
-//   //   //                                       discountPercent: int.tryParse(v ?? '') ?? 0));
-//   //   //                                 },
-//   //   //                               ),
-//   //   //                             ),
-//   //   //                             SizedBox(
-//   //   //                               width: 200 - 12,
-//   //   //                               child: AppTextField2(
-//   //   //                                 initialValue: coupon.discountFixed?.toPrice(),
-//   //   //                                 title: 'Desconto fixo',
-//   //   //                                 hint: 'Ex: R\$ 10,00',
-//   //   //                                 description: 'Informe somente um tipo de desconto',
-//   //   //                                 validator: (value) {
-//   //   //                                   if (value == null || value.isEmpty) {
-//   //   //                                     if(coupon.discountPercent == null) {
-//   //   //                                       return 'Campo obrigatório';
-//   //   //                                     } else {
-//   //   //                                       return null;
-//   //   //                                     }
-//   //   //                                   } else if(coupon.discountPercent != null){
-//   //   //                                     return 'Informe somente um';
-//   //   //                                   }
-//   //   //                                   final money = UtilBrasilFields.converterMoedaParaDouble(value);
-//   //   //                                   if (money == 0) {
-//   //   //                                     return 'Desconto inválido';
-//   //   //                                   } else if(money > 1000000) {
-//   //   //                                     return 'Número muito grande';
-//   //   //                                   }
-//   //   //                                   return null;
-//   //   //                                 },
-//   //   //                                 formatters: [
-//   //   //                                   FilteringTextInputFormatter.digitsOnly,
-//   //   //                                   CentavosInputFormatter(moeda: true),
-//   //   //                                 ],
-//   //   //                                 onChanged: (v) {
-//   //   //                                   final money = (UtilBrasilFields.converterMoedaParaDouble(v ?? '') * 100).floor();
-//   //   //
-//   //   //                                   controller
-//   //   //                                       .onChanged(coupon.copyWith(
-//   //   //                                       discountFixed: money));
-//   //   //                                 },
-//   //   //                               ),
-//   //   //                             ),
-//   //   //                           ],
-//   //   //                         ),
-//   //   //                       ),
-//   //   //                     ),
-//   //   //                   ),
-//   //   //                 ),
-//   //   //               );
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //             },
-//   //   //           );
-//   //   //         },
-//   //   //       ),
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //
-//   //   //     ],
-//   //   //   ),
-//   //   // );
-//   // }
-// }
+  final int storeId;
+  final int? id;
+  final Coupon? coupon;
+
+  bool get isEditing => id != null;
+
+  @override
+  State<EditCouponPage> createState() => _EditCouponPageState();
+}
+
+class _EditCouponPageState extends State<EditCouponPage> {
+  final _formKey = GlobalKey<FormState>();
+
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  late TextEditingController _codeController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _discountValueController;
+  late TextEditingController _maxDiscountController;
+  late TextEditingController _minOrderController;
+  late TextEditingController _maxUsesController;
+  late TextEditingController _maxUsesPerCustomerController;
+
+  // Valores para os campos que não são de texto
+  String _discountType = 'PERCENTAGE';
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 30));
+  bool _isActive = true;
+  bool _isForFirstOrder = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeControllers();
+    _loadInitialData();
+  }
+
+  void _initializeControllers() {
+    _codeController = TextEditingController();
+    _descriptionController = TextEditingController();
+    _discountValueController = TextEditingController();
+    _maxDiscountController = TextEditingController();
+    _minOrderController = TextEditingController();
+    _maxUsesController = TextEditingController();
+    _maxUsesPerCustomerController = TextEditingController();
+  }
+
+  Future<void> _loadInitialData() async {
+    Coupon? initialCoupon;
+
+    if (widget.coupon != null) {
+      initialCoupon = widget.coupon;
+    } else if (widget.isEditing) {
+      final result = await getIt<CouponRepository>().getCoupon(widget.storeId, widget.id!);
+      result.fold(
+            (error) => _errorMessage = 'Não foi possível carregar o cupom.',
+            (couponData) => initialCoupon = couponData,
+      );
+    } else {
+      initialCoupon = Coupon(
+        code: '',
+        description: '',
+        discountType: 'PERCENTAGE',
+        discountValue: 0,
+        startDate: DateTime.now(),
+        endDate: DateTime.now().add(const Duration(days: 30)),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        if (initialCoupon != null) {
+          _populateForm(initialCoupon!);
+        }
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _populateForm(Coupon coupon) {
+    _codeController.text = coupon.code;
+    _descriptionController.text = coupon.description;
+    _discountType = coupon.discountType;
+    _startDate = coupon.startDate ?? DateTime.now();
+    _endDate = coupon.endDate ?? DateTime.now().add(const Duration(days: 30));
+    _isActive = coupon.isActive;
+    _maxDiscountController.text = coupon.maxDiscountAmount != null ? (coupon.maxDiscountAmount! / 100).toStringAsFixed(2) : '';
+
+    if (coupon.discountType == 'PERCENTAGE') {
+      _discountValueController.text = coupon.discountValue.toInt().toString();
+    } else { // FIXED_AMOUNT
+      _discountValueController.text = (coupon.discountValue / 100).toStringAsFixed(2);
+    }
+
+    // Popula as regras
+    _isForFirstOrder = coupon.isForFirstOrder;
+    _minOrderController.text = coupon.minOrderValue != null ? (coupon.minOrderValue! / 100).toStringAsFixed(2) : '';
+    _maxUsesController.text = coupon.maxUsesPerCustomer?.toString() ?? '';
+    _maxUsesPerCustomerController.text = coupon.maxUsesPerCustomer?.toString() ?? '';
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _descriptionController.dispose();
+    _discountValueController.dispose();
+    _maxDiscountController.dispose();
+    _minOrderController.dispose();
+    _maxUsesController.dispose();
+    _maxUsesPerCustomerController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onSave() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Constrói a lista de regras a partir dos campos do formulário
+    final List<CouponRule> rules = [];
+    if (_isForFirstOrder) {
+      rules.add(CouponRule(ruleType: 'FIRST_ORDER', value: {}));
+    }
+    final minOrderValue = UtilBrasilFields.converterMoedaParaDouble(_minOrderController.text) * 100;
+    if (minOrderValue > 0) {
+      rules.add(CouponRule(ruleType: 'MIN_SUBTOTAL', value: {'value': minOrderValue.toInt()}));
+    }
+    final maxUses = int.tryParse(_maxUsesController.text);
+    if (maxUses != null && maxUses > 0) {
+      rules.add(CouponRule(ruleType: 'MAX_USES_TOTAL', value: {'limit': maxUses}));
+    }
+    final maxUsesPerCustomer = int.tryParse(_maxUsesPerCustomerController.text);
+    if (maxUsesPerCustomer != null && maxUsesPerCustomer > 0) {
+      rules.add(CouponRule(ruleType: 'MAX_USES_PER_CUSTOMER', value: {'limit': maxUsesPerCustomer}));
+    }
+// Constrói o objeto Coupon para salvar
+    final couponToSave = Coupon(
+      id: widget.id,
+      code: _codeController.text.toUpperCase(),
+      description: _descriptionController.text,
+      discountType: _discountType,
+      // ✅ CORREÇÃO AQUI
+      discountValue: _discountType == 'PERCENTAGE'
+          ? (int.tryParse(_discountValueController.text) ?? 0).toDouble() // Converte para double
+          : (UtilBrasilFields.converterMoedaParaDouble(_discountValueController.text) * 100), // Já é double
+
+      maxDiscountAmount: (UtilBrasilFields.converterMoedaParaDouble(_maxDiscountController.text) * 100).round(),
+      startDate: _startDate,
+      endDate: _endDate,
+      isActive: _isActive,
+      rules: rules,
+    );
+
+    final result = await getIt<CouponRepository>().saveCoupon(widget.storeId, couponToSave);
+
+    if (mounted) {
+      result.fold(
+            (error) {
+          final message = error == CouponError.codeAlreadyExists
+              ? 'Este código de cupom já está em uso.'
+              : 'Ocorreu um erro desconhecido.';
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+        },
+            (savedCoupon) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cupom salvo com sucesso!'), backgroundColor: Colors.green));
+          context.pop(true); // Retorna 'true' para indicar sucesso
+        },
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.isEditing ? 'Editar Cupom' : 'Novo Cupom';
+
+    return Scaffold(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+          ? Center(child: Text(_errorMessage!))
+          : ResponsiveBuilder(
+
+        mobileBuilder: (BuildContext context, BoxConstraints constraints) { return  _buildMobileLayout(title); },
+      //  tabletBuilder: (BuildContext context, BoxConstraints constraints) { return  _buildDesktopLayout(title);   },
+        desktopBuilder: (BuildContext context, BoxConstraints constraints) {return _buildDesktopLayout(title);  },
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(String title) {
+    return Column(
+      children: [
+        AppBar(title: Text(title)),
+        Expanded(
+          child: _CouponForm(
+            formKey: _formKey,
+            // Passa os controllers e valores para o formulário
+            codeController: _codeController,
+            descriptionController: _descriptionController,
+            discountType: _discountType,
+            discountValueController: _discountValueController,
+            maxDiscountController: _maxDiscountController,
+            minOrderController: _minOrderController,
+            maxUsesController: _maxUsesController,
+            maxUsesPerCustomerController: _maxUsesPerCustomerController,
+            startDate: _startDate,
+            endDate: _endDate,
+            isActive: _isActive,
+            isForFirstOrder: _isForFirstOrder,
+            onStateChanged: (updates) => setState(() => _applyUpdates(updates)),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: AppPrimaryButton(label: 'Salvar', onPressed: _onSave),
+        )
+      ],
+    );
+  }
+
+  Widget _buildDesktopLayout(String title) {
+    return Column(
+      children: [
+        FixedHeader(
+          title: title,
+          actions: [
+            AppPrimaryButton(label: 'Salvar', onPressed: _onSave),
+          ],
+        ),
+        Expanded(
+          child: _CouponForm(
+            formKey: _formKey,
+            // Passa os mesmos controllers e valores
+            codeController: _codeController,
+            descriptionController: _descriptionController,
+            discountType: _discountType,
+            discountValueController: _discountValueController,
+            maxDiscountController: _maxDiscountController,
+            minOrderController: _minOrderController,
+            maxUsesController: _maxUsesController,
+            maxUsesPerCustomerController: _maxUsesPerCustomerController,
+            startDate: _startDate,
+            endDate: _endDate,
+            isActive: _isActive,
+            isForFirstOrder: _isForFirstOrder,
+            onStateChanged: (updates) => setState(() => _applyUpdates(updates)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _applyUpdates(Map<String, dynamic> updates) {
+    if(updates.containsKey('discountType')) _discountType = updates['discountType'];
+    if(updates.containsKey('startDate')) _startDate = updates['startDate'];
+    if(updates.containsKey('endDate')) _endDate = updates['endDate'];
+    if(updates.containsKey('isActive')) _isActive = updates['isActive'];
+    if(updates.containsKey('isForFirstOrder')) _isForFirstOrder = updates['isForFirstOrder'];
+  }
+}
+
+// ✅ NOVO WIDGET REUTILIZÁVEL PARA O FORMULÁRIO
+class _CouponForm extends StatelessWidget {
+  const _CouponForm({
+    required this.formKey,
+    required this.codeController,
+    required this.descriptionController,
+    required this.discountType,
+    required this.discountValueController,
+    required this.maxDiscountController,
+    required this.minOrderController,
+    required this.maxUsesController,
+    required this.maxUsesPerCustomerController,
+    required this.startDate,
+    required this.endDate,
+    required this.isActive,
+    required this.isForFirstOrder,
+    required this.onStateChanged,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController codeController;
+  final TextEditingController descriptionController;
+  final String discountType;
+  final TextEditingController discountValueController;
+  final TextEditingController maxDiscountController;
+  final TextEditingController minOrderController;
+  final TextEditingController maxUsesController;
+  final TextEditingController maxUsesPerCustomerController;
+  final DateTime startDate;
+  final DateTime endDate;
+  final bool isActive;
+  final bool isForFirstOrder;
+  final ValueChanged<Map<String, dynamic>> onStateChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          // Informações Básicas
+          _buildSectionTitle('Informações Básicas'),
+          AppTextField(controller: codeController, title: 'Código', hint: 'EX: BEMVINDO10', validator: (v) => v!.isEmpty ? 'Obrigatório' : null, formatters: [UpperCaseTextFormatter()],),
+          const SizedBox(height: 16),
+          AppTextField(controller: descriptionController, title: 'Descrição', hint: 'Ex: Cupom de 10% para novos clientes', validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+          const SizedBox(height: 16),
+          AppDateTimeFormField(title: 'Data de Início', initialValue: startDate, onChanged: (date) => onStateChanged({'startDate': date})),
+          const SizedBox(height: 16),
+          AppDateTimeFormField(title: 'Data de Fim', initialValue: endDate, onChanged: (date) => onStateChanged({'endDate': date})),
+          const SizedBox(height: 32),
+
+          // Ação do Cupom
+          _buildSectionTitle('Ação do Cupom'),
+          DropdownButtonFormField<String>(
+            value: discountType,
+            decoration: const InputDecoration(labelText: 'Tipo de Desconto'),
+            items: [
+              const DropdownMenuItem(value: 'PERCENTAGE', child: Text('Percentual (%)')),
+              DropdownMenuItem(value: 'FIXED_AMOUNT', child: Text('Valor Fixo (R\$)')),
+              const DropdownMenuItem(value: 'FREE_DELIVERY', child: Text('Frete Grátis')),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                discountValueController.clear();
+                onStateChanged({'discountType': value});
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          if (discountType != 'FREE_DELIVERY')
+            AppTextField(
+              controller: discountValueController,
+              title: discountType == 'PERCENTAGE' ? 'Percentual (%)' : 'Valor do Desconto (R\$)',
+              hint: discountType == 'PERCENTAGE' ? 'Ex: 15' : 'Ex: 10,00',
+              keyboardType: TextInputType.number,
+              formatters: discountType == 'PERCENTAGE'
+                  ? [FilteringTextInputFormatter.digitsOnly]
+                  : [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
+              validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+            ),
+          if (discountType == 'PERCENTAGE') ...[
+            const SizedBox(height: 16),
+            AppTextField(
+              controller: maxDiscountController,
+              title: 'Valor Máximo do Desconto (R\$) (Opcional)',
+              hint: 'Ex: 20,00',
+              keyboardType: TextInputType.number,
+              formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
+            ),
+          ],
+          const SizedBox(height: 32),
+
+          // Regras e Condições
+          _buildSectionTitle('Regras e Condições'),
+          AppTextField(controller: minOrderController, title: 'Pedido Mínimo (R\$) (Opcional)', hint: 'Ex: 50,00', keyboardType: TextInputType.number, formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)]),
+          const SizedBox(height: 16),
+          AppTextField(controller: maxUsesController, title: 'Limite de Usos Totais (Opcional)', hint: 'Ex: 1000', keyboardType: TextInputType.number, formatters: [FilteringTextInputFormatter.digitsOnly]),
+          const SizedBox(height: 16),
+          AppTextField(controller: maxUsesPerCustomerController, title: 'Limite de Usos por Cliente (Opcional)', hint: 'Ex: 1', keyboardType: TextInputType.number, formatters: [FilteringTextInputFormatter.digitsOnly]),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            title: const Text('Apenas para primeira compra?'),
+            value: isForFirstOrder,
+            onChanged: (value) => onStateChanged({'isForFirstOrder': value}),
+          ),
+          SwitchListTile(
+            title: const Text('Cupom Ativo?'),
+            value: isActive,
+            onChanged: (value) => onStateChanged({'isActive': value}),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+    );
+  }
+}
+
+// Helper para formatar o código do cupom em maiúsculas
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}

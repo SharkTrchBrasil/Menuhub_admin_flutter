@@ -24,7 +24,6 @@ class AppImageFormFieldBanner extends StatelessWidget {
   final String? Function(ImageModel?) validator;
   final Function(ImageModel?) onChanged;
 
-
   Future<XFile?> _saveTempFile(Uint8List data, String filename) async {
     if (kIsWeb) return null;
     final dir = await getTemporaryDirectory();
@@ -48,80 +47,57 @@ class AppImageFormFieldBanner extends StatelessWidget {
           // Calculamos a largura máxima disponível
           final double maxAvailableWidth = constraints.maxWidth;
 
-          // Se não há imagem, usamos um tamanho menor (proporcional)
-          final bool hasImage = state.value != null &&
-              (state.value!.file != null ||
-                  (state.value!.url != null && state.value!.url!.isNotEmpty));
+          // Definimos a altura baseada na proporção
+          final double effectiveHeight = maxAvailableWidth / desiredAspectRatio;
 
-          // Definimos as dimensões efetivas
-          final double effectiveWidth = hasImage ?
-          maxAvailableWidth :
-          maxAvailableWidth * 0.5; // 50% da largura quando não há imagem
-
-          final double effectiveHeight = hasImage ?
-          (effectiveWidth / desiredAspectRatio) :
-          (effectiveWidth / desiredAspectRatio);
+          // Altura mínima quando não há imagem (reduzida para evitar overflow)
+          final double emptyStateHeight = effectiveHeight * 0.5;
 
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.withOpacity(0.4)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: InkWell(
-                    onTap: () async {
-                      final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-                      if (picked == null || !context.mounted) return;
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.withOpacity(0.4)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: InkWell(
+                  onTap: () async {
+                    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+                    if (picked == null || !context.mounted) return;
 
-                      final cropResult = await showDialog<Uint8List>(
-                        context: context,
-                        builder: (_) => AppCropDialog(
-                          image: picked,
-                          aspectRatio: aspectRatio,
-                        ),
-                      );
-
-                      if (cropResult == null) return;
-
-                      ImageModel model;
-                      if (kIsWeb) {
-                        model = ImageModel(file: XFile.fromData(cropResult));
-                      } else {
-                        final xfile = await _saveTempFile(cropResult, 'cropped_image.jpg');
-                        if (xfile != null) {
-                          model = ImageModel(file: xfile);
-                        } else {
-                          return;
-                        }
-                      }
-
-                      state.didChange(model);
-                      onChanged(model);
-                    },
-                    child: SizedBox(
-                      width: effectiveWidth,
-                      height: effectiveHeight,
-                      child: Center(
-                        child: state.value == null
-                            ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.add_a_photo, size: 48),
-                            const SizedBox(height: 8),
-                            Text(
-                              title,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ],
-                        )
-                            : _buildImage(state.value!, effectiveWidth, effectiveHeight),
+                    final cropResult = await showDialog<Uint8List>(
+                      context: context,
+                      builder: (_) => AppCropDialog(
+                        image: picked,
+                        aspectRatio: aspectRatio,
                       ),
-                    ),
+                    );
+
+                    if (cropResult == null) return;
+
+                    ImageModel model;
+                    if (kIsWeb) {
+                      model = ImageModel(file: XFile.fromData(cropResult));
+                    } else {
+                      final xfile = await _saveTempFile(cropResult, 'cropped_image.jpg');
+                      if (xfile != null) {
+                        model = ImageModel(file: xfile);
+                      } else {
+                        return;
+                      }
+                    }
+
+                    state.didChange(model);
+                    onChanged(model);
+                  },
+                  child: SizedBox(
+                    width: maxAvailableWidth,
+                    height: state.value == null ? emptyStateHeight : effectiveHeight,
+                    child: state.value == null
+                        ? _buildEmptyState(context)
+                        : _buildImage(state.value!, maxAvailableWidth, effectiveHeight, context),
                   ),
                 ),
               ),
@@ -143,7 +119,24 @@ class AppImageFormFieldBanner extends StatelessWidget {
     );
   }
 
-  Widget _buildImage(ImageModel model, double width, double height) {
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.add_a_photo, size: 48),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImage(ImageModel model, double width, double height, BuildContext context) {
     if (model.file != null) {
       if (kIsWeb) {
         return FutureBuilder<Uint8List>(
@@ -182,16 +175,6 @@ class AppImageFormFieldBanner extends StatelessWidget {
       );
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.add_a_photo, size: 48),
-        const SizedBox(height: 8),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16),
-        ),
-      ],
-    );
+    return _buildEmptyState(context);
   }
 }

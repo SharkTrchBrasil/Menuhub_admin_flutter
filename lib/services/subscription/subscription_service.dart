@@ -42,7 +42,7 @@ class AccessControlService {
   AccessControlService(this._storesManagerCubit) {
     _storesManagerCubit.stream.listen((state) {
       if (state is StoresManagerLoaded) {
-        _updateSubscription(state.activeStore?.subscription);
+        _updateSubscription(state.activeStore?.relations.subscription);
       } else {
         _updateSubscription(null);
       }
@@ -51,7 +51,7 @@ class AccessControlService {
     // Garante que o estado inicial também seja carregado
     final initialState = _storesManagerCubit.state;
     if (initialState is StoresManagerLoaded) {
-      _updateSubscription(initialState.activeStore?.subscription);
+      _updateSubscription(initialState.activeStore?.relations.subscription);
     }
   }
 

@@ -31,13 +31,15 @@ class StoreSetupState extends Equatable {
   final bool urlEditedManually;
   final bool isUrlTaken;
   final bool urlChecking;
-  final String? lastCheckedUrl; // ✅ ADICIONE APENAS ESTA LINHA
+  final String? lastCheckedUrl;
 
-  // ✅ ADICIONE ESTAS DUAS PROPRIEDADES
+
   final List<Plans> plansList;
   final PageStatus plansStatus;
   final PageStatus submissionStatus;
   final Segment? selectedSpecialty;
+
+  final String? signatureBase64;
 
   const StoreSetupState({
     this.cep = '',
@@ -48,7 +50,7 @@ class StoreSetupState extends Equatable {
     this.uf = '',
     this.taxIdType = TaxIdType.none,
     this.cnpj = '',
-    this.selectedSpecialty, // ✅ ADICIONE
+    this.selectedSpecialty,
     this.responsibleName = '',
     this.responsibleBirth = '',
     this.cpf = '',
@@ -60,9 +62,9 @@ class StoreSetupState extends Equatable {
     this.urlEditedManually = false,
     this.isUrlTaken = false,
     this.urlChecking = false,
-    this.lastCheckedUrl, // ✅ ADICIONE AQUI
+    this.lastCheckedUrl,
+    this.signatureBase64,
 
-    // ✅ ADICIONE OS VALORES PADRÃO AQUI
     this.plansList = const [],
     this.plansStatus = const PageStatusIdle(),
     PageStatus? zipCodeStatus,
@@ -82,7 +84,7 @@ class StoreSetupState extends Equatable {
     String? uf,
     TaxIdType? taxIdType,
     String? cnpj,
-    Segment? selectedSpecialty, // ✅ ADICIONE
+    Segment? selectedSpecialty,
     String? responsibleName,
     String? responsibleBirth,
     String? cpf,
@@ -97,9 +99,10 @@ class StoreSetupState extends Equatable {
     bool? urlEditedManually,
     bool? isUrlTaken,
     bool? urlChecking,
-    String? lastCheckedUrl, // ✅ ADICIONE AQUI
+    String? lastCheckedUrl,
+    String? signatureBase64,
 
-    // ✅ ADICIONE OS NOVOS PARÂMETROS AQUI
+
     List<Plans>? plansList,
     PageStatus? plansStatus,
     PageStatus? submissionStatus
@@ -128,11 +131,12 @@ class StoreSetupState extends Equatable {
       urlEditedManually: urlEditedManually ?? this.urlEditedManually,
       isUrlTaken: isUrlTaken ?? this.isUrlTaken,
       urlChecking: urlChecking ?? this.urlChecking,
-      lastCheckedUrl: lastCheckedUrl ?? this.lastCheckedUrl, // ✅ ADICIONE AQUI
-      // ✅ ATUALIZE O ESTADO AQUI
+      lastCheckedUrl: lastCheckedUrl ?? this.lastCheckedUrl,
+
       plansList: plansList ?? this.plansList,
       plansStatus: plansStatus ?? this.plansStatus,
       submissionStatus: submissionStatus ?? this.submissionStatus,
+      signatureBase64: signatureBase64 ?? this.signatureBase64,
     );
   }
 
@@ -143,48 +147,47 @@ class StoreSetupState extends Equatable {
     responsibleName, responsibleBirth, cpf, zipCodeStatus, complement, specialtiesList,
     specialtiesStatus, storeName, storeUrl, storeDescription, storePhone, isUrlTaken,
     urlChecking, urlEditedManually,
-    lastCheckedUrl, // ✅ ADICIONE AQUI
+    lastCheckedUrl,
     plansList,
     plansStatus,
     submissionStatus,
+    signatureBase64
   ];
 
 
 
 
-
-// Cole este método toJson ATUALIZADO na sua classe StoreSetupState
-
   Map<String, dynamic> toJson() {
     final freePlanId = plansList.firstWhereOrNull((p) => p.price == 0)?.id;
 
     return {
-      // --- Identificação Básica ---
+      // --- Dados da Loja ---
       'name': storeName,
-      'store_url': storeUrl, // ✅ CORRIGIDO
+      'store_url': storeUrl,
       'description': storeDescription.isNotEmpty ? storeDescription : null,
       'phone': storePhone.replaceAll(RegExp(r'\D'), ''),
       'cnpj': cnpj.isNotEmpty ? cnpj.replaceAll(RegExp(r'\D'), '') : null,
-      'segment_id': selectedSpecialty?.id, // ✅ CORRIGIDO
+      'segment_id': selectedSpecialty?.id,
+      'plan_id': freePlanId,
 
-      // --- Endereço e Logística (agora no nível principal) ---
-      'zip_code': cep.replaceAll(RegExp(r'\D'), ''), // ✅ CORRIGIDO
-      'street': street,
-      'number': number,
-      'complement': complement.isNotEmpty ? complement : null,
-      'neighborhood': neighborhood,
-      'city': city,
-      'state': uf, // ✅ CORRIGIDO
+      // ✅ ESTRUTURA ANINHADA PARA O ENDEREÇO
+      'address': {
+        'cep': cep.replaceAll(RegExp(r'\D'), ''),
+        'street': street,
+        'number': number,
+        'neighborhood': neighborhood,
+        'city': city,
+        'uf': uf,
+        'complement': complement.isNotEmpty ? complement : null,
+      },
 
-      // --- Responsável Operacional (agora no nível principal) ---
-      'responsible_name': responsibleName, // ✅ CORRIGIDO
-      'responsible_phone': storePhone.replaceAll(RegExp(r'\D'), ''),
-      // --- Outros campos que a API pode esperar ---
-      'plan_id': freePlanId, // Embora não esteja no schema, sua API pode usar isso
+      // ✅ ESTRUTURA ANINHADA PARA O RESPONSÁVEL
+      'responsible': {
+        'name': responsibleName,
+        'phone': storePhone.replaceAll(RegExp(r'\D'), ''),
+      },
     };
   }
-
-
 
 
 

@@ -157,12 +157,12 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
             }
 
             return BasePage(
-              desktopAppBar: appber(store: activeStore,),
+           //   desktopAppBar: appber(store: activeStore,),
               mobileBuilder: (context) => MobileOrderLayout(
                 searchController: _searchController,
                 onOpenOrderDetailsPage: (ctx, order) {
                   context.go(
-                    '/stores/${activeStore?.id}/orders/${order.id}',
+                    '/stores/${activeStore?.core.id}/orders/${order.id}',
                     extra: {'order': order, 'store': activeStore},
                   );
                 },
@@ -248,7 +248,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         if (storeState is! StoresManagerLoaded) return const SizedBox.shrink();
 
         final currentStore = storeState.stores[storeState.activeStoreId]?.store;
-        final options = currentStore?.deliveryOptions;
+        final options = currentStore?.relations.storeOperationConfig;
 
         // 1. Construir a lista de abas disponíveis na ordem desejada
         final List<Map<String, dynamic>> availableTabsConfig = [];
@@ -303,7 +303,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                       // Guarda o ID da loja ativa para usar no botão
                       activeStoreId = state.activeStoreId;
 
-                      final settings = state.activeStore?.storeSettings;
+                      final settings = state.activeStore?.relations.storeOperationConfig;
 
                       // Lógica que já corrigimos: precisa de config se AMBAS forem nulas.
                       if (settings == null ||

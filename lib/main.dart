@@ -11,6 +11,7 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/auth_cubit.dart';
 import 'package:totem_pro_admin/cubits/active_store_cubit.dart';
+import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart';
 import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
 
 import 'package:totem_pro_admin/constdata/colorprovider.dart';
@@ -28,7 +29,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: 'assets/env');
 
-  // ✅ PASSO 1: Garanta que as dependências sejam configuradas com 'await'
+
   await configureDependencies();
 
   await EasyLocalization.ensureInitialized();
@@ -42,24 +43,25 @@ void main() async {
       ],
       path: 'assets/langs',
       fallbackLocale: const Locale('pt', 'BR'),
-      // ✅ PASSO 2: O filho agora é um único widget raiz, o AppRoot
+
       child: const AppRoot(),
     ),
   );
 }
 
-/// ✅ NOVO WIDGET RAIZ: Unifica todos os seus providers em um só lugar.
+
 class AppRoot extends StatelessWidget {
   const AppRoot({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Aninhamos os providers de estado (ChangeNotifier)
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => DrawerControllerProvider()),
         ChangeNotifierProvider(create: (_) => ColorNotifire()),
+
         ChangeNotifierProvider(
           create: (_) => ChatBotConfigController(getIt<ChatBotConfigRepository>()),
         ),
@@ -72,6 +74,7 @@ class AppRoot extends StatelessWidget {
           BlocProvider(create: (context) => getIt<AuthCubit>()),
           BlocProvider(create: (context) => getIt<OrderCubit>()),
           BlocProvider(create: (context) => getIt<ActiveStoreCubit>()),
+          BlocProvider(create: (context) => getIt<StoreSetupCubit>()),
         ],
         // O filho final é o widget que constrói o MaterialApp
         child: const MyApp(),
@@ -86,9 +89,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // O CONTEXTO AQUI ESTÁ CORRETO para acessar qualquer provider
-    final authCubit = context.read<AuthCubit>();
-    final storesManagerCubit = context.read<StoresManagerCubit>();
+
     final themeProvider = context.watch<ThemeProvider>();
 
 

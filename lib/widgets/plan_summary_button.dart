@@ -22,7 +22,7 @@ class PlanSummaryButton extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        final subscription = state.activeStore?.subscription;
+        final subscription = state.activeStore?.relations.subscription;
 
         // Se não houver assinatura, não mostra nada
         if (subscription == null) {

@@ -19,6 +19,7 @@ import '../models/credit_card.dart';
 
 
 import '../models/plans.dart';
+import '../models/scheduled_pause.dart';
 import '../models/store_city.dart';
 import '../models/store_customer.dart';
 import '../models/store_hour.dart';
@@ -95,10 +96,11 @@ class StoreRepository {
       Store store,
       ) async {
     try {
-      if (store.id != null) {
+      if (store.core.id != null) {
         final response = await _dio.patch(
           '/stores/$storeId',
           data: await store.toFormData(),
+
         );
         return Right(Store.fromJson(response.data));
       } else {
@@ -246,64 +248,24 @@ class StoreRepository {
 
 
 
-  // HOURS ///
-  Future<Either<void, List<StoreHour>>> getHours(int storeId) async {
+  // ✅ MÉTODO ÚNICO PARA ATUALIZAR HORÁRIOS //
+  Future<Either<String, void>> updateHours(int storeId, List<StoreHour> hours) async {
     try {
-      final data = await _dio.get('/stores/$storeId/hours');
-      final list = (data.data as List<dynamic>)
-          .map<StoreHour>((c) => StoreHour.fromJson(c))
-          .toList();
-      return Right(list);
-    } catch (e) {
-      debugPrint('$e');
-      return const Left(null);
-    }
-  }
+      // Converte a lista de objetos StoreHour para uma lista de Maps (JSON)
+      final hoursJson = hours.map((h) => h.toJson()).toList();
 
-  Future<Either<void, StoreHour>> getStoreHour(int storeId, int id) async {
-    try {
-      final response = await _dio.get('/stores/$storeId/hours/$id');
-      return Right(StoreHour.fromJson(response.data));
-    } catch (e) {
-      debugPrint('$e');
-      return const Left(null);
-    }
-  }
+      // Chama a nova rota única do backend com o método PUT
+      await _dio.put('/stores/$storeId/hours', data: hoursJson);
 
-  Future<Either<void, StoreHour>> saveStoreHour(
-      int storeId,
-      StoreHour storeHour,
-      ) async {
-    try {
-      if (storeHour.id != null) {
-        final response = await _dio.patch(
-          '/stores/$storeId/hours/${storeHour.id}',
-          data: await storeHour.toFormData(),
-        );
-        return Right(StoreHour.fromJson(response.data));
-      } else {
-        final response = await _dio.post(
-          '/stores/$storeId/hours',
-          data: await storeHour.toFormData(),
-        );
-        return Right(StoreHour.fromJson(response.data));
-      }
-    } catch (e) {
-      debugPrint('$e');
-      return Left(null);
-    }
-  }
-
-  Future<Either<void, void>> deleteStoreHour(int storeId, int hourId) async {
-    try {
-      await _dio.delete('/stores/$storeId/hours/$hourId');
       return const Right(null);
     } catch (e) {
-      debugPrint('$e');
-      return const Left(null);
+      debugPrint('Erro ao atualizar horários: $e');
+      return Left(e.toString());
     }
   }
 
+
+  // FIM HOURS ///
 
   Future<Either<void, List<StoreCustomer>>> getStoreCustomers(int storeId) async {
     try {
@@ -880,6 +842,71 @@ class StoreRepository {
       return Left(Failure('Ocorreu um erro inesperado.'));
     }
   }
+
+
+  // ✅ 1. MÉTODO PARA CRIAR UMA NOVA PAUSA PROGRAMADA
+  Future<Either<String, ScheduledPause>> createScheduledPause({
+    required int storeId,
+    required String? reason,
+    required DateTime startTime,
+    required DateTime endTime,
+  }) async {
+    try {
+      // O endpoint deve corresponder ao que você criou no backend (ex: /pauses/store/{store_id})
+      final response = await _dio.post(
+        '/pauses/store/$storeId',
+        data: {
+          'reason': reason,
+          // É crucial enviar as datas no formato ISO 8601 para compatibilidade com o backend
+          'start_time': startTime.toIso8601String(),
+          'end_time': endTime.toIso8601String(),
+        },
+      );
+
+      // Se a criação for bem-sucedida, a API deve retornar o objeto da nova pausa
+      final newPause = ScheduledPause.fromJson(response.data);
+      return Right(newPause);
+
+    } on DioException catch (e) {
+      // Tratamento de erro
+      print('Erro ao criar pausa programada: $e');
+      return Left('Não foi possível criar a pausa. Tente novamente.');
+    } catch (e) {
+      return Left('Ocorreu um erro inesperado.');
+    }
+  }
+
+  // ✅ 2. MÉTODO PARA DELETAR UMA PAUSA PROGRAMADA
+  Future<Either<String, void>> deleteScheduledPause({
+    required int pauseId,
+  }) async {
+    try {
+      // O endpoint deve corresponder ao da sua API (ex: /pauses/{pause_id})
+      await _dio.delete('/pauses/$pauseId');
+
+      // Sucesso, não precisa retornar nenhum dado específico
+      return const Right(null);
+
+    } on DioException catch (e) {
+      print('Erro ao deletar pausa programada: $e');
+      return Left('Não foi possível deletar a pausa. Tente novamente.');
+    } catch (e) {
+      return Left('Ocorreu um erro inesperado.');
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 

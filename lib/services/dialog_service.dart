@@ -14,10 +14,11 @@ import '../pages/banners/widgets/banner_form_dialog.dart';
 
 
 import '../pages/categories/widgets/category_form_dialog.dart';
-import '../pages/edit_product/widgets/edit_product_dialog.dart';
-import '../pages/edit_settings/widgets/add_city_dialog.dart';
-import '../pages/edit_settings/widgets/add_neig_dialog.dart';
 
+
+
+import '../pages/edit_settings/general/widgets/add_city_dialog.dart';
+import '../pages/edit_settings/general/widgets/add_neig_dialog.dart';
 import '../pages/payables/widgets/edit_payable_dialog.dart';
 
 
@@ -60,23 +61,6 @@ class DialogService {
     );
   }
 
-  static Future<void> showProductDialog(
-      BuildContext context,
-
-      int storeId, {
-        Category? category,
-        int? productId,
-        void Function(dynamic product)? onSaved,
-      }) {
-    return showDialog(
-      context: context,
-      builder: (_) => EditProductDialog(
-        storeId: storeId,
-        id: productId,
-        onSaved: onSaved, category: category,
-      ),
-    );
-  }
 
 
 
@@ -92,21 +76,6 @@ class DialogService {
 
 
 
-  static Future<void> showCouponsDialog(
-      BuildContext context,
-      int storeId, {
-        int? couponsId,
-        void Function(dynamic coupon)? onSaved,
-      }) {
-    return showDialog(
-      context: context,
-      builder: (_) => EditCouponPageDialog(
-        storeId: storeId,
-        id: couponsId,
-        onSaved: onSaved,
-      ),
-    );
-  }
 
 
 
