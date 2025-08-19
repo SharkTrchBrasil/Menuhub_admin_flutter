@@ -18,6 +18,7 @@ import '../models/create_subscription_payload.dart';
 import '../models/credit_card.dart';
 
 
+import '../models/holiday.dart';
 import '../models/plans.dart';
 import '../models/scheduled_pause.dart';
 import '../models/store_city.dart';
@@ -896,7 +897,19 @@ class StoreRepository {
   }
 
 
-
+  // ✅ NOVO MÉTODO PARA BUSCAR FERIADOS
+  Future<Either<String, List<Holiday>>> getHolidays(int year) async {
+    try {
+      final response = await _dio.get('/holidays/$year');
+      final holidays = (response.data as List)
+          .map((h) => Holiday.fromJson(h))
+          .toList();
+      return Right(holidays);
+    } catch (e) {
+      print('Erro ao buscar feriados: $e');
+      return Left('Falha ao buscar feriados. Tente novamente.');
+    }
+  }
 
 
 

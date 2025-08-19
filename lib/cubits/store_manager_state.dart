@@ -4,6 +4,8 @@ import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/models/store.dart';
 import 'package:totem_pro_admin/models/store_with_role.dart';
 
+import '../models/holiday.dart';
+
 // ✅ MUDANÇA 1: A classe base agora estende `Equatable`
 abstract class StoresManagerState extends Equatable {
   const StoresManagerState();
@@ -29,13 +31,14 @@ class StoresManagerEmpty extends StoresManagerState {
 }
 
 class StoresManagerLoaded extends StoresManagerState {
-  // ✅ CAMPOS UNIFICADOS: Todos os campos que você precisa em um só lugar.
+
   final Map<int, StoreWithRole> stores;
   final int activeStoreId;
   final List<int> consolidatedStores;
   final String? subscriptionWarning;
   final Map<int, int> notificationCounts;
   final DateTime lastUpdate;
+  final List<Holiday>? holidays;
 
   const StoresManagerLoaded({
     required this.stores,
@@ -44,9 +47,10 @@ class StoresManagerLoaded extends StoresManagerState {
     this.subscriptionWarning,
     this.notificationCounts = const {},
     required this.lastUpdate,
+    this.holidays
   });
 
-  // ✅ GETTER ÚNICO E CORRETO: Sobrescreve o getter da classe base.
+
   @override
   Store? get activeStore => stores[activeStoreId]?.store;
 
@@ -58,6 +62,7 @@ class StoresManagerLoaded extends StoresManagerState {
     String? subscriptionWarning,
     Map<int, int>? notificationCounts,
     DateTime? lastUpdate,
+    List<Holiday>? holidays,
   }) {
     return StoresManagerLoaded(
       stores: stores ?? this.stores,
@@ -66,11 +71,10 @@ class StoresManagerLoaded extends StoresManagerState {
       subscriptionWarning: subscriptionWarning ?? this.subscriptionWarning,
       notificationCounts: notificationCounts ?? this.notificationCounts,
       lastUpdate: lastUpdate ?? this.lastUpdate,
+      holidays: holidays ?? this.holidays,
     );
   }
 
-  // ✅ MUDANÇA 2: Usando `props` para a comparação, em vez de `operator==` e `hashCode` manuais.
-  // É mais seguro e mais fácil de manter.
   @override
   List<Object?> get props => [
     stores,
@@ -79,6 +83,7 @@ class StoresManagerLoaded extends StoresManagerState {
     subscriptionWarning,
     notificationCounts,
     lastUpdate,
+    holidays,
   ];
 }
 

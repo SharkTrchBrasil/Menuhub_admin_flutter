@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
@@ -7,6 +5,7 @@ import 'package:totem_pro_admin/models/store_hour.dart';
 import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/add_pause_dialog.dart';
 import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/add_shift_dialog.dart';
 import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/edit_shift_dialog.dart';
+import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/holidays_view.dart';
 import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/scheduled_pauses_view.dart';
 import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/visual_schedule_calendar.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
@@ -16,10 +15,10 @@ import 'package:totem_pro_admin/core/di.dart';
 
 // Imports dos novos widgets
 import '../../../cubits/store_manager_cubit.dart';
+import '../../../models/holiday.dart';
+import '../../../models/scheduled_pause.dart';
 import '../../../widgets/app_toasts.dart' as AppToasts;
 import 'widgets/action_and_summary_panel.dart';
-
-
 
 class OpeningHoursPage extends StatefulWidget {
   final int storeId;
@@ -47,8 +46,13 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
   };
 
   final Map<int, String> dayNames = {
-    0: 'Domingo', 1: 'Segunda', 2: 'Terça', 3: 'Quarta',
-    4: 'Quinta', 5: 'Sexta', 6: 'Sábado',
+    0: 'Domingo',
+    1: 'Segunda',
+    2: 'Terça',
+    3: 'Quarta',
+    4: 'Quinta',
+    5: 'Sexta',
+    6: 'Sábado',
   };
   final List<int> displayOrder = [1, 2, 3, 4, 5, 6, 0];
 
@@ -88,20 +92,19 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     });
   }
 
-
-
-  Future<bool> save({bool showSuccessToast = true}) async { // ✅ Adiciona parâmetro opcional
+  Future<bool> save({bool showSuccessToast = true}) async {
+    // ✅ Adiciona parâmetro opcional
     if (!_validateHours()) return false;
     final allSlots = _openingHours.values.expand((slots) => slots).toList();
     final result = await storeRepository.updateHours(widget.storeId, allSlots);
     if (!mounted) return false;
 
     return result.fold(
-          (error) {
+      (error) {
         AppToasts.showError('Erro ao salvar os horários.');
         return false;
       },
-          (success) {
+      (success) {
         // ✅ Mostra o toast apenas se solicitado
         if (showSuccessToast) {
           AppToasts.showSuccess('Horários salvos com sucesso!');
@@ -125,23 +128,28 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
         }
 
         final openingMinutes =
-            currentSlot.openingTime!.hour * 60 + currentSlot.openingTime!.minute;
-        final closingMinutes = currentSlot.closingTime!.hour * 60 +
+            currentSlot.openingTime!.hour * 60 +
+            currentSlot.openingTime!.minute;
+        final closingMinutes =
+            currentSlot.closingTime!.hour * 60 +
             currentSlot.closingTime!.minute;
 
         if (openingMinutes >= closingMinutes) {
           AppToasts.showError(
-              'Abertura deve ser antes do fechamento em ${dayNames[weekday]}');
+            'Abertura deve ser antes do fechamento em ${dayNames[weekday]}',
+          );
           return false;
         }
 
         if (i > 0) {
           final previousSlot = slots[i - 1];
-          final previousClosingMinutes = previousSlot.closingTime!.hour * 60 +
+          final previousClosingMinutes =
+              previousSlot.closingTime!.hour * 60 +
               previousSlot.closingTime!.minute;
           if (openingMinutes < previousClosingMinutes) {
             AppToasts.showError(
-                'Sobreposição de horários em ${dayNames[weekday]}');
+              'Sobreposição de horários em ${dayNames[weekday]}',
+            );
             return false;
           }
         }
@@ -149,8 +157,6 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     }
     return true;
   }
-
-
 
   void _removeSlot(int weekday, StoreHour slotToRemove) {
     setState(() {
@@ -161,22 +167,23 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
   void _updateOpeningTime(int weekday, int shiftIndex, TimeOfDay newTime) {
     setState(() {
       final slot = _openingHours[weekday]![shiftIndex];
-      _openingHours[weekday]![shiftIndex] =
-          slot.copyWith(openingTime: newTime);
+      _openingHours[weekday]![shiftIndex] = slot.copyWith(openingTime: newTime);
     });
   }
 
   void _updateClosingTime(int weekday, int shiftIndex, TimeOfDay newTime) {
     setState(() {
       final slot = _openingHours[weekday]![shiftIndex];
-      _openingHours[weekday]![shiftIndex] =
-          slot.copyWith(closingTime: newTime);
+      _openingHours[weekday]![shiftIndex] = slot.copyWith(closingTime: newTime);
     });
   }
 
-
   // ✅ 1. CRIE UMA NOVA FUNÇÃO PARA ADICIONAR UM TURNO ESPECÍFICO
-  void _addSpecificSlot(int weekday, TimeOfDay openingTime, TimeOfDay closingTime) {
+  void _addSpecificSlot(
+    int weekday,
+    TimeOfDay openingTime,
+    TimeOfDay closingTime,
+  ) {
     // Não precisa de setState aqui, pois será chamado dentro de um
     _openingHours[weekday]!.add(
       StoreHour(
@@ -193,12 +200,13 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
   Future<void> _showAddShiftDialog(int day, TimeOfDay time) async {
     final result = await showDialog<AddShiftResult>(
       context: context,
-      builder: (context) => AddShiftDialog(
-        initialDay: day,
-        initialTime: time,
-        dayNames: dayNames,
-        displayOrder: displayOrder,
-      ),
+      builder:
+          (context) => AddShiftDialog(
+            initialDay: day,
+            initialTime: time,
+            dayNames: dayNames,
+            displayOrder: displayOrder,
+          ),
     );
 
     if (result == null) return;
@@ -210,28 +218,66 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     });
 
     // Salva automaticamente após adicionar
-  //  setState(() { _isSaving = true; });
+    //  setState(() { _isSaving = true; });
 
     final bool success = await save(showSuccessToast: false);
     if (mounted) {
-
-    //  setState(() { _isSaving = false; });
-
+      //  setState(() { _isSaving = false; });
     }
     if (success && mounted) {
       AppToasts.showSuccess('Novo(s) horário(s) salvo(s) com sucesso!');
     }
   }
 
+  Future<void> _showHolidayPauseDialog(
+    Holiday holiday,
+    ScheduledPause? existingPause,
+  ) async {
+    print('Configurando o feriado: ${holiday.name}');
 
+    final result = await showDialog<AddPauseResult>(
+      context: context,
+      builder:
+          (context) => AddPauseDialog(
+            // ✅ Passa os dados do feriado e da pausa (se existir) para o diálogo
+            holiday: holiday,
+            existingPause: existingPause,
+          ),
+    );
+
+    if (result == null) return;
+
+    // A lógica para salvar (criar ou atualizar) continua a mesma
+    if (existingPause != null) {
+      // TODO: Chamar o Cubit para ATUALIZAR a pausa existente
+      // (você precisará de um método `updatePause` no Cubit e Repositório)
+    } else {
+
+
+      final success = await context.read<StoresManagerCubit>().addPause(
+        storeId: widget.storeId,
+        // Garante que o motivo seja o nome do feriado se o usuário não digitar nada
+        reason:
+            (result.reason != null && result.reason!.isNotEmpty)
+                ? result.reason
+                : holiday.name,
+        startTime: result.startTime,
+        endTime: result.endTime,
+      );
+      if (success && mounted) {
+        AppToasts.showSuccess('Feriado configurado com sucesso!');
+      }
+    }
+  }
 
   Future<void> _showEditShiftDialog(StoreHour shiftToEdit) async {
     final result = await showDialog<EditShiftResult>(
       context: context,
-      builder: (context) => EditShiftDialog(
-        initialShift: shiftToEdit,
-        dayName: dayNames[shiftToEdit.dayOfWeek]!,
-      ),
+      builder:
+          (context) => EditShiftDialog(
+            initialShift: shiftToEdit,
+            dayName: dayNames[shiftToEdit.dayOfWeek]!,
+          ),
     );
 
     if (result == null) return;
@@ -239,29 +285,33 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     // Atualiza o estado local primeiro para uma resposta de UI imediata
     setState(() {
       final daySlots = _openingHours[shiftToEdit.dayOfWeek]!;
-      final shiftIndex = daySlots.indexWhere((s) => s.shiftNumber == shiftToEdit.shiftNumber);
+      final shiftIndex = daySlots.indexWhere(
+        (s) => s.shiftNumber == shiftToEdit.shiftNumber,
+      );
       if (shiftIndex == -1) return;
 
       if (result.deleted) {
         _removeSlot(shiftToEdit.dayOfWeek!, shiftToEdit);
       } else {
         if (result.openingTime != null) {
-          _updateOpeningTime(shiftToEdit.dayOfWeek!, shiftIndex, result.openingTime!);
+          _updateOpeningTime(
+            shiftToEdit.dayOfWeek!,
+            shiftIndex,
+            result.openingTime!,
+          );
         }
         if (result.closingTime != null) {
-          _updateClosingTime(shiftToEdit.dayOfWeek!, shiftIndex, result.closingTime!);
+          _updateClosingTime(
+            shiftToEdit.dayOfWeek!,
+            shiftIndex,
+            result.closingTime!,
+          );
         }
       }
     });
 
-
-
     await save(); // Salva no banco de dados
-
-
   }
-
-
 
   Future<void> _showAddPauseDialog() async {
     final result = await showDialog<AddPauseResult>(
@@ -270,7 +320,6 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     );
 
     if (result == null) return;
-
 
     final success = await context.read<StoresManagerCubit>().addPause(
       storeId: widget.storeId,
@@ -282,12 +331,7 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     if (success) {
       AppToasts.showSuccess('Pausa programada criada com sucesso!');
     }
-
   }
-
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -295,14 +339,14 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
   }
 
   Widget _buildStandalonePage() {
-    return Scaffold(
-      body: _buildContent(),
-    );
+    return Scaffold(body: _buildContent());
   }
 
   Widget _buildContent() {
     return SingleChildScrollView(
-      padding:  EdgeInsets.symmetric(horizontal:  ResponsiveBuilder.isMobile(context) ? 8 : 24.0),
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24.0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -310,17 +354,38 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
             FixedHeader(
               title: 'Horário de funcionamento',
               subtitle:
-              'Escolha os dias e horários que sua loja receberá pedidos.',
-
+                  'Escolha os dias e horários que sua loja receberá pedidos.',
             ),
 
-          SizedBox(height: 25,),
-          TabBar(
+          SizedBox(height: 25),
+          // Em opening_hours_page.dart -> _buildContent()
 
+          TabBar(
             controller: _tabController,
             labelColor: Theme.of(context).primaryColor,
             unselectedLabelColor: Colors.grey[600],
             indicatorColor: Theme.of(context).primaryColor,
+
+            // ✅ 1. FAZ AS ABAS OCUPAREM APENAS O ESPAÇO NECESSÁRIO
+            isScrollable: true,
+
+            // ✅ 2. ALINHA O CONJUNTO DE ABAS NO INÍCIO (ESQUERDA)
+            tabAlignment: TabAlignment.start,
+
+            // ✅ 3. FAZ O INDICADOR TER A LARGURA DO TEXTO
+            indicatorSize: TabBarIndicatorSize.label,
+
+            // ✅ ESTILO PARA A ABA SELECIONADA
+            labelStyle: const TextStyle(
+              fontSize: 16, // <-- AUMENTE O TAMANHO AQUI
+              fontWeight: FontWeight.w600,
+            ),
+
+            // ✅ ESTILO PARA AS ABAS NÃO SELECIONADAS
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 16, // <-- AUMENTE O TAMANHO AQUI
+              fontWeight: FontWeight.w400, // Um pouco menos de destaque (medium)
+            ),
             tabs: const [
               Tab(text: 'Horários'),
               Tab(text: 'Pausa programada'),
@@ -332,20 +397,10 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
           [
             _buildSchedulesView(), // Conteúdo da Aba 0
             ScheduledPausesView(onAddPause: _showAddPauseDialog),
-            const Center(child: Text('Funcionalidade de Feriados em breve.')), // Aba 2
-          ][_tabController.index], // Seleciona o widget com base no índice da aba
+            HolidaysView(onConfigureHoliday: _showHolidayPauseDialog),
+          ][_tabController.index],
 
-
-
-          // TabBarView(
-          //   controller: _tabController,
-          //   children: [
-          //     _buildSchedulesView(),
-          //     const Center(
-          //         child: Text('Funcionalidade de Pausa Programada em breve.')),
-          //     const Center(child: Text('Funcionalidade de Feriados em breve.')),
-          //   ],
-          // ),
+          // Seleciona o widget com base no índice da aba
         ],
       ),
     );
@@ -355,11 +410,10 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
         ActionAndSummaryPanel(openingHours: _openingHours),
         const SizedBox(height: 20),
         // O widget refatorado é chamado aqui
-      //  const InfoAlert(),
+        //  const InfoAlert(),
         const SizedBox(height: 20),
 
         VisualScheduleCalendar(
@@ -370,11 +424,9 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
             _showEditShiftDialog(slot);
           },
           onEmptySpaceTap: (day, time) {
-
             _showAddShiftDialog(day, time);
           },
         ),
-
       ],
     );
   }

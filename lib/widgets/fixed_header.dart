@@ -26,7 +26,7 @@ class FixedHeader extends StatelessWidget {
     // O layout principal agora se adapta.
     // Se for mobile, usa uma Coluna. Se não, usa a Linha original.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: isMobile
           ? _buildMobileLayout(theme, titleFontSize, subtitleFontSize)
           : _buildDesktopLayout(theme, titleFontSize, subtitleFontSize),

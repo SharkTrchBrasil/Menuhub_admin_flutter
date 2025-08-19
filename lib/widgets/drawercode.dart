@@ -295,7 +295,7 @@ class _DrawerCodeState extends State<DrawerCode> {
 
     {
       'type': 'item',
-      'title': 'Analise',
+      'title': 'Analise(ok)',
       'route': '/analytics',
       'index': 18,
       'iconPath': 'assets/images/user.png',
@@ -303,7 +303,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     },
     {
       'type': 'item',
-      'title': 'Planos',
+      'title': 'Planos(ok)',
       'route': '/plans',
       'index': 19,
       'iconPath': 'assets/images/rocket-launch.png',

@@ -83,15 +83,17 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-  // em StoresManagerCubit
+// Em lib/cubits/stores_manager_cubit.dart
   void _onActiveStoreUpdated(Store? updatedStore) {
     if (updatedStore == null || isClosed) return;
 
-    // ✅ PRINT ADICIONADO PARA MONITORAMENTO DETALHADO
-    print('🟢 [CUBIT] Recebendo atualização para a loja ID ${updatedStore.core.id}. Novos dados: ${updatedStore.toJson()}');
+    // Não pegamos o estado aqui. Esperamos até o momento de emitir.
 
-    final currentState = state;
-    if (currentState is StoresManagerLoaded) {
+    // Verificamos o estado atual logo antes de fazer qualquer coisa
+    if (state is StoresManagerLoaded) {
+      // Para evitar erros de tipo, criamos uma variável local do tipo correto
+      final currentState = state as StoresManagerLoaded;
+
       final newStoresMap = Map<int, StoreWithRole>.from(currentState.stores);
 
       if (newStoresMap.containsKey(updatedStore.core.id)) {
@@ -100,7 +102,9 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
         print("✅ [CUBIT] Loja ID ${updatedStore.core.id} foi atualizada no estado do Cubit.");
 
-        // ✅ CORREÇÃO: Adicione o `lastUpdate` aqui também!
+        // ✅ A MUDANÇA CRÍTICA ESTÁ AQUI
+        // Usamos `currentState.copyWith`, que agora sabemos que é
+        // a versão mais recente do estado no momento da emissão.
         emit(currentState.copyWith(
           stores: newStoresMap,
           lastUpdate: DateTime.now(),
@@ -337,6 +341,34 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   }
 
 
+
+// Em lib/cubits/stores_manager_cubit.dart
+
+  Future<void> fetchHolidays() async {
+    // Use 'state' directly for the most current state information
+    if (state is! StoresManagerLoaded) return;
+    if ((state as StoresManagerLoaded).holidays != null && (state as StoresManagerLoaded).holidays!.isNotEmpty) {
+      return; // If holidays are already loaded, do nothing.
+    }
+
+    // To avoid showing a full-screen loader, you can emit a state
+    // that indicates holidays are being fetched, if you want. For now, we'll just fetch.
+
+    final result = await _storeRepository.getHolidays(DateTime.now().year);
+
+    result.fold(
+          (error) => print("Cubit Error fetching holidays: $error"),
+          (holidays) {
+        // ✅ THE FIX IS HERE:
+        // We check the type of the CURRENT `state` again before emitting.
+        // This ensures we are adding the holidays to the most up-to-date
+        // version of the store's data.
+        if (state is StoresManagerLoaded) {
+          emit((state as StoresManagerLoaded).copyWith(holidays: holidays));
+        }
+      },
+    );
+  }
 
 
   String? getStoreNameById(int storeId) {

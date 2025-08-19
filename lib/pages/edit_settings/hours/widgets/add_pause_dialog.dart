@@ -3,9 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+import '../../../../models/holiday.dart';
+import '../../../../models/scheduled_pause.dart';
 import 'shift_row.dart'; // Assuming TimeInput is in here
-
-// This class remains the same
+// ✅ CLASSE ADICIONADA AQUI
+// Esta classe define a "forma" dos dados que o diálogo vai retornar.
 class AddPauseResult {
   final String? reason;
   final DateTime startTime;
@@ -19,7 +21,15 @@ class AddPauseResult {
 }
 
 class AddPauseDialog extends StatefulWidget {
-  const AddPauseDialog({super.key});
+  // ✅ ADICIONA PARÂMETROS OPCIONAIS
+  final Holiday? holiday;
+  final ScheduledPause? existingPause;
+
+  const AddPauseDialog({
+    super.key,
+    this.holiday,
+    this.existingPause,
+  });
 
   @override
   State<AddPauseDialog> createState() => _AddPauseDialogState();
@@ -31,6 +41,31 @@ class _AddPauseDialogState extends State<AddPauseDialog> {
   TimeOfDay? _startTime;
   DateTime? _endDate;
   TimeOfDay? _endTime;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ LÓGICA DE INICIALIZAÇÃO INTELIGENTE
+    // Se estamos editando uma pausa existente (vinda de um feriado)
+    if (widget.existingPause != null) {
+      final pause = widget.existingPause!;
+      _reasonController.text = pause.reason ?? widget.holiday?.name ?? '';
+      _startDate = pause.startTime.toLocal();
+      _startTime = TimeOfDay.fromDateTime(pause.startTime.toLocal());
+      _endDate = pause.endTime.toLocal();
+      _endTime = TimeOfDay.fromDateTime(pause.endTime.toLocal());
+    }
+    // Se estamos configurando um novo feriado
+    else if (widget.holiday != null) {
+      _reasonController.text = widget.holiday!.name;
+      _startDate = widget.holiday!.date;
+      _endDate = widget.holiday!.date;
+      // Define horários padrão para o dia todo
+      _startTime = const TimeOfDay(hour: 0, minute: 0);
+      _endTime = const TimeOfDay(hour: 23, minute: 59);
+    }
+  }
 
   @override
   void dispose() {

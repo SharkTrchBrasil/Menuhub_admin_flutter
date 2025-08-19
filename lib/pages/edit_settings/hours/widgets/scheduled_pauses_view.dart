@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
@@ -17,33 +16,21 @@ class ScheduledPausesView extends StatelessWidget {
 
   const ScheduledPausesView({super.key, required this.onAddPause});
 
+  // ✅ WIDGET PARA O ESTADO VAZIO (CORRIGIDO CONFORME A REFERÊNCIA)
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 48.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgPicture.asset(
-              'assets/images/calendar.svg',
-              height: 150,
-              colorFilter: ColorFilter.mode(Colors.grey[400]!, BlendMode.srcIn),
-            ),
-            const SizedBox(height: 24),
             Text(
-              'Nenhuma pausa programada',
-              style: Theme.of(context).textTheme.headlineSmall,
+              'Você pode cadastrar aqui os momentos em que a loja estará fechada.',
               textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey[700]),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Crie pausas para eventos, feriados ou manutenções.\nSua loja não receberá pedidos durante estes períodos.',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             DsButton(
-              label: 'Criar primeira pausa',
+              label: 'Nova pausa programada',
               onPressed: onAddPause,
               icon: Icons.add,
             ),
@@ -62,74 +49,157 @@ class ScheduledPausesView extends StatelessWidget {
         }
 
         final pauses = state.activeStore!.scheduledPauses;
-        pauses.sort((a, b) => a.startTime.compareTo(b.startTime));
+        pauses.sort((a, b) => a.startTime.compareTo(b.startTime)); // Ordena por data
 
-        // ✅ A LÓGICA AGORA FICA DENTRO DO BUILDER
+        if (pauses.isEmpty) {
+          return _buildEmptyState(context);
+        }
+
+        // ✅ LÓGICA PARA AGRUPAR AS PAUSAS POR MÊS
+        final Map<String, List<ScheduledPause>> pausesByMonth = {};
+        for (var pause in pauses) {
+          final monthKey = DateFormat('MMMM yyyy', 'pt_BR').format(pause.startTime.toLocal());
+          if (pausesByMonth[monthKey] == null) {
+            pausesByMonth[monthKey] = [];
+          }
+          pausesByMonth[monthKey]!.add(pause);
+        }
+
+        // ✅ A ESTRUTURA PRINCIPAL AGORA É UMA COLUMN COM A LISTA
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Cabeçalho com título e botão de adicionar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
+            // ✅ O CABEÇALHO RESPONSIVO É CHAMADO AQUI
+            _buildHeader(context),
+            const SizedBox(height: 34),
 
-                if (pauses.isNotEmpty)
-                  Flexible(
-                    child: DsButton(
-                      onPressed: onAddPause,
-
-                      label: 'Nova pausa programada',
-                    ),
-                  ),
-              ],
-            ),
-
-
-            SizedBox(height: 18,),
-            // 2. Lógica condicional que mostra o estado vazio ou a lista
-            if (pauses.isEmpty)
-              _buildEmptyState(context)
-            else
-            // ✅ LISTVIEW.BUILDER CORRIGIDO, SEM EXPANDED
-              ListView.builder(
-                // Diz para a ListView se encolher para caber no seu conteúdo.
-                shrinkWrap: true,
-                // Delega a rolagem para o SingleChildScrollView da página pai.
-                primary: false,
-                itemCount: pauses.length,
-                itemBuilder: (context, index) {
-                  final pause = pauses[index];
-                  return PauseListItemCard(
-                    pause: pause,
-                    onDelete: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Confirmar Exclusão'),
-                          content: const Text('Tem certeza que deseja remover esta pausa programada?'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(true),
-                              child: const Text('Remover', style: TextStyle(color: Colors.red)),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
-                        final success = await context.read<StoresManagerCubit>().deletePause(pauseId: pause.id);
-                        if (success && context.mounted) {
-                          AppToasts.showSuccess('Pausa removida com sucesso!');
-                        }
-                      }
-                    },
-                  );
-                },
+            // ListView para os meses
+            ListView.separated(
+              primary: false,
+              shrinkWrap: true,
+              itemCount: pausesByMonth.keys.length,
+              separatorBuilder: (context, index) => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.0),
+                child: Divider(),
               ),
+              itemBuilder: (context, index) {
+                final monthAndYearKey = pausesByMonth.keys.elementAt(index);
+                final monthPauses = pausesByMonth[monthAndYearKey]!;
+
+                // ✅ PEGA APENAS O NOME DO MÊS PARA EXIBIR
+                final monthName = DateFormat('MMMM', 'pt_BR').format(monthPauses.first.startTime.toLocal());
+
+
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0,),
+                      child: Text(
+                        monthName[0].toUpperCase() + monthName.substring(1),
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    // Column para os cards de pausa daquele mês
+                    Column(
+                      children: monthPauses.map((pause) {
+                        return Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16.0),
+                              child: PauseListItemCard(
+                                pause: pause,
+                                onEdit: () {
+                                  // TODO: Chamar o diálogo de edição de pausa aqui
+                                },
+                                onDelete: () async {
+                                  // Lógica de deleção com confirmação
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Confirmar Exclusão'),
+                                      content: const Text('Tem certeza que deseja remover esta pausa?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(true),
+                                          child: const Text('Remover', style: TextStyle(color: Colors.red)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    final success = await context.read<StoresManagerCubit>().deletePause(pauseId: pause.id);
+                                    if (success && context.mounted) {
+                                      AppToasts.showSuccess('Pausa removida com sucesso!');
+                                    }
+                                  }
+                                },
+                              ),
+                            ),
+                            Divider(height: 1, color: Colors.grey[300]),
+                          ],
+                        );
+
+
+
+
+                      }).toList(),
+                    ),
+                  ],
+                );
+              },
+            ),
           ],
         );
       },
     );
+  }
+  // ✅ NOVO WIDGET DE CABEÇALHO RESPONSIVO
+  Widget _buildHeader(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 720;
+
+    final textWidget = Text(
+      'Você pode cadastrar aqui os momentos em que a loja estará fechada.',
+      // Definimos um máximo de 2 linhas para o texto
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+
+      style: Theme.of(context)
+          .textTheme
+          .bodyMedium
+          ?.copyWith(fontWeight: FontWeight.w500),
+    );
+
+    final buttonWidget = DsButton(
+      onPressed: onAddPause,
+      label: 'Nova pausa programada',
+      icon: Icons.add,
+    );
+
+    if (isMobile) {
+      // Layout em Coluna para mobile
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          textWidget,
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.center,
+            child: buttonWidget,
+          ),
+        ],
+      );
+    } else {
+      // Layout em Linha para desktop
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center, // Alinha verticalmente
+        children: [
+          Expanded(child: textWidget), // Força o texto a quebrar a linha
+          const SizedBox(width: 24),
+          buttonWidget,
+        ],
+      );
+    }
   }
 }
