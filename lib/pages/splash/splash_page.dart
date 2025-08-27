@@ -24,7 +24,7 @@ class SplashPage extends StatelessWidget {
             if (stores.isNotEmpty) {
               // Se tiver lojas, vai para a primeira loja da lista
               final firstStoreId = stores.first.store.core.id;
-              context.go('/stores/$firstStoreId/orders');
+              context.go('/stores/$firstStoreId/dashboard');
             } else {
               // Se não tiver lojas, vai para a tela de criação de loja
               context.go('/stores/new');
@@ -49,7 +49,7 @@ class SplashPage extends StatelessWidget {
             children: [
               AppLogo(size: 80), // Um pouco maior para destaque
               SizedBox(height: 32),
-            Text('Carregando...', style: TextStyle(color: Colors.grey)),
+
             ],
           ),
         ),

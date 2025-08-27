@@ -28,7 +28,7 @@ class ProductAnalyticsCubit extends Cubit<ProductAnalyticsState> {
   void _processState(StoresManagerState state) {
     // Verifica se o estado principal é o de sucesso (loja carregada)
     if (state is StoresManagerLoaded) {
-      final analyticsData = state.activeStore?.productAnalytics;
+      final analyticsData = state.activeStore?.relations.productAnalytics;
 
       if (analyticsData != null) {
         // Se temos os dados de análise, emitimos o estado de sucesso

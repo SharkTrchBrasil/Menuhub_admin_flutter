@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-import 'package:totem_pro_admin/models/payment_method.dart';
-import 'package:totem_pro_admin/repositories/payment_method_repository.dart';
+import 'package:totem_pro_admin/pages/edit_settings/payment_methods/widgets/payment_group_view.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
-import 'package:totem_pro_admin/core/di.dart';
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+import 'package:totem_pro_admin/widgets/fixed_header.dart';
 
-// ✅ 1. A página agora é um StatelessWidget, muito mais simples!
+import '../../../core/helpers/sidepanel.dart';
+import '../../../core/responsive_builder.dart';
+import '../../platform_payment_methods/gateway-payment.dart';
+
+
+
 class PaymentMethodsPage extends StatelessWidget {
   const PaymentMethodsPage({super.key, required this.storeId});
 
@@ -15,102 +20,106 @@ class PaymentMethodsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Acessa o repositório que usaremos para as atualizações
-    final paymentRepository = getIt<PaymentMethodRepository>();
-
+    // ✅ Não usamos mais o Padding aqui, pois o NestedScrollView controla o espaçamento interno.
     return Scaffold(
-      appBar: AppBar(title: const Text('Formas de Pagamento')),
-      body:
-      // ✅ 2. Usamos BlocBuilder para ouvir o estado central da loja
-      BlocBuilder<StoresManagerCubit, StoresManagerState>(
+      body: BlocBuilder<StoresManagerCubit, StoresManagerState>(
         builder: (context, state) {
           if (state is! StoresManagerLoaded) {
             return const Center(child: DotLoading());
           }
 
-          final paymentGroups = state.activeStore?.relations.paymentMethodGroups ?? [];
-
-          if (paymentGroups.isEmpty) {
-            return const Center(child: Text('Nenhuma forma de pagamento configurada na plataforma.'));
+          final store = state.activeStore;
+          if (store == null) {
+            return const Center(child: Text('Nenhuma loja ativa selecionada.'));
           }
 
-          // ✅ 3. Construímos a UI hierárquica com ListView.builder
-          return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: paymentGroups.length,
-            itemBuilder: (context, groupIndex) {
-              final group = paymentGroups[groupIndex];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ExpansionTile(
-                  title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  initiallyExpanded: true, // Começa expandido
-                  children: group.categories.map((category) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(category.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                          ),
-                          ...category.methods.map((method) {
-                            // A configuração específica da loja para este método
-                            final activation = method.activation;
-                            final bool isEnabled = activation?.isActive ?? false;
+          final paymentGroups = store.relations.paymentMethodGroups ?? [];
 
-                            return ListTile(
-                              leading: const Icon(Icons.payment), // TODO: Usar o icon_key
-                              title: Text(method.name),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // ✅ 4. O controle principal agora é um Switch para ativar/desativar
-                                  Switch(
-                                    value: isEnabled,
-                                    onChanged: (newValue) {
-                                      // Cria uma cópia da ativação atual ou uma nova se não existir
-                                      final updatedActivation = activation?.copyWith(isActive: newValue) ??
-                                          StorePaymentMethodActivation(
-                                            id: 0, // ID não é necessário para a atualização
-                                            isActive: newValue,
-                                            feePercentage: 0,
-                                            isForDelivery: true,
-                                            isForPickup: true,
-                                            isForInStore: true,
-                                          );
+          if (paymentGroups.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('Nenhuma forma de pagamento configurada na plataforma.'),
+              ),
+            );
+          }
 
-                                      // Chama o novo método do repositório
-                                      paymentRepository.updateActivation(
-                                        storeId: storeId,
-                                        platformMethodId: method.id,
-                                        activation: updatedActivation,
-                                      );
-                                    },
-                                  ),
-                                  // Botão para configurar detalhes (taxas, chave pix, etc)
-                                  IconButton(
-                                    icon: const Icon(Icons.settings_outlined),
-                                    onPressed: () {
-                                      // TODO: Criar um DialogService.showPaymentActivationDialog
-                                      // para editar taxas e a chave pix.
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Tela de configuração a ser implementada.')),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
+          // ✅ A estrutura agora é controlada pelo DefaultTabController e NestedScrollView
+          return DefaultTabController(
+            length: paymentGroups.length,
+            child: NestedScrollView(
+              // ✅ 1. O CONSTRUTOR DO CABEÇALHO ROlável
+              headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+                return <Widget>[
+                  // Usamos um SliverAppBar, que é uma AppBar feita para rolar.
+                  SliverAppBar(
+                    // Removemos a sombra e cor de fundo para parecer parte do corpo
+                    elevation: 0,
+                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+
+                    floating: true,
+
+                     snap: true,
+
+
+                    automaticallyImplyLeading: false,
+                    // Altura do seu FixedHeader
+                    toolbarHeight: 120,
+                    titleSpacing: 0,
+
+                    // ✅ SEU CABEÇALHO PERSONALIZADO VAI AQUI
+                    title: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24.0,
+                      ),
+                      child: FixedHeader(
+                        title: 'Formas de pagamento',
+                        subtitle: 'Escolha e consulte as formas de pagamento disponíveis para os seus clientes',
+                        actions: [
+                          DsButton(
+                            label: 'Adicionar',
+                            onPressed: () {
+                              showResponsiveSidePanel(
+                                context,
+                                PlatformPaymentMethodsPage(
+                                  storeId: storeId,
+                                  isInSidePanel: true,
+                                ),
+                              );
+                            },
+                          )
                         ],
                       ),
-                    );
-                  }).toList(),
-                ),
-              );
-            },
+                    ),
+
+                    bottom: PreferredSize(
+                      // A altura padrão para uma TabBar é kToolbarHeight
+                      preferredSize: const Size.fromHeight(kToolbarHeight),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TabBar(
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24.0,
+                          ),
+                          tabs: paymentGroups.map((group) => Tab(text: group.name)).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ];
+              },
+              // ✅ 2. O CORPO COM O CONTEÚDO DAS ABAS
+              body: TabBarView(
+                children: paymentGroups.map((group) {
+                  return PaymentGroupView(
+                    group: group,
+                    storeId: storeId,
+                  );
+                }).toList(),
+              ),
+            ),
           );
         },
       ),

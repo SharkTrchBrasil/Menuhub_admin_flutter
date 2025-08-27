@@ -12,11 +12,13 @@ import '../../widgets/app_primary_button.dart';
 class PlatformPaymentMethodsPage extends StatefulWidget {
   final int storeId;
   final bool isInWizard;
+  final bool isInSidePanel;
 
   const PlatformPaymentMethodsPage({
     super.key,
     required this.storeId,
     this.isInWizard = false,
+    this.isInSidePanel = false,
   });
 
   @override
@@ -66,7 +68,7 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
 
 
   // ✅ 3. MÉTODO 'save' PÚBLICO PARA O WIZARD
-  Future<bool> save() async {
+  Future<void> save() async {
     setState(() { _isLoading = true; });
 
     final List<Future> updateFutures = [];
@@ -95,7 +97,7 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
     if (updateFutures.isEmpty) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nenhuma alteração para salvar.')));
       setState(() { _isLoading = false; });
-      return true; // Nenhuma alteração significa "sucesso" para o wizard
+      return ;
     }
 
     final results = await Future.wait(updateFutures);
@@ -103,15 +105,21 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
 
     if (results.any((res) => res.isLeft)) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ocorreu um erro.'), backgroundColor: Colors.red));
-      return false; // Falha
+      return ; // Falha
     } else {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alterações salvas!'), backgroundColor: Colors.green));
-      _fetchPaymentMethods();
-      return true; // Sucesso
+     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alterações salvas!'), backgroundColor: Colors.green));
+
+      if (widget.isInSidePanel) {
+
+        Navigator.of(context).pop(); // Fecha o painel
+      } else {
+        _fetchPaymentMethods(); // Recarrega os dados locais se for standalone
+      }
+      return ; // Sucesso
     }
   }
 
-  // Função para lidar com a mudança do Checkbox, agora trabalhando com listas
+
   void _handleActivationChange(PlatformPaymentMethod method, bool newValue) {
     setState(() {
       _paymentGroups =
@@ -151,11 +159,57 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 4. BUILD CONDICIONAL
+    // ✅ 4. LÓGICA DE BUILD ATUALIZADA
+    if (widget.isInSidePanel) {
+      return _buildSidePanelLayout();
+    }
     return widget.isInWizard
         ? _buildWizardContent()
         : _buildStandalonePage();
   }
+
+  // ✅ 5. NOVO MÉTODO PARA O LAYOUT DO SIDE PANEL
+  Widget _buildSidePanelLayout() {
+    return Material(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cabeçalho do painel
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Adicionar / Remover Métodos',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const Divider(height: 32),
+            // Conteúdo com scroll
+            Expanded(
+              child: _buildWizardContent(), // Reutilizamos a lista!
+            ),
+            const Divider(height: 32),
+            // Rodapé com o botão de salvar
+            SizedBox(
+              width: double.infinity,
+              child: AppPrimaryButton(
+                onPressed: _isLoading ? null : save,
+                label: 'Salvar Alterações',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   // MÉTODO PARA A PÁGINA COMPLETA (MODO NORMAL)
   Widget _buildStandalonePage() {

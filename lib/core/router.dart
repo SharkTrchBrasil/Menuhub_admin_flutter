@@ -24,6 +24,7 @@ import 'package:totem_pro_admin/pages/sign_in/sign_in_page.dart';
 import 'package:totem_pro_admin/pages/sign_up/sign_up_page.dart';
 import 'package:totem_pro_admin/pages/splash/splash_page.dart';
 
+import '../cubits/active_store_cubit.dart';
 import '../cubits/auth_state.dart';
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
@@ -34,6 +35,7 @@ import '../models/product.dart';
 import '../models/store.dart';
 import '../models/store_hour.dart';
 import '../models/store_with_role.dart';
+import '../models/variant.dart';
 import '../pages/accesses/accesses_page.dart';
 
 import '../pages/analytics/analytics_page.dart';
@@ -48,11 +50,14 @@ import '../pages/customers/customers_page.dart';
 
 import '../pages/dashboard/dashboard.dart';
 import '../pages/edit_coupon/edit_coupon_page.dart';
+import '../pages/edit_product/wizard/product_wizard_page.dart';
 import '../pages/edit_settings/citys/delivery_locations_page.dart';
 import '../pages/edit_settings/hours/hours_store_page.dart';
 import '../pages/edit_settings/general/store_profile_page.dart';
 
 import '../pages/edit_settings/payment_methods/payment_methods_page.dart';
+import '../pages/perfomance/cubit/performance_cubit.dart';
+import '../pages/perfomance/perfomance_page.dart';
 import '../pages/plans/plans_page.dart';
 
 import '../pages/integrations/integrations_page.dart';
@@ -72,9 +77,12 @@ import '../pages/reports/reports_page.dart';
 import '../pages/splash/splash_page_cubit.dart';
 import '../pages/totems/totems_page.dart';
 
+import '../pages/variants/edit_variants.dart';
+import '../pages/variants/temp.dart';
 import '../pages/verify_code/verify_code_page.dart';
 import '../pages/welcome/settings_wizard_page.dart';
 import '../pages/welcome/welcome_page.dart';
+import '../repositories/analytics_repository.dart';
 import '../repositories/realtime_repository.dart';
 import '../repositories/segment_repository.dart';
 import '../repositories/store_repository.dart';
@@ -140,41 +148,8 @@ class AppRouter {
             return '/loading';
           }
 
-          // Guarda de "Setup Incompleto"
-          const setupRequiredRoutes = [
-            '/orders', '/customers', '/inventory', '/coupons',
-            '/variants', '/reports', '/payables',
-          ];
 
 
-          final ownerOnlyRoutes = ['/integrations', '/plans'];
-          final isGoingToOwnerRoute = ownerOnlyRoutes.any((r) => location.contains(r));
-
-          if (isGoingToOwnerRoute) {
-            final storeIdParam = state.pathParameters['storeId'];
-            if (storeIdParam != null) {
-              try {
-                final storeId = int.parse(storeIdParam);
-
-
-                final storesState = context.read<StoresManagerCubit>().state;
-
-                if (storesState is StoresManagerLoaded) {
-
-                  final storeWithRole = storesState.stores[storeId];
-
-                  if (storeWithRole != null && storeWithRole.role != StoreAccessRole.owner) {
-                    print('Decisão: Acesso negado (não é dono). Redirecionando para /orders.');
-                    // Redireciona para uma página segura, como a de pedidos.
-                    return '/stores/$storeId/orders';
-                  }
-                }
-              } catch (e) {
-                print('[GoRouter Guard] Erro ao verificar dono da loja: $e');
-                return '/'; // Em caso de erro, redireciona para a raiz.
-              }
-            }
-          }
 
 
 
@@ -391,7 +366,31 @@ class AppRouter {
                     ),
                   ],
                 ),
+                // GESTÃO
+                // CÓDIGO CORRIGIDO E MAIS SEGURO
+                StatefulShellBranch(
+                  routes: [
+                    GoRoute(
+                      // 1. O path agora é relativo ao AppShell, então /performance está correto.
+                      path: '/performance',
+                      pageBuilder: (context, state) { // 2. Usar pageBuilder com NoTransitionPage para manter a consistência do seu AppShell.
+                        return NoTransitionPage(
+                          child: BlocProvider<PerformanceCubit>(
+                            create: (context) {
 
+                              final storeId = int.parse(state.pathParameters['storeId']!);
+                              return PerformanceCubit(
+                                getIt<AnalyticsRepository>(), // Pega o repositório via GetIt
+                                storeId,                      // Passa o ID da loja ativa
+                              );
+                            },
+                            child: const PerformancePage(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
                 // VENDER
                 StatefulShellBranch(
                   routes: [
@@ -517,6 +516,7 @@ class AppRouter {
                             child: CategoryProductPage(storeId: state.storeId),
                           ),
                       routes: [
+
                         GoRoute(
                           path: 'new',
                           builder: (_, state) {
@@ -526,6 +526,15 @@ class AppRouter {
                             return EditProductPage(
                               storeId: state.storeId,
                               category: category,
+                            );
+                          },
+                        ),
+                        GoRoute(
+                          path: 'create',
+                          name: 'product-create-wizard',
+                          pageBuilder: (context, state) {
+                            return const NoTransitionPage( // ou outra transição que preferir
+                              child: ProductWizardPage(),
                             );
                           },
                         ),
@@ -545,6 +554,40 @@ class AppRouter {
                             );
                           },
                         ),
+
+                        // ✅ ADICIONE A NOVA ROTA AQUI
+                        GoRoute(
+                          path: 'variants/:variantId', // O caminho completo será /stores/:storeId/products/variants/:variantId
+                          name: 'variant-edit', // É uma boa prática nomear a rota
+                          pageBuilder: (context, state) {
+                            // Pega o objeto Variant passado pelo parâmetro 'extra'
+                            final variant = state.extra as Variant?;
+
+                            // Se a tela for acessada por um link direto sem o objeto,
+                            // mostramos uma tela de erro/carregamento.
+                            if (variant == null) {
+                              return const NoTransitionPage(
+                                child: Scaffold(
+                                  body: Center(
+                                    child: Text("Erro: Dados do grupo de complemento não foram fornecidos."),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            // Se o objeto foi recebido, constrói a tela de edição
+                            return NoTransitionPage(
+                              key: ValueKey(state.uri.toString()), // Chave para garantir a reconstrução
+                              child: VariantEditScreen(variant: variant),
+                            );
+                          },
+                        ),
+
+
+
+
+
+
                       ],
                     ),
                   ],
@@ -633,6 +676,9 @@ class AppRouter {
                     ),
                   ],
                 ),
+
+
+
                 StatefulShellBranch(
                   routes: [
                     GoRoute(

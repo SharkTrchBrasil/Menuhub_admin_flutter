@@ -1,291 +1,210 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-import '../extensions/colors.dart';
+import '../../themes/ds_theme.dart';
 
 class AppTheme {
   AppTheme._();
 
+  // Método para criar ThemeData a partir de DsTheme
+  static ThemeData fromDsTheme(DsTheme dsTheme) {
+    final bool isLight = dsTheme.mode == DsThemeMode.light;
 
-  static final ThemeData darkTheme = ThemeData(
-    useMaterial3: true,
-    splashColor: Color(0xFF020B12),
-    highlightColor: Colors.transparent,
-    hoverColor: Colors.transparent,
-
-    scaffoldBackgroundColor: Color(0xFF020B12),
-
-    primaryColor: Color(0xFFA347FF),
-
-    colorScheme: ColorScheme.dark(
-      primary: Color(0xFFA347FF),
-      secondary: Color(0xFF73E325),
-      error: Color(0xFFFC871D),
-      background: Color(0xFF020B12),
-      surface: Color(0xFF060e19),
-      onPrimary: Colors.white,
-      onBackground: Color(0xFFEBEBEB),
-      onSurface: Colors.white, // aqui é a cor do texto sobre surface
-    ),
-
-    disabledColor: Color(0xFF818795),
-    dividerColor: Color(0xFFB5B5B5),
-
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: Colors.transparent,
-      hintStyle: GoogleFonts.inter(
-        color: Color(0xFF818795), // textSecondaryColor
-        fontSize: 16,
-        fontWeight: FontWeight.w400,
-      ),
-      labelStyle: TextStyle(color: Color(0xFF818795)),
+    return ThemeData(
+      useMaterial3: true,
+      brightness: isLight ? Brightness.light : Brightness.dark,
+      primaryColor: dsTheme.primaryColor,
+      scaffoldBackgroundColor: dsTheme.backgroundColor,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
       hoverColor: Colors.transparent,
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: BorderSide(color: Colors.grey),
+
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: dsTheme.primaryColor,
+        primary: dsTheme.primaryColor,
+        secondary: dsTheme.secondaryColor,
+        background: dsTheme.backgroundColor,
+        surface: dsTheme.cardColor,
+        onPrimary: dsTheme.onPrimaryColor,
+        onSecondary: dsTheme.onSecondaryColor,
+        onBackground: dsTheme.onBackgroundColor,
+        onSurface: dsTheme.onCardColor,
+        error: Colors.deepOrange,
+        brightness: isLight ? Brightness.light : Brightness.dark,
       ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.grey),
+
+      appBarTheme: AppBarTheme(
+        backgroundColor: dsTheme.cardColor,
+        foregroundColor: dsTheme.onCardColor,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0.5,
       ),
-      border: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.grey),
-      ),
-    ),
 
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF060e19), // mais escuro que scaffold
-      foregroundColor: Colors.white,
-      surfaceTintColor: Color(0xFF060e19),
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      shadowColor: Colors.transparent,
-    ),
-
-
-    tabBarTheme: TabBarThemeData(
-      splashFactory: NoSplash.splashFactory,
-      overlayColor: MaterialStateProperty.all(Colors.transparent), // Remove efeito de clique
-      mouseCursor: MaterialStateProperty.all(MouseCursor.defer), // Remove mudança de cursor
-      indicatorColor: primaryColor,
-      labelColor: primaryColor,
-      unselectedLabelColor: Colors.grey,
-      dividerColor: Colors.transparent,
-    ),
-
-
-    drawerTheme: const DrawerThemeData(
-      backgroundColor: Color(0xFF060e19), // mais escuro que scaffold (personalizado)
-      surfaceTintColor: Color(0xFF060e19),
-      shadowColor: Colors.transparent,
-    ),
-
-    cardTheme:  CardThemeData(
-      color: Color(0xFF060e19), // levemente mais claro que drawer
-      elevation: 0,
-      shadowColor: Colors.transparent,
-    ),
-
-    listTileTheme: const ListTileThemeData(
-      iconColor: Colors.white,
-      textColor: Colors.white,
-    ),
-
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Color(0xFFA85BF7),
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    ),
-
-    textTheme: GoogleFonts.interTextTheme(
-      const TextTheme(
-        bodyLarge: TextStyle(color: Color(0xFFB5B5B5)), // textPrimaryColor
-        bodyMedium: TextStyle(color: Color(0xFFB5B5B5)),
-
-        titleLarge: TextStyle(
-          color: Color(0xFFB5B5B5),
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-          overflow: TextOverflow.ellipsis,
+      // TEMA DA TABBAR ADICIONADO AQUI
+      tabBarTheme: TabBarThemeData(
+        labelColor: dsTheme.primaryColor,
+        unselectedLabelColor: isLight ? Colors.grey[600] : Colors.grey[400],
+        indicatorColor: dsTheme.primaryColor,
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.label,
+        labelStyle: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          fontFamily: dsTheme.fontFamily.title,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 16,
+          fontFamily: dsTheme.fontFamily.title,
+        ),
+        // Remove efeitos de overlay (hover e splash)
+        overlayColor: MaterialStateProperty.all(Colors.transparent),
+        // Remove a margem padrão das tabs
+       // labelPadding: EdgeInsets.zero,
+        // Alinha as tabs ao início
+        indicator: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: dsTheme.primaryColor,
+              width: 2.0,
+            ),
+          ),
         ),
       ),
-    ),
 
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: Color(0xFF020B12),
-      selectedItemColor: Color(0xff194BFB),
-      unselectedItemColor: Colors.white,
-      showUnselectedLabels: true,
-    ),
+      cardTheme: CardThemeData(
+        color: dsTheme.cardColor,
+        elevation: 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: dsTheme.inactiveColor),
+        ),
+      ),
 
-    checkboxTheme: CheckboxThemeData(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-      checkColor: MaterialStateProperty.all(Colors.white),
-      fillColor: MaterialStateProperty.all(Color(0xFFA85BF7)),
-    ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: dsTheme.cardColor,
+        hintStyle: TextStyle(
+          fontFamily: dsTheme.fontFamily.title,
+          color: dsTheme.inactiveColor,
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: dsTheme.inactiveColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: dsTheme.inactiveColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: dsTheme.primaryColor, width: 2),
+        ),
+      ),
 
-    pageTransitionsTheme: const PageTransitionsTheme(
-      builders: {
-        TargetPlatform.android: OpenUpwardsPageTransitionsBuilder(),
-        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      },
-    ),
-  );
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: dsTheme.primaryColor,
+          foregroundColor: dsTheme.onPrimaryColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          overlayColor: Colors.transparent,
+        ),
+      ),
 
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: dsTheme.primaryColor,
+          overlayColor: Colors.transparent,
+        ),
+      ),
 
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        checkColor: MaterialStateProperty.all(dsTheme.onPrimaryColor),
+        fillColor: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) {
+            return dsTheme.primaryColor;
+          }
+          return Colors.white;
+        }),
+        side: const BorderSide(color: Colors.black, width: 1.5),
+      ),
 
+      textTheme: _buildTextTheme(dsTheme),
+    );
+  }
 
+  // Método para construir text theme baseado no DsTheme
+  static TextTheme _buildTextTheme(DsTheme dsTheme) {
+    final baseTextStyle = TextStyle(
+      fontFamily: dsTheme.fontFamily.title,
+      color: dsTheme.onBackgroundColor,
+    );
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  static final ThemeData lightTheme = ThemeData(
-    useMaterial3: false,
-    splashColor: Colors.transparent,
-    highlightColor: Colors.transparent,
-    hoverColor: Colors.transparent,
-    scaffoldBackgroundColor: Colors.white,
-    primaryColor: primaryColor,
-    iconTheme: const IconThemeData(color: Colors.black),
-    dividerColor: viewLineColor,
-    cardColor: cardLightColor,
-
-    listTileTheme: ListTileThemeData(
-      iconColor: Colors.black, // Cor dos ícones (leading e trailing)
-      textColor: Colors.black, // Cor do texto (opcional)
-    ),
-
-    appBarTheme: const AppBarTheme(
-      elevation: 0,
-      backgroundColor:  Color(0xffFfffff),
-      shadowColor: Colors.transparent,
-      foregroundColor: Colors.black,
-    ),
-
-    tabBarTheme: TabBarThemeData(
-      splashFactory: NoSplash.splashFactory,
-      indicatorColor: primaryColor,
-      labelColor: primaryColor,
-      unselectedLabelColor: Colors.grey,
-      dividerColor: Colors.transparent,
-    ),
-
-
-    cardTheme: CardThemeData(
-      color: const Color(0xffFFFFFF),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),// Cor branca
-
-    ),
-
-    drawerTheme: const DrawerThemeData(
-      backgroundColor: Color(0xffFAFAFA),
-      shadowColor: Colors.transparent,
-    ),
-
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true, // <- necessário para `fillColor` funcionar
-      fillColor: Colors.transparent, // <- deixa o fundo transparente
-      hintStyle: GoogleFonts.inter(
-        color: Colors.grey, // ou notifire.getGry600_500Color
+    return TextTheme(
+      displayLarge: baseTextStyle.copyWith(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+      ),
+      displayMedium: baseTextStyle.copyWith(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
+      displaySmall: baseTextStyle.copyWith(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+      ),
+      headlineMedium: baseTextStyle.copyWith(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+      ),
+      headlineSmall: baseTextStyle.copyWith(
         fontSize: 16,
-        fontWeight: FontWeight.w400,
       ),
-      hoverColor: Colors.transparent, // 🚫 Remove efeito cinza no hover
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: BorderSide(color: Colors.grey),
+      titleLarge: baseTextStyle.copyWith(
+        fontSize: 14,
       ),
-      labelStyle: TextStyle(color: Colors.black), // Cor da label (ex: "Nome")
-      // Cor do hintText, se usado
-
-      focusedBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.grey), // Borda quando foca
+      bodyLarge: baseTextStyle.copyWith(
+        fontSize: 16,
       ),
-      border: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.grey), // Borda padrão
+      bodyMedium: baseTextStyle.copyWith(
+        fontSize: 14,
       ),
-
-    ),
-
-
-
-
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        shadowColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      labelLarge: baseTextStyle.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
       ),
-    ),
-
-    bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      backgroundColor:  Color(0xffffffff),
-
-      selectedItemColor: Color(0xff194BFB),
-
-      unselectedItemColor: Colors.black,
-      showUnselectedLabels: true,
-    ),
-
-    colorScheme: const ColorScheme(
-      primary: primaryColor,
-      secondary: primaryColor,
-      surface: Colors.white,
-      background: whiteColor,
-      error: Colors.red,
-      onPrimary: Colors.white,
-      onSecondary: Colors.black,
-      onSurface: Colors.black,
-      onBackground: Colors.black,
-      onError: Colors.redAccent,
-      brightness: Brightness.light,
-    ),
-
-    checkboxTheme: CheckboxThemeData(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-      checkColor: MaterialStateProperty.all(Colors.white),
-      fillColor: MaterialStateProperty.all(primaryColor),
-    ),
-
-    textTheme: GoogleFonts.interTextTheme(
-      const TextTheme(
-        bodyLarge: TextStyle(color: Colors.black,),
-        bodyMedium: TextStyle(color: Colors.black),
-        titleLarge: TextStyle(color: blackColor, fontWeight: FontWeight.bold),
+      bodySmall: baseTextStyle.copyWith(
+        fontSize: 12,
       ),
-    ),
+      labelSmall: baseTextStyle.copyWith(
+        fontSize: 10,
+      ),
+    );
+  }
 
-    pageTransitionsTheme: const PageTransitionsTheme(
-      builders: {
-        TargetPlatform.android: OpenUpwardsPageTransitionsBuilder(),
-        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      },
+  // ===================================================================
+  // --- TEMA CLARO PADRÃO (LIGHT THEME) ---
+  // ===================================================================
+  static final ThemeData lightTheme = fromDsTheme(
+    DsTheme(
+      primaryColor: const Color(0xFFff0502),
+      mode: DsThemeMode.light,
+      fontFamily: DsThemeFontFamily.roboto,
+      themeName: DsThemeName.classic,
     ),
   );
 
-
-
+  // ===================================================================
+  // --- TEMA ESCURO PADRÃO (DARK THEME) ---
+  // ===================================================================
+  static final ThemeData darkTheme = fromDsTheme(
+    DsTheme(
+      primaryColor: const Color(0xFFff0502),
+      mode: DsThemeMode.dark,
+      fontFamily: DsThemeFontFamily.roboto,
+      themeName: DsThemeName.classic,
+    ),
+  );
 }
-
-

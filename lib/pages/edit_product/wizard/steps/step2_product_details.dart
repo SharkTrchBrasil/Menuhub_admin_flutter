@@ -1,0 +1,313 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/core/di.dart';
+import 'package:totem_pro_admin/core/responsive_builder.dart';
+import 'package:totem_pro_admin/models/catalog_product.dart';
+import 'package:totem_pro_admin/repositories/product_repository.dart';
+import 'package:totem_pro_admin/widgets/app_text_field.dart';
+import 'package:totem_pro_admin/widgets/mobile_mockup.dart'; // Importe seu mockup
+
+import 'package:brasil_fields/brasil_fields.dart';
+import 'package:flutter/services.dart';
+
+import '../../../../models/image_model.dart';
+import '../../../../widgets/app_image_form_field.dart';
+import '../../cubit/product_wizard_cubit.dart';
+import '../../cubit/product_wizard_state.dart';
+
+class Step2ProductDetails extends StatefulWidget {
+  const Step2ProductDetails({super.key});
+
+  @override
+  State<Step2ProductDetails> createState() => _Step2ProductDetailsState();
+}
+
+class _Step2ProductDetailsState extends State<Step2ProductDetails> {
+  // ✅ 1. Controladores locais para os campos do formulário
+  late final TextEditingController _searchController;
+  late final TextEditingController _nameController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _priceController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+
+    // Inicializa os controladores com os dados do Cubit
+    final initialProduct = context.read<ProductWizardCubit>().state.productInCreation;
+    _nameController = TextEditingController(text: initialProduct.name);
+    _descriptionController = TextEditingController(text: initialProduct.description);
+    _priceController = TextEditingController(
+      text: UtilBrasilFields.obterReal((initialProduct.basePrice ?? 0) / 100),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  // ✅ 2. Garante que os campos sejam atualizados se o estado do Cubit mudar
+  // (Ex: quando um produto do catálogo é selecionado)
+  void _syncControllersWithState(ProductWizardState state) {
+    final product = state.productInCreation;
+    if (_nameController.text != product.name) {
+      _nameController.text = product.name;
+    }
+    if (_descriptionController.text != product.description) {
+      _descriptionController.text = product.description;
+    }
+    final priceString = UtilBrasilFields.obterReal((product.basePrice ?? 0) / 100);
+    if (_priceController.text != priceString) {
+      _priceController.text = priceString;
+    }
+  }
+
+
+
+
+    @override
+    Widget build(BuildContext context) {
+      // Usamos o BlocConsumer para sincronizar os controllers quando o estado muda
+      return BlocConsumer<ProductWizardCubit, ProductWizardState>(
+        listener: (context, state) {
+          if (!state.catalogProductSelected && _searchController.text.isNotEmpty) {
+            _searchController.clear();
+          }
+          // Sincroniza os controllers com o estado mais recente
+          _syncControllersWithState(state);
+        },
+
+        builder: (context, state) {
+          final mainContent = _buildMainContent(context, state);
+
+          return ResponsiveBuilder(
+            mobileBuilder: (context, constraints) =>
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: mainContent,
+                ),
+            desktopBuilder: (context, constraints) =>
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 6,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(32.0),
+                        child: mainContent,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 32.0, right: 32.0),
+                        child: ProductPhoneMockup(
+                            product: state.productInCreation),
+                      ),
+                    ),
+                  ],
+                ),
+          );
+
+    },
+  );
+}
+
+  Widget _buildMainContent(BuildContext context, ProductWizardState state) {
+    bool shouldShowSearch = state.productType == ProductType.INDUSTRIALIZED &&
+        !state.catalogProductSelected;
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: shouldShowSearch
+          ? _buildSearchInterface(context, state)
+          : _buildProductFormFields(context, state),
+    );
+  }
+
+// Em lib/pages/create_product_wizard/steps/step2_product_details.dart
+
+// --- INTERFACE DE BUSCA SIMPLIFICADA ---
+  Widget _buildSearchInterface(BuildContext context, ProductWizardState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Busque no catálogo',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(
+            'Encontre um produto industrializado pelo nome ou código de barras para preencher as informações automaticamente.',
+            style: TextStyle(color: Colors.grey.shade600)),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _searchController,
+          onChanged: (query) {
+            context.read<ProductWizardCubit>().onSearchQueryChanged(query);
+          },
+          decoration: const InputDecoration(
+            labelText: 'Nome do produto ou código de barras (EAN)',
+            prefixIcon: Icon(Icons.search),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Lógica de exibição dos resultados...
+        if (state.searchStatus == SearchStatus.loading)
+          const Center(child: Padding(padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator())),
+
+        if (state.searchStatus == SearchStatus.failure)
+          const Center(child: Text('Erro ao buscar. Tente novamente.',
+              style: TextStyle(color: Colors.red))),
+
+        if (state.searchStatus == SearchStatus.success &&
+            state.searchResults.isEmpty && _searchController.text.length >= 3)
+          Center(child: Text(
+              'Nenhum produto encontrado para "${_searchController.text}".')),
+
+        if (state.searchStatus == SearchStatus.success)
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: state.searchResults.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (ctx, index) {
+              final product = state.searchResults[index];
+              return ListTile(
+                // ✅ CORREÇÃO AQUI
+                // Envolvemos a imagem em um SizedBox para garantir um tamanho fixo.
+                leading: SizedBox(
+                  width: 56, // Largura padrão do leading do ListTile
+                  height: 56, // Altura padrão do leading do ListTile
+                  child: product.imagePath != null
+                      ? ClipRRect( // Adiciona bordas arredondadas para um visual melhor
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.network(
+                      product.imagePath!.url!,
+                      fit: BoxFit.cover,
+                      // Garante que a imagem preencha o espaço
+                      // Tratamento de erro para a imagem
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.image_not_supported,
+                            color: Colors.grey);
+                      },
+                    ),
+                  )
+                      : const Icon(
+                      Icons.image_not_supported, size: 40, color: Colors.grey),
+                ),
+                title: Text(product.name),
+                subtitle: Text(product.brand ?? 'Marca não informada'),
+                trailing: ElevatedButton(
+                  child: const Text('Selecionar'),
+                  onPressed: () =>
+                      context.read<ProductWizardCubit>().selectCatalogProduct(
+                          product),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  // --- FORMULÁRIO DE DETALHES DO PRODUTO (PERFORMÁTICO) ---
+  Widget _buildProductFormFields(BuildContext context, ProductWizardState state) {
+    final product = state.productInCreation;
+    final cubit = context.read<ProductWizardCubit>();
+    final bool isReadOnly = state.isImported;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Detalhes do Produto', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 24),
+
+        // --- CAMPO NOME ---
+        TextFormField(
+          controller: _nameController, // ✅ Usa controller
+          readOnly: isReadOnly,
+          decoration: InputDecoration(
+            labelText: 'Nome do produto',
+            filled: isReadOnly,
+            fillColor: isReadOnly ? Colors.grey[200] : null,
+            suffixIcon: isReadOnly
+                ? IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => cubit.resetToSearch(_searchController),
+            )
+                : null,
+          ),
+          validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
+
+          onTapOutside: (_) {
+            cubit.updateProduct(product.copyWith(name: _nameController.text));
+          },
+          // ✅ ATUALIZA O CUBIT APENAS QUANDO O USUÁRIO SAI DO CAMPO
+
+        ),
+        const SizedBox(height: 20),
+
+        // --- CAMPO DESCRIÇÃO ---
+        const Text('Descrição', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _descriptionController, // ✅ Usa controller
+          readOnly: isReadOnly,
+          minLines: 3,
+          maxLines: 5,
+          decoration: InputDecoration(
+            hintText: 'Descreva seu produto',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            filled: isReadOnly,
+            fillColor: isReadOnly ? Colors.grey[200] : null,
+          ),
+          onTapOutside: (_) {
+            cubit.updateProduct(product.copyWith(description: _descriptionController.text));
+          },
+        ),
+        const SizedBox(height: 20),
+
+        // --- CAMPO PREÇO ---
+        AppTextField(
+          controller: _priceController, // ✅ Usa controller
+          title: 'Preço de Venda',
+          readOnly: false, // Preço é sempre editável
+          formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
+          onTapOutside: (_) {
+            final money = UtilBrasilFields.converterMoedaParaDouble(_priceController.text);
+            cubit.updateProduct(product.copyWith(basePrice: (money * 100).floor()));
+          },
+          hint: '',
+        ),
+        const SizedBox(height: 20),
+
+        // --- CAMPO IMAGEM ---
+        if (isReadOnly) ...[
+          // ... (código para mostrar a imagem importada, sem alterações)
+        ] else ...[
+          AppProductImageFormField(
+            initialValue: product.image,
+            title: 'Imagem',
+            onChanged: (newImageModel) {
+              cubit.onImageChanged(newImageModel ?? ImageModel());
+            },
+            validator: (imageModel) {
+              if (product.image?.file == null && (product.image?.url == null || product.image!.url!.isEmpty)) {
+                return 'Selecione uma imagem';
+              }
+              return null;
+            },
+          ),
+        ],
+      ],
+    );
+  }
+}

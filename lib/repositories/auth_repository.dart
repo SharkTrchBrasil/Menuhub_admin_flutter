@@ -102,6 +102,9 @@ class AuthRepository {
 
   final FlutterSecureStorage _secureStorage;
 
+  // ✅ NOVO: Flag para controlar o processo de refresh e evitar chamadas duplicadas.
+  bool _isRefreshing = false;
+  bool get isRefreshingToken => _isRefreshing;
 
   Future<bool> initialize() async {
     // Tenta renovar o token usando o refresh_token salvo.
@@ -164,12 +167,21 @@ class AuthRepository {
 
 
   Future<Either<String, void>> refreshAccessToken() async {
-    final refreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
-    if (refreshToken == null) {
-      return const Left('Nenhuma sessão para renovar.');
+    // ✅ LÓGICA PARA USAR A FLAG
+    // Se uma renovação já estiver em andamento, não inicia outra.
+    if (_isRefreshing) {
+      return const Left('Renovação de token já em andamento.');
     }
 
+    // Marca que o processo começou.
+    _isRefreshing = true;
+
     try {
+      final refreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
+      if (refreshToken == null) {
+        return const Left('Nenhuma sessão para renovar.');
+      }
+
       final response = await _dio.post(
         '/auth/refresh',
         data: {'refresh_token': refreshToken},
@@ -178,8 +190,6 @@ class AuthRepository {
       final newTokens = AuthTokens.fromJson(response.data);
       _authTokens = newTokens;
 
-
-      // Salva os novos tokens, sobrescrevendo os antigos.
       await _secureStorage.write(key: SecureStorageKeys.accessToken, value: newTokens.accessToken);
       await _secureStorage.write(key: SecureStorageKeys.refreshToken, value: newTokens.refreshToken);
 
@@ -188,9 +198,11 @@ class AuthRepository {
     } catch (e) {
       print('[AuthRepository] Falha ao renovar o token: $e');
       return Left('Falha ao renovar o token: ${e.toString()}');
+    } finally {
+      // ✅ GARANTE que a flag seja resetada, mesmo se der erro.
+      _isRefreshing = false;
     }
   }
-
 
   /// ✅ ALTERAÇÃO 4: O logout agora limpa AMBOS os tokens.
   Future<void> logout() async {

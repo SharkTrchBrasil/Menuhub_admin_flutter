@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/product.dart';
 import '../enums/cashback_type.dart';
+import '../enums/inventory_stock.dart';
 
 
 
@@ -91,4 +93,21 @@ extension DateFilterRangeExtension on DateFilterRange {
 extension TimeOfDayExtension on TimeOfDay {
   /// Converte TimeOfDay para um valor double (ex: 9:30 -> 9.5).
   double toDouble() => hour + minute / 60.0;
+}
+
+// Adicionando um getter ao seu modelo Product para facilitar a vida
+extension ProductStatusExtension on Product {
+  ProductStockStatus get stockStatus {
+    if (!controlStock) {
+      // Para produtos sem controle, consideramos "em estoque" para não poluir a UI
+      return ProductStockStatus.inStock;
+    }
+    if ((stockQuantity ?? 0) <= 0) {
+      return ProductStockStatus.outOfStock;
+    }
+    if ((minStock ?? 0) > 0 && (stockQuantity ?? 0) <= (minStock ?? 0)) {
+      return ProductStockStatus.lowStock;
+    }
+    return ProductStockStatus.inStock;
+  }
 }

@@ -1,18 +1,15 @@
 import 'package:equatable/equatable.dart';
 
-// ===================================================================
-// CLASSE PRINCIPAL
-// ===================================================================
+// ✅ CLASSE PRINCIPAL (já estava correta, apenas para contexto)
 class DashboardData extends Equatable {
   final DashboardKpi kpis;
-  final List<SalesDataPoint> salesOverTime; // Para o gráfico de estatísticas
+  final List<SalesDataPoint> salesOverTime;
   final List<TopItem> topProducts;
   final List<TopItem> topCategories;
-  final List<PaymentMethodSummary> paymentMethods; // NOVO
-  final List<UserCard> userCards;                 // NOVO
-  final List<CurrencyBalance> currencyBalances;
-
-// NOVO
+  final List<PaymentMethodSummary> paymentMethods;
+  final List<MonthlyDataPoint> newCustomersOverTime;
+  final TopItem? topProductByRevenue;
+  final List<OrderTypeSummary> orderTypeDistribution;
 
   const DashboardData({
     required this.kpis,
@@ -20,30 +17,34 @@ class DashboardData extends Equatable {
     required this.topProducts,
     required this.topCategories,
     required this.paymentMethods,
-    required this.userCards,
-    required this.currencyBalances,
+    required this.newCustomersOverTime,
+    this.topProductByRevenue,
+    required this.orderTypeDistribution,
   });
 
   factory DashboardData.fromJson(Map<String, dynamic> json) {
     return DashboardData(
       kpis: DashboardKpi.fromJson(json['kpis']),
-      salesOverTime: (json['sales_over_time'] as List)
+      salesOverTime: (json['sales_over_time'] as List? ?? [])
           .map((item) => SalesDataPoint.fromJson(item))
           .toList(),
-      topProducts: (json['top_products'] as List)
+      topProducts: (json['top_products'] as List? ?? [])
           .map((item) => TopItem.fromJson(item))
           .toList(),
-      topCategories: (json['top_categories'] as List)
+      topCategories: (json['top_categories'] as List? ?? [])
           .map((item) => TopItem.fromJson(item))
           .toList(),
-      paymentMethods: (json['payment_methods'] as List)
+      paymentMethods: (json['payment_methods'] as List? ?? [])
           .map((item) => PaymentMethodSummary.fromJson(item))
           .toList(),
-      userCards: (json['user_cards'] as List)
-          .map((item) => UserCard.fromJson(item))
+      newCustomersOverTime: (json['new_customers_over_time'] as List? ?? [])
+          .map((i) => MonthlyDataPoint.fromJson(i))
           .toList(),
-      currencyBalances: (json['currency_balances'] as List)
-          .map((item) => CurrencyBalance.fromJson(item))
+      topProductByRevenue: json['top_product_by_revenue'] != null
+          ? TopItem.fromJson(json['top_product_by_revenue'])
+          : null,
+      orderTypeDistribution: (json['order_type_distribution'] as List? ?? [])
+          .map((i) => OrderTypeSummary.fromJson(i))
           .toList(),
     );
   }
@@ -55,11 +56,11 @@ class DashboardData extends Equatable {
     topProducts,
     topCategories,
     paymentMethods,
-    userCards,
-    currencyBalances,
+    newCustomersOverTime,
+    topProductByRevenue,
+    orderTypeDistribution
   ];
 }
-
 // ===================================================================
 // KPIs (INDICADORES CHAVE)
 // ===================================================================
@@ -71,7 +72,9 @@ class DashboardKpi extends Equatable {
   final double totalCashback;       // ADICIONADO: Total de cashback
   final double totalSpent;          // ADICIONADO: Total gasto
   final double revenueChangePercentage; // ADICIONADO: Variação da receita em %
-  final bool revenueIsUp;           // ADICIONADO: Flag se a receita subiu ou caiu
+  final bool revenueIsUp;
+  final double retentionRate;
+  // ADICIONADO: Flag se a receita subiu ou caiu
 
   const DashboardKpi({
     required this.totalRevenue,
@@ -82,6 +85,7 @@ class DashboardKpi extends Equatable {
     required this.totalSpent,
     required this.revenueChangePercentage,
     required this.revenueIsUp,
+    required this.retentionRate,
   });
 
   factory DashboardKpi.fromJson(Map<String, dynamic> json) {
@@ -94,6 +98,7 @@ class DashboardKpi extends Equatable {
       totalSpent: (json['total_spent'] as num).toDouble(),
       revenueChangePercentage: (json['revenue_change_percentage'] as num).toDouble(),
       revenueIsUp: json['revenue_is_up'],
+      retentionRate: (json['retention_rate'] ?? 0.0).toDouble(),
     );
   }
 
@@ -107,8 +112,29 @@ class DashboardKpi extends Equatable {
     totalSpent,
     revenueChangePercentage,
     revenueIsUp,
+    retentionRate
   ];
 }
+
+// ✅ CLASSE CORRIGIDA: Adiciona `extends Equatable`
+class MonthlyDataPoint extends Equatable {
+  final String month;
+  final int count;
+
+  const MonthlyDataPoint({required this.month, required this.count});
+
+  factory MonthlyDataPoint.fromJson(Map<String, dynamic> json) {
+    return MonthlyDataPoint(
+      month: json['month'],
+      count: json['count'],
+    );
+  }
+
+  @override
+  List<Object?> get props => [month, count];
+}
+
+
 
 // ===================================================================
 // DADOS PARA GRÁFICOS
@@ -258,4 +284,22 @@ class LowTurnoverItem extends Equatable {
 
   @override
   List<Object?> get props => [name, daysSinceLastSale, stockQuantity, imageUrl];
+}
+
+// ✅ CLASSE CORRIGIDA: Adiciona `extends Equatable`
+class OrderTypeSummary extends Equatable {
+  final String orderType;
+  final int count;
+
+  const OrderTypeSummary({required this.orderType, required this.count});
+
+  factory OrderTypeSummary.fromJson(Map<String, dynamic> json) {
+    return OrderTypeSummary(
+      orderType: json['order_type'],
+      count: json['count'],
+    );
+  }
+
+  @override
+  List<Object?> get props => [orderType, count];
 }

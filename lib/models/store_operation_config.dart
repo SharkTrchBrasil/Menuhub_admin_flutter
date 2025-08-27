@@ -1,6 +1,4 @@
-// Salve como: models/store_configuration.dart
 
-import 'package:flutter/foundation.dart' show required;
 
 class StoreOperationConfig {
   // --- Configurações Gerais de Operação ---
@@ -13,6 +11,7 @@ class StoreOperationConfig {
   final int? deliveryEstimatedMin;
   final int? deliveryEstimatedMax;
   final double? deliveryFee;
+  final double? freeDeliveryThreshold;
   final double? deliveryMinOrder;
   final String? deliveryScope;
 
@@ -43,6 +42,7 @@ class StoreOperationConfig {
     this.deliveryEstimatedMin,
     this.deliveryEstimatedMax,
     this.deliveryFee,
+    this.freeDeliveryThreshold,
     this.deliveryMinOrder,
     this.deliveryScope = 'neighborhood',
     // Pickup
@@ -72,6 +72,7 @@ class StoreOperationConfig {
       deliveryEstimatedMin: json['delivery_estimated_min'],
       deliveryEstimatedMax: json['delivery_estimated_max'],
       deliveryFee: (json['delivery_fee'] as num?)?.toDouble(),
+      freeDeliveryThreshold:(json['free_delivery_threshold'] as num?)?.toDouble(),
       deliveryMinOrder: (json['delivery_min_order'] as num?)?.toDouble(),
       deliveryScope: json['delivery_scope'],
       // Pickup
@@ -102,6 +103,7 @@ class StoreOperationConfig {
       'delivery_estimated_min': deliveryEstimatedMin,
       'delivery_estimated_max': deliveryEstimatedMax,
       'delivery_fee': deliveryFee,
+      'free_delivery_threshold': freeDeliveryThreshold,
       'delivery_min_order': deliveryMinOrder,
       'delivery_scope': deliveryScope,
       // Pickup
@@ -129,6 +131,7 @@ class StoreOperationConfig {
     int? deliveryEstimatedMin,
     int? deliveryEstimatedMax,
     double? deliveryFee,
+    double? freeDeliveryThreshold,
     double? deliveryMinOrder,
     String? deliveryScope,
     bool? pickupEnabled,
@@ -153,6 +156,7 @@ class StoreOperationConfig {
       deliveryEstimatedMin: deliveryEstimatedMin ?? this.deliveryEstimatedMin,
       deliveryEstimatedMax: deliveryEstimatedMax ?? this.deliveryEstimatedMax,
       deliveryFee: deliveryFee ?? this.deliveryFee,
+      freeDeliveryThreshold: freeDeliveryThreshold ?? this.freeDeliveryThreshold,
       deliveryMinOrder: deliveryMinOrder ?? this.deliveryMinOrder,
       deliveryScope: deliveryScope ?? this.deliveryScope,
       // Pickup

@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/variant.dart';
 
+import '../models/catalog_product.dart';
 import '../models/category.dart';
 import '../models/minimal_product.dart';
 import '../models/product_availability.dart';
@@ -295,6 +296,80 @@ class ProductRepository {
     } catch (e) {
       debugPrint('Erro inesperado: $e');
       return Left(e.toString());
+    }
+  }
+
+  // (Assumindo que você tenha um ProductRepository)
+  Future<void> updateProductsAvailability({
+    required int storeId,
+    required List<int> productIds,
+    required bool isAvailable,
+  }) async {
+    await _dio.post( // ou seu método http
+      '/stores/$storeId/products/bulk-update-status',
+      data: {
+        'product_ids': productIds,
+        'available': isAvailable,
+      },
+    );
+  }
+
+
+  Future<void> deleteProducts({
+    required int storeId,
+    required List<int> productIds,
+  }) async {
+    await _dio.post(
+      '/stores/$storeId/products/bulk-delete',
+      data: {'product_ids': productIds},
+    );
+  }
+  Future<void> bulkUpdateProductCategory({
+    required int storeId,
+    required List<int> productIds,
+    required int targetCategoryId,
+  }) async {
+    await _dio.post(
+      '/stores/$storeId/products/bulk-update-category',
+      data: {
+        'product_ids': productIds,
+        'target_category_id': targetCategoryId,
+      },
+    );
+  }
+
+
+  // ✅ ADICIONE ESTE NOVO MÉTODO COMPLETO
+  Future<Either<String, List<CatalogProduct>>> searchMasterProducts(
+      String query, {
+        int? categoryId,
+      }) async {
+    try {
+      // Endpoint que criamos no FastAPI
+      const String path = '/master-products/search';
+
+      final params = <String, dynamic>{
+        'q': query,
+      };
+      if (categoryId != null) {
+        params['category_id'] = categoryId;
+      }
+
+      final response = await _dio.get(path, queryParameters: params);
+
+      final products = (response.data as List)
+          .map((json) => CatalogProduct.fromJson(json))
+          .toList();
+
+      return Right(products);
+
+    } on DioException catch (e) {
+      debugPrint('Erro Dio ao buscar no catálogo: $e');
+      final errorMessage = e.response?.data['detail'] ?? 'Falha na comunicação com o servidor.';
+      return Left(errorMessage);
+    } catch (e) {
+      debugPrint('Erro inesperado ao buscar no catálogo: $e');
+      return const Left('Ocorreu um erro inesperado.');
     }
   }
 

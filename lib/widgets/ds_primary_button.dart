@@ -33,7 +33,7 @@ class DsButton extends StatelessWidget {
 
     final baseStyle = ButtonStyle(
       padding: MaterialStateProperty.all<EdgeInsets>(
-        const EdgeInsets.symmetric(horizontal: 24, vertical: 16), // Ajustamos o padding vertical
+        const EdgeInsets.symmetric(horizontal: 24, vertical: 20), // Ajustamos o padding vertical
       ),
       shape: MaterialStateProperty.all<RoundedRectangleBorder>(
         RoundedRectangleBorder(

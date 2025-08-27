@@ -26,7 +26,7 @@ class CustomerAnalyticsCubit extends Cubit<CustomerAnalyticsState> {
   void _processState(StoresManagerState state) {
     if (state is StoresManagerLoaded) {
       // A única mudança é aqui: pegamos 'customerAnalytics'
-      final analyticsData = state.activeStore?.customerAnalytics;
+      final analyticsData = state.activeStore?.relations.customerAnalytics;
 
       if (analyticsData != null) {
         emit(CustomerAnalyticsLoaded(analyticsData));

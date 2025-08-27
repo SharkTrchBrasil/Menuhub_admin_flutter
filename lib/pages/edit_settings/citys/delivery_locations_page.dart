@@ -1,20 +1,24 @@
+// lib/pages/edit_settings/citys/delivery_locations_page.dart
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/cubits/scaffold_ui_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/pages/edit_settings/citys/widgets/city_card..dart';
-import 'package:totem_pro_admin/pages/edit_settings/citys/widgets/locations_filter_bar.dart';
-import 'package:totem_pro_admin/widgets/mobileappbar.dart';
 
+import 'package:totem_pro_admin/pages/edit_settings/citys/widgets/locations_filter_bar.dart';
+import 'package:totem_pro_admin/widgets/appbarcode.dart';
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+import 'package:totem_pro_admin/widgets/fixed_header.dart';
+import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import '../../../core/di.dart';
 import '../../../models/store_city.dart';
 import '../../../models/store_neig.dart';
 import '../../../repositories/store_repository.dart';
-import '../../../widgets/dot_loading.dart';
-import '../../base/BasePage.dart';
 import '../../../services/dialog_service.dart';
-
+import '../../../widgets/mobileappbar.dart';
 
 class CityNeighborhoodPage extends StatefulWidget {
   const CityNeighborhoodPage({super.key, required this.storeId});
@@ -36,116 +40,131 @@ class _CityNeighborhoodPageState extends State<CityNeighborhoodPage> {
         setState(() => _searchText = _searchController.text.toLowerCase());
       }
     });
+
+    // ✅ PASSO 1: Informar ao AppShell qual AppBar e FAB usar
+    // Usamos addPostFrameCallback para garantir que o Cubit esteja disponível
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final uiCubit = context.read<ScaffoldUiCubit>();
+      uiCubit.setFab(
+        FloatingActionButton(
+          onPressed: _showAddCityDialog,
+          tooltip: 'Nova cidade'.tr(),
+          child: const Icon(Icons.add),
+        ),
+      );
+      // O AppBarCode já está sendo adicionado pelo AppShell no desktop.
+      // Para o mobile, podemos definir um aqui se quisermos um título específico.
+      uiCubit.setAppBar(AppBarCustom(title: 'Locais de Entrega'.tr()));
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    // ✅ Limpa a configuração da UI ao sair da página
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ScaffoldUiCubit>().clearAll();
+      }
+    });
     super.dispose();
   }
 
+  // ✅ PASSO 2: O método build agora retorna APENAS o conteúdo
   @override
   Widget build(BuildContext context) {
-    return BasePage(
-
-      mobileAppBar: AppBarCustom(title: 'Locais de entrega'.tr()),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddCityDialog,
-        tooltip: 'Nova cidade'.tr(),
-        child: const Icon(Icons.add),
-      ),
-      desktopBuilder: _buildContent,
-      mobileBuilder: _buildContent,
-    );
-  }
-
-
-  Widget _buildContent(BuildContext context) {
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, state) {
         if (state is! StoresManagerLoaded) {
           return const Center(child: DotLoading());
         }
 
-        // --- INÍCIO DA NOVA LÓGICA DE FILTRO ---
-
-        // PASSO 1: Pegar os dados completos do Cubit.
         final allCities = state.activeStore?.relations.cities ?? [];
-        // Assumindo que o Store tem uma lista separada de todos os bairros.
-        final allNeighborhoods = state.activeStore?.relations.neighborhoods ?? [];
+        final allNeighborhoods = allCities.expand((city) => city.neighborhoods).toList();
 
-        // PASSO 2: Filtrar os "itens" (bairros) pelo texto da busca.
         final searchedNeighborhoods = _searchText.isEmpty
             ? allNeighborhoods
-            : allNeighborhoods
-            .where((n) => n.name.toLowerCase().contains(_searchText))
-            .toList();
+            : allNeighborhoods.where((n) => n.name.toLowerCase().contains(_searchText)).toList();
 
-        // PASSO 3: Descobrir a quais "grupos" (cidades) os itens filtrados pertencem.
         final visibleCityIds = searchedNeighborhoods.map((n) => n.cityId).toSet();
 
-        // PASSO 4: Filtrar os "grupos" (cidades) para exibir.
         final visibleCities = _searchText.isEmpty
-            ? allCities // Se a busca está vazia, mostra todas as cidades.
+            ? allCities
             : allCities.where((c) => visibleCityIds.contains(c.id)).toList();
 
-        // --- FIM DA NOVA LÓGICA DE FILTRO ---
-
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
-            child: CustomScrollView(
-              slivers: [
-                // 1. Cabeçalho da Página (continua igual)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+        // O conteúdo da página (a lista rolável) é retornado diretamente.
+        // O Scaffold, AppBar e FAB são gerenciados pelo AppShell.
+        return ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FixedHeader(
+                        title: 'Locais de Entrega',
+                        subtitle: 'Gerencie as cidades e bairros onde sua loja realiza entregas.',
+                        actions: [
+                          DsButton(
+                            label: 'Cadastrar cidade',
+                            onPressed: _showAddCityDialog,
+                          )
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+              ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: SliverFilterBarDelegate(
+                  child: LocationsFilterBar(searchController: _searchController),
+                ),
+              ),
+              if (visibleCities.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        const Icon(Icons.location_off_outlined, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
                         Text(
-                          'Locais de Entrega',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          _searchText.isEmpty
+                              ? 'Nenhum local de entrega cadastrado.'
+                              : 'Nenhum local encontrado para "${_searchController.text}"',
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          'Gerencie as cidades e bairros onde sua loja realiza entregas.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
+                        if (_searchText.isEmpty)
+                          DsButton(
+                            label: 'Cadastrar cidade',
+                            onPressed: _showAddCityDialog,
+                          )
                       ],
                     ),
                   ),
-                ),
-
-                // 2. Barra de Filtro Fixa (continua igual)
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: SliverFilterBarDelegate(
-                    child: LocationsFilterBar(searchController: _searchController),
-                  ),
-                ),
-
-                // 3. Conteúdo da Lista (agora usa as listas filtradas)
-                if (visibleCities.isEmpty)
-                  SliverFillRemaining(
-                    // ... seu widget de lista vazia com botão (continua igual)
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.all(24),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                          final city = visibleCities[index];
-                          // Para cada cidade visível, pegamos apenas os bairros que passaram na busca.
-                          final neighborhoodsForThisCity = searchedNeighborhoods
-                              .where((n) => n.cityId == city.id)
-                              .toList();
-
-                          return CityCard(
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                        final city = visibleCities[index];
+                        final neighborhoodsForThisCity = (_searchText.isEmpty
+                            ? city.neighborhoods
+                            : searchedNeighborhoods.where((n) => n.cityId == city.id)).toList();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: CityCard(
                             storeId: widget.storeId,
                             city: city,
-                            neighborhoods: neighborhoodsForThisCity, // Passa a lista já filtrada
+                            neighborhoods: neighborhoodsForThisCity,
                             onAddNeighborhood: _showAddNeighborhoodDialog,
                             onEditCity: (city) => _showAddCityDialog(cityId: city.id),
                             onDeleteCity: _deleteCity,
@@ -155,14 +174,14 @@ class _CityNeighborhoodPageState extends State<CityNeighborhoodPage> {
                             },
                             onDeleteNeighborhood: _deleteNeighborhood,
                             onToggleNeighborhoodStatus: _toggleNeighborhoodActiveStatus,
-                          );
-                        },
-                        childCount: visibleCities.length,
-                      ),
+                          ),
+                        );
+                      },
+                      childCount: visibleCities.length,
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         );
       },

@@ -40,6 +40,8 @@ import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart'
 import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
 import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
 
+import '../repositories/analytics_repository.dart';
+
 
 final getIt = GetIt.instance;
 final apiUrl = dotenv.env['API_URL'];
@@ -80,7 +82,7 @@ Future<void> configureDependencies() async {
   getIt.registerFactory(() => StoreOperationConfigRepository(getIt()));
   getIt.registerFactory(() => BannerRepository(getIt()));
   getIt.registerFactory(() => OrderRepository(getIt()));
-
+  getIt.registerFactory(() => AnalyticsRepository(getIt()));
 
 
   // --- 3. SERVIÇOS (Dependem dos Repositórios) ---
@@ -99,9 +101,11 @@ Future<void> configureDependencies() async {
 
   getIt.registerSingleton<StoresManagerCubit>(
     StoresManagerCubit(
+      paymentRepository:getIt<PaymentMethodRepository>(),
+      productRepository:getIt<ProductRepository>(),
       storeRepository: getIt<StoreRepository>(),
       realtimeRepository: getIt<RealtimeRepository>(),
-      authCubit: getIt<AuthCubit>(),
+
     ),
   );
   getIt.registerSingleton<ActiveStoreCubit>(ActiveStoreCubit(realtimeRepository: getIt<RealtimeRepository>()));

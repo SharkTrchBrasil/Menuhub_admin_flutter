@@ -4,16 +4,16 @@ import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/models/store.dart';
 import 'package:totem_pro_admin/models/store_with_role.dart';
 
+import '../core/enums/connectivity_status.dart';
+import '../models/dashboard_data.dart';
 import '../models/holiday.dart';
 
-// ✅ MUDANÇA 1: A classe base agora estende `Equatable`
 abstract class StoresManagerState extends Equatable {
   const StoresManagerState();
 
   // Getter seguro: por padrão, retorna null.
   Store? get activeStore => null;
 
-  // A lista de props na classe base pode ser vazia
   @override
   List<Object?> get props => [];
 }
@@ -31,7 +31,6 @@ class StoresManagerEmpty extends StoresManagerState {
 }
 
 class StoresManagerLoaded extends StoresManagerState {
-
   final Map<int, StoreWithRole> stores;
   final int activeStoreId;
   final List<int> consolidatedStores;
@@ -39,6 +38,7 @@ class StoresManagerLoaded extends StoresManagerState {
   final Map<int, int> notificationCounts;
   final DateTime lastUpdate;
   final List<Holiday>? holidays;
+  final ConnectivityStatus connectivityStatus;
 
   const StoresManagerLoaded({
     required this.stores,
@@ -47,14 +47,20 @@ class StoresManagerLoaded extends StoresManagerState {
     this.subscriptionWarning,
     this.notificationCounts = const {},
     required this.lastUpdate,
-    this.holidays
+    this.holidays,
+    this.connectivityStatus = ConnectivityStatus.connected,
   });
-
 
   @override
   Store? get activeStore => stores[activeStoreId]?.store;
 
-  // ✅ MÉTODO `copyWith` ÚNICO E COMPLETO: Inclui todos os campos.
+  // ✅ CORREÇÃO ADICIONADA AQUI
+  /// Retorna o objeto completo [StoreWithRole], que inclui a loja e a permissão (role).
+  /// Este é o getter que o Cubit deve usar para suas operações internas.
+  StoreWithRole? get activeStoreWithRole => stores[activeStoreId];
+
+  DashboardData? get dashboardData => activeStore?.relations.dashboardData;
+
   StoresManagerLoaded copyWith({
     Map<int, StoreWithRole>? stores,
     int? activeStoreId,
@@ -63,6 +69,7 @@ class StoresManagerLoaded extends StoresManagerState {
     Map<int, int>? notificationCounts,
     DateTime? lastUpdate,
     List<Holiday>? holidays,
+    ConnectivityStatus? connectivityStatus,
   }) {
     return StoresManagerLoaded(
       stores: stores ?? this.stores,
@@ -72,6 +79,7 @@ class StoresManagerLoaded extends StoresManagerState {
       notificationCounts: notificationCounts ?? this.notificationCounts,
       lastUpdate: lastUpdate ?? this.lastUpdate,
       holidays: holidays ?? this.holidays,
+      connectivityStatus: connectivityStatus ?? this.connectivityStatus,
     );
   }
 

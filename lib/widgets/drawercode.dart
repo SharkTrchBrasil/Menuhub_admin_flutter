@@ -57,6 +57,7 @@ class _DrawerCodeState extends State<DrawerCode> {
               duration: const Duration(milliseconds: 200),
               width: isExpanded ? _expandedWidth : _collapsedWidth,
               child: Drawer(
+                backgroundColor: Colors.white,
                 child: Column(
                   children: [
                     // ✅ CABEÇALHO: Adicionado aqui para garantir que sempre apareça.
@@ -125,7 +126,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     {'type': 'section', 'title': 'Dashboard', 'requiresSetup': true, 'index': 0},
     {
       'type': 'item',
-      'title': 'Inicio',
+      'title': 'Inicio(ok)',
       'route': '/dashboard',
       'index': 0,
       'iconPath': 'assets/images/package.png',
@@ -133,36 +134,36 @@ class _DrawerCodeState extends State<DrawerCode> {
     },
     {
       'type': 'item',
-      'title': 'Meus Pedidos',
+      'title': 'Pedidos(ok)',
       'route': '/orders',
       'index': 1,
       'iconPath': 'assets/images/package.png',
       'requiresSetup': true,
     },
-    // Descomente se precisar
-    // {
-    //   'type': 'item',
-    //   'title': 'Pedidos Balcão (PDV)',
-    //   'route': '/pdv-orders',
-    //   'index': 2,
-    //   'iconPath': 'assets/images/package.png',
-    //   'requiresSetup': true,
-    // },
-    // {
-    //   'type': 'item',
-    //   'title': 'Mesas',
-    //   'route': '/tables',
-    //   'index': 3,
-    //   'iconPath': 'assets/images/package.png',
-    //   'requiresSetup': true,
-    // },
+
+    {
+      'type': 'item',
+      'title': 'Desempenho(ok)',
+      'route': '/performance',
+      'index': 2,
+      'iconPath': 'assets/images/package.png',
+      'requiresSetup': true,
+    },
+    {
+      'type': 'item',
+      'title': 'Financeiro',
+      'route': '/payables',
+      'index': 3,
+      'iconPath': 'assets/images/package.png',
+      'requiresSetup': true,
+    },
 
     {'type': 'spacer'},
 
 
     {
       'type': 'item',
-      'title': 'Produtos',
+      'title': 'Cardápios',
       'route': '/products',
       'index': 4,
       'iconPath': 'assets/images/package.png',
@@ -171,7 +172,7 @@ class _DrawerCodeState extends State<DrawerCode> {
 
     {
       'type': 'item',
-      'title': 'Cupons',
+      'title': 'Promoções',
       'route': '/coupons',
       'index': 5,
       'iconPath': 'assets/images/6.png',
@@ -208,7 +209,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     {'type': 'section', 'title': 'Configuração da Loja', 'requiresSetup': false, 'index': 10},
     {
       'type': 'item',
-      'title': 'Informações Gerais',
+      'title': 'Minha loja(ok)',
       'route': '/settings',
       'index': 9,
       'iconPath': 'assets/images/33.png',
@@ -216,7 +217,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     },
     {
       'type': 'item',
-      'title': 'Horários',
+      'title': 'Horários(ok)',
       'route': '/settings/hours',
       'index': 10,
       'iconPath': 'assets/images/calendar-edit.png',
@@ -224,7 +225,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     },
     {
       'type': 'item',
-      'title': 'Métodos de Pagamento',
+      'title': 'Forma de Pagamento(ok)',
       'route': '/payment-methods',
       'index': 11,
       'iconPath': 'assets/images/coins.png',
@@ -232,7 +233,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     },
     {
       'type': 'item',
-      'title': 'Formas de Entrega',
+      'title': 'Configurações de Entrega(ok)',
       'route': '/settings/shipping',
       'index': 12,
       'iconPath': 'assets/images/box.png',
@@ -240,7 +241,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     },
     {
       'type': 'item',
-      'title': 'Cidades e Bairros',
+      'title': 'Cidades e Bairros(ok)',
       'route': '/settings/locations',
       'index': 13,
       'iconPath': 'assets/images/location-pin.png',
@@ -271,23 +272,16 @@ class _DrawerCodeState extends State<DrawerCode> {
     {'type': 'spacer'},
 
     {'type': 'section', 'title': 'Financeiro', 'requiresSetup': true, 'index': 18},
-    {
-      'type': 'item',
-      'title': 'Contas a pagar',
-      'route': '/payables',
-      'index': 16,
-      'iconPath': 'assets/images/dollar-circle.png',
-      'requiresSetup': true,
-    },
 
-    {
-      'type': 'item',
-      'title': 'Relatórios',
-      'route': '/reports',
-      'index': 17,
-      'iconPath': 'assets/images/chart-trend-up1.png',
-      'requiresSetup': true,
-    },
+
+    // {
+    //   'type': 'item',
+    //   'title': 'Relatórios',
+    //   'route': '/reports',
+    //   'index': 16,
+    //   'iconPath': 'assets/images/chart-trend-up1.png',
+    //   'requiresSetup': true,
+    // },
 
     {'type': 'spacer'},
 
@@ -297,7 +291,7 @@ class _DrawerCodeState extends State<DrawerCode> {
       'type': 'item',
       'title': 'Analise(ok)',
       'route': '/analytics',
-      'index': 18,
+      'index': 17,
       'iconPath': 'assets/images/user.png',
       'requiresSetup': false,
     },
@@ -305,7 +299,7 @@ class _DrawerCodeState extends State<DrawerCode> {
       'type': 'item',
       'title': 'Planos(ok)',
       'route': '/plans',
-      'index': 19,
+      'index': 18,
       'iconPath': 'assets/images/rocket-launch.png',
       'requiresSetup': true,
     },
@@ -368,7 +362,7 @@ class _DrawerCodeState extends State<DrawerCode> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
+       // color: Theme.of(context).primaryColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.3)),
       ),

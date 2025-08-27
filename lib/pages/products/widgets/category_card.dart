@@ -1,36 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:totem_pro_admin/pages/products/widgets/product_list_item.dart';
-
-import '../../../constdata/app_colors.dart';
-import '../../../core/di.dart';
-import '../../../cubits/store_manager_cubit.dart';
-import '../../../models/category.dart';
-import '../../../models/product.dart';
-import '../../../repositories/category_repository.dart';
-import '../../../services/dialog_service.dart';
-import '../../../services/subscription/subscription_service.dart';
-import '../products_page.dart';
-
-
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/pages/products/widgets/product_list_item.dart';
 
-import '../../../constdata/app_colors.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_list_item.dart';
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+
+
+
+
+
 import '../../../core/di.dart';
-import '../../../core/responsive_builder.dart';
-import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/category.dart';
 import '../../../models/product.dart';
 import '../../../repositories/category_repository.dart';
 import '../../../services/dialog_service.dart';
 import '../../../services/subscription/subscription_service.dart';
-import '../products_page.dart';
+
+import '../../../core/responsive_builder.dart';
 
 
-class CategoryCard extends StatelessWidget {
+
+
+
+class CategoryCard extends StatefulWidget {
   final int storeId;
   final Category category;
   final List<Product> products;
@@ -44,6 +36,11 @@ class CategoryCard extends StatelessWidget {
     required this.totalProductCount,
   });
 
+  @override
+  State<CategoryCard> createState() => _CategoryCardState();
+}
+
+class _CategoryCardState extends State<CategoryCard> {
   @override
   Widget build(BuildContext context) {
     // ✅ CORREÇÃO: Lógica do menu movida para uma variável
@@ -73,8 +70,8 @@ class CategoryCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${category.name} (${products.length} ${products.length == 1 ? "item" : "itens"})',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark), // Aumentei a fonte
+                    '${widget.category.name} (${widget.products.length} ${widget.products.length == 1 ? "item" : "itens"})',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold,), // Aumentei a fonte
                   ),
                 ),
                 // ✅ A variável com o widget correto é inserida aqui
@@ -83,23 +80,18 @@ class CategoryCard extends StatelessWidget {
             ),
 
             // Lista de produtos construída dinamicamente
-            if (products.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24.0),
-                  child: Text(
-                    'Nenhum item nesta categoria.',
-                    style: TextStyle(color: AppColors.textLight),
-                  ),
-                ),
+            if (widget.products.isEmpty)
+            // ✅ Chamando o widget de estado vazio com a função correta
+              EmptyCategoryCardContent(
+                onAddItem: _navigateToAddItem,
               )
             else
               ListView.separated(
-                itemCount: products.length,
+                itemCount: widget.products.length,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemBuilder: (context, index) {
-                  final product = products[index];
+                  final product = widget.products[index];
 
                   return Container(
                     decoration: BoxDecoration(
@@ -109,7 +101,7 @@ class CategoryCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: ProductListItem(
                       key: ValueKey(product.id),
-                      storeId: storeId,
+                      storeId: widget.storeId,
                       product: product,
                     ),
                   );
@@ -121,6 +113,13 @@ class CategoryCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _navigateToAddItem() {
+    context.go(
+      '/stores/${widget.storeId}/products/create',
+   //   extra: widget.category, // Passa a categoria para já vir selecionada
     );
   }
 
@@ -186,8 +185,8 @@ class CategoryCard extends StatelessWidget {
                   Navigator.of(ctx).pop();
                   // Passamos o objeto 'category' do card para a próxima tela
                   context.go(
-                    '/stores/$storeId/products/new',
-                    extra: category, // ⇐ A MÁGICA ESTÁ AQUI
+                    '/stores/${widget.storeId}/products/new',
+                    extra: widget.category, // ⇐ A MÁGICA ESTÁ AQUI
                   );
                 },
               ),
@@ -195,8 +194,8 @@ class CategoryCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                 child: ListTile(
-                  leading: Icon(category.active ? Icons.pause_circle_outline : Icons.play_circle_outline),
-                  title: Text(category.active ? 'Pausar categoria' : 'Ativar categoria', style: TextStyle(fontWeight: FontWeight.w600)),
+                  leading: Icon(widget.category.active ? Icons.pause_circle_outline : Icons.play_circle_outline,  color: widget.category.active ? Colors.orange : Colors.green),
+                  title: Text(widget.category.active ? 'Pausar categoria' : 'Ativar categoria', style: TextStyle(fontWeight: FontWeight.w600)),
                   onTap: () {
                     // TODO: Implementar lógica de pausar/ativar categoria
                     Navigator.of(ctx).pop();
@@ -211,7 +210,7 @@ class CategoryCard extends StatelessWidget {
                 title: const Text('Editar categoria', style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  DialogService.showCategoryDialog(context, storeId, categoryId: category.id);
+                  DialogService.showCategoryDialog(context, widget.storeId, categoryId: widget.category.id);
                 },
               ),
               Padding(
@@ -221,7 +220,7 @@ class CategoryCard extends StatelessWidget {
                   title: const Text('Remover categoria',  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
                   onTap: () {
 
-                    _deleteCategory(ctx, storeId, category);
+                    _deleteCategory(ctx, widget.storeId, widget.category);
 
 
                   },
@@ -242,9 +241,9 @@ class CategoryCard extends StatelessWidget {
     return PopupMenuButton<String>(
       onSelected: (value) {
         if (value == 'add') {
-          context.go('/stores/$storeId/products/new', extra: category);
+          context.go('/stores/${widget.storeId}/products/new', extra: widget.category);
         } else if (value == 'edit') {
-          DialogService.showCategoryDialog(context, storeId, categoryId: category.id);
+          DialogService.showCategoryDialog(context, widget.storeId, categoryId: widget.category.id);
         }
         // Adicionar outras ações aqui...
       },
@@ -274,6 +273,7 @@ class CategoryCard extends StatelessWidget {
   }
 }
 
+
 Future<void> _deleteCategory(BuildContext context, int storeId, Category category) async {
   final confirmed = await DialogService.showConfirmationDialog(
     context,
@@ -298,3 +298,52 @@ Future<void> _deleteCategory(BuildContext context, int storeId, Category categor
 }
 
 
+
+// ===================================================================
+// WIDGET PARA O CONTEÚDO DA CATEGORIA VAZIA
+// ===================================================================
+
+class EmptyCategoryCardContent extends StatelessWidget {
+  final VoidCallback onAddItem;
+
+  const EmptyCategoryCardContent({
+    super.key,
+    required this.onAddItem,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+
+        child: Column(
+          children: [
+
+          SvgPicture.asset(
+          "assets/icons/chef.svg",
+          height: 80,
+          width: 80,),
+
+            const SizedBox(height: 16),
+            const Text(
+              'Nenhum item nessa categoria',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Essa categoria não está sendo exibida no momento',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            DsButton(label: 'Adicionar item',
+            onPressed:onAddItem,
+            )
+
+          ],
+        ),
+      ),
+    );
+  }
+}

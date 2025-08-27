@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:totem_pro_admin/pages/reports/tabs/sales_tab.dart';
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key, required this.storeId});
@@ -43,15 +44,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 }
 
-// As abas estão separadas em widgets para modularidade
-class SalesReportTab extends StatelessWidget {
-  const SalesReportTab({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Relatório de Vendas'));
-  }
-}
 
 class OrdersReportTab extends StatelessWidget {
   const OrdersReportTab({super.key});

@@ -27,7 +27,7 @@ class HolidaysView extends StatelessWidget {
         }
 
         final holidays = state.holidays!;
-        final pauses = state.activeStore!.scheduledPauses;
+        final pauses = state.activeStore!.relations.scheduledPauses;
         final Map<String, List<Holiday>> holidaysByMonth = {};
         for (var holiday in holidays) {
           final monthKey = DateFormat('MMMM yyyy', 'pt_BR').format(holiday.date.toLocal());

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/models/category.dart'; // Certifique-se que o import está correto
-import 'package:totem_pro_admin/constdata/app_colors.dart'; // Certifique-se que o import está correto
+
 
 class FilterBar extends StatelessWidget {
   final TextEditingController searchController;
@@ -30,12 +30,12 @@ class FilterBar extends StatelessWidget {
               controller: searchController,
               decoration: InputDecoration(
                 hintText: 'Buscar um item',
-                prefixIcon: const Icon(Icons.search, color: AppColors.textLight),
+                prefixIcon: const Icon(Icons.search,),
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide()),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide()),
               ),
             ),
           ),
@@ -47,8 +47,8 @@ class FilterBar extends StatelessWidget {
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide()),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide()),
               ),
               hint: const Text('Selecionar categoria'),
               isExpanded: true,
@@ -64,14 +64,14 @@ class FilterBar extends StatelessWidget {
           const SizedBox(width: 16),
           // Botão Reordenar
           IconButton(
-            icon: const Icon(Icons.sort, color: AppColors.textDark),
+            icon: const Icon(Icons.sort,),
             tooltip: 'Reordenar',
             onPressed: () {
               // TODO: Implementar lógica de reordenação
             },
             style: IconButton.styleFrom(
                 backgroundColor: Colors.white,
-                side: const BorderSide(color: AppColors.border),
+                side: const BorderSide(),
                 padding: const EdgeInsets.all(12)
             ),
           ),

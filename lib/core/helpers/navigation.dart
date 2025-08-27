@@ -19,6 +19,28 @@ class StoreNavigationHelper {
     MapEntry(RegExp(r'^/stores/.*/categories'), 'Categorias'),
   ];
 
+  // ✅ ADICIONE ESTE MÉTODO
+  String getTitleForPath(String path) {
+    if (path.endsWith('/dashboard')) {
+      return 'Dashboard';
+    }
+    if (path.endsWith('/products')) {
+      return 'Cardápio';
+    }
+    if (path.endsWith('/orders')) {
+      return 'Pedidos';
+    }
+    if (path.endsWith('/financial')) {
+      return 'Financeiro';
+    }
+    if (path.endsWith('/settings')) {
+      return 'Ajustes';
+    }
+    // Adicione outras rotas aqui...
+
+    return 'Totem Pro'; // Título padrão
+  }
+
   /// Nome da página atual
   String getCurrentTitle(String location) {
     for (final entry in _routePatterns) {

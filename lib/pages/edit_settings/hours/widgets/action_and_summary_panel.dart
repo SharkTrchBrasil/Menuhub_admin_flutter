@@ -41,7 +41,7 @@ class ActionAndSummaryPanel extends StatelessWidget {
           );
         }
 
-        final peakHours = state.activeStore!.peakHours;
+        final peakHours = state.activeStore!.relations.peakHours;
         double totalHours = 0;
         double peakLunchHours = 0;
         double peakDinnerHours = 0;

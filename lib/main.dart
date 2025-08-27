@@ -20,8 +20,10 @@ import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/menu_app_controller.dart';
 import 'package:totem_pro_admin/core/router.dart';
 import 'package:totem_pro_admin/core/theme/app_theme.dart';
-import 'package:totem_pro_admin/core/theme/theme_provider.dart';
+
 import 'package:totem_pro_admin/repositories/chatbot_repository.dart';
+import 'package:totem_pro_admin/themes/ds_theme.dart';
+import 'package:totem_pro_admin/themes/ds_theme_switcher.dart';
 import 'package:totem_pro_admin/widgets/persistent_notification_toast..dart';
 
 
@@ -29,9 +31,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: 'assets/env');
 
-
   await configureDependencies();
-
   await EasyLocalization.ensureInitialized();
 
   runApp(
@@ -43,25 +43,22 @@ void main() async {
       ],
       path: 'assets/langs',
       fallbackLocale: const Locale('pt', 'BR'),
-
       child: const AppRoot(),
     ),
   );
 }
-
 
 class AppRoot extends StatelessWidget {
   const AppRoot({super.key});
 
   @override
   Widget build(BuildContext context) {
-
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => DrawerControllerProvider()),
         ChangeNotifierProvider(create: (_) => ColorNotifire()),
-
+        ChangeNotifierProvider(create: (_) => DsThemeSwitcher()),
+        // Removido o ProxyProvider pois não é mais necessário
         ChangeNotifierProvider(
           create: (_) => ChatBotConfigController(getIt<ChatBotConfigRepository>()),
         ),
@@ -69,57 +66,62 @@ class AppRoot extends StatelessWidget {
       // E então os providers de lógica (Bloc/Cubit)
       child: MultiBlocProvider(
         providers: [
-          // Todos os create agora simplesmente buscam a instância Singleton do GetIt
           BlocProvider(create: (context) => getIt<StoresManagerCubit>()),
           BlocProvider(create: (context) => getIt<AuthCubit>()),
           BlocProvider(create: (context) => getIt<OrderCubit>()),
           BlocProvider(create: (context) => getIt<ActiveStoreCubit>()),
           BlocProvider(create: (context) => getIt<StoreSetupCubit>()),
         ],
-        // O filho final é o widget que constrói o MaterialApp
         child: const MyApp(),
       ),
     );
   }
 }
 
-/// ✅ Este widget agora constrói o MaterialApp e tem acesso a todos os providers.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-
-    final themeProvider = context.watch<ThemeProvider>();
-
-
+    // Obtenha o DsThemeSwitcher do provider
+    final themeSwitcher = Provider.of<DsThemeSwitcher>(context);
+    final colorNotifire = Provider.of<ColorNotifire>(context);
 
     return MaterialApp.router(
       title: 'PDVix - Admin',
       scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+
+      // Use o tema convertido do DsTheme
+      theme: AppTheme.fromDsTheme(themeSwitcher.theme),
+
+      // Para dark theme, você pode criar um DsTheme específico ou usar o mesmo
+      darkTheme: AppTheme.fromDsTheme(
+        DsTheme(
+          primaryColor: themeSwitcher.theme.primaryColor,
+          mode: DsThemeMode.dark, // Força modo escuro
+          fontFamily: themeSwitcher.theme.fontFamily,
+          themeName: themeSwitcher.theme.themeName,
+        ),
+      ),
+
+      // Use o themeMode baseado no DsTheme
+      themeMode: themeSwitcher.theme.mode == DsThemeMode.light
+          ? ThemeMode.light
+          : ThemeMode.dark,
+
       locale: context.locale,
       supportedLocales: context.supportedLocales,
       localizationsDelegates: context.localizationDelegates,
       routerConfig: AppRouter.router,
 
-      // ✅ CORREÇÃO APLICADA AQUI
-      // O builder recebe o 'context' e o 'child' (que é o seu app roteado).
       builder: (context, child) {
-        // Primeiro, chamamos o builder do BotToast, passando o child do nosso app para ele.
         final botToastBuilder = BotToastInit();
         final appWithToasts = botToastBuilder(context, child);
 
-        // Agora, envolvemos o resultado em nossa própria Stack para adicionar o toast persistente.
         return Stack(
           children: [
-            // O app principal, já com a inicialização do BotToast.
             appWithToasts,
-
-            // Nosso toast posicionado sobre todo o conteúdo.
             const Positioned(
               bottom: 20,
               right: 20,

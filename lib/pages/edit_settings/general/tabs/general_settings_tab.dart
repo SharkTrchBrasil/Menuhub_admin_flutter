@@ -63,13 +63,9 @@ class _GeneralSettingsTabState extends State<GeneralSettingsTab> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 900) {
-          return Center(
-
-              child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: _buildDesktopLayout())
-
-          );
+          return ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: _buildDesktopLayout());
         } else {
           return _buildMobileLayout();
         }

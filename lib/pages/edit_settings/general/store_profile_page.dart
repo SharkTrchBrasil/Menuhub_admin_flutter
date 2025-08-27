@@ -17,6 +17,7 @@ import 'package:totem_pro_admin/pages/edit_settings/general/tabs/social_media_ta
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/core/di.dart';
+import 'package:totem_pro_admin/widgets/fixed_header.dart';
 
 // ✅ 1. CLASSE RENOMEADA
 class StoreProfilePage extends StatefulWidget {
@@ -123,15 +124,19 @@ class StoreProfilePageState extends State<StoreProfilePage> {
   // MÉTODO PARA A PÁGINA COMPLETA (MODO NORMAL)
   Widget _buildStandalonePage() {
     return Scaffold(
-      appBar: AppBar(automaticallyImplyLeading: false, title: const Text('Informações Gerais')),
-      body: _buildWizardContent(),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: AppPrimaryButton(
-          onPressed: save, // Botão chama o método público
-          label: 'Salvar Alterações',
+
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FixedHeader(title: 'Informações da loja'),
+SizedBox(height: 32,),
+            Expanded(child: _buildWizardContent()),
+          ],
         ),
       ),
+
     );
   }
 
@@ -148,8 +153,12 @@ class StoreProfilePageState extends State<StoreProfilePage> {
           child: DefaultTabController(
             length: 3,
             child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTabBar(),
+                Align(
+                  alignment: Alignment.centerLeft, // <-- AQUI
+                  child: _buildTabBar(),
+                ),
                 const SizedBox(height: 25),
                 Expanded(
                   child: TabBarView(
@@ -160,6 +169,18 @@ class StoreProfilePageState extends State<StoreProfilePage> {
                     ],
                   ),
                 ),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+
+                    AppPrimaryButton(
+                      onPressed: save, // Botão chama o método público
+                      label: 'Salvar Alterações',
+                    ),
+                  ],
+                ),
+                SizedBox(height: 50,)
               ],
             ),
           ),
@@ -171,6 +192,7 @@ class StoreProfilePageState extends State<StoreProfilePage> {
   Widget _buildTabBar() {
     return TabBar(
       isScrollable: true,
+      tabAlignment: TabAlignment.start,
       tabs: [
         _buildTab(icon: "assets/images/user.svg", text: "Geral"),
         _buildTab(icon: "assets/images/share.svg", text: "Endereço"),

@@ -1,371 +1,207 @@
-import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:get_it/get_it.dart';
-import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/models/payment_method.dart';
-import 'package:totem_pro_admin/models/store_payable.dart';
-import 'package:totem_pro_admin/repositories/payment_method_repository.dart';
-import 'package:totem_pro_admin/widgets/mobileappbar.dart';
 
-import '../../core/app_edit_controller.dart';
-import '../../core/app_list_controller.dart';
-import '../../core/di.dart';
-import '../../core/helpers/mask.dart';
-import '../../models/store_pix_config.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/pages/payables/widgets/financial-entry_dialog.dart';
+
+import 'package:totem_pro_admin/pages/payables/widgets/payable_view.dart';
+import 'package:totem_pro_admin/pages/payables/widgets/receivable_view.dart';
+import 'package:totem_pro_admin/pages/payables/widgets/supplier_view.dart';
+
+
+import '../../core/responsive_builder.dart';
+import '../../models/store_receivable.dart';
+import '../../cubits/store_manager_cubit.dart';
+import '../../cubits/store_manager_state.dart';
+import '../../models/store_payable.dart';
+
 import '../../repositories/store_repository.dart';
 import '../../services/dialog_service.dart';
-import '../../widgets/app_file_form_field.dart';
-import '../../widgets/app_page_status_builder.dart';
 import '../../widgets/app_primary_button.dart';
-import '../../widgets/app_text_field.dart';
-import '../../widgets/app_toasts.dart';
 import '../../widgets/fixed_header.dart';
+import '../../widgets/mobileappbar.dart';
 import '../base/BasePage.dart';
+import '../../core/di.dart';
+
+// ✅ 1. Enum para controlar o que o dialog vai criar/editar
+enum FinancialEntryType { payable, receivable, supplier, payableCategory, receivableCategory }
+
+
 
 class PayablePage extends StatefulWidget {
   const PayablePage({super.key, required this.storeId});
-
   final int storeId;
 
   @override
   State<PayablePage> createState() => _PayablePageState();
 }
 
-class _PayablePageState extends State<PayablePage> {
-  final StoreRepository storeRepository = getIt();
-//  final paymentRepository = GetIt.I<StorePaymentMethodRepository>();
-  final formKey = GlobalKey<FormState>();
+class _PayablePageState extends State<PayablePage> with TickerProviderStateMixin {
+  late final TabController _tabController;
 
-  late final AppListController<StorePayable> categoriesController =
-      AppListController<StorePayable>(
-        fetch: () => getIt<StoreRepository>().getPayables(widget.storeId),
-      );
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return BasePage(
-      mobileAppBar: AppBarCustom(title: 'Contas a pagar'),
-      mobileBuilder: (BuildContext context) {
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              firstcontain(size: MediaQuery.of(context).size.width),
-              const SizedBox(height: 70),
-            ],
-          ),
-        );
-      },
-      desktopBuilder: (BuildContext context) {
-        return Column(
-          children: [
-            FixedHeader(
-              title: 'Contas a pagar',
-
-              actions: [
-                AppPrimaryButton(
-                  label: 'Adicionar',
-                  onPressed: () async {
-                    DialogService.showPayableDialog(
-                      context,
-                      widget.storeId,
-
-                      onSaved: (coupon) {
-                        categoriesController.refresh();
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            Expanded(
-              child: firstcontain(size: MediaQuery.of(context).size.width),
-            ),
-          ],
-        );
-      },
-
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 18.0),
-        child: FloatingActionButton(
-          onPressed: () {
-            DialogService.showPayableDialog(
-              context,
-              widget.storeId,
-
-              onSaved: (coupon) {
-                categoriesController.refresh();
-              },
-            );
-          },
-          tooltip: 'Novo',
-          elevation: 0,
-
-          child: Icon(Icons.add),
-        ),
-      ),
-    );
-  }
-
-  Widget firstcontain({required double size}) {
-    int crossAxisCount = 1;
-    if (MediaQuery.of(context).size.width >= 1200) {
-      crossAxisCount = 3;
-    } else if (MediaQuery.of(context).size.width >= 800) {
-      crossAxisCount = 2;
-    } else if (MediaQuery.of(context).size.width >= 600) {
-      crossAxisCount = 1;
-    } else {
-      crossAxisCount = 1;
-    }
-
     return Padding(
-      padding: const EdgeInsets.only(left: 0, right: 10),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-                // Layout para mobile
-                return AnimatedBuilder(
-                  animation: categoriesController,
-                  builder: (_, __) {
-                    return AppPageStatusBuilder<List<StorePayable>>(
-                      tryAgain: categoriesController.refresh,
-                      status: categoriesController.status,
-                      successBuilder: (coupons) {
-                        return Padding(
-                          padding: const EdgeInsets.all(28.0),
-                          child: GridView.builder(
-                            shrinkWrap: true,
-                            itemCount: coupons.length,
-                            physics: NeverScrollableScrollPhysics(),
+      padding:  EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24.0,),
+      child: BasePage(
 
-                            // evita conflito de rolagem
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  mainAxisExtent: 180,
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 16,
-                                ),
-                            itemBuilder: (context, index) {
-                              final coupon = coupons[index];
-                              return cardss(coupon, widget.storeId);
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-        ),
+        mobileBuilder: (context) => _buildContent(context, isMobile: true),
+        desktopBuilder: (context) => _buildContent(context, isMobile: false),
+
+        floatingActionButton: _buildFloatingActionButton(),
       ),
     );
   }
 
-  Widget cardss(StorePayable payable, int storeId) {
+  Widget _buildContent(BuildContext context, {required bool isMobile}) {
+    return BlocBuilder<StoresManagerCubit, StoresManagerState>(
+      builder: (context, state) {
+        if (state is! StoresManagerLoaded) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
+        // ✅ ALTERAÇÃO: Pega a lista de recebíveis do estado
+        final payables = state.activeStore?.relations.payables ?? [];
+        final suppliers = state.activeStore?.relations.suppliers ?? [];
+        final receivables = state.activeStore?.relations.receivables ?? [];
 
-    return Material(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        final tabViews = [
+          PayablesView(
+            payables: payables,
+            storeId: widget.storeId,
+            onDeletePayable: _deletePayable,
+            onAddPayable: () {  },
+            onEditPayable: (StorePayable ) {  },
+          ),
+          SuppliersView(suppliers: suppliers),
 
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+          ReceivablesView(
+            receivables: receivables,
+            storeId: widget.storeId,
+            onDeleteReceivable: _deleteReceivable,
+          ),
+        ];
+
+        return Column(
+
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// ListTile com título, valor e opções
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(
-                  payable.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+            if (!isMobile)
+              FixedHeader(
+                title: 'Gestão Financeira',
+                subtitle: 'Gerencie as despesas, pagamentos e fornecedores da sua loja.',
+                actions: _getHeaderActions(),
               ),
-              subtitle: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _formatCurrency(payable.amount),
-                      style: const TextStyle(
-                        color: Colors.blueAccent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: _statusColor(payable.status).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: Text(
-                        _statusLabel(payable.status),
-                        style: TextStyle(
-                          color: _statusColor(payable.status),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              trailing: PopupMenuButton<String>(
-                onSelected: (value) async {
-                  if (value == 'editar') {
-                    DialogService.showPayableDialog(
-                      context,
-                      widget.storeId,
-                      paymentId: payable.id,
-                      onSaved: (_) => categoriesController.refresh(),
-                    );
-                  } else if (value == 'excluir') {
-
-
-                    _deletePayable(payable);
-
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'editar',
-                    child: ListTile(
-                      leading: Icon(Icons.edit),
-                      title: Text('Editar'),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'excluir',
-                    child: ListTile(
-                      leading: Icon(Icons.delete),
-                      title: Text('Excluir'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-
-            /// Datas
-            Row(
-              children: [
-                Icon(Icons.calendar_today_outlined,
-                    size: 18, color: Colors.grey[700]),
-                const SizedBox(width: 6),
-                Text("Vencimento: ${dateFormat.format(DateTime.parse(payable.dueDate))}"),
+            TabBar(
+              controller: _tabController,
+              labelColor: Theme.of(context).primaryColor,
+              unselectedLabelColor: Colors.grey[600],
+              indicatorColor: Theme.of(context).primaryColor,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              indicatorSize: TabBarIndicatorSize.label,
+              labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              unselectedLabelStyle: const TextStyle(fontSize: 16),
+              tabs: const [
+                Tab(text: 'Contas a Pagar'),
+                Tab(text: 'Fornecedores'),
+                Tab(text: 'Contas a Receber'),
               ],
             ),
-            const SizedBox(height: 8),
-
-            if ((payable.paymentDate ?? '').isNotEmpty)
-            Row(
-              children: [
-                Icon(Icons.calendar_today_outlined,
-                    size: 18, color: Colors.grey[700]),
-                if ((payable.paymentDate ?? '').isNotEmpty) ...[
-                  const SizedBox(width: 12),
-                  Text("Pago em: ${dateFormat.format(DateTime.parse(payable.paymentDate!))}"),
-                ],
-              ],
+            Expanded(
+              child: Padding(
+                padding: isMobile ? EdgeInsets.zero : const EdgeInsets.only(top: 24.0),
+                child: tabViews[_tabController.index],
+              ),
             ),
-
-            const SizedBox(height: 12),
-
-            /// Status
-
           ],
-        ),
-      ),
-
+        );
+      },
     );
   }
 
-
-  Future<void> _deletePayable(StorePayable product) async {
-    final confirmed = await DialogService.showConfirmationDialog(
-      context,
-      title: 'Confirmar Exclusão'.tr(),
-      content:
-      'Tem certeza que deseja excluir o produto "${product.title}"?'.tr(),
-    );
-
-    if (confirmed == true) {
-      if (!mounted) return;
-
-      try {
-        await getIt<StoreRepository>().deletePayable(
-          widget.storeId,
-          product.id!,
-        );
-
-        // Atualiza a lista sem setState
-        await categoriesController.refresh();
-
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Produto "${product.title}" excluído com sucesso.'.tr(),
-            ),
-          ),
-        );
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erro ao excluir produto: ${e.toString()}'.tr()),
-            ),
-          );
-        }
-      }
-    }
-
-  }
-  }
-
-String _statusLabel(String status) {
-  switch (status.toLowerCase()) {
-    case 'paid':
-      return 'Pago';
-    case 'pending':
-      return 'Pendente';
-    case 'overdue':
-      return 'Vencido';
-    default:
-      return 'Desconhecido';
-  }
-}
-
-
-Color _statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'paid':
-        return Colors.green;
-      case 'pending':
-        return Colors.orange;
-      case 'overdue':
-        return Colors.red;
+  // ✅ ADIÇÃO: Lógica para criar o FAB dinamicamente
+  Widget? _buildFloatingActionButton() {
+    switch (_tabController.index) {
+      case 0: // Contas a Pagar
+        return FloatingActionButton(onPressed: _addPayable, tooltip: 'Nova Conta', child: const Icon(Icons.add));
+      case 1: // Fornecedores
+        return FloatingActionButton(onPressed: _addSupplier, tooltip: 'Novo Fornecedor', child: const Icon(Icons.person_add));
+      case 2: // Contas a Receber
+        return FloatingActionButton(onPressed: _addReceivable, tooltip: 'Novo Recebível', child: const Icon(Icons.add_card));
       default:
-        return Colors.grey;
+        return null;
     }
   }
 
-String _formatCurrency(int cents) {
-  final formatter = NumberFormat.simpleCurrency(locale: 'pt_BR');
-  return formatter.format(cents / 100);
+  // ✅ ALTERAÇÃO: Adiciona a ação para a aba de Contas a Receber
+  List<Widget> _getHeaderActions() {
+    switch (_tabController.index) {
+      case 0:
+        return [AppPrimaryButton(label: 'Adicionar Conta', onPressed: _addPayable)];
+      case 1:
+        return [AppPrimaryButton(label: 'Adicionar Fornecedor', onPressed: _addSupplier)];
+      case 2:
+        return [AppPrimaryButton(label: 'Adicionar Recebível', onPressed: _addReceivable)];
+      default:
+        return [];
+    }
+  }
+
+
+
+  // ✅ 2. MÉTODOS DE AÇÃO AGORA CHAMAM A FUNÇÃO DO DIALOG
+  void _addPayable() => _showFinancialEntryDialog(type: FinancialEntryType.payable);
+  void _addSupplier() => _showFinancialEntryDialog(type: FinancialEntryType.supplier);
+  void _addReceivable() => _showFinancialEntryDialog(type: FinancialEntryType.receivable);
+
+
+  Future<void> _deletePayable(StorePayable payable) async {
+    final confirmed = await DialogService.showConfirmationDialog(context, title: 'Confirmar Exclusão', content: 'Excluir a conta "${payable.title}"?');
+    if (confirmed == true) {
+      await getIt<StoreRepository>().deletePayable(widget.storeId, payable.id!);
+    }
+  }
+
+  Future<void> _deleteReceivable(StoreReceivable receivable) async {
+    final confirmed = await DialogService.showConfirmationDialog(context, title: 'Confirmar Exclusão', content: 'Excluir o recebível "${receivable.title}"?');
+    if (confirmed == true) {
+      // TODO: Criar o método no repositório
+      // await getIt<StoreRepository>().deleteReceivable(widget.storeId, receivable.id!);
+    }
+  }
+
+
+  // ✅ 3. MÉTODO PRINCIPAL QUE ABRE O DIALOG REUTILIZÁVEL
+  Future<void> _showFinancialEntryDialog({
+    required FinancialEntryType type,
+    dynamic itemToEdit,
+  }) async {
+    // A chamada para showDialog agora mostra o widget que definimos abaixo
+    await showDialog(
+      context: context,
+      builder: (_) => FinancialEntryDialog(
+        storeId: widget.storeId,
+        type: type,
+        itemToEdit: itemToEdit,
+      ),
+    );
+  }
 }
+
+
+
+
+

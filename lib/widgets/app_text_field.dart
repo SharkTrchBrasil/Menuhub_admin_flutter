@@ -19,10 +19,11 @@ class AppTextField extends StatefulWidget {
     this.controller,
     this.readOnly = false,
     this.enabled = true,
-    this.suffixIcon, // ✅ Renomeado de 'suffix' para 'suffixIcon'
+    this.suffixIcon,
     this.focusNode,
-    this.maxLength, // ✅ novo
-    this.maxLines,  // ✅ novo// ✅ Adicionado o novo parâmetro 'focusNode'
+    this.maxLength,
+    this.maxLines,
+    this.onTapOutside, // ✅ 1. NOVO PARÂMETRO ADICIONADO
   });
 
   final String title;
@@ -37,11 +38,12 @@ class AppTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final bool readOnly;
   final bool enabled;
-  final Widget? suffixIcon; // ✅ Renomeado de 'suffix' para 'suffixIcon'
-  final FocusNode? focusNode; // ✅ Adicionado o novo parâmetro 'focusNode'
-// ✅ NOVOS PARÂMETROS
+  final Widget? suffixIcon;
+  final FocusNode? focusNode;
   final int? maxLength;
   final int? maxLines;
+  final Function(PointerDownEvent)? onTapOutside; // ✅ 2. TIPO DEFINIDO
+
   @override
   State<AppTextField> createState() => _AppTextFieldState();
 }
@@ -67,7 +69,7 @@ class _AppTextFieldState extends State<AppTextField> {
         ),
         const SizedBox(height: 8),
         TextFormField(
-          focusNode: widget.focusNode, // ✅ Passa o focusNode para o TextFormField
+          focusNode: widget.focusNode,
           style: TextStyle(
             color: Theme.of(context).textTheme.displayLarge?.color,
             fontSize: 16,
@@ -79,11 +81,11 @@ class _AppTextFieldState extends State<AppTextField> {
           validator: widget.validator,
           initialValue: widget.initialValue,
           onChanged: widget.onChanged,
+          onTapOutside: widget.onTapOutside, // ✅ 3. PARÂMETRO PASSADO PARA O WIDGET INTERNO
           keyboardType: widget.keyboardType,
           inputFormatters: widget.formatters,
           maxLength: widget.maxLength,
           maxLines: widget.maxLines ?? 1,
-
           cursorColor: const Color(0xFFF39C12),
           decoration: InputDecoration(
             filled: true,
@@ -113,7 +115,6 @@ class _AppTextFieldState extends State<AppTextField> {
               borderRadius: borderRadius,
               borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
-            // ✅ Lógica do ícone de sufixo atualizada
             suffixIcon: widget.isHidden
                 ? IconButton(
               icon: Icon(
@@ -126,7 +127,7 @@ class _AppTextFieldState extends State<AppTextField> {
                 });
               },
             )
-                : widget.suffixIcon ?? // Prioriza o novo 'suffixIcon'
+                : widget.suffixIcon ??
                 (widget.icon != null
                     ? Padding(
                   padding: const EdgeInsets.all(12.0),

@@ -59,7 +59,7 @@ class CityCard extends StatelessWidget {
                 _buildCityActionsMenu(context),
               ],
             ),
-            const Divider(height: 24),
+       SizedBox(height: 22,),
 
             // Lista de Bairros
             if (neighborhoods.isEmpty)

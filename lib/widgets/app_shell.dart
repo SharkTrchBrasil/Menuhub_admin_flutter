@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/core/helpers/navigation.dart'; // ✅ Importe seu helper
+import 'package:totem_pro_admin/core/helpers/navigation.dart';
 import 'package:totem_pro_admin/cubits/scaffold_ui_cubit.dart';
-import 'package:totem_pro_admin/widgets/appbarcode.dart'; // Seu AppBar customizado
+import 'package:totem_pro_admin/widgets/appbarcode.dart';
 import 'package:totem_pro_admin/widgets/drawercode.dart';
 
+import '../core/enums/connectivity_status.dart';
 import '../core/responsive_builder.dart';
+import '../cubits/store_manager_cubit.dart';
+import '../cubits/store_manager_state.dart';
+import 'connectivity_banner.dart';
+
 class AppShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
   final int storeId;
@@ -25,32 +30,34 @@ class AppShell extends StatelessWidget {
       child: ResponsiveBuilder(
         mobileBuilder: (context, constraints) => _buildMobileLayout(context),
         desktopBuilder: (context, constraints) => _buildDesktopLayout(context),
-        // O tabletBuilder pode usar o mesmo layout do mobile,
-        // o ResponsiveBuilder já faz isso por padrão se for nulo.
       ),
     );
   }
 
   // Layout para telas grandes (Desktop/Web)
   Widget _buildDesktopLayout(BuildContext context) {
-    final navHelper = StoreNavigationHelper(storeId);
-
-
     return Scaffold(
-      body: Row(
+      body: Column( // ✅ Envolve tudo em uma Column para posicionar o banner
         children: [
-          DrawerCode(storeId: storeId), // Menu lateral fixo
           Expanded(
-            child: Column(
+            child: Row( // ✅ Usa uma Row para o layout principal
               children: [
-
-                AppBarCode(),
-
-                // O conteúdo da página (shell) ocupa o resto do espaço
-                Expanded(child: navigationShell),
+                DrawerCode(storeId: storeId), // Menu lateral fixo
+                Expanded(
+                  child: Column(
+                    children: [
+                      AppBarCode(),
+                      // O conteúdo da página (shell) ocupa o resto do espaço
+                      Expanded(child: navigationShell),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
+          // O banner agora fica fora do layout principal,
+          // aparecendo no rodapé sem empurrar o conteúdo.
+          _buildConnectivityBanner(),
         ],
       ),
     );
@@ -64,20 +71,50 @@ class AppShell extends StatelessWidget {
     return BlocBuilder<ScaffoldUiCubit, ScaffoldUiState>(
       builder: (context, uiState) {
         return Scaffold(
-          // Se a página filha definiu uma AppBar, usa ela.
-          // Senão, usa uma AppBar padrão com o título do helper.
-          appBar: uiState.appBar ?? AppBar(title: Text('')),
-
-          drawer:  DrawerCode(storeId: storeId), // Adicionando o drawer para mobile também
-
-          body: navigationShell, // Conteúdo da página
-
-          floatingActionButton: uiState.fab, // FAB definido pela página filha
-
+          // ✅ CORREÇÃO: A AppBar padrão agora é visível e funcional
+          appBar: uiState.appBar ?? AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0.5, // Uma leve sombra para separar do conteúdo
+            title: Text(
+              navHelper.getTitleForPath(currentPath), // Título dinâmico
+              style: const TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            // Adiciona o botão para abrir o menu (drawer)
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.black54),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+          ),
+          drawer: DrawerCode(storeId: storeId),
+          body: Column(
+            children: [
+              Expanded(child: navigationShell),
+              _buildConnectivityBanner(),
+            ],
+          ),
+          floatingActionButton: uiState.fab,
           bottomNavigationBar: navHelper.shouldShowBottomBar(currentPath)
               ? navHelper.buildBottomNavigationBar(context, currentPath, GlobalKey<ScaffoldState>())
               : null,
         );
+      },
+    );
+  }
+  // ✅ Widget do banner foi extraído para ser reutilizado
+  Widget _buildConnectivityBanner() {
+    return BlocSelector<StoresManagerCubit, StoresManagerState, ConnectivityStatus>(
+      selector: (state) {
+        return state is StoresManagerLoaded
+            ? state.connectivityStatus
+            : ConnectivityStatus.connected;
+      },
+      builder: (context, status) {
+        if (status == ConnectivityStatus.reconnecting) {
+          return const ConnectivityBanner();
+        }
+        return const SizedBox.shrink(); // Não mostra nada se estiver conectado
       },
     );
   }

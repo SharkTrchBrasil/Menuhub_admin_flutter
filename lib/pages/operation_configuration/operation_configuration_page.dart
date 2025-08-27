@@ -1,27 +1,23 @@
 // Salve como: pages/edit_settings/tabs/operation_configuration_page.dart
 
+import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/core/responsive_builder.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-import 'package:totem_pro_admin/models/store_operation_config.dart'; // Importe o modelo correto
+import 'package:totem_pro_admin/models/store_operation_config.dart';
 import 'package:totem_pro_admin/repositories/store_operation_config_repository.dart';
-import 'package:totem_pro_admin/widgets/app_primary_button.dart';
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
-import 'package:totem_pro_admin/widgets/mobileappbar.dart';
 import 'dart:developer';
 
 import '../../../core/di.dart';
-import '../../../repositories/store_repository.dart'; // Ou o repo correto
 import '../../../widgets/app_counter_form_field.dart';
 import '../../../widgets/app_text_field.dart';
-import '../../../widgets/app_toasts.dart';
-import '../../widgets/app_toasts.dart' as AppToasts;
-import '../base/BasePage.dart';
+import '../../../widgets/app_toasts.dart' as AppToasts;
 
-
-// ✅ Nome da classe atualizado
 class OperationConfigurationPage extends StatefulWidget {
   final int storeId;
 
@@ -32,21 +28,17 @@ class OperationConfigurationPage extends StatefulWidget {
 }
 
 class _OperationConfigurationPageState extends State<OperationConfigurationPage> {
-  // ✅ Repositório usado apenas para salvar
-  final StoreOperationConfigRepository storeRepository = getIt(); // Adapte se criou um repo novo
+  final StoreOperationConfigRepository storeRepository = getIt();
   final formKey = GlobalKey<FormState>();
 
-  // ✅ Estado local para edição, sem controller complexo
   StoreOperationConfig? _editableConfig;
   int? _storeIdForSync;
   DateTime? _lastUpdateFromCubit;
 
-  // ✅ Lógica de salvar agora é centralizada e simples
   Future<void> _save() async {
     if (formKey.currentState?.validate() != true || _editableConfig == null) return;
 
-    final l = showLoading();
-    // ✅ Chame o novo método do repositório
+    final l = AppToasts.showLoading();
     final result = await storeRepository.updateConfiguration(widget.storeId, _editableConfig!);
     l();
 
@@ -54,12 +46,10 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
           (error) => AppToasts.showError('Erro ao salvar configurações.'),
           (success) {
         AppToasts.showSuccess('Configurações de operação salvas!');
-        // A UI atualizará sozinha via socket.
       },
     );
   }
 
-  // ✅ Callback para atualizar o estado local
   void _onConfigChanged(StoreOperationConfig newConfig) {
     setState(() {
       _editableConfig = newConfig;
@@ -68,40 +58,21 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 800;
+    // Definimos a variável `isMobile` uma vez aqui para usar em todo o build.
+    final bool isMobile = ResponsiveBuilder.isMobile(context);
 
     return Scaffold(
-      bottomNavigationBar:   Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            SizedBox(
-              child: AppPrimaryButton(
-
-
-                onPressed: _save,
-                label: 'Salvar Alterações',
-
-              ),
-            ),
-          ],
+      // O BottomNavigationBar já estava ótimo para mobile.
+      bottomNavigationBar: isMobile ? Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), // Ajuste de padding
+        child: DsButton(
+          onPressed: _save,
+          label: 'Salvar Alterações',
         ),
-      ),
+      ) : const SizedBox.shrink(),
       body: Form(
         key: formKey,
-
-        child: _buildPageContent(isMobile: false),
-
-
-        // BasePage(
-        //
-        //
-        //   desktopBuilder: (context) => _buildPageContent(isMobile: false),
-        //   mobileBuilder: (context) => _buildPageContent(isMobile: true),
-        //
-        //
-        // ),
+        child: _buildPageContent(isMobile: isMobile),
       ),
     );
   }
@@ -131,57 +102,62 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
           return const Center(child: CircularProgressIndicator());
         }
 
-        return Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: SingleChildScrollView(
+
+            child: Column(
+              children: [
+                FixedHeader(
+                  title: 'Configurações de operação', // Título mais genérico
+                  subtitle: 'Defina os modos de serviço, áreas e tempos da sua loja.',
+                  actions: [
+                    // Botão só aparece em desktop.
+                    if (!isMobile)
+                      DsButton(
+                        // ✅ CORREÇÃO DE TEXTO
+                        label: 'Salvar configurações',
+                        onPressed: _save,
+                      )
+                  ],
+                ),
+                const SizedBox(height: 30),
+                // A estrutura Expanded + SingleChildScrollView está correta para garantir a rolagem.
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
-                    SizedBox(height: 30,),
-                    // SEÇÃO 1 - MODO DE ENTREGA
-                    const Text('Modo de Entrega', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    const Text('Selecione os modos de atendimento disponíveis', style: TextStyle(color: Colors.grey)),
-                    const SizedBox(height: 16),
-
+                    // SEÇÃO 1 - MODOS DE SERVIÇO
                     _buildServiceOption(context,
-                      // ✅ Lendo do estado local
                       value: _editableConfig!.deliveryEnabled,
-                      // ✅ Atualizando o estado local
                       onChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(deliveryEnabled: v ?? false)),
-                      title: 'Entrega',
-                      description: 'O pedido chega até o cliente por um entregador',
+                      title: 'Entrega (Delivery)',
+                      description: 'O pedido chega até o cliente por um entregador.',
                     ),
                     _buildServiceOption(context,
                       value: _editableConfig!.pickupEnabled,
                       onChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(pickupEnabled: v ?? false)),
                       title: 'Retirada na loja',
-                      description: 'O cliente retira o pedido no balcão da loja',
+                      description: 'O cliente retira o pedido no balcão da loja.',
                     ),
                     _buildServiceOption(context,
                       value: _editableConfig!.tableEnabled,
                       onChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(tableEnabled: v ?? false)),
                       title: 'Consumo no local',
-                      description: 'O cliente faz o pedido e consome no local (mesas)',
+                      description: 'O cliente faz o pedido e consome no local (mesas).',
                     ),
 
                     const SizedBox(height: 32),
 
                     // SEÇÃO 2 - ÁREAS DE ENTREGA
-                    // ✅ Lendo do estado local
                     if (_editableConfig!.deliveryEnabled) ...[
                       const Text('Áreas de Entrega', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
+                      // Em mobile, os Radios podem ficar em linha, pois o texto é curto.
                       Row(children: [
                         Expanded(
                             child: _buildDeliveryScopeRadio(context,
                                 value: 'neighborhood',
-                                // ✅ Lendo do estado local
                                 groupValue: _editableConfig!.deliveryScope,
-                                // ✅ Atualizando o estado local
                                 onChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(deliveryScope: v)),
                                 label: 'Por bairros')),
                         Expanded(
@@ -196,29 +172,59 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
 
                     // SEÇÃO 3 - VALOR MÍNIMO
                     if (_editableConfig!.deliveryEnabled) ...[
-                      const Text('Valor Mínimo para Pedidos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      AppTextField(
-                        initialValue: _editableConfig!.deliveryMinOrder?.toString() ?? '',
-                        title: 'Pedido mínimo (R\$)',
-                        hint: 'Ex: 20.00',
-                        keyboardType: TextInputType.number,
-                        formatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
+                      const Text('Valores para Delivery', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      // ✅ ALTERAÇÃO: Layout condicional para os campos de valor.
+                      _buildResponsiveRowOrColumn(
+                        isMobile: isMobile,
+                        children: [
+                          AppTextField(
+                            initialValue: _editableConfig!.deliveryMinOrder?.toString() ?? '',
+                            title: 'Pedido mínimo (R\$)',
+                            hint: 'Ex: 20.00',
+                            keyboardType: TextInputType.number,
 
-                        onChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(deliveryMinOrder: double.tryParse((v ?? '').replaceAll(',', '.')) ?? 0.0)),
+                            formatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CentavosInputFormatter(moeda: true),
+                            ],
+                            onChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(deliveryMinOrder: double.tryParse((v ?? '').replaceAll(',', '.')) ?? 0.0)),
+                          ),
+                          AppTextField(
+                            initialValue: _editableConfig!.freeDeliveryThreshold?.toString() ?? '',
+                            title: 'Frete grátis acima de (R\$)',
+                            hint: 'Ex: 50.00',
+                            keyboardType: TextInputType.number,
+                            formatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              CentavosInputFormatter(moeda: true),
 
+
+                            ],
+                            onChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(freeDeliveryThreshold: double.tryParse((v ?? '').replaceAll(',', '.')) ?? 0.0)),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 32),
                     ],
 
+
+                // SEÇÃO 4 - TEMPOS DE PREPARAÇÃO
+                            // ✅ ALTERAÇÃO: Este bloco inteiro só será exibido se pelo menos um serviço estiver ativo.
+                if (_editableConfig!.deliveryEnabled ||
+                _editableConfig!.pickupEnabled ||
+                _editableConfig!.tableEnabled) ...[
+
+
                     // SEÇÃO 4 - TEMPOS DE PREPARAÇÃO
                     const Text('Tempo de Preparação', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    const Text('Defina os tempos estimados para cada modo', style: TextStyle(color: Colors.grey)),
+                    const Text('Defina os tempos estimados para cada modo de serviço.', style: TextStyle(color: Colors.grey)),
                     const SizedBox(height: 16),
 
                     if (_editableConfig!.deliveryEnabled)
                       _buildTimeRangeSelector(
+                          isMobile: isMobile, // Passa o flag
                           title: 'Delivery',
                           minValue: _editableConfig!.deliveryEstimatedMin ?? 10,
                           maxValue: _editableConfig!.deliveryEstimatedMax ?? 30,
@@ -226,6 +232,7 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
                           onMaxChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(deliveryEstimatedMax: v))),
                     if (_editableConfig!.pickupEnabled)
                       _buildTimeRangeSelector(
+                          isMobile: isMobile, // Passa o flag
                           title: 'Retirada na loja',
                           minValue: _editableConfig!.pickupEstimatedMin ?? 5,
                           maxValue: _editableConfig!.pickupEstimatedMax ?? 15,
@@ -233,7 +240,8 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
                           onMaxChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(pickupEstimatedMax: v))),
                     if (_editableConfig!.tableEnabled) ...[
                       _buildTimeRangeSelector(
-                          title: 'Mesas',
+                          isMobile: isMobile, // Passa o flag
+                          title: 'Consumo no Local',
                           minValue: _editableConfig!.tableEstimatedMin ?? 5,
                           maxValue: _editableConfig!.tableEstimatedMax ?? 15,
                           onMinChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(tableEstimatedMin: v)),
@@ -241,22 +249,47 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
                       const SizedBox(height: 8),
                       AppTextField(
                         initialValue: _editableConfig!.tableInstructions ?? '',
-                        title: 'Instruções para mesas',
-                        hint: 'Ex: Escolha uma mesa disponível e aguarde atendimento',
+                        title: 'Instruções para consumo no local',
+                        hint: 'Ex: Escolha uma mesa e aguarde o atendimento.',
                         onChanged: (v) => _onConfigChanged(_editableConfig!.copyWith(tableInstructions: v)),
                       ),
                     ],
                     const SizedBox(height: 40),
                   ],
+
+                                  ]
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
   }
 
+  // ✅ NOVO WIDGET HELPER: Cria uma Row em desktop ou uma Column em mobile.
+  Widget _buildResponsiveRowOrColumn({
+    required bool isMobile,
+    required List<Widget> children,
+    double spacing = 16.0,
+  }) {
+    if (isMobile) {
+      // Em mobile, usa Column com um SizedBox entre os filhos.
+      return Column(
+        children: children.expand((widget) => [widget, SizedBox(height: spacing)]).toList()..removeLast(),
+      );
+    } else {
+      // Em desktop, usa Row com Flexible para dividir o espaço.
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children
+            .map((w) => Expanded(child: w))
+            .expand((widget) => [widget, SizedBox(width: spacing)])
+            .toList()
+          ..removeLast(),
+      );
+    }
+  }
 
   Widget _buildServiceOption(
       BuildContext context, {
@@ -270,20 +303,24 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Checkbox(
-            value: value,
-            onChanged: onChanged,
+          SizedBox(
+            height: 24,
+            width: 24,
+            child: Checkbox(
+              value: value,
+              onChanged: onChanged,
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: Theme.of(context).textTheme.bodyLarge),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   description,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -300,7 +337,7 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
         required ValueChanged<String?> onChanged,
         required String label,
       }) {
-    return RadioListTile(
+    return RadioListTile<String>(
       contentPadding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
       title: Text(label),
@@ -310,7 +347,9 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
     );
   }
 
+  // ✅ ALTERAÇÃO: Este widget agora é responsivo internamente.
   Widget _buildTimeRangeSelector({
+    required bool isMobile,
     required String title,
     required int minValue,
     required int maxValue,
@@ -321,33 +360,28 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Row(
+        const SizedBox(height: 12),
+        _buildResponsiveRowOrColumn(
+          isMobile: isMobile,
           children: [
-            Expanded(
-              child: AppCounterFormField(
-                initialValue: minValue,
-                minValue: 1,
-                maxValue: 60,
-                title: 'Mínimo (min)',
-                onChanged: onMinChanged,
-              ),
+            AppCounterFormField(
+              initialValue: minValue,
+              minValue: 1,
+              maxValue: 60,
+              title: 'Mínimo (min)',
+              onChanged: onMinChanged,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: AppCounterFormField(
-                initialValue: maxValue,
-                minValue: 1,
-                maxValue: 120,
-                title: 'Máximo (min)',
-                onChanged: onMaxChanged,
-              ),
+            AppCounterFormField(
+              initialValue: maxValue,
+              minValue: 1,
+              maxValue: 120,
+              title: 'Máximo (min)',
+              onChanged: onMaxChanged,
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
       ],
     );
   }
-
 }

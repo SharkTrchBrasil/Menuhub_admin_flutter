@@ -76,7 +76,7 @@ final bool showVar;
             children: [
               // Imagem do produto no topo
               CachedNetworkImage(
-                imageUrl: product.image?.url ?? "https://via.placeholder.com/150.png/CCCCCC/FFFFFF?text=Logo",
+                imageUrl: product.image?.url ?? "https://img.freepik.com/vetores-premium/conjunto-de-desenhos-animados-de-fast-food-sem-costura_1639-39822.jpg",
                 height: imageHeight,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -115,30 +115,35 @@ final bool showVar;
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
-            product.name,
+            (product.name?.isNotEmpty == true)
+                ? product.name!
+                : 'Nome do produto',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         const SizedBox(height: 8),
-        // Descrição do Produto
+// Descrição do Produto
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
-            product.description,
+            (product.description?.isNotEmpty == true)
+                ? product.description!
+                : 'Descrição do produto',
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleSmall?.copyWith(color: Colors.grey[700]),
           ),
         ),
+
         const SizedBox(height: 16),
         // Preço
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
-            ' ${product.basePrice!.toPrice()}',
+            '${product.basePrice?.toPrice() ?? "0,00"}',
+
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
               color: Colors.deepOrange,

@@ -1,3 +1,6 @@
+
+
+
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -66,35 +69,36 @@ class AppProductImageFormField extends StatelessWidget {
         final double displaySize = MediaQuery.of(context).size.width.clamp(200.0, 300.0);
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 8),
-            // ✅ Lógica condicional para exibir o widget correto
-            if (state.value == null)
-              _buildImagePickerHorizontal(context, state, displaySize) // Mostra o seletor
+        const SizedBox(height: 8),
 
+        // ✅ LÓGICA CORRIGIDA:
+        // Verifica se há uma imagem (seja URL ou arquivo local)
+        if (state.value?.file != null || (state.value?.url != null && state.value!.url!.isNotEmpty))
+        // Se tiver, mostra a pré-visualização horizontal
+        _buildImagePreviewHorizontal(context, state)
         else
-        // ✅ A única alteração é chamar o novo _buildImagePreviewHorizontal
-        _buildImagePreviewHorizontal(context, state, displaySize),
+        // Se não tiver, mostra o seletor horizontal
+        _buildImagePickerHorizontal(context, state),
 
-            if (state.hasError)
-              Padding(
-                padding: const EdgeInsets.only(left: 12, top: 6),
-                child: Text(
-                  state.errorText!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
-                ),
-              ),
-          ],
-        );
+        if (state.hasError)
+        Padding(
+        padding: const EdgeInsets.only(left: 12, top: 6),
+        child: Text(
+        state.errorText!,
+        style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+        ),
+        ),
+        ]);
       },
     );
   }
 
   // --- Widgets de Construção ---
   /// ✅ WIDGET ATUALIZADO para o placeholder HORIZONTAL
-  Widget _buildImagePickerHorizontal(BuildContext context, FormFieldState<ImageModel> state, double displayWidth) {
+  Widget _buildImagePickerHorizontal(BuildContext context, FormFieldState<ImageModel> state) {
     const double imagePreviewSize = 80.0;
 
     return InkWell(
@@ -144,40 +148,8 @@ class AppProductImageFormField extends StatelessWidget {
       ),
     );
   }
-  // Widget para quando NENHUMA imagem foi selecionada
-  Widget _buildImagePicker(BuildContext context, FormFieldState<ImageModel> state, double displaySize) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: () => _pickAndCropImage(context, state),
-      child: Container(
-        width: displaySize,
-        height: displaySize,
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.grey[100],
-            border: Border.all(color: Colors.grey.shade300)
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add_a_photo_outlined, size: 48, color: Colors.grey[600]),
-            const SizedBox(height: 8),
-            Text(
-              'Adicionar Imagem',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Recomendado: 1200x1200px',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  /// ✅ NOVO WIDGET para a pré-visualização HORIZONTAL
-  Widget _buildImagePreviewHorizontal(BuildContext context, FormFieldState<ImageModel> state, double displaySize) {
+
+  Widget _buildImagePreviewHorizontal(BuildContext context, FormFieldState<ImageModel> state) {
     final imageModel = state.value!;
     const double imagePreviewSize = 80.0; // Tamanho menor para a prévia na linha
 
@@ -194,7 +166,7 @@ class AppProductImageFormField extends StatelessWidget {
           // 1. Imagem à esquerda
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: _buildImage(imageModel, imagePreviewSize),
+            child: _buildImage(imageModel),
           ),
           const SizedBox(width: 16),
 
@@ -222,59 +194,6 @@ class AppProductImageFormField extends StatelessWidget {
     );
   }
 
-  // ✅ NOVO WIDGET para quando UMA IMAGEM já foi selecionada (Layout iFood)
-  Widget _buildImagePreview(BuildContext context, FormFieldState<ImageModel> state, double displaySize) {
-    final imageModel = state.value!;
-
-    return Container(
-      width: displaySize,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300)
-      ),
-      child: Column(
-        children: [
-          // 1. A imagem
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: _buildImage(imageModel, displaySize - 16), // -16 para compensar o padding
-          ),
-          const SizedBox(height: 12),
-          // 2. A barra de ações
-          Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  imageModel.file?.name ?? 'imagem.jpg',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Botão de Alterar
-              IconButton(
-                icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
-                tooltip: 'Alterar foto',
-                onPressed: () => _pickAndCropImage(context, state),
-              ),
-              // Botão de Remover
-              IconButton(
-                icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
-                tooltip: 'Remover foto',
-                onPressed: () {
-                  state.didChange(null);
-                  onChanged(null);
-                },
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-  }
 
 
 
@@ -289,7 +208,9 @@ class AppProductImageFormField extends StatelessWidget {
 
 
 
-  Widget _buildImage(ImageModel model, double displaySize) {
+  Widget _buildImage(ImageModel model) {
+
+    const double displaySize = 80.0;
     if (model.file != null) {
       if (kIsWeb) {
         return FutureBuilder<Uint8List>(
@@ -379,3 +300,8 @@ class AppProductImageFormField extends StatelessWidget {
     );
   }
 }
+
+
+
+
+

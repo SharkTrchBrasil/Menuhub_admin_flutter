@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
 
 
-import '../../../constdata/app_colors.dart';
+
 import '../../../core/di.dart';
 
 import '../../../models/product.dart';
@@ -164,13 +164,13 @@ class _ProductListItemState extends State<ProductListItem> {
     final hasComplements = widget.product.variantLinks!.isNotEmpty;
     // ✅ 4. ESTILO VISUAL PARA ITENS PAUSADOS
     final bool isAvailable = widget.product.available;
-    final Color textColor = isAvailable ? AppColors.textDark : Colors.grey.shade500;
+    final Color textColor = isAvailable ? Colors.black : Colors.grey.shade500;
 
     return Column(
       children: [
         // LINHA PRINCIPAL DO PRODUTO
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+          padding: const EdgeInsets.symmetric(horizontal: 1.0, vertical: 14.0),
           child: Row(
             children: [
               // Imagem do produto com filtro cinza se pausado
@@ -216,16 +216,16 @@ class _ProductListItemState extends State<ProductListItem> {
               ),
               const SizedBox(width: 16),
 
-              // ✅ 2. NOVO LAYOUT DE AÇÕES
-              // Botão de Complementos (condicional)
-              if (hasComplements) ...[
-                OutlinedButton.icon(
-                  icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
-                  label:  ResponsiveBuilder.isMobile(context) ? Text('') : Text('Complementos'),
-                  onPressed: () => setState(() => _isExpanded = !_isExpanded),
-                ),
-                const SizedBox(width: 16),
-              ],
+              // // ✅ 2. NOVO LAYOUT DE AÇÕES
+              // // Botão de Complementos (condicional)
+              // if (hasComplements) ...[
+              //   OutlinedButton.icon(
+              //     icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
+              //     label:  ResponsiveBuilder.isMobile(context) ? Text('') : Text('Complementos'),
+              //     onPressed: () => setState(() => _isExpanded = !_isExpanded),
+              //   ),
+              //   const SizedBox(width: 16),
+              // ],
 
               if (ResponsiveBuilder.isDesktop(context)) ..._buildDesktopActions(textColor) else ..._buildMobileActions(),
 
@@ -292,7 +292,7 @@ class _ProductListItemState extends State<ProductListItem> {
 
       // Botão de Pausar/Ativar
       IconButton(
-        icon: Icon(isAvailable ? Icons.pause_circle_outline : Icons.play_circle_outline, color: AppColors.textDark),
+        icon: Icon(isAvailable ? Icons.pause_circle_outline : Icons.play_circle_outline, color: isAvailable ? Colors.orange : Colors.green),
         tooltip: isAvailable ? 'Pausar item' : 'Ativar item',
         onPressed: () async {
           final updatedProduct = widget.product.copyWith(available: !isAvailable);
@@ -303,7 +303,7 @@ class _ProductListItemState extends State<ProductListItem> {
 
       // Menu de Opções
       PopupMenuButton<String>(
-        icon: const Icon(Icons.more_vert, color: AppColors.textDark),
+        icon: const Icon(Icons.more_vert, ),
         onSelected: (value) {
           if (value == 'edit') {
             context.go('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
@@ -323,7 +323,7 @@ class _ProductListItemState extends State<ProductListItem> {
   List<Widget> _buildMobileActions() {
     return [
       IconButton(
-        icon: Icon(widget.product.available ? Icons.pause_circle_outline : Icons.play_circle_outline),
+        icon: Icon(widget.product.available ? Icons.pause_circle_outline : Icons.play_circle_outline, color: widget.product.available ? Colors.orange : Colors.green),
         tooltip: widget.product.available ? 'Pausar item' : 'Ativar item',
         onPressed: () async {
           final updatedProduct = widget.product.copyWith(available: !widget.product.available);
@@ -469,7 +469,7 @@ class _ProductListItemState extends State<ProductListItem> {
                   const SizedBox(height: 16),
                   // Lista de Ações
                   ListTile(
-                    leading: Icon(isAvailable ? Icons.pause : Icons.play_arrow),
+                    leading: Icon(isAvailable ? Icons.pause : Icons.play_arrow, color: isAvailable ? Colors.red : Colors.green),
                     title: Text(isAvailable ? 'Pausar item' : 'Ativar item', style: TextStyle(fontWeight: FontWeight.w600)),
                     onTap: () async {
                       Navigator.of(ctx).pop(); // Fecha o bottom sheet

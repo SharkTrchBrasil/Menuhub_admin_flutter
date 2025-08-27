@@ -48,7 +48,7 @@ class ScheduledPausesView extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final pauses = state.activeStore!.scheduledPauses;
+        final pauses = state.activeStore!.relations.scheduledPauses;
         pauses.sort((a, b) => a.startTime.compareTo(b.startTime)); // Ordena por data
 
         if (pauses.isEmpty) {

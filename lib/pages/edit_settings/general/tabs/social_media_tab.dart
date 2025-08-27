@@ -18,42 +18,40 @@ class SocialMediaTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Redes Sociais", style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 24),
-          AppTextField(
-            initialValue: store.marketing?.instagram,
-            title: 'Instagram',
-            hint: '@sua_loja',
-            onChanged: (v) => onChanged(store.copyWith(
-                marketing: store.marketing?.copyWith(instagram: v)
-            ),
-            ),),
-            const SizedBox(height: 16),
-            AppTextField(
-              initialValue: store.marketing?.facebook,
-              title: 'Facebook',
-              hint: 'facebook.com/sua_loja',
-              onChanged: (v) => onChanged(store.copyWith(
-                  marketing: store.marketing?.copyWith(facebook: v)
-              )),
-            ),
-            const SizedBox(height: 16),
-            AppTextField(
-              initialValue: store.marketing?.tiktok,
-              title: 'TikTok',
-              hint: 'tiktok.com/@sua_loja',
-              onChanged: (v) => onChanged(store.copyWith(
-                  marketing: store.marketing?.copyWith(tiktok: v)
-              )),
-            ),
-            ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Redes Sociais", style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 24),
+        AppTextField(
+          initialValue: store.marketing?.instagram,
+          title: 'Instagram',
+          hint: '@sua_loja',
+          onChanged: (v) => onChanged(store.copyWith(
+              marketing: store.marketing?.copyWith(instagram: v)
           ),
+          ),),
+          const SizedBox(height: 16),
+          AppTextField(
+            initialValue: store.marketing?.facebook,
+            title: 'Facebook',
+            hint: 'facebook.com/sua_loja',
+            onChanged: (v) => onChanged(store.copyWith(
+                marketing: store.marketing?.copyWith(facebook: v)
+            )),
+          ),
+          const SizedBox(height: 16),
+          AppTextField(
+            initialValue: store.marketing?.tiktok,
+            title: 'TikTok',
+            hint: 'tiktok.com/@sua_loja',
+            onChanged: (v) => onChanged(store.copyWith(
+                marketing: store.marketing?.copyWith(tiktok: v)
+            )),
+          ),
+          ],
         ),
       ),
     );

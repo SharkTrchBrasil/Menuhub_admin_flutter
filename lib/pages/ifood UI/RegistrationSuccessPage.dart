@@ -75,7 +75,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                 ElevatedButton(
                   onPressed: onConfigureStore,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEA1D2C), // Cor similar à do iFood
+
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(

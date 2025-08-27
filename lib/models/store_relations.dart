@@ -1,16 +1,27 @@
 // store_relations.dart
+import 'package:totem_pro_admin/models/payable_category.dart';
 import 'package:totem_pro_admin/models/payment_method.dart';
+import 'package:totem_pro_admin/models/peak_hours.dart';
 import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/product_analytics_data.dart';
 import 'package:totem_pro_admin/models/rating_summary.dart';
+import 'package:totem_pro_admin/models/receivable_category.dart';
+import 'package:totem_pro_admin/models/scheduled_pause.dart';
 import 'package:totem_pro_admin/models/store_city.dart';
 import 'package:totem_pro_admin/models/store_hour.dart';
 import 'package:totem_pro_admin/models/store_neig.dart';
 import 'package:totem_pro_admin/models/store_operation_config.dart';
+import 'package:totem_pro_admin/models/store_payable.dart';
+import 'package:totem_pro_admin/models/store_receivable.dart';
 import 'package:totem_pro_admin/models/subscription_summary.dart';
+import 'package:totem_pro_admin/models/supplier.dart';
 import 'package:totem_pro_admin/models/variant.dart';
 
 import 'category.dart';
 import 'coupon.dart';
+import 'customer_analytics_data.dart';
+import 'dashboard_data.dart';
+import 'dashboard_insight.dart';
 
 class StoreRelations {
   final List<PaymentMethodGroup> paymentMethodGroups;
@@ -25,6 +36,22 @@ class StoreRelations {
   final List<Variant> variants;
   final List<Coupon> coupons;
 
+  final DashboardData? dashboardData;
+  final ProductAnalyticsResponse? productAnalytics;
+  final CustomerAnalyticsResponse? customerAnalytics;
+  final PeakHours peakHours;
+  final List<ScheduledPause> scheduledPauses;
+  final List<DashboardInsight> insights;
+  final List<StorePayable> payables;
+  // ✅ ADIÇÃO: Novas propriedades para a gestão financeira
+  final List<Supplier> suppliers;
+  final List<PayableCategory> payableCategories;
+
+  // ✅ ADIÇÃO: Novas propriedades para Contas a Receber
+  final List<StoreReceivable> receivables;
+  final List<ReceivableCategory> receivableCategories;
+
+
   StoreRelations({
     this.paymentMethodGroups = const [],
     this.hours = const [],
@@ -38,9 +65,35 @@ class StoreRelations {
     this.products = const [],
     this.variants = const [],
     this.coupons = const [],
+    this.dashboardData,
+    this.productAnalytics,
+    this.customerAnalytics,
+    required this.peakHours,
+    required this.scheduledPauses,
+    this.insights = const [],
+    this.payables = const [],
+    this.suppliers = const [],
+    this.payableCategories = const [],
+    this.receivables = const [],
+    this.receivableCategories = const [],
   });
 
   factory StoreRelations.fromJson(Map<String, dynamic> json) {
+
+
+    final couponsList = (json['coupons'] as List<dynamic>? ?? [])
+        .map((e) => Coupon.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    // ✅ ADICIONE ESTE PRINT
+    print('--- 1. Dentro do StoreRelations.fromJson ---');
+    print('Cupons encontrados e parseados: ${couponsList.length}');
+    if (couponsList.isNotEmpty) {
+      print('O primeiro cupom tem ${couponsList.first.rules.length} regras.');
+    }
+
+
+
     return StoreRelations(
       paymentMethodGroups: (json['payment_method_groups'] as List<dynamic>?)
           ?.map((e) => PaymentMethodGroup.fromJson(e as Map<String, dynamic>))
@@ -75,6 +128,55 @@ class StoreRelations {
       coupons: (json['coupons'] as List<dynamic>? ?? [])
           .map((e) => Coupon.fromJson(e as Map<String, dynamic>))
           .toList(),
+
+
+      dashboardData: json['dashboard'] != null
+          ? DashboardData.fromJson(json['dashboard'])
+          : null,
+
+      productAnalytics: json['product_analytics'] != null
+          ? ProductAnalyticsResponse.fromJson(json['product_analytics'])
+          : null,
+
+      customerAnalytics: json['customer_analytics'] != null
+          ? CustomerAnalyticsResponse.fromJson(json['customer_analytics'])
+          : null,
+      peakHours: json['peak_hours'] != null
+          ? PeakHours.fromJson(json['peak_hours'])
+          : PeakHours.defaultValues(),
+
+      scheduledPauses : (json['scheduled_pauses'] as List?)
+          ?.map((i) => ScheduledPause.fromJson(i))
+          .toList()
+          ?? [],
+
+      payables: (json['payables'] as List<dynamic>? ?? [])
+          .map((i) => StorePayable.fromJson(i as Map<String, dynamic>))
+          .toList(),
+
+      // ✅ ADIÇÃO: Lógica para converter o JSON das novas listas
+      suppliers: (json['suppliers'] as List<dynamic>? ?? [])
+          .map((s) => Supplier.fromJson(s as Map<String, dynamic>))
+          .toList(),
+
+      payableCategories: (json['payable_categories'] as List<dynamic>? ?? [])
+          .map((c) => PayableCategory.fromJson(c as Map<String, dynamic>))
+          .toList(),
+
+      insights: (json['insights'] as List<dynamic>? ?? [])
+          .map((i) => DashboardInsight.fromJson(i as Map<String, dynamic>))
+          .toList(),
+
+      // ✅ ADIÇÃO: Lógica para converter o JSON das novas listas de recebíveis
+      receivables: (json['receivables'] as List<dynamic>? ?? [])
+          .map((r) => StoreReceivable.fromJson(r as Map<String, dynamic>))
+          .toList(),
+
+      receivableCategories: (json['receivable_categories'] as List<dynamic>? ?? [])
+          .map((c) => ReceivableCategory.fromJson(c as Map<String, dynamic>))
+          .toList(),
+
+
     );
   }
 
@@ -92,6 +194,18 @@ class StoreRelations {
     List<Product>? products,
     List<Variant>? variants,
     List<Coupon>? coupons,
+    DashboardData? dashboardData,
+    ProductAnalyticsResponse? productAnalytics,
+    CustomerAnalyticsResponse? customerAnalytics,
+    PeakHours ? peakHours,
+    List<ScheduledPause>? scheduledPauses,
+    List<DashboardInsight>? insights,
+    List<StorePayable>? payables,
+    List<Supplier>? suppliers,
+    List<PayableCategory>? payableCategories,
+    List<StoreReceivable>? receivables,
+    List<ReceivableCategory>? receivableCategories,
+
   }) {
     return StoreRelations(
       paymentMethodGroups: paymentMethodGroups ?? this.paymentMethodGroups,
@@ -105,6 +219,17 @@ class StoreRelations {
       products: products ?? this.products,
       variants: variants ?? this.variants,
       coupons: coupons ?? this.coupons,
+      dashboardData: dashboardData ?? this.dashboardData,
+      productAnalytics: productAnalytics ?? this.productAnalytics,
+      customerAnalytics: customerAnalytics ?? this.customerAnalytics,
+      peakHours: peakHours ?? this.peakHours,
+      scheduledPauses: scheduledPauses ?? this.scheduledPauses,
+      insights: insights ?? this.insights,
+        payables: payables ?? this.payables,
+      suppliers: suppliers ?? this.suppliers,
+      payableCategories: payableCategories ?? this.payableCategories,
+      receivables: receivables ?? this.receivables,
+      receivableCategories: receivableCategories ?? this.receivableCategories,
     );
   }
 

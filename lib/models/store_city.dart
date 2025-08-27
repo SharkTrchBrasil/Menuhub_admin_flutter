@@ -9,7 +9,7 @@ class StoreCity {
     this.isActive = true,
     required this.name,
     this.deliveryFee = 0,
-   // this.neighborhoods = const [],
+    this.neighborhoods = const [],
   });
 
   final int? id;
@@ -17,7 +17,7 @@ class StoreCity {
   final int deliveryFee;
   final bool isActive;
 
- // final List<StoreNeighborhood> neighborhoods;
+  final List<StoreNeighborhood> neighborhoods;
 
   factory StoreCity.fromJson(Map<String, dynamic> json) {
     return StoreCity(
@@ -26,10 +26,10 @@ class StoreCity {
       deliveryFee: json['delivery_fee'] as int,
       isActive: json['is_active'] as bool,
 
-      // neighborhoods: (json['neighborhoods'] as List<dynamic>?)
-      //     ?.map((e) => StoreNeighborhood.fromJson(e))
-      //     .toList() ??
-      //     [],
+      neighborhoods: (json['neighborhoods'] as List<dynamic>?)
+          ?.map((e) => StoreNeighborhood.fromJson(e))
+          .toList() ??
+          [],
     );
   }
 
@@ -38,9 +38,9 @@ class StoreCity {
       if (id != null) 'id': id,
       'name': name,
       'delivery_fee': deliveryFee,
-      'is_active': isActive
+      'is_active': isActive,
 
-   ///   'neighborhoods': neighborhoods.map((e) => e.toJson()).toList(),
+      'neighborhoods': neighborhoods.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -57,16 +57,16 @@ class StoreCity {
     int? id,
     String? name,
     int? deliveryFee,
-    bool? isActive
+    bool? isActive,
 
- //   List<StoreNeighborhood>? neighborhoods,
+    List<StoreNeighborhood>? neighborhoods,
   }) {
     return StoreCity(
       id: id ?? this.id,
       name: name ?? this.name,
       deliveryFee: deliveryFee ?? this.deliveryFee,
-   isActive: isActive ?? this.isActive
-   //   neighborhoods: neighborhoods ?? this.neighborhoods,
+   isActive: isActive ?? this.isActive,
+     neighborhoods: neighborhoods ?? this.neighborhoods,
     );
   }
 }

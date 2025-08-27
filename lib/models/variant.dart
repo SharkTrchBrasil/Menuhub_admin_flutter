@@ -1,3 +1,4 @@
+import 'package:totem_pro_admin/models/product_variant_link.dart';
 import 'package:totem_pro_admin/models/variant_option.dart';
 
 class Variant {
@@ -5,12 +6,14 @@ class Variant {
   final String name;
   final VariantType type;
   final List<VariantOption> options;
+  final List<ProductVariantLink>? productLinks; //
 
   const Variant({
     this.id,
     required this.name,
     required this.type,
     required this.options,
+    this.productLinks,
   });
 
   Variant copyWith({
@@ -18,12 +21,14 @@ class Variant {
     String? name,
     VariantType? type,
     List<VariantOption>? options,
+    List<ProductVariantLink>? productLinks,
   }) {
     return Variant(
       id: id ?? this.id,
       name: name ?? this.name,
       type: type ?? this.type,
       options: options ?? this.options,
+      productLinks: productLinks ?? this.productLinks,
     );
   }
 
@@ -52,6 +57,11 @@ class Variant {
       // então mantemos a leitura dele aqui.
       options: (json['options'] as List? ?? [])
           .map((optionJson) => VariantOption.fromJson(optionJson))
+          .toList(),
+
+      // ✅ Lendo a nova lista do JSON
+      productLinks: (json['product_links'] as List? ?? [])
+          .map((linkJson) => ProductVariantLink.fromJson(linkJson))
           .toList(),
     );
   }

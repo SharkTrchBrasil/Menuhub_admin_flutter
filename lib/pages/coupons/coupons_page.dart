@@ -26,11 +26,13 @@ class CouponsPage extends StatefulWidget {
 
 class _CouponsPageState extends State<CouponsPage> {
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
-
+  late final ScaffoldUiCubit _scaffoldUiCubit;
   @override
   void initState() {
     super.initState();
-    // ✅ PASSO 2: Configurar a UI da "moldura" (AppShell)
+
+    _scaffoldUiCubit = context.read<ScaffoldUiCubit>();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _setupScaffoldUI();
@@ -55,21 +57,30 @@ class _CouponsPageState extends State<CouponsPage> {
 
   @override
   void dispose() {
-    // ✅ PASSO 3: Limpar a UI da "moldura" ao sair da página
-    if (mounted) {
-      context.read<ScaffoldUiCubit>().clearAll();
-    }
+
+    _scaffoldUiCubit.clearAll();
+
     super.dispose();
   }
 
-  // Função central para adicionar ou editar, agora usando GoRouter
   void _onAddOrEdit({Coupon? coupon}) {
+
+
+
     final route = coupon == null
-        ? '/stores/${widget.storeId}/coupons/new' // Rota de criação
-        : '/stores/${widget.storeId}/coupons/${coupon.id}'; // Rota de edição
+        ? '/stores/${widget.storeId}/coupons/new'
+        : '/stores/${widget.storeId}/coupons/${coupon.id}';
 
+    // ✅ ADICIONE ESTE PRINT
+    if (coupon != null) {
+      print('--- 3. Navegando para a tela de edição ---');
+      print('Passando cupom via extra com ${coupon.rules.length} regras.');
+      // print('Dados completos do cupom: ${coupon.toJson()}'); // Descomente para ver tudo
+    }
 
+    context.go(route, extra: coupon);
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -83,22 +94,27 @@ class _CouponsPageState extends State<CouponsPage> {
 
   // Layout do Desktop: inclui o FixedHeader
   Widget _buildDesktopLayout(BuildContext context, int crossAxisCount) {
-    return Column(
-      children: [
-        FixedHeader(
-          title: 'Minhas promoções',
-          subtitle: 'Gerencie suas promoções e crie novas campanhas',
-          actions: [
-            DsButton(
-              label: 'Criar Promoção',
-              onPressed: _onAddOrEdit,
-            ),
-          ],
-        ),
-        Expanded(
-          child: _buildCouponsGrid(context, crossAxisCount: crossAxisCount),
-        ),
-      ],
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24.0,
+      ),
+      child: Column(
+        children: [
+          FixedHeader(
+            title: 'Minhas promoções',
+            subtitle: 'Gerencie suas promoções e crie novas campanhas',
+            actions: [
+              DsButton(
+                label: 'Criar Promoção',
+                onPressed: _onAddOrEdit,
+              ),
+            ],
+          ),
+          Expanded(
+            child: _buildCouponsGrid(context, crossAxisCount: crossAxisCount),
+          ),
+        ],
+      ),
     );
   }
 
@@ -119,6 +135,13 @@ class _CouponsPageState extends State<CouponsPage> {
           if (coupons.isEmpty) {
             return const Center(child: Text('Nenhum cupom cadastrado.'));
           }
+          // ✅ ADICIONE ESTE PRINT
+          print('--- 2. Dentro do BlocBuilder da CouponsPage ---');
+          print('O build recebeu ${coupons.length} cupons do estado do Cubit.');
+
+
+
+
 
           return GridView.builder(
             padding: const EdgeInsets.all(24.0),
@@ -134,6 +157,10 @@ class _CouponsPageState extends State<CouponsPage> {
               return _CouponCard(
                 coupon: coupon,
                 dateFormat: _dateFormat, storeId: state.activeStoreId,
+                onEdit: (coupon) {
+                print(coupon);
+                  _onAddOrEdit(coupon: coupon);
+                },
 
               );
             },
@@ -151,11 +178,13 @@ class _CouponCard extends StatelessWidget {
     required this.coupon,
     required this.storeId,
     required this.dateFormat,
+    required this.onEdit,
   });
 
   final Coupon coupon;
   final int storeId;
   final DateFormat dateFormat;
+  final void Function(Coupon) onEdit;
 
   String _formatDiscount(Coupon coupon) {
     if (coupon.discountType == 'PERCENTAGE') {
@@ -226,9 +255,7 @@ class _CouponCard extends StatelessWidget {
                 constraints: const BoxConstraints(),
                 icon: const Icon(Icons.edit, size: 20),
                 tooltip: 'Editar cupom',
-                onPressed: () {
-                  context.go('/coupons/${coupon.id}', extra: coupon);
-                },
+                onPressed: () => onEdit(coupon),
               ),
             ],
           ),
