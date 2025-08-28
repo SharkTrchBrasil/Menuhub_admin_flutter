@@ -17,51 +17,8 @@ class ProductRepository {
 
   final Dio _dio;
 
-  Future<Either<void, List<Product>>> getProducts(int storeId) async {
-    try {
-      final response = await _dio.get('/stores/$storeId/products');
-      return Right(
-        response.data.map<Product>((c) => Product.fromJson(c)).toList(),
-      );
-    } catch (e, s) {
-      debugPrint('$e $s');
-      return const Left(null);
-    }
-  }
 
-  Future<Either<void, Product>> getProduct(int storeId, int id) async {
-    try {
-      final response = await _dio.get('/stores/$storeId/products/$id');
-      return Right(Product.fromJson(response.data));
-    } catch (e) {
-      debugPrint('$e');
-      return const Left(null);
-    }
-  }
 
-  Future<Either<void, Product>> saveProduct(
-    int storeId,
-    Product product,
-  ) async {
-    try {
-      if (product.id != null) {
-        final response = await _dio.patch(
-          '/stores/$storeId/products/${product.id}',
-          data: await product.toFormData(),
-        );
-        return Right(Product.fromJson(response.data));
-      } else {
-        final response = await _dio.post(
-          '/stores/$storeId/products',
-          data: await product.toFormData(),
-        );
-        return Right(Product.fromJson(response.data));
-      }
-    } catch (e) {
-      debugPrint('$e');
-      return Left(null);
-    }
-  }
 
   Future<Either<void, ProductAvailability>> saveProductAvailability(
       int storeId,
@@ -324,19 +281,7 @@ class ProductRepository {
       data: {'product_ids': productIds},
     );
   }
-  Future<void> bulkUpdateProductCategory({
-    required int storeId,
-    required List<int> productIds,
-    required int targetCategoryId,
-  }) async {
-    await _dio.post(
-      '/stores/$storeId/products/bulk-update-category',
-      data: {
-        'product_ids': productIds,
-        'target_category_id': targetCategoryId,
-      },
-    );
-  }
+
 
 
   // ✅ ADICIONE ESTE NOVO MÉTODO COMPLETO
@@ -372,5 +317,107 @@ class ProductRepository {
       return const Left('Ocorreu um erro inesperado.');
     }
   }
+
+
+
+  // ✅ NOVO: Método dedicado para o wizard de criação
+  Future<Either<String, Product>> createProductFromWizard(int storeId, Product product) async {
+    try {
+      // O frontend monta o objeto Product completo, e o toJson() dele
+      // deve corresponder ao schema Pydantic `ProductWizardCreate`
+      final response = await _dio.post(
+        '/stores/$storeId/products/wizard',
+        data: product.toWizardJson(), // Precisaremos criar este método no modelo
+      );
+      return Right(Product.fromJson(response.data));
+    } on DioException catch (e) {
+      final error = e.response?.data['detail'] ?? 'Erro ao criar produto.';
+      return Left(error);
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
+
+  // ✅ ATUALIZADO: Agora usado apenas para PATCH (atualizar)
+  Future<Either<String, Product>> saveProduct(int storeId, Product product) async {
+    if (product.id == null) {
+      // A criação agora deve usar o método do wizard
+      return const Left("Use 'createProductFromWizard' para criar novos produtos.");
+    }
+    try {
+      final response = await _dio.patch(
+        '/stores/$storeId/products/${product.id}',
+        data: await product.toFormData(), // toFormData não deve mais incluir category_id
+      );
+      return Right(Product.fromJson(response.data));
+    } on DioException catch (e) {
+      final error = e.response?.data['detail'] ?? 'Erro ao atualizar produto.';
+      return Left(error);
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
+
+  // ✅ NOVO: Método para gerenciar as categorias de um produto
+  Future<Either<String, void>> updateProductCategories(int storeId, int productId, List<int> categoryIds) async {
+    try {
+      await _dio.put(
+        '/stores/$storeId/products/$productId/categories',
+        data: {'category_ids': categoryIds},
+      );
+      return const Right(null);
+    } on DioException catch (e) {
+      final error = e.response?.data['detail'] ?? 'Erro ao atualizar categorias.';
+      return Left(error);
+    }
+  }
+
+  // ✅ ATUALIZADO: Carrega os dados através de `category_links`
+  Future<Either<String, List<Product>>> getProducts(int storeId) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/products');
+      final products = (response.data as List).map<Product>((c) => Product.fromJson(c)).toList();
+      return Right(products);
+    } on DioException catch (e) {
+      return Left(e.response?.data['detail'] ?? 'Falha ao buscar produtos.');
+    }
+  }
+
+  // ✅ ATUALIZADO: Carrega os dados através de `category_links`
+  Future<Either<String, Product>> getProduct(int storeId, int id) async {
+    try {
+      final response = await _dio.get('/stores/$storeId/products/$id');
+      return Right(Product.fromJson(response.data));
+    } on DioException catch (e) {
+      return Left(e.response?.data['detail'] ?? 'Produto não encontrado.');
+    }
+  }
+
+  // ✅ CORRIGIDO: Usa a nova lógica de apagar e recriar os vínculos
+  Future<Either<String, void>> bulkUpdateProductCategory({
+    required int storeId,
+    required List<int> productIds,
+    required int targetCategoryId,
+  }) async {
+    try {
+      await _dio.post(
+        '/stores/$storeId/products/bulk-update-category',
+        data: {
+          'product_ids': productIds,
+          'target_category_id': targetCategoryId,
+        },
+      );
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(e.response?.data['detail'] ?? 'Erro ao mover produtos.');
+    }
+  }
+
+
+
+
+
+
+
 
 }

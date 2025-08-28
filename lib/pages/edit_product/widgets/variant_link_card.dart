@@ -1,15 +1,59 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/enums/variant_type.dart';
 import '../../../models/product_variant_link.dart';
 import '../../../models/variant.dart';
 import '../../../models/variant_option.dart';
 
 
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/models/product_variant_link.dart';
+import 'package:totem_pro_admin/models/variant.dart';
+import 'package:totem_pro_admin/pages/edit_product/cubit/product_wizard_cubit.dart'; // Importe o CUBIT do WIZARD
 
-class VariantLinkCard extends StatelessWidget {
+class VariantLinkCard extends StatefulWidget {
   final ProductVariantLink link;
+  final VoidCallback onRemove; // ✅ Parâmetro para a função de remover
 
-  const VariantLinkCard({super.key, required this.link});
+  const VariantLinkCard({
+    super.key,
+    required this.link,
+    required this.onRemove,
+  });
+
+  @override
+  State<VariantLinkCard> createState() => _VariantLinkCardState();
+}
+
+class _VariantLinkCardState extends State<VariantLinkCard> {
+  // Estado local para gerenciar as regras do grupo
+  late bool _isRequired;
+  late int _minQty;
+  late int _maxQty;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicia o estado local com os valores do link
+    _isRequired = widget.link.isRequired;
+    _minQty = widget.link.minSelectedOptions;
+    _maxQty = widget.link.maxSelectedOptions;
+  }
+
+  // Função para notificar o Cubit sobre mudanças nas regras
+  void _updateLinkRulesInCubit() {
+    // Monta um novo objeto com os valores atualizados
+    final updatedLink = widget.link.copyWith(
+      minSelectedOptions: _minQty,
+      maxSelectedOptions: _maxQty,
+      // A UI não muda o uiDisplayMode diretamente, mas podemos inferir
+    );
+    // TODO: Chamar um método no Cubit para atualizar este link específico na lista
+    context.read<ProductWizardCubit>().updateVariantLink(updatedLink);
+    print("Regras atualizadas para o grupo: ${widget.link.variant.name}");
+  }
+
 
   // Helper para formatar o nome do Enum
   String _formatVariantType(VariantType type) {
@@ -29,7 +73,10 @@ class VariantLinkCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         title: _buildCollapsedHeader(),
-        trailing: const SizedBox.shrink(),
+        trailing: const Icon(Icons.expand_more), // Ícone para indicar que é expansível
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        childrenPadding: const EdgeInsets.all(16),
+        backgroundColor: Colors.grey[50],
         children: [_buildExpandedContent()],
       ),
     );
@@ -46,7 +93,7 @@ class VariantLinkCard extends StatelessWidget {
             children: [
               Icon(Icons.category_outlined, color: Colors.blue[800], size: 14),
               const SizedBox(width: 4),
-              Text(_formatVariantType(link.variant.type), style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold, fontSize: 12)),
+              Text(_formatVariantType(widget.link.variant.type), style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold, fontSize: 12)),
             ],
           ),
         ),
@@ -55,74 +102,99 @@ class VariantLinkCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(link.variant.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(widget.link.variant.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 2),
-              Text("Contém ${link.variant.options.length} complementos", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text("Contém ${widget.link.variant.options.length} complementos", style: const TextStyle(color: Colors.grey, fontSize: 12)),
             ],
           ),
         ),
         const SizedBox(width: 16),
         Row(
           children: [
-            Tooltip(message: "Pausar grupo", child: IconButton(onPressed: () {}, icon: Icon(Icons.pause_circle_outline, color: Colors.grey[600]))),
-            Tooltip(message: "Remover grupo", child: IconButton(onPressed: () {}, icon: Icon(Icons.delete_outline, color: Colors.grey[600]))),
+            Tooltip(
+              message: "Editar grupo",
+              child: IconButton(
+                onPressed: () { /* TODO: Abrir painel de edição */ },
+                icon: Icon(Icons.edit_outlined, color: Colors.grey[600]),
+              ),
+            ),
+            Tooltip(
+              message: "Remover grupo",
+              // ✅ CORREÇÃO: Conecta a função onRemove ao botão
+              child: IconButton(
+                onPressed: widget.onRemove,
+                icon: Icon(Icons.delete_outline, color: Colors.red[400]),
+              ),
+            ),
           ],
         )
       ],
     );
   }
 
+
   Widget _buildExpandedContent() {
-    // ✅ Usa as regras de 'link'
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.grey[50],
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildDropdown("Este grupo é:", link.isRequired ? "Obrigatório" : "Opcional"),
-              ),
-              const SizedBox(width: 16),
-              _buildQuantityStepper("Qtd. Mínima", link.minSelectedOptions.toString()),
-              const SizedBox(width: 16),
-              _buildQuantityStepper("Qtd. Máxima", link.maxSelectedOptions.toString()),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _buildComplementTable(),
-        ],
-      ),
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildDropdown("Este grupo é:", _isRequired, (newValue) {
+                setState(() {
+                  _isRequired = newValue;
+                  if (_isRequired && _minQty < 1) _minQty = 1;
+                  if (_maxQty < _minQty) _maxQty = _minQty;
+                });
+                _updateLinkRulesInCubit();
+              }),
+            ),
+            const SizedBox(width: 16),
+            _buildQuantityStepper("Qtd. Mínima", _minQty, (newValue) {
+              if (newValue <= _maxQty && newValue >= (_isRequired ? 1 : 0)) {
+                setState(() => _minQty = newValue);
+                _updateLinkRulesInCubit();
+              }
+            }),
+            const SizedBox(width: 16),
+            _buildQuantityStepper("Qtd. Máxima", _maxQty, (newValue) {
+              if (newValue >= _minQty) {
+                setState(() => _maxQty = newValue);
+                _updateLinkRulesInCubit();
+              }
+            }),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _buildComplementTable(),
+      ],
     );
   }
-// Outros widgets de helper que não foram definidos no seu código, adicionei versões simplificadas aqui.
-  Widget _buildDropdown(String label, String value) {
+
+  Widget _buildDropdown(String label, bool isRequired, ValueChanged<bool> onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
-              const Icon(Icons.arrow_drop_down),
-            ],
+        DropdownButtonFormField<bool>(
+          value: isRequired,
+          items: const [
+            DropdownMenuItem(value: true, child: Text("Obrigatório")),
+            DropdownMenuItem(value: false, child: Text("Opcional")),
+          ],
+          onChanged: (value) {
+            if (value != null) onChanged(value);
+          },
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildQuantityStepper(String label, String value) {
+  Widget _buildQuantityStepper(String label, int value, ValueChanged<int> onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -130,7 +202,6 @@ class VariantLinkCard extends StatelessWidget {
         const SizedBox(height: 4),
         Container(
           width: 100,
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
@@ -139,18 +210,15 @@ class VariantLinkCard extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.remove, color: Colors.grey.shade400, size: 20),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const Icon(Icons.add, color: Colors.deepPurple, size: 20),
+              IconButton(icon: const Icon(Icons.remove, size: 20), onPressed: () => onChanged(value - 1)),
+              Text(value.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              IconButton(icon: const Icon(Icons.add, size: 20), onPressed: () => onChanged(value + 1)),
             ],
           ),
         ),
       ],
     );
   }
-
-  //... Os outros métodos como _buildQuantityStepper usam os dados de `link`
-
 
   Widget _buildComplementTable() {
     // ✅ Itera sobre 'link.variant.options'
@@ -168,9 +236,9 @@ class VariantLinkCard extends StatelessWidget {
         const Divider(),
         ListView.builder(
           shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-          itemCount: link.variant.options.length,
+          itemCount: widget.link.variant.options.length,
           itemBuilder: (context, index) {
-            final option = link.variant.options[index];
+            final option = widget.link.variant.options[index];
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
@@ -204,4 +272,6 @@ class VariantLinkCard extends StatelessWidget {
     );
   }
 }
+
+
 

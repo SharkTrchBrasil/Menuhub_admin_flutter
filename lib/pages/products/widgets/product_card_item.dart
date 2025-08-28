@@ -106,9 +106,21 @@ class _ProductCardItemState extends State<ProductCardItem> {
           // Coluna "Categoria" - flex: 2
           Expanded(
             flex: 2,
-            child: Text(widget.product.category?.name ?? 'Sem Categoria', style: textStyle),
+            child: Builder( // Usamos um Builder para a lógica
+              builder: (context) {
+                // ✅ VERIFICA SE A LISTA DE VÍNCULOS NÃO ESTÁ VAZIA
+                final bool hasCategories = widget.product.categoryLinks.isNotEmpty;
+
+                // ✅ PEGA O NOME DA PRIMEIRA CATEGORIA DA LISTA
+                final categoryName = hasCategories
+                    ? widget.product.categoryLinks.first.category.name
+                    : 'Sem Categoria';
+
+                return Text(categoryName, style: textStyle);
+              },
+            ),
           ),
-          // Coluna "Visualizações" - flex: 1 (PLACEHOLDER)
+          //na "Visualizações" - flex: 1 (PLACEHOLDER)
           Expanded(
             flex: 1,
             child: Text('---', style: textStyle, textAlign: TextAlign.center),

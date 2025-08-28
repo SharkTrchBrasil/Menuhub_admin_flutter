@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/pages/edit_product/wizard/steps/step1_product_type.dart';
 import 'package:totem_pro_admin/pages/edit_product/wizard/steps/step2_product_details.dart';
 import 'package:totem_pro_admin/pages/edit_product/wizard/steps/step3_complements.dart';
+import 'package:totem_pro_admin/pages/edit_product/wizard/steps/step4_categories.dart';
 
 import '../cubit/product_wizard_cubit.dart';
-import '../cubit/product_wizard_state.dart';
+
+import '../groups/cubit/create_complement_cubit.dart';
 
 
 class ProductWizardPage extends StatefulWidget {
-  const ProductWizardPage({super.key});
+  const ProductWizardPage({super.key, required this.storeId});
 
+  final int storeId;
   @override
   State<ProductWizardPage> createState() => _ProductWizardPageState();
 }
@@ -33,7 +37,7 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => ProductWizardCubit(),
+      create: (context) => ProductWizardCubit(storeId: widget.storeId),
       child: BlocListener<ProductWizardCubit, ProductWizardState>(
         listener: (context, state) {
           // Anima a transição da página quando o passo muda no Cubit
@@ -61,7 +65,8 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
                   const Step1ProductType(),
                   Step2ProductDetails(),
                   Step3Complements(),
-                  const Center(child: Text('Passo 4: Revisão')),
+                  // ✅ SUBSTITUA O PLACEHOLDER PELA TELA REAL
+                  Step4Categories(),
                 ],
               );
             },
@@ -133,16 +138,31 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
                 const SizedBox(), // Para manter o alinhamento
 
               // Botão Continuar/Finalizar
+              // Em product_wizard_page.dart, no _buildBottomActionBar
+
               ElevatedButton(
-                onPressed: () {
-                  if (state.currentStep < 4) {
-                    context.read<ProductWizardCubit>().nextStep();
-                  } else {
-                    // Lógica para finalizar e salvar
-                  //  context.read<ProductWizardCubit>().saveProduct();
+                onPressed: state.submissionStatus == FormStatus.loading
+                    ? null // Desabilita o botão enquanto salva
+                    : () async {
+                  // A chamada é a mesma, mas agora o Cubit tem a lógica real
+                  await context.read<ProductWizardCubit>().saveProduct();
+
+                  // Ouve o resultado no BlocListener para fechar a tela ou mostrar erro
+                  final finalState = context.read<ProductWizardCubit>().state;
+                  if (finalState.submissionStatus == FormStatus.success && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Produto criado com sucesso!"), backgroundColor: Colors.green)
+                    );
+                    context.pop(); // Volta para a tela anterior após salvar
+                  } else if (finalState.submissionStatus == FormStatus.error && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Erro: ${finalState.errorMessage}"), backgroundColor: Colors.red)
+                    );
                   }
                 },
-                child: Text(state.currentStep < 4 ? 'Continuar' : 'Finalizar Cadastro'),
+                child: state.submissionStatus == FormStatus.loading
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text(state.currentStep < 4 ? 'Continuar' : 'Criar Produto'),
               ),
             ],
           ),

@@ -1,144 +1,168 @@
 import 'package:flutter/material.dart';
-
-import '../../../../core/di.dart';
-import '../../../../core/helpers/sidepanel.dart';
-import '../../../../models/product.dart';
-import '../../../../models/product_variant_link.dart';
-import '../../../../models/variant_option.dart';
-import '../../../../widgets/mobile_mockup.dart';
-import '../../helper/sidepanel.dart';
-import '../groups/create_group_panel.dart';
-import '../groups/multi_step_panel.dart';
-import '../variant_link_card.dart';
-
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/core/di.dart';
+import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
+import 'package:totem_pro_admin/cubits/store_manager_state.dart';
+import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/product_variant_link.dart';
 
-// Adicione os imports para seus modelos e cubits reais aqui
-import '../../../../cubits/store_manager_cubit.dart';
-import '../../../../cubits/store_manager_state.dart';
-import '../../../../models/product.dart';
-import '../../../../models/product_variant_link.dart';
-import '../../../../repositories/product_repository.dart'; // Necessário para o Cubit
-import '../../cubit/create_complement_cbit.dart';
-import '../../cubit/create_complement_state.dart';
-import '../../helper/sidepanel.dart';
-import '../groups/multi_step_panel.dart';
-import '../variant_link_card.dart';
+import 'package:totem_pro_admin/pages/edit_product/widgets/variant_link_card.dart';
+import 'package:totem_pro_admin/repositories/product_repository.dart';
+import 'package:totem_pro_admin/widgets/mobile_mockup.dart';
 
-class ComplementGroupsScreen extends StatelessWidget {
+import '../../groups/cubit/create_complement_cubit.dart';
+import '../../groups/multi_step_panel_container.dart';
+
+class ComplementGroupsScreen extends StatefulWidget {
   final Product product;
   const ComplementGroupsScreen({super.key, required this.product});
 
   @override
-  Widget build(BuildContext context) {
-    // ✅ PASSO 1: O BlocProvider agora é criado aqui, no topo da tela.
-    // Isso garante que o Cubit exista durante todo o ciclo de vida da aba.
-    return BlocProvider(
-      create: (context) {
-        // Pega as dependências do contexto (assumindo que já estão providas em um nível superior)
-        final storesState = context.read<StoresManagerCubit>().state as StoresManagerLoaded;
-        return CreateComplementGroupCubit(
-          storeId: storesState.activeStore!.core.id!,
-          productId: product.id!,
-          productRepository: getIt<ProductRepository>(),
-          allExistingVariants: storesState.activeStore!.relations.variants ?? [],
-          allExistingProducts: storesState.activeStore!.relations.products ?? [],
-        );
-      },
-      // ✅ PASSO 2: O BlocListener "ouve" o estado do Cubit para tomar ações.
-      child: BlocListener<CreateComplementGroupCubit, CreateComplementGroupState>(
-        listener: (context, state) {
-          if (state.status == FormStatus.success) {
-            // Se o salvamento deu certo:
-            // 1. Fecha o painel lateral que está aberto
-            if (Navigator.canPop(context)) {
-              Navigator.of(context).pop();
-            }
-            // 2. Manda a tela principal recarregar os dados para mostrar o novo grupo
-          //  context.read<StoresManagerCubit>().reloadActiveStore();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Grupo salvo com sucesso!"), backgroundColor: Colors.green),
-            );
-          }
-          if (state.status == FormStatus.error) {
-            // Se deu erro, mostra a mensagem
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Erro ao salvar: ${state.errorMessage}"), backgroundColor: Colors.red),
-            );
-          }
-        },
-        // O child é a sua UI normal, que não precisa de alterações.
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            const double desktopBreakpoint = 950.0;
-            final bool isDesktop = constraints.maxWidth >= desktopBreakpoint;
-            final mainContent = _buildMainContent(context);
+  State<ComplementGroupsScreen> createState() => _ComplementGroupsScreenState();
+}
 
-            if (isDesktop) {
-              // --- LAYOUT DESKTOP ---
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 6, child: mainContent),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    flex: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 48.0),
-                      child: ProductPhoneMockup(product: product, width: 300),
-                    ),
-                  ),
-                ],
-              );
-            } else {
-              // --- LAYOUT MOBILE ---
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  mainContent,
-                  const SizedBox(height: 32),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  _buildPreviewHeader(),
-                  Center(child: ProductPhoneMockup(product: product, showVariants: true)),
-                ],
-              );
-            }
-          },
+class _ComplementGroupsScreenState extends State<ComplementGroupsScreen> {
+  // ✅ Gerencia a lista de complementos localmente para atualizações instantâneas na UI
+  late List<ProductVariantLink> _currentLinks;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicia a lista local com os complementos que já existem no produto
+    _currentLinks = List.from(widget.product.variantLinks ?? []);
+  }
+
+  /// ✅ Abre o painel lateral para criar/copiar um novo grupo de complementos
+  Future<void> _openAddGroupPanel() async {
+    final storesState = context.read<StoresManagerCubit>().state;
+    if (storesState is! StoresManagerLoaded) return;
+
+    // Chama o painel e aguarda o resultado (o novo ProductVariantLink)
+    final newLink = await showModalBottomSheet<ProductVariantLink>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => BlocProvider(
+        create: (_) => CreateComplementGroupCubit(
+          storeId: storesState.activeStore!.core.id!,
+          productId: widget.product.id,
+          productRepository: getIt<ProductRepository>(),
+          allStoreVariants: storesState.activeStore!.relations.variants ?? [],
+          allStoreProducts: storesState.activeStore!.relations.products ?? [],
+        ),
+        child: const FractionallySizedBox(
+          heightFactor: 0.9, // Painel ocupa 90% da altura
+          child: MultiStepPanelContainer(),
         ),
       ),
     );
-  }
 
-  /// ✅ CORRIGIDO: O SingleChildScrollView extra foi removido daqui.
-  Widget _buildMainContent(BuildContext context) {
-    final bool hasNoLinks = product.variantLinks == null || product.variantLinks!.isEmpty;
+    if (newLink != null && mounted) {
+      // ✅ Se um novo link foi criado, salva no banco de dados
+      final result = await getIt<ProductRepository>().linkVariantToProduct(
+        storeId: storesState.activeStore!.core.id!,
+        productId: widget.product.id!,
+        variantId: newLink.variant.id!,
+        linkData: newLink,
+      );
 
-    if (hasNoLinks) {
-      return _buildEmptyState(context);
-    } else {
-      // Retorna apenas a Column, pois a rolagem já é fornecida pela tela pai.
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(context),
-          const SizedBox(height: 24),
-          _buildToolbar(context),
-          const SizedBox(height: 16),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: product.variantLinks!.length,
-            itemBuilder: (context, index) {
-              final link = product.variantLinks![index];
-              return VariantLinkCard(link: link);
-            },
-            separatorBuilder: (context, index) => const SizedBox(height: 16),
-          ),
-        ],
+      result.fold(
+            (error) => ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro: $error"), backgroundColor: Colors.red),
+        ),
+            (savedLink) {
+          // ✅ Sucesso: Adiciona na lista local e atualiza a UI
+          setState(() {
+            _currentLinks.add(savedLink);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Grupo adicionado com sucesso!"), backgroundColor: Colors.green),
+          );
+        },
       );
     }
+  }
+
+  void _reorderLinks(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final item = _currentLinks.removeAt(oldIndex);
+      _currentLinks.insert(newIndex, item);
+      // TODO: Chamar o repositório para salvar a nova ordem (prioridade) dos links
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final mainContent = _buildMainContent(context);
+
+        if (constraints.maxWidth >= 950) {
+          // --- LAYOUT DESKTOP ---
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 6, child: mainContent),
+              const SizedBox(width: 24),
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48.0),
+                  child: ProductPhoneMockup(
+                      product: widget.product.copyWith(variantLinks: () => _currentLinks),
+                      width: 300
+                  ),
+                ),
+              ),
+            ],
+          );
+        } else {
+          // --- LAYOUT MOBILE ---
+          return mainContent; // O SingleChildScrollView já está no EditProductPage
+        }
+      },
+    );
+  }
+
+  Widget _buildMainContent(BuildContext context) {
+    return _currentLinks.isEmpty
+        ? _buildEmptyState(context)
+        : _buildPopulatedState(context);
+  }
+
+  Widget _buildPopulatedState(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(context),
+        const SizedBox(height: 24),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: () {}, // A lógica de reordenar já está no ReorderableListView
+            icon: const Icon(Icons.sort, size: 20),
+            label: const Text("Reordenar"),
+          ),
+        ),
+        const SizedBox(height: 16),
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _currentLinks.length,
+          itemBuilder: (context, index) {
+            final link = _currentLinks[index];
+            return VariantLinkCard(
+              key: ValueKey(link.variant.id),
+              link: link,
+              onRemove: () {  },
+            );
+          },
+          onReorder: _reorderLinks,
+        ),
+      ],
+    );
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -157,15 +181,9 @@ class ComplementGroupsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              // ✅ A chamada agora é mais simples
-              onPressed: () {
-                showResponsiveSidePanelComplement(context, panel: const MultiStepPanelContainer(),productId: product.id!);
-              },
+              onPressed: _openAddGroupPanel,
               icon: const Icon(Icons.add),
               label: const Text("Criar Primeiro Grupo"),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              ),
             ),
           ],
         ),
@@ -179,58 +197,11 @@ class ComplementGroupsScreen extends StatelessWidget {
       children: [
         const Text("Grupos de Complementos", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         ElevatedButton.icon(
-          // ✅ A chamada agora é mais simples
-          onPressed: () {
-            showResponsiveSidePanelComplement(context, panel: const MultiStepPanelContainer(), productId: product.id!);
-          },
+          onPressed: _openAddGroupPanel,
           icon: const Icon(Icons.add),
           label: const Text("Adicionar grupo"),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          ),
         ),
       ],
     );
   }
-
-
-  Widget _buildPreviewHeader() {
-    return const Padding(
-      padding: EdgeInsets.only(bottom: 16.0),
-      child: Row(
-        children: [
-          Icon(Icons.phone_iphone, color: Colors.grey),
-          SizedBox(width: 8),
-          Text(
-            "Preview no App",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-  Widget _buildToolbar(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: OutlinedButton.icon(
-        onPressed: () {},
-        icon: const Icon(Icons.sort, size: 20),
-        label: const Text("Reordenar"),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.grey[700],
-          side: BorderSide(color: Colors.grey.shade300),
-        ),
-      ),
-    );
-  }
 }
-
-
-
-
-
-
-
-

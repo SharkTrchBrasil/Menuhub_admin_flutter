@@ -1,6 +1,8 @@
 import 'package:totem_pro_admin/models/product_variant_link.dart';
 import 'package:totem_pro_admin/models/variant_option.dart';
 
+import '../core/enums/variant_type.dart';
+
 class Variant {
   final int? id;
   final String name;
@@ -94,11 +96,3 @@ class Variant {
   }
 }
 
-// Lembre-se de garantir que seu enum VariantType tenha todos os tipos
-enum VariantType {
-  INGREDIENTS,
-  SPECIFICATIONS,
-  CROSS_SELL,
-  DISPOSABLES,
-  UNKNOWN
-}

@@ -1,15 +1,6 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:equatable/equatable.dart';
-import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/models/catalog_product.dart';
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/repositories/product_repository.dart';
+part of 'product_wizard_cubit.dart';
 
-import '../../../models/image_model.dart';
-import '../../../models/product_variant_link.dart';
 
-enum ProductType { PREPARED, INDUSTRIALIZED, UNKNOWN }
-enum SearchStatus { initial, loading, success, failure }
 
 class ProductWizardState extends Equatable {
   final int currentStep;
@@ -18,8 +9,14 @@ class ProductWizardState extends Equatable {
   final SearchStatus searchStatus;
   final List<CatalogProduct> searchResults;
   final bool catalogProductSelected;
-  final bool isImported; // ✅ NOVO: Flag para saber se o produto foi importado
+  final bool isImported;
   final List<ProductVariantLink> variantLinks;
+  final FormStatus submissionStatus;
+
+  // ✅ CAMPO QUE ESTAVA FALTANDO
+  final List<ProductCategoryLink> categoryLinks;
+  // ✅ CAMPO QUE ESTAVA FALTANDO
+  final String? errorMessage;
 
   const ProductWizardState({
     this.currentStep = 1,
@@ -28,14 +25,16 @@ class ProductWizardState extends Equatable {
     this.searchStatus = SearchStatus.initial,
     this.searchResults = const [],
     this.catalogProductSelected = false,
-    this.isImported = false, // ✅ Inicia como falso
+    this.isImported = false,
     this.variantLinks = const [],
+    this.submissionStatus = FormStatus.initial,
+    this.categoryLinks = const [], // ✅ ADICIONADO
+    this.errorMessage,             // ✅ ADICIONADO
   });
 
   factory ProductWizardState.initial() {
     return ProductWizardState(
-      productInCreation: Product(available: true,  image: ImageModel()),
-      variantLinks: [],
+      productInCreation: Product(available: true, image: ImageModel()),
     );
   }
 
@@ -48,6 +47,9 @@ class ProductWizardState extends Equatable {
     bool? catalogProductSelected,
     bool? isImported,
     List<ProductVariantLink>? variantLinks,
+    FormStatus? submissionStatus,
+    List<ProductCategoryLink>? categoryLinks, // ✅ ADICIONADO
+    String? errorMessage,                      // ✅ ADICIONADO
   }) {
     return ProductWizardState(
       currentStep: currentStep ?? this.currentStep,
@@ -56,11 +58,18 @@ class ProductWizardState extends Equatable {
       searchStatus: searchStatus ?? this.searchStatus,
       searchResults: searchResults ?? this.searchResults,
       catalogProductSelected: catalogProductSelected ?? this.catalogProductSelected,
-      isImported: isImported ?? this.isImported, // ✅
-      variantLinks: variantLinks ?? this.variantLinks, //
+      isImported: isImported ?? this.isImported,
+      variantLinks: variantLinks ?? this.variantLinks,
+      submissionStatus: submissionStatus ?? this.submissionStatus,
+      categoryLinks: categoryLinks ?? this.categoryLinks,
+      errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 
   @override
-  List<Object?> get props => [currentStep, productType, productInCreation, searchStatus, searchResults, catalogProductSelected, isImported, variantLinks];
+  List<Object?> get props => [
+    currentStep, productType, productInCreation, searchStatus,
+    searchResults, catalogProductSelected, isImported, variantLinks,
+    submissionStatus, categoryLinks, errorMessage
+  ];
 }

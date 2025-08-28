@@ -111,28 +111,42 @@ class _MenuContentState extends State<MenuContent> {
     super.dispose();
   }
 
+// Em lib/pages/products/widgets/menu_content.dart
+
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<DsThemeSwitcher>().theme;
 
+    // 1. Filtrar produtos pelo texto da busca (esta parte não muda)
     final searchedProducts = _searchText.isEmpty
         ? widget.allProducts
         : widget.allProducts
         .where((p) => p.name.toLowerCase().contains(_searchText))
         .toList();
 
+    // 2. Lógica para decidir quais CATEGORIAS serão visíveis
     final List<Category> visibleCategories;
     if (_selectedCategory != null) {
+      // Se um filtro de categoria está ativo, mostra apenas ela
       visibleCategories = widget.allCategories
           .where((c) => c.id == _selectedCategory!.id)
           .toList();
     } else if (_searchText.isNotEmpty) {
-      final categoryIdsWithMatchingProducts =
-      searchedProducts.map((p) => p.category?.id).toSet();
+      // ✅ CORREÇÃO 1: Lógica de busca por texto
+      // Se estamos buscando, precisamos encontrar todas as categorias
+      // que contêm os produtos encontrados na busca.
+
+      // Usamos `expand` para achatar a lista de listas de categorias de cada produto
+      // e `map` para pegar o ID de cada categoria vinculada.
+      final categoryIdsWithMatchingProducts = searchedProducts
+          .expand((product) => product.categoryLinks.map((link) => link.category.id))
+          .toSet(); // `.toSet()` remove duplicatas
+
       visibleCategories = widget.allCategories
           .where((c) => categoryIdsWithMatchingProducts.contains(c.id))
           .toList();
     } else {
+      // Se não há filtro, mostra todas as categorias
       visibleCategories = widget.allCategories;
     }
 
@@ -153,7 +167,6 @@ class _MenuContentState extends State<MenuContent> {
         SliverPersistentHeader(
           pinned: true,
           delegate: _MenuSliverFilterDelegate(
-
             height: headerHeight,
             child: FilterBar(
               searchController: _searchController,
@@ -176,9 +189,14 @@ class _MenuContentState extends State<MenuContent> {
               delegate: SliverChildBuilderDelegate(
                     (context, index) {
                   final category = visibleCategories[index];
+
+                  // ✅ CORREÇÃO 2: Lógica para encontrar os produtos de uma categoria
+                  // Agora verificamos se na lista `categoryLinks` de um produto
+                  // existe ALGUM link cuja categoria tenha o ID correspondente.
                   final productsForCategory = searchedProducts
-                      .where((p) => p.category?.id == category.id)
+                      .where((p) => p.categoryLinks.any((link) => link.category.id == category.id))
                       .toList();
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: CategoryCard(
@@ -196,7 +214,6 @@ class _MenuContentState extends State<MenuContent> {
       ],
     );
   }
-
   void _navigateToAddCategory() {
     context.push('/stores/${widget.storeId}/categories');
   }

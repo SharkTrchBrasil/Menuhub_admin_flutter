@@ -1,13 +1,12 @@
-
 import 'package:totem_pro_admin/models/variant.dart';
-import 'package:totem_pro_admin/models/variant_option.dart';
+import 'package:totem_pro_admin/models/variant_option.dart'; // Importe o enum
 
 class ProductVariantLink {
   final UIDisplayMode uiDisplayMode;
   final int minSelectedOptions;
   final int maxSelectedOptions;
   final int? maxTotalQuantity;
-  final Variant variant; // O template Variant está aninhado aqui
+  final Variant variant;
 
   ProductVariantLink({
     required this.uiDisplayMode,
@@ -17,23 +16,33 @@ class ProductVariantLink {
     required this.variant,
   });
 
-  // Getter para a UI saber se o grupo é obrigatório
   bool get isRequired => minSelectedOptions > 0;
 
-  /// ✅ CORRIGIDO: Constrói o objeto a partir do JSON recebido da API.
-  factory ProductVariantLink.fromJson(Map<String, dynamic> json) {
+  // ✅ MÉTODO copyWith ADICIONADO
+  /// Cria uma cópia deste objeto, substituindo os valores fornecidos.
+  ProductVariantLink copyWith({
+    UIDisplayMode? uiDisplayMode,
+    int? minSelectedOptions,
+    int? maxSelectedOptions,
+    int? maxTotalQuantity,
+    Variant? variant,
+  }) {
+    return ProductVariantLink(
+      uiDisplayMode: uiDisplayMode ?? this.uiDisplayMode,
+      minSelectedOptions: minSelectedOptions ?? this.minSelectedOptions,
+      maxSelectedOptions: maxSelectedOptions ?? this.maxSelectedOptions,
+      maxTotalQuantity: maxTotalQuantity ?? this.maxTotalQuantity,
+      variant: variant ?? this.variant,
+    );
+  }
 
-    // Helper para converter a string do JSON para o nosso Enum
+  factory ProductVariantLink.fromJson(Map<String, dynamic> json) {
     UIDisplayMode modeFromString(String? modeStr) {
       switch (modeStr) {
-        case "Seleção Única":
-          return UIDisplayMode.SINGLE;
-        case "Seleção Múltipla":
-          return UIDisplayMode.MULTIPLE;
-        case "Seleção com Quantidade":
-          return UIDisplayMode.QUANTITY;
-        default:
-          return UIDisplayMode.UNKNOWN;
+        case "Seleção Única": return UIDisplayMode.SINGLE;
+        case "Seleção Múltipla": return UIDisplayMode.MULTIPLE;
+        case "Seleção com Quantidade": return UIDisplayMode.QUANTITY;
+        default: return UIDisplayMode.UNKNOWN;
       }
     }
 
@@ -42,24 +51,17 @@ class ProductVariantLink {
       uiDisplayMode: modeFromString(json['ui_display_mode']),
       minSelectedOptions: json['min_selected_options'],
       maxSelectedOptions: json['max_selected_options'],
-      // ... (outros campos)
+      maxTotalQuantity: json['max_total_quantity'],
     );
   }
 
-  /// ✅ CORRIGIDO: Converte o objeto para o JSON que a API espera ao salvar.
   Map<String, dynamic> toJson() {
-
-    // Helper para converter nosso Enum para a string que a API espera
     String modeToString(UIDisplayMode mode) {
       switch (mode) {
-        case UIDisplayMode.SINGLE:
-          return "Seleção Única";
-        case UIDisplayMode.MULTIPLE:
-          return "Seleção Múltipla";
-        case UIDisplayMode.QUANTITY:
-          return "Seleção com Quantidade";
-        default:
-          return "";
+        case UIDisplayMode.SINGLE: return "Seleção Única";
+        case UIDisplayMode.MULTIPLE: return "Seleção Múltipla";
+        case UIDisplayMode.QUANTITY: return "Seleção com Quantidade";
+        default: return "";
       }
     }
 
@@ -68,9 +70,6 @@ class ProductVariantLink {
       'min_selected_options': minSelectedOptions,
       'max_selected_options': maxSelectedOptions,
       'max_total_quantity': maxTotalQuantity,
-      // O 'variant' não é enviado aqui, pois o ID dele já está na URL da API
     };
   }
-
-
 }

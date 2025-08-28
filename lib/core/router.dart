@@ -533,8 +533,8 @@ class AppRouter {
                           path: 'create',
                           name: 'product-create-wizard',
                           pageBuilder: (context, state) {
-                            return const NoTransitionPage( // ou outra transição que preferir
-                              child: ProductWizardPage(),
+                            return NoTransitionPage( // ou outra transição que preferir
+                              child: ProductWizardPage( storeId: state.storeId,),
                             );
                           },
                         ),

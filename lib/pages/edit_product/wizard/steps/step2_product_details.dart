@@ -11,10 +11,11 @@ import 'package:totem_pro_admin/widgets/mobile_mockup.dart'; // Importe seu mock
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/enums/product_type.dart';
 import '../../../../models/image_model.dart';
 import '../../../../widgets/app_image_form_field.dart';
 import '../../cubit/product_wizard_cubit.dart';
-import '../../cubit/product_wizard_state.dart';
+
 
 class Step2ProductDetails extends StatefulWidget {
   const Step2ProductDetails({super.key});

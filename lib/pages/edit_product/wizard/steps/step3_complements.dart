@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
 import 'package:totem_pro_admin/models/product_variant_link.dart';
-// Importe o painel que você já criou
-import 'package:totem_pro_admin/pages/edit_product/widgets/groups/multi_step_panel.dart';
-import 'package:totem_pro_admin/pages/edit_product/helper/sidepanel.dart';
 
-// Você precisará de um card para mostrar o link, pode reusar o que já tem
-import 'package:totem_pro_admin/pages/edit_product/widgets/variant_link_card.dart';
 
 import '../../../../widgets/mobile_mockup.dart';
 import '../../cubit/product_wizard_cubit.dart';
-import '../../cubit/product_wizard_state.dart';
+
+import '../../groups/helper/show_create_group_panel.dart';
+import '../../helper/sidepanel.dart';
+import '../../widgets/variant_link_card.dart';
 
 class Step3Complements extends StatelessWidget {
   const Step3Complements({super.key});
@@ -37,8 +35,9 @@ class Step3Complements extends StatelessWidget {
                   child: mainContent,
                 ),
               ),
+              Spacer(),
               Expanded(
-                flex: 4,
+                flex: 3,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 32.0, right: 32.0),
                   // O mockup agora precisa receber a lista de links do estado
@@ -64,20 +63,21 @@ class Step3Complements extends StatelessWidget {
         : _buildComplementsList(context, state);
   }
 
-  Future<void> _openCreateGroupPanel(BuildContext context) async {
+  // ✅ A chamada agora é uma função async que usa o novo helper
+  Future<void> _openPanel(BuildContext context) async {
     final cubit = context.read<ProductWizardCubit>();
 
-    // // O painel agora retorna o novo grupo criado (em memória)
-    // final newLink = showResponsiveSidePanelComplement<ProductVariantLink>(
-    //   context,
-    //   // O productId pode ser nulo, pois estamos criando um novo produto
-    //   productId: cubit.state.productInCreation.id, panel: null,
-    // );
-    //
-    // if (newLink != null && context.mounted) {
-    //   context.read<ProductWizardCubit>().addVariantLink(newLink);
-    // }
+    final newLink = await showCreateGroupPanel(
+      context,
+      productId: cubit.state.productInCreation.id,
+    );
+
+    // Se o painel retornou um link, adiciona ao estado do wizard
+    if (newLink != null && context.mounted) {
+      cubit.addVariantLink(newLink);
+    }
   }
+
 
   Widget _buildEmptyState(BuildContext context) {
     return Column(
@@ -99,7 +99,7 @@ class Step3Complements extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         ElevatedButton.icon(
-          onPressed: () => _openCreateGroupPanel(context),
+          onPressed: () => _openPanel(context),
           icon: const Icon(Icons.add),
           label: const Text("Adicionar Primeiro Grupo"),
         ),
@@ -116,7 +116,7 @@ class Step3Complements extends StatelessWidget {
           children: [
             Text("Grupos de Complementos", style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
             ElevatedButton.icon(
-              onPressed: () => _openCreateGroupPanel(context),
+              onPressed: () => _openPanel(context),
               icon: const Icon(Icons.add),
               label: const Text("Adicionar grupo"),
             ),
@@ -132,11 +132,11 @@ class Step3Complements extends StatelessWidget {
             return VariantLinkCard(
               key: ValueKey(link.variant.id ?? index),
               link: link,
-            //  onRemove: () => context.read<ProductWizardCubit>().removeVariantLink(link),
+               onRemove: () => context.read<ProductWizardCubit>().removeVariantLink(link),
             );
           },
           onReorder: (oldIndex, newIndex) {
-         //   context.read<ProductWizardCubit>().reorderVariantLinks(oldIndex, newIndex);
+            context.read<ProductWizardCubit>().reorderVariantLinks(oldIndex, newIndex);
           },
         ),
       ],

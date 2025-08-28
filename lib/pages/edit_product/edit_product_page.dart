@@ -92,7 +92,7 @@ class EditProductPageState extends State<EditProductPage> {
           name: '',
           description: '',
           available: true,
-          category: widget.category, // Pré-seleciona a categoria se vier dela
+         // category: widget.category, // Pré-seleciona a categoria se vier dela
           // Defina outros valores padrão aqui se necessário
         );
         _isLoading = false;
