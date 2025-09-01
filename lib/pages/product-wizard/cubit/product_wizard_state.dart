@@ -1,4 +1,14 @@
-part of 'product_wizard_cubit.dart';
+
+import 'package:equatable/equatable.dart';
+import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/catalog_product.dart';
+
+import 'package:totem_pro_admin/models/product_variant_link.dart';
+import 'package:totem_pro_admin/core/enums/product_type.dart';
+import 'package:totem_pro_admin/models/image_model.dart';
+
+import '../../../core/enums/form_status.dart';
+import '../../../models/prodcut_category_links.dart';
 
 
 
@@ -34,9 +44,14 @@ class ProductWizardState extends Equatable {
 
   factory ProductWizardState.initial() {
     return ProductWizardState(
-      productInCreation: Product(available: true, image: ImageModel()),
+      productInCreation: Product(available: true, image: ImageModel(), price: 0),
     );
   }
+
+  // ✅ ADICIONE ESTE GETTER NO FINAL DA CLASSE
+  /// Retorna `true` se o estado atual for diferente do estado inicial.
+  bool get isDirty => this != ProductWizardState.initial();
+
 
   ProductWizardState copyWith({
     int? currentStep,

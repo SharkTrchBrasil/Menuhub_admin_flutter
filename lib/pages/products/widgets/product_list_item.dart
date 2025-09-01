@@ -23,6 +23,7 @@ class ProductListItem extends StatefulWidget {
     super.key,
     required this.storeId,
     required this.product,
+
   });
 
   @override
@@ -45,12 +46,13 @@ class _ProductListItemState extends State<ProductListItem> {
   void initState() {
     super.initState();
 
-    // Inicializa os controladores com os valores do produto
     _priceController = TextEditingController(
-      text: UtilBrasilFields.obterReal((widget.product.basePrice ?? 0) / 100),
+      text: UtilBrasilFields.obterReal(widget.product.price / 100),
     );
+
+
     _stockController = TextEditingController(
-      text: widget.product.stockQuantity?.toString() ?? '0',
+      text: widget.product.stockQuantity.toString() ?? '0',
     );
 
     // Inicializa os FocusNodes e adiciona listeners para salvar ao perder o foco
@@ -79,13 +81,13 @@ class _ProductListItemState extends State<ProductListItem> {
   void didUpdateWidget(covariant ProductListItem oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.product != oldWidget.product) {
-      // Atualiza o controlador de preço se o valor mudou
-      final newPriceFormatted = UtilBrasilFields.obterReal((widget.product.basePrice ?? 0) / 100);
+      // ✅ CORRIGIDO: Usa o novo campo 'price'
+      final newPriceFormatted = UtilBrasilFields.obterReal(widget.product.price / 100);
       if (_priceController.text != newPriceFormatted) {
         _priceController.text = newPriceFormatted;
       }
       // Atualiza o controlador de estoque se o valor mudou
-      final newStock = widget.product.stockQuantity?.toString() ?? '0';
+      final newStock = widget.product.stockQuantity.toString() ?? '0';
       if (_stockController.text != newStock) {
         _stockController.text = newStock;
       }
@@ -113,30 +115,78 @@ class _ProductListItemState extends State<ProductListItem> {
     }
   }
 
-  /// Lógica centralizada para atualizar um campo do produto
-  Future<void> _updateProductField({required String newValue, required bool isPrice}) async {
-    int? originalValue;
-    int? parsedValue;
-    Product updatedProduct;
 
-    if (isPrice) {
-      originalValue = widget.product.basePrice;
-      parsedValue = (UtilBrasilFields.converterMoedaParaDouble(newValue) * 100).toInt();
-      updatedProduct = widget.product.copyWith(basePrice: parsedValue);
-    } else {
-      originalValue = widget.product.stockQuantity;
-      parsedValue = int.tryParse(newValue) ?? 0;
-      updatedProduct = widget.product.copyWith(stockQuantity: parsedValue);
+
+
+
+
+
+// DENTRO DE _ProductListItemState
+
+  Future<void> _updateProductField({required String newValue, required bool isPrice}) async {
+    // A lógica para o estoque continua a mesma
+    if (!isPrice) {
+      final originalValue = widget.product.stockQuantity;
+      final parsedValue = int.tryParse(newValue) ?? 0;
+      if (originalValue != parsedValue) {
+        try {
+          final updatedProduct = widget.product.copyWith(stockQuantity: parsedValue);
+          await getIt<ProductRepository>().saveProduct(widget.storeId, updatedProduct);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${widget.product.name}: ${isPrice ? "Preço" : "Estoque"} atualizado com sucesso!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          // Em caso de erro, reverte a mudança no campo de texto
+          setState(() {
+            if (isPrice) {
+              _priceController.text = UtilBrasilFields.obterReal((originalValue ?? 0) / 100);
+            } else {
+              _stockController.text = originalValue?.toString() ?? '0';
+            }
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Erro ao atualizar: $e'), backgroundColor: Colors.red),
+            );
+          }
+        }
+      }
+      return;
     }
 
-    // Só salva se o valor realmente mudou
-    if (originalValue != parsedValue) {
+    // ✅ --- NOVA LÓGICA PARA ATUALIZAR O PREÇO --- ✅
+    final originalPrice = widget.product.price;
+    final parsedPrice = (UtilBrasilFields.converterMoedaParaDouble(newValue) * 100).toInt();
+
+    // Só atualiza se o valor mudou
+    if (originalPrice != parsedPrice) {
+      // Garante que o produto tem uma categoria principal para atualizar
+      if (widget.product.categoryLinks.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro: Produto sem categoria principal para atualizar o preço.'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+      final primaryCategoryId = widget.product.categoryLinks.first.category.id;
+
       try {
-        await getIt<ProductRepository>().saveProduct(widget.storeId, updatedProduct);
+        // Chama o NOVO método do repositório
+        await getIt<ProductRepository>().updateProductCategoryPrice(
+          storeId: widget.storeId,
+          productId: widget.product.id!,
+          categoryId: primaryCategoryId!,
+          newPrice: parsedPrice,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${widget.product.name}: ${isPrice ? "Preço" : "Estoque"} atualizado com sucesso!'),
+              content: Text('${widget.product.name}: Preço atualizado com sucesso!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -144,11 +194,7 @@ class _ProductListItemState extends State<ProductListItem> {
       } catch (e) {
         // Em caso de erro, reverte a mudança no campo de texto
         setState(() {
-          if (isPrice) {
-            _priceController.text = UtilBrasilFields.obterReal((originalValue ?? 0) / 100);
-          } else {
-            _stockController.text = originalValue?.toString() ?? '0';
-          }
+          _priceController.text = UtilBrasilFields.obterReal(originalPrice / 100);
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -158,6 +204,19 @@ class _ProductListItemState extends State<ProductListItem> {
       }
     }
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -359,7 +418,7 @@ class _ProductListItemState extends State<ProductListItem> {
   }
 
 
-  // ✅ NOVO MÉTODO PARA MOSTRAR O BOTTOMSHEET NO MOBILE
+
   void _showMobileActionSheet(BuildContext context) {
     showModalBottomSheet(
       isScrollControlled: true,

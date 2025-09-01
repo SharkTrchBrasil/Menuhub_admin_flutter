@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/enums/product_type.dart';
 import '../../../../core/responsive_builder.dart';
-import '../../cubit/product_wizard_cubit.dart';
+
+import '../cubit/product_wizard_cubit.dart';
+import '../cubit/product_wizard_state.dart';
 
 
 

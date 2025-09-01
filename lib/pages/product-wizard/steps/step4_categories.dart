@@ -8,8 +8,10 @@ import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 
 import '../../../../cubits/store_manager_state.dart';
-import '../../../../models/product.dart';
-import '../../cubit/product_wizard_cubit.dart';
+import '../../../../models/prodcut_category_links.dart';
+import '../cubit/product_wizard_cubit.dart';
+import '../cubit/product_wizard_state.dart';
+
 
 
 
@@ -114,7 +116,7 @@ class Step4Categories extends StatelessWidget {
       child: Row(
         children: [
           Expanded(flex: 3, child: Text("CATEGORIA", style: headerStyle)),
-          Expanded(flex: 2, child: Text("PREÇO (OPCIONAL)", style: headerStyle)),
+          Expanded(flex: 2, child: Text("PREÇO", style: headerStyle)),
           Expanded(flex: 2, child: Text("CÓDIGO PDV (OPCIONAL)", style: headerStyle)),
           const SizedBox(width: 48), // Espaço para o botão de remover
         ],
@@ -139,11 +141,11 @@ class _CategoryLinkRowState extends State<_CategoryLinkRow> {
   void initState() {
     super.initState();
     _priceController = TextEditingController(
-      text: widget.link.priceOverride != null
-          ? UtilBrasilFields.obterReal(widget.link.priceOverride! / 100)
+      text: widget.link.price != null
+          ? UtilBrasilFields.obterReal(widget.link.price! / 100)
           : '',
     );
-    _pdvController = TextEditingController(text: widget.link.posCodeOverride ?? '');
+    _pdvController = TextEditingController(text: widget.link.posCode ?? '');
   }
 
   @override
@@ -160,8 +162,8 @@ class _CategoryLinkRowState extends State<_CategoryLinkRow> {
         : null;
 
     final updatedLink = widget.link.copyWith(
-      priceOverride: priceInCents,
-      posCodeOverride: _pdvController.text.isNotEmpty ? _pdvController.text : null,
+      price: priceInCents,
+      posCode: _pdvController.text.isNotEmpty ? _pdvController.text : null,
     );
     context.read<ProductWizardCubit>().updateCategoryLink(updatedLink);
   }
@@ -178,7 +180,7 @@ class _CategoryLinkRowState extends State<_CategoryLinkRow> {
             flex: 2,
             child: AppTextField(
               controller: _priceController,
-              hint: 'Padrão',
+              hint: '0,00',
               formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
               keyboardType: TextInputType.number,
               onTapOutside: (_) => _updateLink(), title: '',
@@ -189,7 +191,7 @@ class _CategoryLinkRowState extends State<_CategoryLinkRow> {
             flex: 2,
             child: AppTextField(
               controller: _pdvController,
-              hint: 'Padrão',
+              hint: 'CSAXDR',
               onTapOutside: (_) => _updateLink(), title: '',
             ),
           ),

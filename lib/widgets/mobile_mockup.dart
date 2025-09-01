@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
 
+import '../core/enums/ui_display_mode.dart';
 import '../models/product.dart';
 import '../models/product_variant_link.dart';
 import '../models/variant_option.dart';
@@ -142,7 +143,7 @@ final bool showVar;
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
-            '${product.basePrice?.toPrice() ?? "0,00"}',
+            product.price.toPrice() ?? "0,00",
 
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,

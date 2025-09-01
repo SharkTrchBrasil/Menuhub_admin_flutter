@@ -9,14 +9,20 @@ import 'package:totem_pro_admin/models/product.dart';
 
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 
+import '../../../core/enums/form_status.dart';
 import '../../../core/enums/product_type.dart';
 import '../../../models/category.dart';
 import '../../../models/image_model.dart';
+import '../../../models/prodcut_category_links.dart';
 import '../../../models/product_variant_link.dart';
-import '../groups/cubit/create_complement_cubit.dart';
+import '../../../models/variant_option.dart';
 
 
-part 'product_wizard_state.dart';
+// ❌ REMOVA ESTA LINHA:
+// part 'product_wizard_state.dart';
+
+// ✅ ADICIONE ESTA LINHA:
+import 'product_wizard_state.dart';
 
 class ProductWizardCubit extends Cubit<ProductWizardState> {
   final ProductRepository _productRepository = getIt<ProductRepository>();
@@ -27,13 +33,37 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
   ProductWizardCubit({required this.storeId}) : super(ProductWizardState.initial());
 
 
+  void updateVariantLinkName(ProductVariantLink linkToUpdate, String newName) {
+    final updatedVariant = linkToUpdate.variant.copyWith(name: newName);
+    final updatedLink = linkToUpdate.copyWith(variant: updatedVariant);
+    updateVariantLink(updatedLink);
+  }
+
+  // Em lib/pages/product_edit/cubit/product_wizard_cubit.dart
+
+// Adicione este método para adicionar uma opção a um grupo que está sendo criado
+  void addOptionToLink(VariantOption newOption, ProductVariantLink parentLink) {
+    // Encontra o link na lista do estado
+    final targetLink = state.variantLinks.firstWhere((link) => link.variant.id == parentLink.variant.id);
+
+    // Cria uma nova lista de opções, adicionando a nova
+    final updatedOptions = List<VariantOption>.from(targetLink.variant.options)..add(newOption);
+
+    // Cria cópias atualizadas dos objetos
+    final updatedVariant = targetLink.variant.copyWith(options: updatedOptions);
+    final updatedLink = targetLink.copyWith(variant: updatedVariant);
+
+    // Atualiza o link na lista principal do estado
+    updateVariantLink(updatedLink);
+  }
+
   void setProductType(ProductType type) {
     final showForm = (type == ProductType.PREPARED);
     emit(state.copyWith(
       productType: type,
       catalogProductSelected: showForm,
       isImported: false,
-      productInCreation: Product(available: true, image: ImageModel()),
+      productInCreation: Product(available: true, image: ImageModel(), price: 0),
 
       // Também é uma boa prática resetar o estado da busca
       searchResults: [],
@@ -128,7 +158,7 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     emit(state.copyWith(
       catalogProductSelected: false,
       isImported: false,
-      productInCreation: Product(available: true, image: ImageModel()),
+      productInCreation: Product(available: true, image: ImageModel(), price: 0),
       searchResults: [],
       searchStatus: SearchStatus.initial,
     ));
@@ -153,13 +183,33 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     emit(state.copyWith(variantLinks: updatedLinks));
   }
 
+// DENTRO DA CLASSE ProductWizardCubit
+
+// ✅ MÉTODO `nextStep` ATUALIZADO
   void nextStep() {
+    // Regra especial para pular a etapa de complementos
+    if (state.currentStep == 2 && state.productType == ProductType.INDUSTRIALIZED) {
+      // Se está no passo 2 e o produto é industrializado, pula direto para o 4
+      emit(state.copyWith(currentStep: 4));
+      return;
+    }
+
+    // Lógica padrão para os outros casos
     if (state.currentStep < 4) {
       emit(state.copyWith(currentStep: state.currentStep + 1));
     }
   }
 
+// ✅ MÉTODO `previousStep` ATUALIZADO
   void previousStep() {
+    // Regra especial para voltar do pulo
+    if (state.currentStep == 4 && state.productType == ProductType.INDUSTRIALIZED) {
+      // Se está no passo 4 e o produto é industrializado, volta direto para o 2
+      emit(state.copyWith(currentStep: 2));
+      return;
+    }
+
+    // Lógica padrão para os outros casos
     if (state.currentStep > 1) {
       emit(state.copyWith(currentStep: state.currentStep - 1));
     }
@@ -167,14 +217,21 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
 
 
 
-
-
   void addCategoryLink(Category category) {
     if (state.categoryLinks.any((link) => link.category.id == category.id)) return;
-    final newLink = ProductCategoryLink(category: category);
+
+    // ✅ CORRIGIDO: Usando os nomes de parâmetros corretos ('price' e 'posCode')
+    final newLink = ProductCategoryLink(
+      category: category,
+      price: 0,   // O nome correto do parâmetro é 'price'
+      posCode: null, // O nome correto do parâmetro é 'posCode'
+    );
+
     final updatedLinks = List<ProductCategoryLink>.from(state.categoryLinks)..add(newLink);
     emit(state.copyWith(categoryLinks: updatedLinks));
   }
+
+
 
   void removeCategoryLink(ProductCategoryLink link) {
     final updatedLinks = List<ProductCategoryLink>.from(state.categoryLinks)..remove(link);
@@ -189,20 +246,19 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
       emit(state.copyWith(categoryLinks: currentLinks));
     }
   }
-
-
-
-  // --- FINALIZAÇÃO ---
-
+// Remova ou substitua o seu método saveProduct() atual por este:
   Future<void> saveProduct() async {
     emit(state.copyWith(submissionStatus: FormStatus.loading));
 
+    // ✅ CORREÇÃO: Monta o objeto final do produto aqui!
+    // Ele pega os dados básicos de `productInCreation` e combina
+    // com as listas de `variantLinks` e `categoryLinks` do estado.
     final finalProduct = state.productInCreation.copyWith(
       variantLinks: () => state.variantLinks,
       categoryLinks: () => state.categoryLinks,
     );
 
-    // ✅ CORREÇÃO: Usa o `storeId` que é um membro da classe Cubit
+    // Agora sim, enviamos o produto completo para o repositório.
     final result = await _productRepository.createProductFromWizard(storeId, finalProduct);
 
     result.fold(
@@ -212,7 +268,48 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
   }
 
 
+// DENTRO DA CLASSE ProductWizardCubit
 
+// ✅ NOVO MÉTODO PARA ATUALIZAR UMA OPÇÃO
+  void updateOptionInLink({
+    required VariantOption updatedOption,
+    required ProductVariantLink parentLink,
+  }) {
+    // Encontra o link pai na lista de links do estado
+    final targetLink = state.variantLinks.firstWhere((link) => link.variant.id == parentLink.variant.id);
+
+    // Cria uma nova lista de opções, substituindo a antiga pela atualizada
+    final updatedOptions = targetLink.variant.options.map((option) {
+      return option.id == updatedOption.id ? updatedOption : option;
+    }).toList();
+
+    // Cria uma cópia atualizada do link com a nova lista de opções
+    final updatedLink = targetLink.copyWith(
+      variant: targetLink.variant.copyWith(options: updatedOptions),
+    );
+
+    // Finalmente, atualiza o link na lista principal do estado
+    updateVariantLink(updatedLink);
+  }
+
+// ✅ NOVO MÉTODO PARA REMOVER UMA OPÇÃO
+  void removeOptionFromLink({
+    required VariantOption optionToRemove,
+    required ProductVariantLink parentLink,
+  }) {
+    final targetLink = state.variantLinks.firstWhere((link) => link.variant.id == parentLink.variant.id);
+
+    // Cria uma nova lista de opções, removendo a opção desejada
+    final updatedOptions = targetLink.variant.options.where((option) {
+      return option.id != optionToRemove.id;
+    }).toList();
+
+    final updatedLink = targetLink.copyWith(
+      variant: targetLink.variant.copyWith(options: updatedOptions),
+    );
+
+    updateVariantLink(updatedLink);
+  }
 
 
 

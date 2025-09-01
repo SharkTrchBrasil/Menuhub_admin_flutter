@@ -14,7 +14,9 @@ import 'package:flutter/services.dart';
 import '../../../../core/enums/product_type.dart';
 import '../../../../models/image_model.dart';
 import '../../../../widgets/app_image_form_field.dart';
-import '../../cubit/product_wizard_cubit.dart';
+
+import '../cubit/product_wizard_cubit.dart';
+import '../cubit/product_wizard_state.dart';
 
 
 class Step2ProductDetails extends StatefulWidget {
@@ -29,7 +31,8 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
   late final TextEditingController _searchController;
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
-  late final TextEditingController _priceController;
+
+  late final TextEditingController _stockQuantityController;
 
   @override
   void initState() {
@@ -40,8 +43,10 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
     final initialProduct = context.read<ProductWizardCubit>().state.productInCreation;
     _nameController = TextEditingController(text: initialProduct.name);
     _descriptionController = TextEditingController(text: initialProduct.description);
-    _priceController = TextEditingController(
-      text: UtilBrasilFields.obterReal((initialProduct.basePrice ?? 0) / 100),
+
+    // ✅ 2. INICIALIZE O NOVO CONTROLLER
+    _stockQuantityController = TextEditingController(
+      text: initialProduct.stockQuantity.toString(),
     );
   }
 
@@ -50,7 +55,8 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
     _searchController.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
-    _priceController.dispose();
+
+    _stockQuantityController.dispose();
     super.dispose();
   }
 
@@ -64,9 +70,12 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
     if (_descriptionController.text != product.description) {
       _descriptionController.text = product.description;
     }
-    final priceString = UtilBrasilFields.obterReal((product.basePrice ?? 0) / 100);
-    if (_priceController.text != priceString) {
-      _priceController.text = priceString;
+
+
+    // ✅ 4. ADICIONE O SYNC PARA A QUANTIDADE DE ESTOQUE
+    final stockString = state.productInCreation.stockQuantity.toString();
+    if (_stockQuantityController.text != stockString) {
+      _stockQuantityController.text = stockString;
     }
   }
 
@@ -120,6 +129,56 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
     },
   );
 }
+
+// Método novo para criar os controles de estoque
+  Widget _buildStockControls(BuildContext context, ProductWizardState state) {
+    final product = state.productInCreation;
+    final cubit = context.read<ProductWizardCubit>();
+    final bool isStockControlled = product.controlStock;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Linha com o título "Estoque" e o botão "Ativar/Gerenciar"
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Estoque', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            TextButton.icon(
+              icon: Icon(isStockControlled ? Icons.inventory : Icons.add_business_outlined),
+              label: Text(isStockControlled ? 'Gerenciando' : 'Ativar'),
+              style: TextButton.styleFrom(
+                foregroundColor: isStockControlled ? Colors.green : Theme.of(context).primaryColor,
+              ),
+              onPressed: () {
+                // Ao clicar, inverte o valor de `controlStock` no Cubit
+                cubit.updateProduct(
+                  product.copyWith(controlStock: !isStockControlled),
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Campo de quantidade que só aparece se o estoque estiver ativado
+        if (isStockControlled)
+          TextFormField(
+            controller: _stockQuantityController,
+            decoration: const InputDecoration(
+              labelText: 'Quantidade em estoque',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Aceita apenas números
+            onTapOutside: (_) {
+              final quantity = int.tryParse(_stockQuantityController.text) ?? 0;
+              cubit.updateProduct(product.copyWith(stockQuantity: quantity));
+            },
+          ),
+      ],
+    );
+  }
 
   Widget _buildMainContent(BuildContext context, ProductWizardState state) {
     bool shouldShowSearch = state.productType == ProductType.INDUSTRIALIZED &&
@@ -276,18 +335,8 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
         ),
         const SizedBox(height: 20),
 
-        // --- CAMPO PREÇO ---
-        AppTextField(
-          controller: _priceController, // ✅ Usa controller
-          title: 'Preço de Venda',
-          readOnly: false, // Preço é sempre editável
-          formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
-          onTapOutside: (_) {
-            final money = UtilBrasilFields.converterMoedaParaDouble(_priceController.text);
-            cubit.updateProduct(product.copyWith(basePrice: (money * 100).floor()));
-          },
-          hint: '',
-        ),
+
+        _buildStockControls(context, state),
         const SizedBox(height: 20),
 
         // --- CAMPO IMAGEM ---

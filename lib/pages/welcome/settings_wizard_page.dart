@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/responsive_builder.dart';
 import '../../cubits/store_manager_cubit.dart';
 import '../../cubits/store_manager_state.dart';
-import '../edit_product/edit_product_page.dart';
+
 import '../edit_settings/general/store_profile_page.dart';
 import '../edit_settings/hours/hours_store_page.dart';
 import '../platform_payment_methods/gateway-payment.dart';

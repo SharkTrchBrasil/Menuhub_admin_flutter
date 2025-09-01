@@ -61,6 +61,8 @@ class _ProductListViewState extends State<ProductListView> {
 
   // --- Lógica de Negócio ---
 
+  // DENTRO DA CLASSE _ProductListViewState
+
   void _sortProducts(List<Product> products) {
     products.sort((a, b) {
       switch (_sortOption) {
@@ -68,10 +70,14 @@ class _ProductListViewState extends State<ProductListView> {
           return a.name.toLowerCase().compareTo(b.name.toLowerCase());
         case SortOption.nameDesc:
           return b.name.toLowerCase().compareTo(a.name.toLowerCase());
+
+      // ✅ --- CORREÇÃO APLICADA AQUI --- ✅
+      // Trocamos 'basePrice' pelo novo campo 'price'.
+      // Como 'price' é obrigatório, não precisamos mais do '?? 0'.
         case SortOption.priceAsc:
-          return (a.basePrice ?? 0).compareTo(b.basePrice ?? 0);
+          return a.price.compareTo(b.price);
         case SortOption.priceDesc:
-          return (b.basePrice ?? 0).compareTo(a.basePrice ?? 0);
+          return b.price.compareTo(a.price);
       }
     });
   }

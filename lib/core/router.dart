@@ -12,7 +12,7 @@ import 'package:totem_pro_admin/pages/cash/cash_page.dart';
 import 'package:totem_pro_admin/pages/categories/categories_page.dart';
 import 'package:totem_pro_admin/pages/create_store/create_store_page.dart';
 import 'package:totem_pro_admin/pages/edit_category/edit_category_page.dart';
-import 'package:totem_pro_admin/pages/edit_product/edit_product_page.dart';
+
 
 
 
@@ -50,7 +50,7 @@ import '../pages/customers/customers_page.dart';
 
 import '../pages/dashboard/dashboard.dart';
 import '../pages/edit_coupon/edit_coupon_page.dart';
-import '../pages/edit_product/wizard/product_wizard_page.dart';
+
 import '../pages/edit_settings/citys/delivery_locations_page.dart';
 import '../pages/edit_settings/hours/hours_store_page.dart';
 import '../pages/edit_settings/general/store_profile_page.dart';
@@ -62,8 +62,7 @@ import '../pages/plans/plans_page.dart';
 
 import '../pages/integrations/integrations_page.dart';
 import '../pages/inventory/inventory_page.dart';
-import '../pages/kds/kds_page.dart';
-import '../pages/loading/loading_data_page.dart';
+
 import '../pages/not_found/error_505_Page.dart';
 
 import '../pages/orders/order_page_cubit.dart';
@@ -73,6 +72,8 @@ import '../pages/orders/orders_page.dart';
 import '../pages/orders/widgets/order_details_mobile.dart';
 import '../pages/payables/payables_page.dart';
 import '../pages/platform_payment_methods/gateway-payment.dart';
+import '../pages/product-wizard/product_wizard_page.dart';
+import '../pages/product_edit/edit_product_page.dart';
 import '../pages/reports/reports_page.dart';
 import '../pages/splash/splash_page_cubit.dart';
 import '../pages/totems/totems_page.dart';
@@ -97,7 +98,19 @@ import '../widgets/app_shell.dart';
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
 class AppRouter {
-  static final router = GoRouter(
+
+  // ✅ 1. Obtenha as instâncias dos Cubits aqui para usar no redirect
+  final AuthCubit authCubit;
+  final StoresManagerCubit storesManagerCubit;
+
+
+
+  AppRouter({
+    required this.authCubit,
+    required this.storesManagerCubit,
+  });
+
+  late final router = GoRouter(
     navigatorKey: globalNavigatorKey,
     initialLocation: '/splash',
     debugLogDiagnostics: true,
@@ -105,61 +118,62 @@ class AppRouter {
     observers: [BotToastNavigatorObserver()],
 
 
+      // ✅ 2. O refreshListenable continua perfeito
       refreshListenable: Listenable.merge([
-        GoRouterRefreshStream(getIt<AuthCubit>().stream),
-        GoRouterRefreshStream(getIt<StoresManagerCubit>().stream),
+        GoRouterRefreshStream(authCubit.stream),
+        GoRouterRefreshStream(storesManagerCubit.stream),
       ]),
-
 
 
       redirect: (BuildContext context, GoRouterState state) {
         final location = state.uri.toString();
-        final authCubit = context.read<AuthCubit>();
         final authState = authCubit.state;
-        final isAuthenticated = authState is AuthAuthenticated;
+        final storesState = storesManagerCubit.state;
 
-        print('--- GoRouter Redirect ---');
-        print('Location: $location');
-        print('AuthState: ${authState.runtimeType}');
+        final splashRoute = '/splash';
+        final authRoutes = ['/sign-in', '/sign-up', '/verify-email'];
+        final isGoingToAuthRoute = authRoutes.any((r) => location.startsWith(r));
 
-        // Rotas públicas que não exigem login
-        const publicRoutes = ['/splash', '/loading', '/sign-in', '/sign-up', '/verify-email'];
-        final isGoingToPublicRoute = publicRoutes.any((r) => location.startsWith(r));
-
-        // Regra 1: Se precisa verificar e-mail, vai para a tela de verificação.
-        if (authState is AuthNeedsVerification && !location.startsWith('/verify-email')) {
-          final email = Uri.encodeComponent(authState.email);
-          return '/verify-email?email=$email';
+        // --- Regra 1: Autenticação pendente ---
+        // Se ainda não sabemos se o usuário está logado, ele DEVE ficar na splash.
+        if (authState is AuthInitial || authState is AuthLoading) {
+          return location == splashRoute ? null : splashRoute;
         }
 
-        // Regra 2: Se não está logado e tenta acessar uma rota protegida, vai para o login.
-        if (!isAuthenticated && !isGoingToPublicRoute) {
-          final destination = '/sign-in?redirectTo=$location';
-          print('Decisão: Redirecionar para o login -> $destination');
-          return destination;
+        // --- Regra 2: Deslogado ---
+        // Se sabemos que ele está deslogado, ele só pode ir para as rotas de auth.
+        if (authState is AuthUnauthenticated) {
+          return isGoingToAuthRoute ? null : '/sign-in';
         }
 
-        // Regra 3: Se está logado...
-        if (isAuthenticated) {
+        // --- Regra 3: Logado, mas dados pendentes ---
+        // A partir daqui, sabemos que `authState is AuthAuthenticated`.
 
+        // ✅ A MÁGICA ESTÁ AQUI:
+        // Se os dados da loja ainda estão no estado inicial ou carregando...
+        if (storesState is StoresManagerInitial || storesState is StoresManagerLoading) {
+          // ...mantemos o usuário na splash page! Não pulamos para a loading-data.
+          return location == splashRoute ? null : splashRoute;
+        }
 
-          if (isGoingToPublicRoute) {
-            print('Decisão: Autenticado. Redirecionando para /loading para buscar dados da loja.');
-            return '/loading';
+        // --- A partir daqui, sabemos que o usuário está logado E os dados da loja foram processados. ---
+
+        // Se o resultado foi "sem lojas"...
+        if (storesState is StoresManagerEmpty) {
+          return '/stores/new';
+        }
+
+        // Se o resultado foi "lojas carregadas"...
+        if (storesState is StoresManagerLoaded) {
+          // E o usuário ainda está na splash, finalmente o mandamos para o dashboard.
+          if (location == splashRoute) {
+            return '/stores/${storesState.activeStoreId}/dashboard';
           }
-
-
-
-
-
-
         }
 
-        // Se nenhuma regra de redirecionamento foi atendida, permite o acesso.
-        print('Decisão: Deixar passar (nenhuma regra de redirect acionada).');
+        // Se nenhuma regra se aplicou, a navegação é permitida.
         return null;
       },
-
   errorPageBuilder:
       (context, state) => MaterialPage(
         child: NotFoundPage(), // sua página 404
@@ -273,11 +287,6 @@ class AppRouter {
     //     );
     //   },
     // ),
-
-    GoRoute(
-      path: '/loading',
-      builder: (_, state) => LoadingDataPage(), // <-- ADICIONE AQUI
-    ),
 
 
     GoRoute(
@@ -533,8 +542,10 @@ class AppRouter {
                           path: 'create',
                           name: 'product-create-wizard',
                           pageBuilder: (context, state) {
+
+                            final category = state.extra as Category?; // Permite passar a categoria
                             return NoTransitionPage( // ou outra transição que preferir
-                              child: ProductWizardPage( storeId: state.storeId,),
+                              child: ProductWizardPage( storeId: state.storeId,  category: category,),
                             );
                           },
                         ),

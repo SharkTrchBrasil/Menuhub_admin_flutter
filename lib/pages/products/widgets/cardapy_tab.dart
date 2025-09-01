@@ -190,12 +190,9 @@ class _MenuContentState extends State<MenuContent> {
                     (context, index) {
                   final category = visibleCategories[index];
 
-                  // ✅ CORREÇÃO 2: Lógica para encontrar os produtos de uma categoria
-                  // Agora verificamos se na lista `categoryLinks` de um produto
-                  // existe ALGUM link cuja categoria tenha o ID correspondente.
-                  final productsForCategory = searchedProducts
-                      .where((p) => p.categoryLinks.any((link) => link.category.id == category.id))
-                      .toList();
+                      final productsForCategory = searchedProducts
+                          .where((p) => p.categoryLinks.any((link) => link.category.id == category.id))
+                          .toList();
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),

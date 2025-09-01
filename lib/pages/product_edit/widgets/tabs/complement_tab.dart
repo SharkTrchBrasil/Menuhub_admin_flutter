@@ -6,12 +6,17 @@ import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/product_variant_link.dart';
 
-import 'package:totem_pro_admin/pages/edit_product/widgets/variant_link_card.dart';
+
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/widgets/mobile_mockup.dart';
 
-import '../../groups/cubit/create_complement_cubit.dart';
-import '../../groups/multi_step_panel_container.dart';
+import '../../../product-wizard/cubit/product_wizard_cubit.dart';
+import '../../../product_groups/cubit/create_complement_cubit.dart';
+import '../../../product_groups/helper/show_create_group_panel.dart';
+import '../../../product_groups/helper/side_panel_helper.dart';
+
+import '../../../product_groups/widgets/multi_step_panel_container.dart';
+import '../variant_link_card.dart';
 
 class ComplementGroupsScreen extends StatefulWidget {
   final Product product;
@@ -38,10 +43,9 @@ class _ComplementGroupsScreenState extends State<ComplementGroupsScreen> {
     if (storesState is! StoresManagerLoaded) return;
 
     // Chama o painel e aguarda o resultado (o novo ProductVariantLink)
-    final newLink = await showModalBottomSheet<ProductVariantLink>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => BlocProvider(
+    final newLink = await showResponsiveSidePanelGroup<ProductVariantLink>(
+      context,
+       panel: BlocProvider(
         create: (_) => CreateComplementGroupCubit(
           storeId: storesState.activeStore!.core.id!,
           productId: widget.product.id,
@@ -154,9 +158,41 @@ class _ComplementGroupsScreenState extends State<ComplementGroupsScreen> {
           itemBuilder: (context, index) {
             final link = _currentLinks[index];
             return VariantLinkCard(
-              key: ValueKey(link.variant.id),
+              key: ValueKey(link.variant.id ?? index),
               link: link,
-              onRemove: () {  },
+              onRemoveLink: () => context.read<ProductWizardCubit>().removeVariantLink(link),
+              onLinkRulesChanged: (updatedLink) => context.read<ProductWizardCubit>().updateVariantLink(updatedLink),
+              // ✅ Callbacks das opções agora conectados aos novos métodos do cubit
+              onOptionUpdated: (updatedOption) => context.read<ProductWizardCubit>().updateOptionInLink(
+                updatedOption: updatedOption,
+                parentLink: link,
+              ),
+              onOptionRemoved: (optionToRemove) => context.read<ProductWizardCubit>()..removeOptionFromLink(
+                optionToRemove: optionToRemove,
+                parentLink: link,
+              ),
+              onLinkNameChanged: (newName) {
+                context.read<ProductWizardCubit>().updateVariantLinkName(link, newName);
+              },
+              // ✅ IMPLEMENTAÇÃO DO NOVO CALLBACK
+              onToggleAvailability: () {
+                // 1. Cria uma cópia do link com o valor de 'available' invertido.
+                final updatedLink = link.copyWith(available: !link.available);
+
+                // 2. Chama o método do Cubit para salvar a mudança.
+                //    A UI vai se atualizar sozinha quando o evento do socket chegar.
+                context.read<ProductWizardCubit>().updateVariantLink(updatedLink);
+              },
+              // ✅ IMPLEMENTAÇÃO DO NOVO CALLBACK
+              // Em Step3Complements.dart, no seu ReorderableListView.builder
+              onAddOption: () async {
+                final newOption = await showAddOptionToGroupPanel(context);
+                if (newOption != null && mounted) {
+                  // ✅ CORRETO PARA O WIZARD: Adiciona a opção em memória no Cubit
+                  context.read<ProductWizardCubit>().addOptionToLink(newOption, link);
+                }
+              },
+
             );
           },
           onReorder: _reorderLinks,

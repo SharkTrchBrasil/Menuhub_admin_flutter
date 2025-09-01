@@ -94,5 +94,29 @@ class Variant {
       // Elas devem ser salvas depois, uma a uma.
     };
   }
+
+  // ARQUIVO: lib/models/variant.dart
+
+// ✅ SUBSTITUA SEU MÉTODO `toWizardJson` POR ESTE:
+  Map<String, dynamic> toWizardJson() {
+    return {
+      'name': name,
+      'type': type.toApiString(),
+
+      // Mapeia cada opção para um JSON sem o 'variant_id', como o backend espera
+      'options': options.map((opt) {
+        return {
+          'name_override': opt.name_override,
+          'description': opt.description,
+          'price_override': opt.price_override,
+          'available': opt.available,
+          'pos_code': opt.pos_code,
+          'linked_product_id': opt.linked_product_id,
+          'track_inventory': opt.track_inventory,
+          'stock_quantity': opt.stock_quantity,
+        };
+      }).toList(),
+    };
+  }
 }
 

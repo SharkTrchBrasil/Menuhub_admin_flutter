@@ -73,9 +73,10 @@ class RealtimeRepository {
   final _dashboardDataController = BehaviorSubject<Map<String, dynamic>?>();
   final _payablesDashboardController = BehaviorSubject<PayablesDashboardMetrics?>();
 
-// ✅ 1. ADICIONE O CONTROLLER PARA OS VARIANTS AQUI
-  final _variantsController = BehaviorSubject<List<Variant>>.seeded([]);
-  final _categoriesController = BehaviorSubject<List<Category>>.seeded([]); // Adicionado na lógica anterior
+  // ✅ 1. TRANSFORME OS CONTROLLERS GLOBAIS EM MAPAS "POR LOJA"
+  final _variantsStreams = <int, BehaviorSubject<List<Variant>>>{};
+  final _categoriesStreams = <int, BehaviorSubject<List<Category>>>{};
+
 
   final _financialsController = BehaviorSubject<FinancialsData?>();
 
@@ -104,10 +105,12 @@ class RealtimeRepository {
 
   Stream<FinancialsData?> get onFinancialsUpdated => _financialsController.stream;
   Stream<ConnectivityStatus> get onConnectivityChanged => _connectivityStatusController.stream;
-  // ✅ 2. EXPONHA OS NOVOS STREAMS
-  Stream<List<Variant>> get onVariantsUpdated => _variantsController.stream;
-  Stream<List<Category>> get onCategoriesUpdated => _categoriesController.stream;
+  // ✅ 2. CRIE MÉTODOS "LISTEN TO" PARA CATEGORIAS E VARIANTS, IGUAL AO DE PRODUTOS
+  Stream<List<Category>> listenToCategories(int storeId) =>
+      _categoriesStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])).stream;
 
+  Stream<List<Variant>> listenToVariants(int storeId) =>
+      _variantsStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])).stream;
 
 
 
@@ -311,40 +314,36 @@ class RealtimeRepository {
   }
 
 
-
-
   void _handleProductsUpdated(dynamic data) {
     log('✅ Evento recebido: products_updated (payload completo)');
     try {
       if (data is! Map || !data.containsKey('store_id')) return;
       final storeId = data['store_id'] as int;
 
-      // --- Processa os produtos (como já estava) ---
       final products = (data['products'] as List? ?? [])
           .map((e) => Product.fromJson(e as Map<String, dynamic>))
           .toList();
       _productsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(products);
 
-      // ✅ NOVO: Processa a lista de complementos (variants)
+      // ✅ 3. ATUALIZE OS STREAMS "POR LOJA" EM VEZ DOS GLOBAIS
       if (data.containsKey('variants')) {
         final variants = (data['variants'] as List? ?? [])
             .map((e) => Variant.fromJson(e as Map<String, dynamic>))
             .toList();
-        _variantsController.add(variants);
+        _variantsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(variants);
       }
 
-      // ✅ NOVO: Processa a lista completa de categorias
       if (data.containsKey('categories')) {
         final categories = (data['categories'] as List? ?? [])
             .map((e) => Category.fromJson(e as Map<String, dynamic>))
             .toList();
-        _categoriesController.add(categories);
+        _categoriesStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(categories);
       }
-
     } catch (e, st) {
       log('[Socket] ❌ Erro em products_updated', error: e, stackTrace: st);
     }
   }
+
 
   void _handleOrdersInitial(dynamic data) {
     // ✅ LOG ADICIONADO
@@ -670,9 +669,12 @@ class RealtimeRepository {
     log('[RealtimeRepository] Disposando recursos...');
 
     _productsStreams.values.forEach((s) => s.close());
+    _variantsStreams.values.forEach((s) => s.close());
+    _categoriesStreams.values.forEach((s) => s.close());
     _ordersStreams.values.forEach((s) => s.close());
     _tablesStreams.values.forEach((s) => s.close());
     _commandsStreams.values.forEach((s) => s.close());
+
     _payablesDashboardController.close();
     _activeStoreController.close();
     _productsStreams.clear();
@@ -683,8 +685,7 @@ class RealtimeRepository {
     _adminStoresListController.close();
     _storeNotificationController.close();
     _connectionStatusController.close();
-    _variantsController.close(); // ✅ Adicione o close
-    _categoriesController.close();
+
     _orderNotificationController.close();
     _newPrintJobsController.close();
     _socket?.dispose();

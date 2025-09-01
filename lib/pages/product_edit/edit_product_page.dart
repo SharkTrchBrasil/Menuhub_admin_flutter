@@ -9,7 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
 import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/pages/edit_product/widgets/tabs/complement_tab.dart';
+
+import 'package:totem_pro_admin/pages/product_edit/widgets/tabs/complement_tab.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/widgets/app_image_form_field.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';
@@ -90,6 +91,7 @@ class EditProductPageState extends State<EditProductPage> {
       setState(() {
         _editedProduct = Product(
           name: '',
+          price: 0,
           description: '',
           available: true,
          // category: widget.category, // Pré-seleciona a categoria se vier dela
@@ -284,12 +286,12 @@ class EditProductPageState extends State<EditProductPage> {
           children: [
             Expanded(
               child: AppTextField(
-                initialValue: UtilBrasilFields.obterReal((product.basePrice ?? 0) / 100),
+                initialValue: UtilBrasilFields.obterReal((product.price ?? 0) / 100),
                 title: 'Preço',
                 formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
                 onChanged: (value) {
                   final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
-                  setState(() => _editedProduct = product.copyWith(basePrice: (money * 100).floor()));
+                  setState(() => _editedProduct = product.copyWith(price: (money * 100).floor()));
                 }, hint: '',
               ),
             ),
@@ -334,26 +336,32 @@ class EditProductPageState extends State<EditProductPage> {
     return ListView( // Usar ListView para garantir a rolagem se houver muitos itens
       padding: const EdgeInsets.all(24),
       children: [
-        SwitchListTile(
-          title: const Text('Promoção?'),
-          value: product.activatePromotion,
-          onChanged: (value) => setState(() => _editedProduct = product.copyWith(activatePromotion: value)),
-        ),
-        if (product.activatePromotion)
-          AppTextField(
-            initialValue: UtilBrasilFields.obterReal((product.promotionPrice ?? 0) / 100),
-            title: 'Preço promocional',
-            formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
-            onChanged: (value) {
-              final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
-              setState(() => _editedProduct = product.copyWith(promotionPrice: (money * 100).floor()));
-            }, hint: '',
-          ),
+
+        //
+        // SwitchListTile(
+        //   title: const Text('Promoção?'),
+        //   value: product.activatePromotion,
+        //   onChanged: (value) => setState(() => _editedProduct = product.copyWith(activatePromotion: value)),
+        // ),
+        // if (product.activatePromotion)
+        //   AppTextField(
+        //     initialValue: UtilBrasilFields.obterReal((product.promotionPrice ?? 0) / 100),
+        //     title: 'Preço promocional',
+        //     formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
+        //     onChanged: (value) {
+        //       final money = UtilBrasilFields.converterMoedaParaDouble(value ?? '');
+        //       setState(() => _editedProduct = product.copyWith(promotionPrice: (money * 100).floor()));
+        //     }, hint: '',
+        //   ),
         SwitchListTile(
           title: const Text('Em destaque'),
           value: product.featured,
           onChanged: (value) => setState(() => _editedProduct = product.copyWith(featured: value)),
         ),
+
+
+
+
         SwitchListTile(
           title: const Text('Produto disponível no cardápio?'),
           value: product.available,

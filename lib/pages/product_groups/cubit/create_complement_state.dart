@@ -1,4 +1,4 @@
-// lib/pages/edit_product/cubit/create_complement_state.dart
+// lib/pages/product_edit/cubit/create_complement_state.dart
 
 part of 'create_complement_cubit.dart';
 

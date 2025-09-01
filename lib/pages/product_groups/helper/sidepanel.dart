@@ -5,7 +5,8 @@ import '../../../core/di.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
 import '../../../repositories/product_repository.dart';
-import '../groups/cubit/create_complement_cubit.dart';
+import '../cubit/create_complement_cubit.dart';
+
 
 
 // ✅ PASSO 1: A função agora recebe o productId

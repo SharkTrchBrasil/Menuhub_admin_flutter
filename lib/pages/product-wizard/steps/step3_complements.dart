@@ -5,11 +5,11 @@ import 'package:totem_pro_admin/models/product_variant_link.dart';
 
 
 import '../../../../widgets/mobile_mockup.dart';
-import '../../cubit/product_wizard_cubit.dart';
+import '../../product_edit/widgets/variant_link_card.dart';
+import '../../product_groups/helper/show_create_group_panel.dart';
+import '../cubit/product_wizard_cubit.dart';
+import '../cubit/product_wizard_state.dart';
 
-import '../../groups/helper/show_create_group_panel.dart';
-import '../../helper/sidepanel.dart';
-import '../../widgets/variant_link_card.dart';
 
 class Step3Complements extends StatelessWidget {
   const Step3Complements({super.key});
@@ -63,18 +63,30 @@ class Step3Complements extends StatelessWidget {
         : _buildComplementsList(context, state);
   }
 
-  // ✅ A chamada agora é uma função async que usa o novo helper
-  Future<void> _openPanel(BuildContext context) async {
-    final cubit = context.read<ProductWizardCubit>();
+// Dentro da classe _Step3ComplementsState
 
-    final newLink = await showCreateGroupPanel(
+// ✅ FUNÇÃO ATUALIZADA PARA CRIAR E EDITAR
+  Future<void> _openPanel(BuildContext context, {ProductVariantLink? linkToEdit}) async {
+    final cubit = context.read<ProductWizardCubit>();
+    final bool isEditMode = linkToEdit != null;
+
+    // Usa o seu helper que já existe para mostrar o painel
+    final resultLink = await showCreateGroupPanel(
       context,
       productId: cubit.state.productInCreation.id,
+      linkToEdit: linkToEdit, // ✅ Passa o link para o helper, se estiver editando
     );
 
-    // Se o painel retornou um link, adiciona ao estado do wizard
-    if (newLink != null && context.mounted) {
-      cubit.addVariantLink(newLink);
+    // Se o painel retornou um resultado (o usuário salvou)...
+    if (resultLink != null && context.mounted) {
+      // ...chama o método correto no Cubit para atualizar o estado.
+      if (isEditMode) {
+        // Se estava editando, atualiza o link existente na lista
+        cubit.updateVariantLink(resultLink);
+      } else {
+        // Se estava criando, adiciona o novo link à lista
+        cubit.addVariantLink(resultLink);
+      }
     }
   }
 
@@ -132,7 +144,38 @@ class Step3Complements extends StatelessWidget {
             return VariantLinkCard(
               key: ValueKey(link.variant.id ?? index),
               link: link,
-               onRemove: () => context.read<ProductWizardCubit>().removeVariantLink(link),
+              onRemoveLink: () => context.read<ProductWizardCubit>().removeVariantLink(link),
+              onLinkRulesChanged: (updatedLink) => context.read<ProductWizardCubit>().updateVariantLink(updatedLink),
+
+              // ✅ Callbacks das opções agora conectados aos novos métodos do cubit
+              onOptionUpdated: (updatedOption) => context.read<ProductWizardCubit>().updateOptionInLink(
+                updatedOption: updatedOption,
+                parentLink: link,
+              ),
+              onOptionRemoved: (optionToRemove) => context.read<ProductWizardCubit>()..removeOptionFromLink(
+                optionToRemove: optionToRemove,
+                parentLink: link,
+              ),
+              onLinkNameChanged: (newName) {
+                context.read<ProductWizardCubit>().updateVariantLinkName(link, newName);
+              },
+              // ✅ IMPLEMENTAÇÃO DO NOVO CALLBACK
+              onToggleAvailability: () {
+                // 1. Cria uma cópia do link com o valor de 'available' invertido.
+                final updatedLink = link.copyWith(available: !link.available);
+
+                // 2. Chama o método do Cubit para salvar a mudança.
+                //    A UI vai se atualizar sozinha quando o evento do socket chegar.
+                context.read<ProductWizardCubit>().updateVariantLink(updatedLink);
+              },
+
+              onAddOption: () async {
+              final newOption = await showAddOptionToGroupPanel(context);
+              if (newOption != null) {
+                // ✅ CORRETO PARA O WIZARD: Adiciona a opção em memória no Cubit
+                context.read<ProductWizardCubit>().addOptionToLink(newOption, link);
+              }
+            },
             );
           },
           onReorder: (oldIndex, newIndex) {

@@ -2,8 +2,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:totem_pro_admin/core/router.dart';
 import 'package:totem_pro_admin/core/token_interceptor.dart';
 
 // Repositórios
@@ -96,8 +98,6 @@ Future<void> configureDependencies() async {
 
   // --- 4. CUBITS (Dependem dos Repositórios e Serviços) ---
 
-  getIt.registerSingleton<AuthCubit>(AuthCubit(authService: getIt<AuthService>()));
-
 
   getIt.registerSingleton<StoresManagerCubit>(
     StoresManagerCubit(
@@ -108,6 +108,12 @@ Future<void> configureDependencies() async {
 
     ),
   );
+
+
+  getIt.registerSingleton<AuthCubit>(AuthCubit(authService: getIt<AuthService>(),
+    storesManagerCubit: getIt<StoresManagerCubit>(),));
+
+
   getIt.registerSingleton<ActiveStoreCubit>(ActiveStoreCubit(realtimeRepository: getIt<RealtimeRepository>()));
   getIt.registerSingleton<SplashPageCubit>(SplashPageCubit());
 
@@ -150,5 +156,13 @@ Future<void> configureDependencies() async {
       getIt<AuthService>(),
     ),
   );
+
+  // 1. Crie a instância do AppRouter, injetando os Cubits que acabamos de registrar.
+  final appRouter = AppRouter(
+    authCubit: getIt<AuthCubit>(),
+    storesManagerCubit: getIt<StoresManagerCubit>(),
+  );
+
+  getIt.registerLazySingleton<GoRouter>(() => appRouter.router);
 
 }

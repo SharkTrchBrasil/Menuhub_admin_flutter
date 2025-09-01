@@ -1,5 +1,7 @@
 import 'package:totem_pro_admin/models/variant.dart';
-import 'package:totem_pro_admin/models/variant_option.dart'; // Importe o enum
+import 'package:totem_pro_admin/models/variant_option.dart';
+
+import '../core/enums/ui_display_mode.dart'; // Importe o enum
 
 class ProductVariantLink {
   final UIDisplayMode uiDisplayMode;
@@ -7,6 +9,7 @@ class ProductVariantLink {
   final int maxSelectedOptions;
   final int? maxTotalQuantity;
   final Variant variant;
+  final bool available;
 
   ProductVariantLink({
     required this.uiDisplayMode,
@@ -14,6 +17,7 @@ class ProductVariantLink {
     required this.maxSelectedOptions,
     this.maxTotalQuantity,
     required this.variant,
+  this.available = true,
   });
 
   bool get isRequired => minSelectedOptions > 0;
@@ -26,6 +30,7 @@ class ProductVariantLink {
     int? maxSelectedOptions,
     int? maxTotalQuantity,
     Variant? variant,
+    bool? available,
   }) {
     return ProductVariantLink(
       uiDisplayMode: uiDisplayMode ?? this.uiDisplayMode,
@@ -33,6 +38,7 @@ class ProductVariantLink {
       maxSelectedOptions: maxSelectedOptions ?? this.maxSelectedOptions,
       maxTotalQuantity: maxTotalQuantity ?? this.maxTotalQuantity,
       variant: variant ?? this.variant,
+      available: available ?? this.available,
     );
   }
 
@@ -42,6 +48,7 @@ class ProductVariantLink {
         case "Seleção Única": return UIDisplayMode.SINGLE;
         case "Seleção Múltipla": return UIDisplayMode.MULTIPLE;
         case "Seleção com Quantidade": return UIDisplayMode.QUANTITY;
+
         default: return UIDisplayMode.UNKNOWN;
       }
     }
@@ -52,6 +59,7 @@ class ProductVariantLink {
       minSelectedOptions: json['min_selected_options'],
       maxSelectedOptions: json['max_selected_options'],
       maxTotalQuantity: json['max_total_quantity'],
+      available: json['available'] ?? true,
     );
   }
 
@@ -70,6 +78,30 @@ class ProductVariantLink {
       'min_selected_options': minSelectedOptions,
       'max_selected_options': maxSelectedOptions,
       'max_total_quantity': maxTotalQuantity,
+      'available': available,
     };
   }
+
+  // ✅ ADICIONE ESTE MÉTODO COMPLETO
+  Map<String, dynamic> toWizardJson() {
+    // Verifica se a variante é nova (ID < 0) ou existente.
+    final bool isNewVariant = (variant.id ?? 0) < 0;
+
+    return {
+      // 1. Dados da própria regra (o "link")
+      'ui_display_mode': uiDisplayMode.toApiString(), // Usa o helper do enum
+      'min_selected_options': minSelectedOptions,
+      'max_selected_options': maxSelectedOptions,
+      'available': available,
+      // 2. ID da variante (seja ele positivo ou negativo)
+      'variant_id': variant.id,
+
+      // 3. Dados da nova variante (APENAS se for uma variante nova)
+      //    Se for uma variante existente, este campo será nulo.
+      'new_variant_data': isNewVariant ? variant.toWizardJson() : null,
+    };
+  }
+
+
+
 }

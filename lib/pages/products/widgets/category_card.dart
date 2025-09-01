@@ -119,7 +119,7 @@ class _CategoryCardState extends State<CategoryCard> {
   void _navigateToAddItem() {
     context.go(
       '/stores/${widget.storeId}/products/create',
-   //   extra: widget.category, // Passa a categoria para já vir selecionada
+      extra: widget.category, // Passa a categoria para já vir selecionada
     );
   }
 
@@ -241,7 +241,7 @@ class _CategoryCardState extends State<CategoryCard> {
     return PopupMenuButton<String>(
       onSelected: (value) {
         if (value == 'add') {
-          context.go('/stores/${widget.storeId}/products/new', extra: widget.category);
+          context.go('/stores/${widget.storeId}/products/create', extra: widget.category);
         } else if (value == 'edit') {
           DialogService.showCategoryDialog(context, widget.storeId, categoryId: widget.category.id);
         }

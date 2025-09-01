@@ -33,27 +33,13 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<StoresManagerCubit, StoresManagerState>(
-      builder: (context, storeState) {
-        if (storeState is! StoresManagerLoaded) {
-          return const Scaffold(
-            body: Center(
-              child: DotLoading(), // ou widget "Selecione uma loja"
-            ),
-          );
-        }
-
-        return BlocProvider(
-          create: (context) => DashboardCubit(
-            dashboardRepository: getIt<DashboardRepository>(),
-            storesManagerCubit: context.read<StoresManagerCubit>(),
-            realtimeRepository: getIt<RealtimeRepository>(),
-          ),
-          child: const _DashboardView(),
-        );
-
-
-      },
+    return BlocProvider(
+      create: (context) => DashboardCubit(
+        dashboardRepository: getIt<DashboardRepository>(),
+        storesManagerCubit: context.read<StoresManagerCubit>(),
+        realtimeRepository: getIt<RealtimeRepository>(),
+      ),
+      child: const _DashboardView(),
     );
   }
 }

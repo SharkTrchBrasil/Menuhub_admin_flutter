@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 
 import 'package:totem_pro_admin/models/store_with_role.dart';
 import 'package:totem_pro_admin/repositories/auth_repository.dart';
@@ -12,9 +13,13 @@ import 'auth_state.dart';
 class AuthCubit extends Cubit<AuthState> {
   final AuthService _authService;
 
+  final StoresManagerCubit _storesManagerCubit;
+
   AuthCubit({
     required AuthService authService,
+    required StoresManagerCubit storesManagerCubit,
   })  : _authService = authService,
+        _storesManagerCubit = storesManagerCubit,
         super( AuthInitial()) {
     _initializeApp();
   }
@@ -41,6 +46,7 @@ class AuthCubit extends Cubit<AuthState> {
 
         // ✅ INICIA O SERVIÇO DE IMPRESSÃO AQUI
         print('[AuthCubit] Inicializando serviços pós-autenticação...');
+        _storesManagerCubit.loadInitialData();
         getIt<PrintingService>().initialize();
       },
     );
@@ -60,7 +66,9 @@ class AuthCubit extends Cubit<AuthState> {
       },
           (data) {
         emit(AuthAuthenticated(data));
-      },
+
+        _storesManagerCubit.loadInitialData();
+          },
     );
   }
 
@@ -71,6 +79,7 @@ class AuthCubit extends Cubit<AuthState> {
     }
     await _authService.logout();
     print('[AuthCubit] Logout complete.');
+    _storesManagerCubit.resetState();
     emit( AuthUnauthenticated());
   }
 

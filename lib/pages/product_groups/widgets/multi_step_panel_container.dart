@@ -1,16 +1,17 @@
-// lib/pages/edit_product/widgets/groups/multi_step_panel_container.dart
+// lib/pages/product_edit/widgets/groups/multi_step_panel_container.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:totem_pro_admin/pages/edit_product/groups/steps/step0_initial_choice.dart';
-import 'package:totem_pro_admin/pages/edit_product/groups/steps/step1_group_type.dart';
-import 'package:totem_pro_admin/pages/edit_product/groups/steps/step1_select_group.dart';
-import 'package:totem_pro_admin/pages/edit_product/groups/steps/step2_group_details.dart';
-import 'package:totem_pro_admin/pages/edit_product/groups/steps/step2_set_rules.dart';
-import 'package:totem_pro_admin/pages/edit_product/groups/steps/step3_add_complements.dart';
+import '../cubit/create_complement_cubit.dart';
+import '../steps/step0_initial_choice.dart';
+import '../steps/step1_group_type.dart';
+import '../steps/step1_select_group.dart';
+import '../steps/step2_group_details.dart';
+import '../steps/step2_set_rules.dart';
+import '../steps/step3_add_complements.dart';
 
-import 'cubit/create_complement_cubit.dart';
+
 
 
 

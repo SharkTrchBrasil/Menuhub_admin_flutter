@@ -8,6 +8,7 @@ import 'package:totem_pro_admin/models/variant.dart';
 import 'package:totem_pro_admin/models/variant_option.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 
+import '../../../../core/enums/ui_display_mode.dart';
 import '../../../../core/enums/variant_type.dart';
 
 part 'create_complement_state.dart';
@@ -35,6 +36,23 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
       isCopyFlow: isCopy,
       step: isCopy ? CreateComplementStep.copyGroup_SelectGroup : CreateComplementStep.selectType,
       itemsAvailableToCopy: isCopy ? allStoreVariants : [],
+    ));
+  }
+
+  // ✅ NOVO MÉTODO PARA INICIAR O FLUXO DE EDIÇÃO
+  void startEditFlow(ProductVariantLink linkToEdit) {
+    emit(state.copyWith(
+      // Define o passo inicial para a edição dos detalhes do grupo
+      step: CreateComplementStep.groupDetails,
+      isCopyFlow: false, // Garante que não está no fluxo de cópia
+
+      // Pré-preenche o estado com os dados do link existente
+      groupName: linkToEdit.variant.name,
+      groupType: _mapVariantTypeToGroupType(linkToEdit.variant.type),
+      isRequired: linkToEdit.isRequired,
+      minQty: linkToEdit.minSelectedOptions,
+      maxQty: linkToEdit.maxSelectedOptions,
+      complements: List<VariantOption>.from(linkToEdit.variant.options),
     ));
   }
 
@@ -169,6 +187,79 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
     }
   }
 
+
+
+  // DENTRO DA CLASSE CreateComplementGroupCubit
+
+// ✅ NOVO MÉTODO 1: Para marcar e desmarcar itens
+  void toggleItemForCopy(dynamic item) {
+    // Pega o ID, não importa se o item é um Product ou Variant
+    final int itemId = (item is Product) ? item.id! : (item as Variant).id!;
+
+    // Cria uma nova cópia do Set de IDs para não modificar o estado diretamente
+    final updatedIds = Set<int>.from(state.selectedToCopyIds);
+
+    // Adiciona ou remove o ID do Set
+    if (updatedIds.contains(itemId)) {
+      updatedIds.remove(itemId);
+    } else {
+      updatedIds.add(itemId);
+    }
+
+    // Emite o novo estado com a lista de IDs atualizada
+    emit(state.copyWith(selectedToCopyIds: updatedIds));
+  }
+
+// ✅ NOVO MÉTODO 2: Para adicionar os selecionados à lista principal
+  void addSelectedItemsToGroup() {
+    // Pega a lista de itens disponíveis para cópia e os IDs selecionados
+    final availableItems = state.itemsAvailableToCopy;
+    final selectedIds = state.selectedToCopyIds;
+
+    // Filtra apenas os itens que foram selecionados
+    final selectedItems = availableItems.where((item) {
+      final int itemId = (item is Product) ? item.id! : (item as Variant).id!;
+      return selectedIds.contains(itemId);
+    }).toList();
+
+    // Converte os itens selecionados em VariantOption
+    final newOptions = selectedItems.map((item) {
+      if (item is Product) {
+        // Se for um produto (Cross-Sell), cria uma opção linkada a ele
+        return VariantOption(
+          linked_product_id: item.id,
+          // O nome e o preço serão resolvidos automaticamente pelo modelo
+        );
+      } else if (item is Variant) {
+        // Se for um grupo (Ingrediente/Especificação), cria uma opção com o nome dele
+        return VariantOption(
+          name_override: item.name,
+          price_override: 0, // Assume preço 0, pode ser editado depois
+        );
+      }
+      return null; // Caso de segurança
+    }).whereType<VariantOption>().toList(); // Filtra qualquer nulo
+
+    // Adiciona as novas opções à lista de complementos já existente
+    final updatedComplements = List<VariantOption>.from(state.complements)..addAll(newOptions);
+
+    // Emite o novo estado com a lista de complementos atualizada e limpa a seleção
+    emit(state.copyWith(
+      complements: updatedComplements,
+      selectedToCopyIds: {}, // Limpa os checkboxes
+    ));
+  }
+
+  // Helper para mapear o enum na direção oposta (pode ser útil)
+  GroupType _mapVariantTypeToGroupType(VariantType vt) {
+    switch (vt) {
+      case VariantType.INGREDIENTS: return GroupType.ingredients;
+      case VariantType.SPECIFICATIONS: return GroupType.specifications;
+      case VariantType.CROSS_SELL: return GroupType.crossSell;
+      case VariantType.DISPOSABLES: return GroupType.disposables;
+      default: return GroupType.ingredients; // Um padrão seguro
+    }
+  }
   // Helper para mapear enums
   VariantType _mapGroupTypeToVariantType(GroupType gt) {
     switch (gt) {

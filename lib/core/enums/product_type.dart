@@ -32,19 +32,12 @@ enum ProductType {
     }
   }
 
+  // DENTRO DO ENUM `ProductType`
+
   /// Converte o enum para a String que a API espera.
   String toApiString() {
-    switch (this) {
-      case ProductType.PREPARED:
-        return 'Preparado';
-      case ProductType.INDUSTRIALIZED:
-        return 'Industrializado';
-      case ProductType.INDIVIDUAL:
-        return 'Individual';
-      case ProductType.KIT:
-        return 'Kit';
-      default:
-        return 'Unknown';
-    }
+    // A propriedade .name já retorna a string em MAIÚSCULO, exatamente como a API espera.
+    // Ex: ProductType.INDIVIDUAL.name se torna "INDIVIDUAL"
+    return name;
   }
 }

@@ -173,7 +173,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
                 ),
                 const Spacer(),
                 Text(
-                  UtilBrasilFields.obterReal((widget.product.basePrice ?? 0) / 100),
+                  UtilBrasilFields.obterReal((widget.product.price ?? 0) / 100),
                   style: TextStyle(fontSize: 16, color: textColor, fontWeight: FontWeight.bold),
                 ),
               ],
