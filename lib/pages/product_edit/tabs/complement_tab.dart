@@ -54,7 +54,7 @@ class ComplementGroupsTab extends StatelessWidget {
     );
   }
 
-  // Estado para quando a lista de complementos está populada
+
   Widget _buildPopulatedState(BuildContext context, EditProductCubit cubit, List<ProductVariantLink> links) {
     return ReorderableListView.builder(
       shrinkWrap: true,
