@@ -1,39 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
+import 'package:totem_pro_admin/models/category.dart';
+import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_list_item.dart';
+import 'package:totem_pro_admin/repositories/category_repository.dart';
+import 'package:totem_pro_admin/services/dialog_service.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
-
-
-
-
-
 import '../../../core/di.dart';
-import '../../../models/category.dart';
-import '../../../models/product.dart';
-import '../../../repositories/category_repository.dart';
-import '../../../services/dialog_service.dart';
-import '../../../services/subscription/subscription_service.dart';
-
 import '../../../core/responsive_builder.dart';
+import 'package:bot_toast/bot_toast.dart';
 
-
-
+import '../../categories/widgets/category_card_header.dart';
+import '../../categories/widgets/empty_category.dart';
 
 
 class CategoryCard extends StatefulWidget {
   final int storeId;
   final Category category;
   final List<Product> products;
-  final int totalProductCount;
 
   const CategoryCard({
     super.key,
     required this.storeId,
     required this.category,
     required this.products,
-    required this.totalProductCount,
   });
 
   @override
@@ -41,309 +34,210 @@ class CategoryCard extends StatefulWidget {
 }
 
 class _CategoryCardState extends State<CategoryCard> {
+  // ✨ 1. Estado para controlar a edição do nome
+  bool _isEditingName = false;
+  late TextEditingController _nameController;
+
   @override
-  Widget build(BuildContext context) {
-    // ✅ CORREÇÃO: Lógica do menu movida para uma variável
-    final Widget menuWidget;
-    if (ResponsiveBuilder.isDesktop(context)) {
-      // No desktop, o widget é o PopupMenuButton
-      menuWidget = _buildDesktopPopupMenu(context);
-    } else {
-      // No mobile, o widget é um IconButton que CHAMA a função
-      menuWidget = IconButton(
-        icon: const Icon(Icons.more_vert),
-        onPressed: () => _showCategoryActionSheet(context),
-      );
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.category.name);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  // ✨ 2. Lógica para salvar o nome editado
+  Future<void> _saveCategoryName() async {
+    if (_nameController.text.trim().isEmpty || _nameController.text == widget.category.name) {
+      setState(() => _isEditingName = false);
+      return;
     }
 
+    final updatedCategory = widget.category.copyWith(name: _nameController.text.trim());
+    final result = await getIt<CategoryRepository>().updateCategory(widget.storeId, updatedCategory);
+
+    result.fold(
+          (error) => BotToast.showText(text: "Erro ao salvar: $error"),
+          (success) {
+        BotToast.showText(text: "Categoria atualizada!");
+
+      },
+    );
+    setState(() => _isEditingName = false);
+  }
+
+  // Lógica para pausar/ativar a categoria
+  Future<void> _toggleCategoryStatus() async {
+    // 1. Cria uma cópia da categoria com o status invertido
+    final updatedCategory = widget.category.copyWith(active: !widget.category.active);
+
+    // Mostra um feedback de carregamento
+    BotToast.showLoading();
+
+    // 2. Chama o repositório para salvar a mudança no backend
+    final result = await getIt<CategoryRepository>().updateCategory(widget.storeId, updatedCategory);
+
+    BotToast.closeAllLoading();
+
+    result.fold(
+          (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.red));
+        }
+      },
+          (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Status da categoria atualizado!")));
+          // 3. Avisa o Cubit global para atualizar a UI de todo o app
+
+        }
+      },
+    );
+  }
+
+
+  Future<void> _deleteCategory(BuildContext context, int storeId, Category category) async {
+    final confirmed = await DialogService.showConfirmationDialog(
+      context,
+      title: 'Confirmar Exclusão',
+      content: 'Tem certeza que deseja excluir a categoria "${category.name}"?',
+    );
+
+    if (confirmed == true && context.mounted) {
+      BotToast.showLoading();
+      final result = await getIt<CategoryRepository>().deleteCategory(storeId, category.id!);
+      BotToast.closeAllLoading();
+
+      result.fold(
+            (error) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao excluir: error'), backgroundColor: Colors.red));
+          }
+        },
+            (success) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Categoria "${category.name}" excluída.')));
+            // Avisa o Cubit global para atualizar a UI
+
+          }
+        },
+      );
+    }
+  }
+
+
+
+
+  // Em _CategoryCardState
+
+  void _navigateToAddItem() async { // ✨ 1. Transforma o método em async
+    // 2. Espera o resultado da navegação (a tela do wizard)
+    final result = await context.push<bool>(
+      '/stores/${widget.storeId}/products/create',
+      extra: widget.category,
+    );
+
+    // 3. Reage ao resultado DEPOIS que a tela do wizard foi fechada
+    if (result == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Produto criado com sucesso!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  void _navigateToEditCategory() {
+    context.push('/stores/${widget.storeId}/categories/${widget.category.id}', extra: widget.category);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
       elevation: 1,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: const Color(0xFFF5F5F5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0), // Aumentei um pouco o padding para melhor visualização
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${widget.category.name} (${widget.products.length} ${widget.products.length == 1 ? "item" : "itens"})',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold,), // Aumentei a fonte
-                  ),
-                ),
-                // ✅ A variável com o widget correto é inserida aqui
-                menuWidget,
-              ],
-            ),
-
-            // Lista de produtos construída dinamicamente
-            if (widget.products.isEmpty)
-            // ✅ Chamando o widget de estado vazio com a função correta
-              EmptyCategoryCardContent(
-                onAddItem: _navigateToAddItem,
-              )
-            else
-              ListView.separated(
-                itemCount: widget.products.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemBuilder: (context, index) {
-                  final product = widget.products[index];
-
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: ProductListItem(
-                      key: ValueKey(product.id),
-                      storeId: widget.storeId,
-                      product: product,
-                    ),
-                  );
-                },
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-              ),
-
-
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _navigateToAddItem() {
-    context.go(
-      '/stores/${widget.storeId}/products/create',
-      extra: widget.category, // Passa a categoria para já vir selecionada
-    );
-  }
-
-  void _showCategoryActionSheet(BuildContext context) {
-
-
-
-
-
-
-    showModalBottomSheet(
-      isScrollControlled: true,
-      context: context,
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadiusDirectional.only(
-          topEnd: Radius.circular(25),
-          topStart: Radius.circular(25),
-        ),
-      ),
-
-      builder: (ctx) {
-        padding: EdgeInsetsDirectional.only(
-          start: 20,
-          end: 20,
-          bottom: 30,
-          top: 8,
-        );
-
-        return Container(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0, bottom: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Ações da categoria',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                  ],
-                ),
-              ),
-
-
-              // Lista de Ações
-              ListTile(
-                leading: const Icon(Icons.add_circle_outline),
-                title: const Text('Adicionar item', style: TextStyle(fontWeight: FontWeight.w600),),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  // Passamos o objeto 'category' do card para a próxima tela
-                  context.go(
-                    '/stores/${widget.storeId}/products/new',
-                    extra: widget.category, // ⇐ A MÁGICA ESTÁ AQUI
-                  );
-                },
-              ),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: ListTile(
-                  leading: Icon(widget.category.active ? Icons.pause_circle_outline : Icons.play_circle_outline,  color: widget.category.active ? Colors.orange : Colors.green),
-                  title: Text(widget.category.active ? 'Pausar categoria' : 'Ativar categoria', style: TextStyle(fontWeight: FontWeight.w600)),
-                  onTap: () {
-                    // TODO: Implementar lógica de pausar/ativar categoria
-                    Navigator.of(ctx).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Funcionalidade a ser implementada.')),
-                    );
-                  },
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Editar categoria', style: TextStyle(fontWeight: FontWeight.w600)),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  DialogService.showCategoryDialog(context, widget.storeId, categoryId: widget.category.id);
-                },
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.red),
-                  title: const Text('Remover categoria',  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
-                  onTap: () {
-
-                    _deleteCategory(ctx, widget.storeId, widget.category);
-
-
-                  },
-                ),
-              ),
-            ],
+      color: Color(0xFFF5F5F5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          // ✨ 3. O cabeçalho agora é um widget separado e mais rico
+          CategoryCardHeader(
+            category: widget.category,
+            productCount: widget.products.length,
+            isEditingName: _isEditingName,
+            nameController: _nameController,
+            onEditName: () => setState(() => _isEditingName = true),
+            onSaveName: _saveCategoryName,
+            onCancelEditName: () {
+              _nameController.text = widget.category.name;
+              setState(() => _isEditingName = false);
+            },
+            onAddItem: _navigateToAddItem,
+            onToggleStatus: _toggleCategoryStatus,
+            onEditCategory: _navigateToEditCategory,
+            onDeleteCategory: () => _deleteCategory(context, widget.storeId, widget.category),
           ),
-        );
-      },
-    );
 
+          // A lista de produtos
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: widget.products.isEmpty
+                ? EmptyCategoryCardContent(onAddItem: _navigateToAddItem)
+                : ListView.separated(
+              itemCount: widget.products.length,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemBuilder: (context, index) {
+                final product = widget.products[index];
 
-
-  }
-
-  // WIDGET PARA O MENU POPUP DO DESKTOP
-  Widget _buildDesktopPopupMenu(BuildContext context) {
-    return PopupMenuButton<String>(
-      onSelected: (value) {
-        if (value == 'add') {
-          context.go('/stores/${widget.storeId}/products/create', extra: widget.category);
-        } else if (value == 'edit') {
-          DialogService.showCategoryDialog(context, widget.storeId, categoryId: widget.category.id);
-        }
-        // Adicionar outras ações aqui...
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'add', child: Text('Adicionar item')),
-        const PopupMenuItem(value: 'edit', child: Text('Editar categoria')),
-        const PopupMenuItem(value: 'pause', child: Text('Pausar categoria')),
-        const PopupMenuItem(value: 'delete', child: Text('Remover categoria')),
-      ],
-    );
-  }
-
-  void _onAddProductPressed(BuildContext context, Category category, int currentProductCount) {
-    final accessControl = getIt<AccessControlService>();
-    final limitResult = accessControl.checkLimit(LimitType.products, currentProductCount);
-
-    if (limitResult.isAllowed) {
+                // ✅ --- A LÓGICA PARA ENCONTRAR O PREÇO CORRETO VIVE AQUI ---
+                int priceForThisCategory = 0;
+                try {
+                  // Encontra o link específico para esta categoria
+                  final link = product.categoryLinks.firstWhere(
+                        (link) => link.categoryId == widget.category.id,
+                  );
+                  priceForThisCategory = link.price; // Pega o preço do link
+                } catch (e) {
+                  // Se não encontrar (caso raro), usa o preço base ou 0 como fallback
+                  priceForThisCategory = product.price ?? 0;
+                }
+                // ✅ --- FIM DA LÓGICA ---
 
 
 
 
 
 
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Limite de produtos atingido.')));
-    }
-  }
-}
+                return Container(
+                  decoration: BoxDecoration(
+                   // color: widget.category.active ? const Color(0xFFF5F5F5) :const Color(0xFFFFFFFF)  ,
+                    borderRadius: BorderRadius.circular(8),
+                 //   border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: ProductListItem(
+                    key: ValueKey(product.id),
+                    storeId: widget.storeId,
+                    product: product,
+                    parentCategory: widget.category,
+                    displayPrice: priceForThisCategory,
 
-
-Future<void> _deleteCategory(BuildContext context, int storeId, Category category) async {
-  final confirmed = await DialogService.showConfirmationDialog(
-    context,
-    title: 'Confirmar Exclusão',
-    content: 'Tem certeza que deseja excluir a categoria "${category.name}" e todos os seus produtos?',
-  );
-  if (confirmed == true && context.mounted) {
-    try {
-      await getIt<CategoryRepository>().deleteCategory(storeId, category.id!);
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Categoria "${category.name}" excluída.')));
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao excluir: $e')));
-      }
-    }
-  }
-
-
-
-
-}
-
-
-
-// ===================================================================
-// WIDGET PARA O CONTEÚDO DA CATEGORIA VAZIA
-// ===================================================================
-
-class EmptyCategoryCardContent extends StatelessWidget {
-  final VoidCallback onAddItem;
-
-  const EmptyCategoryCardContent({
-    super.key,
-    required this.onAddItem,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-
-        child: Column(
-          children: [
-
-          SvgPicture.asset(
-          "assets/icons/chef.svg",
-          height: 80,
-          width: 80,),
-
-            const SizedBox(height: 16),
-            const Text(
-              'Nenhum item nessa categoria',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                );
+              },
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Essa categoria não está sendo exibida no momento',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 16),
-            DsButton(label: 'Adicionar item',
-            onPressed:onAddItem,
-            )
-
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
+
+

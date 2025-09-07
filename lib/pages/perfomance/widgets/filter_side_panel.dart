@@ -1,6 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import '../../../widgets/ds_primary_button.dart';
+
 
 
 enum PeriodOption { last7Days, last30Days }
@@ -140,12 +142,7 @@ class _FilterSidePanelState extends State<FilterSidePanel> {
         elevation: 0,
         automaticallyImplyLeading: false,
         // Remove o botão de voltar padrão
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
+
       ),
       body: Column(
         children: [
@@ -296,23 +293,17 @@ class _FilterSidePanelState extends State<FilterSidePanel> {
       child: Row(
         children: [
           Expanded(
-            child: OutlinedButton(
+            child: DsButton(
               onPressed: _clearFilters,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                side: BorderSide(color: Colors.grey.shade400),
-              ),
+             style: DsButtonStyle.secondary,
               child: const Text('Limpar filtros', style: TextStyle(color: Colors.black)),
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: ElevatedButton(
+            child: DsButton(
               onPressed: () => widget.onApply(_startDate, _endDate),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEB0033),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
+
               child: const Text('Aplicar'),
             ),
           ),
@@ -337,7 +328,7 @@ class _FilterSidePanelState extends State<FilterSidePanel> {
             value: value,
             groupValue: groupValue,
             onChanged: onChanged,
-            activeColor: const Color(0xFFEB0033),
+            activeColor:  Theme.of(context).primaryColor,
           ),
           const SizedBox(width: 8),
           Text(label, style: const TextStyle(fontSize: 14)),
@@ -356,8 +347,8 @@ class _FilterSidePanelState extends State<FilterSidePanel> {
       selected: selected,
       onSelected: onSelected,
       backgroundColor: Colors.white,
-      selectedColor: const Color(0xFFEB0033),
-      side: BorderSide(color: selected ? const Color(0xFFEB0033) : Colors.grey.shade400),
+      selectedColor:  Theme.of(context).primaryColor,
+      side: BorderSide(color: selected ?  Theme.of(context).primaryColor : Colors.grey.shade400),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
   }

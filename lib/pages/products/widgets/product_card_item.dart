@@ -10,6 +10,8 @@ import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/services/dialog_service.dart';
 
+import '../../../core/enums/category_type.dart';
+
 class ProductCardItem extends StatefulWidget {
   final Product product;
   final bool isSelected;
@@ -48,7 +50,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
         onTap: widget.onTap,
         child: ResponsiveBuilder(
           mobileBuilder: (context, constraints) => _buildMobileLayout(context),
-          desktopBuilder: (context, constraints) => _buildDesktopLayout(context),
+          desktopBuilder: (context, constraints) => _buildDesktopLayout(context ),
         ),
       ),
     );
@@ -59,6 +61,11 @@ class _ProductCardItemState extends State<ProductCardItem> {
     final bool isAvailable = widget.product.available;
     final Color textColor = isAvailable ? const Color(0xFF151515) : Colors.grey.shade500;
     final textStyle = TextStyle(color: textColor, fontSize: 14);
+
+    final bool isCustomizable = widget.product.categoryLinks.isNotEmpty &&
+        widget.product.categoryLinks.first.category?.type == CategoryType.CUSTOMIZABLE; // ✅ Correto (com 'c' minúsculo)
+
+
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -76,7 +83,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
             flex: 4,
             child: Row(
               children: [
-                _buildProductImage(isAvailable),
+                _buildProductImage(isAvailable, isCustomizable),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -88,15 +95,15 @@ class _ProductCardItemState extends State<ProductCardItem> {
                         style: textStyle.copyWith(fontWeight: FontWeight.bold),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (widget.product.description.isNotEmpty) ...[
+
                         const SizedBox(height: 4),
                         Text(
-                          widget.product.description,
+                          widget.product.description ?? '',
                           style: textStyle.copyWith(fontSize: 12, color: textColor.withOpacity(0.7)),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ],
+
                     ],
                   ),
                 ),
@@ -111,9 +118,9 @@ class _ProductCardItemState extends State<ProductCardItem> {
                 // ✅ VERIFICA SE A LISTA DE VÍNCULOS NÃO ESTÁ VAZIA
                 final bool hasCategories = widget.product.categoryLinks.isNotEmpty;
 
-                // ✅ PEGA O NOME DA PRIMEIRA CATEGORIA DA LISTA
+
                 final categoryName = hasCategories
-                    ? widget.product.categoryLinks.first.category.name
+                    ? widget.product.categoryLinks.first.category?.name ?? 'Sem Categoria'
                     : 'Sem Categoria';
 
                 return Text(categoryName, style: textStyle);
@@ -135,7 +142,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
             width: 120,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: _buildDesktopActions(),
+              children: _buildDesktopActions(isCustomizable),
             ),
           ),
         ],
@@ -147,13 +154,16 @@ class _ProductCardItemState extends State<ProductCardItem> {
   Widget _buildMobileLayout(BuildContext context) {
     final bool isAvailable = widget.product.available;
     final Color textColor = isAvailable ? const Color(0xFF151515) : Colors.grey.shade500;
+    final bool isCustomizable = widget.product.categoryLinks.isNotEmpty &&
+        widget.product.categoryLinks.first.category?.type == CategoryType.CUSTOMIZABLE; // ✅ Correto (com 'c' minúsculo)
+
 
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildProductImage(isAvailable),
+          _buildProductImage(isAvailable, isCustomizable),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -166,7 +176,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.product.description,
+                  widget.product.description ?? '',
                   style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 12, height: 1.4),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -181,7 +191,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
           ),
           SizedBox(
             width: 48,
-            child: _buildMobileActions(),
+            child: _buildMobileActions(isCustomizable),
           )
         ],
       ),
@@ -191,7 +201,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
 
   // --- MÉTODOS DE CONSTRUÇÃO DE UI ---
 
-  Widget _buildProductImage(bool isAvailable) {
+  Widget _buildProductImage(bool isAvailable, bool isCustomizable) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: ColorFiltered(
@@ -222,7 +232,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
     );
   }
 
-  Widget _buildMobileActions() {
+  Widget _buildMobileActions(bool isCustomizable) {
     if (widget.isSelected) {
       return Checkbox(
         value: true,
@@ -233,12 +243,12 @@ class _ProductCardItemState extends State<ProductCardItem> {
       return IconButton(
         icon: const Icon(Icons.more_vert),
         tooltip: 'Mais ações',
-        onPressed: () => _showMobileActionSheet(context),
+        onPressed: () => _showMobileActionSheet(context, isCustomizable),
       );
     }
   }
 
-  List<Widget> _buildDesktopActions() {
+  List<Widget> _buildDesktopActions(bool isCustomizable) {
     final isAvailable = widget.product.available;
     return [
       IconButton(
@@ -253,10 +263,26 @@ class _ProductCardItemState extends State<ProductCardItem> {
         icon: const Icon(Icons.more_vert),
         onSelected: (value) {
           if (value == 'edit') {
-            context.go('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
-          } else if (value == 'delete') {
+    // ✅ LÓGICA DE NAVEGAÇÃO DINÂMICA
+    if (isCustomizable) {
+    // Navega para a tela de edição de SABORES
+    context.go('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
+    } else {
+    // Navega para a tela de edição de ITENS SIMPLES
+    context.go('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
+    }
+    } else if (value == 'delete') {
             _deleteProduct(context);
-          }
+    }
+
+
+
+
+
+
+
+
+
         },
         itemBuilder: (context) => [
           const PopupMenuItem<String>(value: 'edit', child: Text('Editar')),
@@ -271,7 +297,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
   Future<void> _toggleAvailability() async {
     final updatedProduct = widget.product.copyWith(available: !widget.product.available);
     try {
-      await getIt<ProductRepository>().saveProduct(widget.storeId, updatedProduct);
+      await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -298,7 +324,7 @@ class _ProductCardItemState extends State<ProductCardItem> {
     }
   }
 
-  void _showMobileActionSheet(BuildContext context) {
+  void _showMobileActionSheet(BuildContext context, bool isCustomizable) {
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
@@ -325,8 +351,21 @@ class _ProductCardItemState extends State<ProductCardItem> {
                     leading: const Icon(Icons.edit),
                     title: const Text('Editar item'),
                     onTap: () {
+
+
+
+
                       Navigator.of(ctx).pop();
-                      context.go('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
+                      // ✅ LÓGICA DE NAVEGAÇÃO DINÂMICA
+                      if (isCustomizable) {
+                        // Navega para a tela de edição de SABORES
+                        context.go('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
+                      } else {
+                        // Navega para a tela de edição de ITENS SIMPLES
+                        context.go('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
+                      }
+
+
                     },
                   ),
                   ListTile(

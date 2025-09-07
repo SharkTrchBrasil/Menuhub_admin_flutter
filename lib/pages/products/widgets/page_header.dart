@@ -5,8 +5,12 @@ import '../../../core/responsive_builder.dart';
 
 /// WIDGET: Cabeçalho da página (Título e descrição)
 class PageHeader extends StatelessWidget {
+
+
   @override
   Widget build(BuildContext context) {
+
+    final bool isMobile = ResponsiveBuilder.isMobile(context);
     return Container(
       color: Colors.white,
       padding: EdgeInsets.symmetric(

@@ -21,29 +21,23 @@ class Step3Complements extends StatelessWidget {
         final mainContent = _buildMainContent(context, state);
 
         return ResponsiveBuilder(
-          mobileBuilder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: mainContent,
-          ),
+          mobileBuilder: (context, constraints) => mainContent,
           desktopBuilder: (context, constraints) => Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 flex: 6,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(32.0),
-                  child: mainContent,
-                ),
+                child: mainContent,
               ),
               Spacer(),
               Expanded(
-                flex: 3,
+                flex: 2,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 32.0, right: 32.0),
                   // O mockup agora precisa receber a lista de links do estado
                   child: ProductPhoneMockup(
                     product: state.productInCreation.copyWith(
-                      variantLinks: () => state.variantLinks,
+                      variantLinks: state.variantLinks,
                     ),
                   ),
                 ),
@@ -57,11 +51,13 @@ class Step3Complements extends StatelessWidget {
 
   Widget _buildMainContent(BuildContext context, ProductWizardState state) {
     final bool hasNoLinks = state.variantLinks.isEmpty;
-
-    return hasNoLinks
-        ? _buildEmptyState(context)
-        : _buildComplementsList(context, state);
+    return SingleChildScrollView( // Adicionado
+      child: hasNoLinks
+          ? _buildEmptyState(context)
+          : _buildComplementsList(context, state),
+    );
   }
+
 
 // Dentro da classe _Step3ComplementsState
 
@@ -170,6 +166,7 @@ class Step3Complements extends StatelessWidget {
               },
 
               onAddOption: () async {
+
               final newOption = await showAddOptionToGroupPanel(context);
               if (newOption != null) {
                 // ✅ CORRETO PARA O WIZARD: Adiciona a opção em memória no Cubit

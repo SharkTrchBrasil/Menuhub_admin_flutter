@@ -7,9 +7,6 @@ import '../../../cubits/store_manager_state.dart';
 import '../../../repositories/product_repository.dart';
 import '../cubit/create_complement_cubit.dart';
 
-
-
-// ✅ PASSO 1: A função agora recebe o productId
 void showResponsiveSidePanelComplement(BuildContext context, {
   required Widget panel,
   required int productId,
@@ -20,7 +17,7 @@ void showResponsiveSidePanelComplement(BuildContext context, {
 
   // Pega o estado da loja e o repositório a partir do contexto
   final storesState = context.read<StoresManagerCubit>().state;
-  // ✅ Pega a instância do Cubit que JÁ EXISTE na tela principal
+
   final createComplementCubit = context.read<CreateComplementGroupCubit>();
 
 
@@ -38,7 +35,7 @@ void showResponsiveSidePanelComplement(BuildContext context, {
       transitionDuration: const Duration(milliseconds: 350),
 
       pageBuilder: (context, animation, secondaryAnimation) {
-        // ✅ Usa BlocProvider.value para FORNECER A INSTÂNCIA EXISTENTE para a nova rota
+
         final panelWithExistingCubit = BlocProvider.value(
           value: createComplementCubit,
           child: panel, // O 'panel' aqui é o seu MultiStepPanelContainer
@@ -64,18 +61,21 @@ void showResponsiveSidePanelComplement(BuildContext context, {
   );
 }
 
-/// Helper para o layout de PAINEL LATERAL (Desktop)
+
+
+
 class _SidePanelContainer extends StatelessWidget {
   final Widget child;
 
-  // ❌ O parâmetro 'width' foi removido do construtor
+
   const _SidePanelContainer({
     required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
-    // ✅ AJUSTE 2: A largura agora é calculada como 50% da tela
+
+
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Align(
@@ -92,7 +92,9 @@ class _SidePanelContainer extends StatelessWidget {
   }
 }
 
-/// Helper para o layout de TELA CHEIA (Mobile)
+
+
+
 class _FullScreenMobileWrapper extends StatelessWidget {
   final Widget child;
 
@@ -104,7 +106,8 @@ class _FullScreenMobileWrapper extends StatelessWidget {
       backgroundColor: Colors.white, // Fundo branco padrão para o painel
       body: Stack(
         children: [
-          // O seu painel ocupa todo o espaço
+
+
           Positioned.fill(
             child: child,
           ),

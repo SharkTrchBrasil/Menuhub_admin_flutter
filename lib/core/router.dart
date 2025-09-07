@@ -9,9 +9,8 @@ import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
 
 import 'package:totem_pro_admin/pages/cash/cash_page.dart';
-import 'package:totem_pro_admin/pages/categories/categories_page.dart';
+
 import 'package:totem_pro_admin/pages/create_store/create_store_page.dart';
-import 'package:totem_pro_admin/pages/edit_category/edit_category_page.dart';
 
 
 
@@ -74,6 +73,7 @@ import '../pages/payables/payables_page.dart';
 import '../pages/platform_payment_methods/gateway-payment.dart';
 import '../pages/product-wizard/product_wizard_page.dart';
 import '../pages/product_edit/edit_product_page.dart';
+import '../pages/product_flavors/flavor_wizard_page.dart';
 import '../pages/reports/reports_page.dart';
 import '../pages/splash/splash_page_cubit.dart';
 import '../pages/totems/totems_page.dart';
@@ -94,6 +94,7 @@ import '../cubits/auth_cubit.dart';
 
 import '../services/print/print_manager.dart';
 import '../widgets/app_shell.dart';
+import 'enums/category_type.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -517,6 +518,7 @@ class AppRouter {
                 // PRODUTOS
                 StatefulShellBranch(
                   routes: [
+
                     GoRoute(
                       path: '/products',
                       pageBuilder:
@@ -527,46 +529,65 @@ class AppRouter {
                       routes: [
 
                         GoRoute(
-                          path: 'new',
-                          builder: (_, state) {
-                            // ✅ CORRETO: Chama a EditProductPage sem o 'id',
-                            // ativando o modo de criação.
-                            final category = state.extra as Category?; // Permite passar a categoria
-                            return EditProductPage(
-                              storeId: state.storeId,
-                              category: category,
-                            );
-                          },
-                        ),
-                        GoRoute(
                           path: 'create',
                           name: 'product-create-wizard',
                           pageBuilder: (context, state) {
+                            // ✅ INÍCIO DA CORREÇÃO ROBUSTA
+                            late final Category category; // Usamos 'late final' para garantir que será inicializada
 
-                            final category = state.extra as Category?; // Permite passar a categoria
-                            return NoTransitionPage( // ou outra transição que preferir
-                              child: ProductWizardPage( storeId: state.storeId,  category: category,),
+                            if (state.extra is Category) {
+                              // CASO 1: O objeto já é uma instância de Category (navegação interna).
+                              // Simplesmente o usamos diretamente.
+                              category = state.extra as Category;
+
+                            } else if (state.extra is Map<String, dynamic>) {
+                              // CASO 2: O objeto veio como um Map (ex: vindo de um deep link).
+                              // Usamos o .fromJson para construí-lo.
+                              category = Category.fromJson(state.extra as Map<String, dynamic>);
+
+                            } else {
+                              // CASO 3: Nenhum dado foi passado ou o tipo é inesperado.
+                              // Lançamos uma exceção para deixar claro que a categoria é obrigatória aqui.
+                              throw Exception('A rota /products/create requer um objeto Category ou Map<String, dynamic> no parâmetro extra.');
+                            }
+                            // ✅ FIM DA CORREÇÃO ROBUSTA
+
+                            // O resto da sua lógica para escolher a página continua igual e agora segura.
+                            Widget pageToBuild;
+                            if (category.type == CategoryType.CUSTOMIZABLE) {
+                              pageToBuild = FlavorWizardPage(
+                                  storeId: state.storeId,
+                                  category: category
+                              );
+                            } else {
+                              pageToBuild = ProductWizardPage(
+                                  storeId: state.storeId,
+                                  category: category
+                              );
+                            }
+
+                            return NoTransitionPage(
+                              child: pageToBuild,
                             );
                           },
                         ),
-                        GoRoute(
-                          path: ':productId',
-                          pageBuilder: (_, state) {
-                            // ✅ PASSO 2: Pega o objeto do 'extra'
-                            final product = state.extra as Product?;
 
+
+                        GoRoute(
+                          path: ':productId', // Ex: /stores/5/products/10
+                          pageBuilder: (_, state) {
+                            final product = state.extra as Product?;
                             return NoTransitionPage(
                               key: UniqueKey(),
+                              // Abre a EditProductPage que já está preparada para isso
                               child: EditProductPage(
                                 storeId: state.storeId,
-                                id: state.productId,
-                                product: product, // ✅ Passa o produto para a página
+                                product: product!,
                               ),
                             );
                           },
                         ),
 
-                        // ✅ ADICIONE A NOVA ROTA AQUI
                         GoRoute(
                           path: 'variants/:variantId', // O caminho completo será /stores/:storeId/products/variants/:variantId
                           name: 'variant-edit', // É uma boa prática nomear a rota
@@ -595,42 +616,74 @@ class AppRouter {
                         ),
 
 
-
+                        GoRoute(
+                          path: ':productId/edit-flavor', // Ex: /stores/5/products/22/edit-flavor
+                          pageBuilder: (context, state) {
+                            final product = state.extra as Product?;
+                            if (product == null || product.categoryLinks.isEmpty || product.categoryLinks.first.category == null) {
+                              return const NoTransitionPage(child: Scaffold(body: Center(child: Text("Erro: Dados do sabor incompletos."))));
+                            }
+                            final parentCategory = product.categoryLinks.first.category!;
+                            return NoTransitionPage(
+                              child: FlavorWizardPage(
+                                storeId: state.storeId,
+                                product: product,
+                                category: parentCategory,
+                              ),
+                            );
+                          },
+                        ),
 
 
 
                       ],
                     ),
+
+
+
                   ],
                 ),
 
 
                 // CATEGORIAS
+                // ...
+
                 StatefulShellBranch(
                   routes: [
                     GoRoute(
                       path: '/categories',
-                      pageBuilder:
-                          (_, state) => NoTransitionPage(
-                            key: UniqueKey(),
-                            child: CreateCategoryPage(),
-                          ),
+                      builder: (_, state) => CreateCategoryPage(
+                        storeId: int.parse(state.pathParameters['storeId']!),
+                        // category é nulo, ativando o modo de CRIAÇÃO.
+                      ),
                       routes: [
                         GoRoute(
                           path: 'new',
-                          builder:
-                              (_, state) =>
-                                  EditCategoryPage(storeId: state.storeId),
+                          builder: (_, state) => CreateCategoryPage(
+                            storeId: int.parse(state.pathParameters['storeId']!),
+                            // category é nulo, ativando o modo de CRIAÇÃO.
+                          ),
                         ),
+                        // Em core/router.dart
                         GoRoute(
                           path: ':id',
-                          pageBuilder: (_, state) {
-                            return NoTransitionPage(
-                              key: UniqueKey(),
-                              child: EditCategoryPage(
-                                storeId: state.storeId,
-                                id: state.id,
-                              ),
+                          builder: (_, state) {
+                            // ✅ INÍCIO DA SOLUÇÃO ROBUSTA
+                            Category? category; // A variável agora é nulável
+
+                            if (state.extra is Category) {
+                              // Caso 1: O objeto já veio pronto.
+                              category = state.extra as Category;
+                            } else if (state.extra is Map<String, dynamic>) {
+                              // Caso 2: O objeto veio como um Map.
+                              category = Category.fromJson(state.extra as Map<String, dynamic>);
+                            }
+                            // Se state.extra for nulo, a variável 'category' permanecerá nula, o que está correto.
+                            // ✅ FIM DA SOLUÇÃO ROBUSTA
+
+                            return CreateCategoryPage(
+                              storeId: int.parse(state.pathParameters['storeId']!),
+                              category: category, // Passa a categoria (ou nulo) corretamente
                             );
                           },
                         ),
@@ -639,6 +692,7 @@ class AppRouter {
                   ],
                 ),
 
+// ...
                 StatefulShellBranch(
                   routes: [
                     GoRoute(

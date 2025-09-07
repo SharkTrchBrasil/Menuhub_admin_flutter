@@ -4,6 +4,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../ConstData/typography.dart';
 
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../ConstData/typography.dart';
+
 class AppTextField extends StatefulWidget {
   const AppTextField({
     super.key,
@@ -16,14 +22,13 @@ class AppTextField extends StatefulWidget {
     this.icon,
     this.formatters,
     this.keyboardType,
-    this.controller,
     this.readOnly = false,
     this.enabled = true,
     this.suffixIcon,
     this.focusNode,
     this.maxLength,
     this.maxLines,
-    this.onTapOutside, // ✅ 1. NOVO PARÂMETRO ADICIONADO
+    this.onTapOutside,
   });
 
   final String title;
@@ -34,7 +39,7 @@ class AppTextField extends StatefulWidget {
   final bool isHidden;
   final String? icon;
   final List<TextInputFormatter>? formatters;
-  final TextEditingController? controller;
+  // ❗ O parâmetro 'controller' foi removido do construtor
   final TextInputType? keyboardType;
   final bool readOnly;
   final bool enabled;
@@ -42,14 +47,40 @@ class AppTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final int? maxLength;
   final int? maxLines;
-  final Function(PointerDownEvent)? onTapOutside; // ✅ 2. TIPO DEFINIDO
+  final Function(PointerDownEvent)? onTapOutside;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
 }
 
 class _AppTextFieldState extends State<AppTextField> {
+  // ✅ 1. Controller local. Ele será a única fonte da verdade para o texto.
+  late final TextEditingController _controller;
   late bool obscure = widget.isHidden;
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ 2. Inicializamos o controller com o valor que veio do pai.
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void didUpdateWidget(covariant AppTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // ✅ 3. Sincronizamos o controller se o valor inicial do pai mudar externamente.
+    //    Isso é crucial para quando o estado do Cubit atualiza o formulário.
+    if (widget.initialValue != oldWidget.initialValue && widget.initialValue != _controller.text) {
+      _controller.text = widget.initialValue ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    // ✅ 4. Fazemos a limpeza do nosso controller local para evitar vazamentos de memória.
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +100,10 @@ class _AppTextFieldState extends State<AppTextField> {
         ),
         const SizedBox(height: 8),
         TextFormField(
+          // ✅ 5. Usamos SEMPRE o controller local e REMOVEMOS o initialValue.
+          controller: _controller,
+          onChanged: widget.onChanged,
+
           focusNode: widget.focusNode,
           style: TextStyle(
             color: Theme.of(context).textTheme.displayLarge?.color,
@@ -76,12 +111,9 @@ class _AppTextFieldState extends State<AppTextField> {
           ),
           readOnly: widget.readOnly,
           enabled: widget.enabled,
-          controller: widget.controller,
           obscureText: obscure,
           validator: widget.validator,
-          initialValue: widget.initialValue,
-          onChanged: widget.onChanged,
-          onTapOutside: widget.onTapOutside, // ✅ 3. PARÂMETRO PASSADO PARA O WIDGET INTERNO
+          onTapOutside: widget.onTapOutside,
           keyboardType: widget.keyboardType,
           inputFormatters: widget.formatters,
           maxLength: widget.maxLength,
@@ -148,3 +180,17 @@ class _AppTextFieldState extends State<AppTextField> {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

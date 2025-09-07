@@ -460,7 +460,7 @@ class _CouponForm extends StatelessWidget {
                   child: Column(
                     children: [
                       AppTextField(
-                        controller: codeController,
+                     //   controller: codeController,
                         title: 'Código',
                         hint: 'EX: BEMVINDO10',
                         validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
@@ -480,7 +480,7 @@ class _CouponForm extends StatelessWidget {
                   child: Column(
                     children: [
                       AppTextField(
-                        controller: descriptionController,
+                      //  controller: descriptionController,
                         title: 'Descrição',
                         hint: 'Ex: Cupom de 10% para novos clientes',
 
@@ -525,7 +525,7 @@ class _CouponForm extends StatelessWidget {
                       const SizedBox(height: 16),
                       if (discountType != 'FREE_DELIVERY')
                         AppTextField(
-                          controller: discountValueController,
+                         // controller: discountValueController,
                           title: discountType == 'PERCENTAGE' ? 'Percentual (%)' : 'Valor do Desconto (R\$)',
                           hint: discountType == 'PERCENTAGE' ? 'Ex: 15' : 'Ex: 10,00',
                           keyboardType: TextInputType.number,
@@ -541,7 +541,7 @@ class _CouponForm extends StatelessWidget {
                 if (discountType == 'PERCENTAGE')
                   Expanded(
                     child: AppTextField(
-                      controller: maxDiscountController,
+                    //  controller: maxDiscountController,
                       title: 'Valor Máximo do Desconto (R\$) (Opcional)',
                       hint: 'Ex: 20,00',
                       keyboardType: TextInputType.number,
@@ -562,7 +562,7 @@ class _CouponForm extends StatelessWidget {
                   child: Column(
                     children: [
                       AppTextField(
-                          controller: minOrderController,
+                       //   controller: minOrderController,
                           title: 'Pedido Mínimo (R\$) (Opcional)',
                           hint: 'Ex: 50,00',
                           keyboardType: TextInputType.number,
@@ -570,7 +570,7 @@ class _CouponForm extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       AppTextField(
-                          controller: maxUsesController,
+                        //  controller: maxUsesController,
                           title: 'Limite de Usos Totais (Opcional)',
                           hint: 'Ex: 1000',
                           keyboardType: TextInputType.number,
@@ -584,7 +584,7 @@ class _CouponForm extends StatelessWidget {
                   child: Column(
                     children: [
                       AppTextField(
-                          controller: maxUsesPerCustomerController,
+                        //  controller: maxUsesPerCustomerController,
                           title: 'Limite de Usos por Cliente (Opcional)',
                           hint: 'Ex: 1',
                           keyboardType: TextInputType.number,
@@ -617,7 +617,7 @@ class _CouponForm extends StatelessWidget {
       // Informações Básicas
       _buildSectionTitle('Informações Básicas'),
       AppTextField(
-        controller: codeController,
+     //   controller: codeController,
         title: 'Código',
         hint: 'EX: BEMVINDO10',
         validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
@@ -625,7 +625,7 @@ class _CouponForm extends StatelessWidget {
       ),
       const SizedBox(height: 16),
       AppTextField(
-        controller: descriptionController,
+      //  controller: descriptionController,
         title: 'Descrição',
         hint: 'Ex: Cupom de 10% para novos clientes',
         validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
@@ -664,7 +664,7 @@ class _CouponForm extends StatelessWidget {
       const SizedBox(height: 16),
       if (discountType != 'FREE_DELIVERY')
         AppTextField(
-          controller: discountValueController,
+       //   controller: discountValueController,
           title: discountType == 'PERCENTAGE' ? 'Percentual (%)' : 'Valor do Desconto (R\$)',
           hint: discountType == 'PERCENTAGE' ? 'Ex: 15' : 'Ex: 10,00',
           keyboardType: TextInputType.number,
@@ -676,7 +676,7 @@ class _CouponForm extends StatelessWidget {
       if (discountType == 'PERCENTAGE') ...[
         const SizedBox(height: 16),
         AppTextField(
-          controller: maxDiscountController,
+         // controller: maxDiscountController,
           title: 'Valor Máximo do Desconto (R\$) (Opcional)',
           hint: 'Ex: 20,00',
           keyboardType: TextInputType.number,
@@ -688,7 +688,7 @@ class _CouponForm extends StatelessWidget {
       // Regras e Condições
       _buildSectionTitle('Regras e Condições'),
       AppTextField(
-          controller: minOrderController,
+       //   controller: minOrderController,
           title: 'Pedido Mínimo (R\$) (Opcional)',
           hint: 'Ex: 50,00',
           keyboardType: TextInputType.number,
@@ -696,7 +696,7 @@ class _CouponForm extends StatelessWidget {
       ),
       const SizedBox(height: 16),
       AppTextField(
-          controller: maxUsesController,
+       //   controller: maxUsesController,
           title: 'Limite de Usos Totais (Opcional)',
           hint: 'Ex: 1000',
           keyboardType: TextInputType.number,
@@ -704,7 +704,7 @@ class _CouponForm extends StatelessWidget {
       ),
       const SizedBox(height: 16),
       AppTextField(
-          controller: maxUsesPerCustomerController,
+        //  controller: maxUsesPerCustomerController,
           title: 'Limite de Usos por Cliente (Opcional)',
           hint: 'Ex: 1',
           keyboardType: TextInputType.number,

@@ -3,20 +3,57 @@ import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:totem_pro_admin/models/category.dart';
 
+import '../models/option_group.dart';
+import '../models/option_item.dart';
+
 class CategoryRepository {
   CategoryRepository(this._dio);
 
   final Dio _dio;
 
-  Future<Either<void, List<Category>>> getCategories(int storeId) async {
+  // Este método é para CRIAR (POST)
+  Future<Either<String, Category>> createCategory(
+    int storeId,
+    Category category,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/stores/$storeId/categories',
+        data: category.toJson(), // Garanta que seu toJson envie os novos campos
+      );
+      return Right(Category.fromJson(response.data));
+    } catch (e) {
+      return Left("Falha ao criar categoria.");
+    }
+  }
+
+  // Este método é para ATUALIZAR (PATCH)
+  Future<Either<String, Category>> updateCategory(
+    int storeId,
+    Category category,
+  ) async {
+    try {
+      final response = await _dio.patch(
+        '/stores/$storeId/categories/${category.id}',
+        data: category.toJson(),
+      );
+      return Right(Category.fromJson(response.data));
+    } catch (e) {
+      return Left("Falha ao atualizar categoria.");
+    }
+  }
+
+  Future<Either<String, List<Category>>> getCategories(int storeId) async {
     try {
       final response = await _dio.get('/stores/$storeId/categories');
       return Right(
-        response.data.map<Category>((c) => Category.fromJson(c)).toList(),
+        (response.data as List)
+            .map<Category>((c) => Category.fromJson(c))
+            .toList(),
       );
     } catch (e) {
       debugPrint('$e');
-      return const Left(null);
+      return Left("Falha ao buscar categorias.");
     }
   }
 
@@ -30,7 +67,7 @@ class CategoryRepository {
     }
   }
 
-  Future<Either<void, void>> deleteCategory( int storeId, int id) async {
+  Future<Either<void, void>> deleteCategory(int storeId, int id) async {
     try {
       await _dio.delete('/stores/$storeId/categories/$id');
       return const Right(null);
@@ -40,30 +77,37 @@ class CategoryRepository {
     }
   }
 
+  // --- ✨ NOVOS MÉTODOS PARA GRUPOS E ITENS ---
 
-
-
-  Future<Either<void, Category>> saveCategory(
-    int storeId,
-    Category category,
-  ) async {
+  Future<Either<String, OptionGroup>> createOptionGroup({
+    required int categoryId,
+    required OptionGroup group,
+  }) async {
     try {
-      if (category.id != null) {
-        final response = await _dio.patch(
-          '/stores/$storeId/categories/${category.id}',
-          data: await category.toFormData(),
-        );
-        return Right(Category.fromJson(response.data));
-      } else {
-        final response = await _dio.post(
-          '/stores/$storeId/categories',
-          data: await category.toFormData(),
-        );
-        return Right(Category.fromJson(response.data));
-      }
+      final response = await _dio.post(
+        '/categories/$categoryId/option-groups',
+        data: group.toJson(),
+      );
+      return Right(OptionGroup.fromJson(response.data));
     } catch (e) {
       debugPrint('$e');
-      return Left(null);
+      return Left("Falha ao criar grupo de opções.");
+    }
+  }
+
+  Future<Either<String, OptionItem>> createOptionItem({
+    required int groupId,
+    required OptionItem item,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/option-groups/$groupId/items',
+        data: item.toJson(),
+      );
+      return Right(OptionItem.fromJson(response.data));
+    } catch (e) {
+      debugPrint('$e');
+      return Left("Falha ao criar item de opção.");
     }
   }
 }

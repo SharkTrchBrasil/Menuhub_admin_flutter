@@ -1,5 +1,5 @@
 
-// Substitua o conteúdo do seu arquivo da aba "Cardápio" por este código completo.
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,17 +13,15 @@ import '../../../themes/ds_theme_switcher.dart';
 import '../../../core/extensions/colors.dart' as theme;
 
 
-// ✅ ETAPA 1: WIDGET PRINCIPAL DA ABA
-// Este é o widget que você deve colocar na sua TabBarView.
 class MenuTabContainer extends StatelessWidget {
   final List<Category> allCategories;
-  final List<Product> allProducts;
+
   final int storeId;
 
   const MenuTabContainer({
     super.key,
     required this.allCategories,
-    required this.allProducts,
+
     required this.storeId,
   });
 
@@ -62,7 +60,7 @@ class MenuTabContainer extends StatelessWidget {
         builder: (context) {
           return MenuContent(
             allCategories: allCategories,
-            allProducts: allProducts,
+
             storeId: storeId,
           );
         },
@@ -72,17 +70,16 @@ class MenuTabContainer extends StatelessWidget {
 }
 
 
-// ✅ ETAPA 2: CONTEÚDO DO SCROLL INTERNO
-// Este widget agora é usado exclusivamente dentro do `body` do NestedScrollView.
+
 class MenuContent extends StatefulWidget {
   final List<Category> allCategories;
-  final List<Product> allProducts;
+
   final int storeId;
 
   const MenuContent({
     super.key,
     required this.allCategories,
-    required this.allProducts,
+
     required this.storeId,
   });
 
@@ -111,48 +108,43 @@ class _MenuContentState extends State<MenuContent> {
     super.dispose();
   }
 
-// Em lib/pages/products/widgets/menu_content.dart
+
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<DsThemeSwitcher>().theme;
 
-    // 1. Filtrar produtos pelo texto da busca (esta parte não muda)
+    // ✅ CORREÇÃO 1: Filtra os produtos nulos ao criar a lista principal
+    final allProducts = widget.allCategories
+        .expand((category) => category.productLinks.map((link) => link.product))
+        .whereType<Product>() // ✨ ADICIONADO AQUI: Remove nulos e converte para List<Product>
+        .toList();
+
+
+
     final searchedProducts = _searchText.isEmpty
-        ? widget.allProducts
-        : widget.allProducts
+        ? allProducts
+        : allProducts
         .where((p) => p.name.toLowerCase().contains(_searchText))
         .toList();
 
-    // 2. Lógica para decidir quais CATEGORIAS serão visíveis
+    final categoryIdsWithMatchingProducts = searchedProducts
+        .expand((product) => product.categoryLinks.map((link) => link.categoryId))
+        .toSet();
+
     final List<Category> visibleCategories;
     if (_selectedCategory != null) {
-      // Se um filtro de categoria está ativo, mostra apenas ela
-      visibleCategories = widget.allCategories
-          .where((c) => c.id == _selectedCategory!.id)
-          .toList();
+      visibleCategories = [ _selectedCategory! ];
     } else if (_searchText.isNotEmpty) {
-      // ✅ CORREÇÃO 1: Lógica de busca por texto
-      // Se estamos buscando, precisamos encontrar todas as categorias
-      // que contêm os produtos encontrados na busca.
-
-      // Usamos `expand` para achatar a lista de listas de categorias de cada produto
-      // e `map` para pegar o ID de cada categoria vinculada.
-      final categoryIdsWithMatchingProducts = searchedProducts
-          .expand((product) => product.categoryLinks.map((link) => link.category.id))
-          .toSet(); // `.toSet()` remove duplicatas
-
       visibleCategories = widget.allCategories
           .where((c) => categoryIdsWithMatchingProducts.contains(c.id))
           .toList();
     } else {
-      // Se não há filtro, mostra todas as categorias
+      // ✅ CORREÇÃO:
+      // Se não há filtro, mostra TODAS as categorias.
       visibleCategories = widget.allCategories;
     }
 
-    if (widget.allCategories.isEmpty) {
-      return _buildEmptyState();
-    }
+
 
     final bool isMobile = ResponsiveBuilder.isMobile(context);
     final double headerHeight = isMobile ? 100.0 : 140.0;
@@ -188,19 +180,36 @@ class _MenuContentState extends State<MenuContent> {
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                  final category = visibleCategories[index];
+                      final category = visibleCategories[index];
 
-                      final productsForCategory = searchedProducts
-                          .where((p) => p.categoryLinks.any((link) => link.category.id == category.id))
+                      // ✅ CORREÇÃO 2: Filtra os produtos nulos também na lista específica da categoria
+                      final allProductsInCategory = category.productLinks
+                          .map((link) => link.product)
+                          .whereType<Product>() // ✨ ADICIONADO AQUI TAMBÉM
                           .toList();
 
+                      // 2. Aplica o filtro de busca de texto APENAS a essa lista.
+                      final productsForCategory = _searchText.isEmpty
+                          ? allProductsInCategory
+                          : allProductsInCategory
+                          .where((p) => p.name.toLowerCase().contains(_searchText))
+                          .toList();
+
+                      // =============================================================
+
+                      // ✅ CORREÇÃO DEFINITIVA APLICADA AQUI
+                      // Só esconda a categoria se uma busca estiver ativa E ela não tiver resultados.
+                      if (_searchText.isNotEmpty && productsForCategory.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: CategoryCard(
                       storeId: widget.storeId,
                       category: category,
                       products: productsForCategory,
-                      totalProductCount: widget.allProducts.length,
+
+
                     ),
                   );
                 },
@@ -212,7 +221,7 @@ class _MenuContentState extends State<MenuContent> {
     );
   }
   void _navigateToAddCategory() {
-    context.push('/stores/${widget.storeId}/categories');
+    context.push('/stores/${widget.storeId}/categories/new');
   }
 
   void _handleReorder(List<Category> reorderedCategories) {
@@ -238,10 +247,9 @@ class _MenuContentState extends State<MenuContent> {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            // A ação de navegar agora deve ser pega do widget pai se necessário
-            // ou gerenciada de outra forma (ex: via Cubit/Bloc)
+
             onPressed: (){
-              // Exemplo: context.read<NavigationCubit>().goToCreateCategory();
+              context.push('/stores/${widget.storeId}/categories/new');
             },
             icon: const Icon(Icons.add),
             label:  Text('Adicionar Primeira Categoria'),

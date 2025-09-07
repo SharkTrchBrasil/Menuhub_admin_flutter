@@ -8,12 +8,10 @@ import 'package:totem_pro_admin/pages/product-wizard/steps/step4_categories.dart
 
 import '../../core/enums/form_status.dart';
 import '../../core/enums/product_type.dart';
+import '../../core/responsive_builder.dart';
 import '../../models/category.dart';
 import 'cubit/product_wizard_cubit.dart';
 import 'cubit/product_wizard_state.dart';
-
-
-
 
 class ProductWizardPage extends StatefulWidget {
   const ProductWizardPage({super.key, required this.storeId, this.category});
@@ -55,12 +53,33 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
       },
       child: BlocListener<ProductWizardCubit, ProductWizardState>(
         listener: (context, state) {
-          // Anima a transição da página quando o passo muda no Cubit
-          if (state.currentStep - 1 != _pageController.page?.round()) {
+
+
+          // Lógica de animação da página (continua a mesma)
+          final totalSteps = state.productType == ProductType.INDUSTRIALIZED ? 3 : 4;
+          int visualStep = state.currentStep > totalSteps ? totalSteps : state.currentStep;
+          if (visualStep - 1 != _pageController.page?.round()) {
             _pageController.animateToPage(
-              state.currentStep - 1,
+              visualStep - 1,
               duration: const Duration(milliseconds: 400),
               curve: Curves.easeInOut,
+            );
+          }
+
+
+          // ✅ LÓGICA DE REAÇÃO ATUALIZADA
+          if (state.submissionStatus == FormStatus.success) {
+            // Apenas fecha a tela, retornando 'true' para indicar sucesso.
+            // O SnackBar será mostrado pela tela anterior.
+            context.pop(true);
+          }
+          else if (state.submissionStatus == FormStatus.error) {
+            // Mostra o erro aqui mesmo, pois o usuário ainda está na tela
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("Erro: ${state.errorMessage ?? 'Ocorreu uma falha.'}"),
+                backgroundColor: Colors.red,
+              ),
             );
           }
         },
@@ -88,15 +107,9 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
             }
           },
 
-
-
-
-
           child: Scaffold(
-
             body: BlocBuilder<ProductWizardCubit, ProductWizardState>(
               builder: (context, state) {
-
                 // 1. Cria a lista de etapas dinamicamente.
                 //    A etapa 3 só é incluída se o produto não for industrializado.
                 final List<Widget> steps = [
@@ -107,22 +120,30 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
                   Step4Categories(),
                 ];
 
-
-
-                return Column(
-                  children: [
-                    // Passamos a contagem total de passos para o header.
-                    _buildWizardHeader(context, state, steps.length),
-
-                    Expanded(
-                      child: PageView(
-                        controller: _pageController,
-                        physics: const NeverScrollableScrollPhysics(),
-                        // 2. Usa a lista de etapas dinâmica.
-                        children: steps,
-                      ),
+                return Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24,
+                    vertical: 14,
+                  ),
+                  child: SingleChildScrollView(
+                    // Alterado de ListView para SingleChildScrollView
+                    child: Column(
+                      children: [
+                        _buildWizardHeader(context, state, steps.length),
+                        SizedBox(
+                          // Adicionado SizedBox com altura fixa
+                          height:
+                              MediaQuery.of(context).size.height ,
+                              // Ajuste conforme necessário
+                          child: PageView(
+                            controller: _pageController,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: steps,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 );
               },
             ),
@@ -133,9 +154,13 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
     );
   }
 
-// ✅ MÉTODO DO CABEÇALHO ATUALIZADO
-  Widget _buildWizardHeader(BuildContext context, ProductWizardState state, int totalSteps) {
-    // ✅ 1. LÓGICA PARA O TÍTULO DINÂMICO
+
+
+  Widget _buildWizardHeader(
+      BuildContext context,
+      ProductWizardState state,
+      int totalSteps,
+      ) {
     String titleText = 'Criar produto';
     if (state.productType == ProductType.PREPARED) {
       titleText = 'Criar produto preparado';
@@ -143,55 +168,24 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
       titleText = 'Criar produto industrializado';
     }
 
-    // ✅ LÓGICA PARA CORRIGIR O NÚMERO DO PASSO ATUAL
-    int visualStep = state.currentStep;
-    // Se o produto é industrializado e o passo lógico é 4, o passo visual é 3.
-    if (state.productType == ProductType.INDUSTRIALIZED && state.currentStep == 4) {
-      visualStep = 3;
-    }
-
+    // ✅ A LÓGICA DE 'visualStep' FOI REMOVIDA.
+    //    Agora state.currentStep já é o passo visual correto.
 
     return Container(
-      padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // --- PARTE 1: BREADCRUMBS ---
-          Row(
-            children: [
-              InkWell(
-                onTap: () => context.pop(), // Volta para a lista de produtos
-                child: Text(
-                  'Cardápio',
-                  style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.w500),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade600),
-              ),
-              Text(
-                'Criar produto',
-                style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-
-
-          // --- TÍTULO E BOTÃO FECHAR (com alterações) ---
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Título agora é expandido para empurrar o botão para a direita
               Expanded(
                 child: Text(
-                  titleText, // ✅ Usa o texto dinâmico
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  titleText,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              // ✅ 2. BOTÃO FECHAR AGORA É SÓ UM ÍCONE
               IconButton(
                 icon: const Icon(Icons.close),
                 tooltip: 'Fechar',
@@ -200,16 +194,13 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
             ],
           ),
           const SizedBox(height: 16),
-
-          // --- BARRA DE PROGRESSO DINÂMICA ---
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Row(
-                // Usa o `totalSteps` dinâmico para gerar as barrinhas
                 children: List.generate(totalSteps, (index) {
-                  // A lógica de ativação agora compara com o `visualStep`
-                  final bool isActive = (index + 1) <= visualStep;
+                  // A comparação agora é direta com state.currentStep
+                  final bool isActive = (index + 1) <= state.currentStep;
                   return Expanded(
                     child: Container(
                       margin: const EdgeInsets.only(right: 4),
@@ -223,10 +214,10 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
                 }),
               ),
               const SizedBox(height: 8),
-              // Usa o `visualStep` e o `totalSteps` para o texto
+              // O texto também usa os valores diretos
               Text(
-                'Passo $visualStep de $totalSteps',
-                style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold, fontSize: 12),
+                'Passo ${state.currentStep} de $totalSteps',
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -235,16 +226,19 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
     );
   }
 
-
-
-
-
-
-
-
   Widget _buildBottomActionBar() {
     return BlocBuilder<ProductWizardCubit, ProductWizardState>(
       builder: (context, state) {
+
+        final cubit = context.read<ProductWizardCubit>();
+
+        // A contagem de passos e a verificação de último passo agora são dinâmicas
+        final totalSteps = state.productType == ProductType.INDUSTRIALIZED ? 3 : 4;
+        final isLastStep = state.currentStep == totalSteps;
+
+
+
+
         return Container(
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
@@ -257,56 +251,47 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
               // Botão Voltar (só aparece a partir do passo 2)
               if (state.currentStep > 1)
                 TextButton(
-                  onPressed: () => context.read<ProductWizardCubit>().previousStep(),
+                  onPressed:
+                      () => context.read<ProductWizardCubit>().previousStep(),
                   child: const Text('Voltar'),
                 )
               else
                 const SizedBox(), // Para manter o alinhamento
-
               // Botão Continuar/Finalizar
-              ElevatedButton(
-                onPressed: state.submissionStatus == FormStatus.loading
-                    ? null // Desabilita o botão enquanto salva
-                    : () async {
-                  // ✅ CORREÇÃO: Verifica se é o último passo
-                  if (state.currentStep < 4) {
-                    // Se não for o último passo, apenas avança
-                    context.read<ProductWizardCubit>().nextStep();
-                  } else {
-                    // Se for o último passo, salva o produto
-                    await context.read<ProductWizardCubit>().saveProduct();
 
-                    // Ouve o resultado para fechar a tela ou mostrar erro
-                    final finalState = context.read<ProductWizardCubit>().state;
-                    if (finalState.submissionStatus == FormStatus.success && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text("Produto criado com sucesso!"),
-                              backgroundColor: Colors.green
-                          )
-                      );
-                      context.pop(); // Volta para a tela anterior após salvar
-                    } else if (finalState.submissionStatus == FormStatus.error && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text("Erro: ${finalState.errorMessage}"),
-                              backgroundColor: Colors.red
-                          )
-                      );
-                    }
+
+              ElevatedButton(
+                onPressed: (state.submissionStatus == FormStatus.loading || (state.currentStep == 2 && !state.isStep2Valid))
+                    ? null
+                    : () {
+                  // ✅ LÓGICA SIMPLIFICADA: Apenas manda o comando para o CUBIT.
+                  // Sem await, sem SnackBar, sem pop.
+                  if (isLastStep) {
+                    cubit.saveProduct();
+                  } else {
+                    cubit.nextStep();
                   }
                 },
                 child: state.submissionStatus == FormStatus.loading
                     ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2
-                    )
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                 )
-                    : Text(state.currentStep < 4 ? 'Continuar' : 'Criar Produto'),
+                    : Text(isLastStep ? 'Criar Produto' : 'Continuar'),
               ),
+
+
+
+
+
+
+
+
+
+
+
+
             ],
           ),
         );
@@ -314,28 +299,30 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
     );
   }
 
-
   // DENTRO DA CLASSE _ProductWizardPageState
 
-// ✅ ADICIONE ESTA FUNÇÃO AUXILIAR
+  // ✅ ADICIONE ESTA FUNÇÃO AUXILIAR
   Future<bool?> _showExitConfirmationDialog(BuildContext context) {
     return showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sair da página'),
-        content: const Text('Ao sair da página, este produto não será criado. Ele e as informações cadastradas serão perdidas.'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false), // Não sair
-            child: const Text('Cancelar'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Sair da página'),
+            content: const Text(
+              'Ao sair da página, este produto não será criado. Ele e as informações cadastradas serão perdidas.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false), // Não sair
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true), // Sair
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Confirmar'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true), // Sair
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
     );
   }
 }

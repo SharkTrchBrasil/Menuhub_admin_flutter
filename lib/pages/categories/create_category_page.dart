@@ -1,181 +1,133 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'cubit/create_category_cubit.dart';
-import 'cubit/create_category_state.dart';
+import 'package:go_router/go_router.dart';
+import 'package:totem_pro_admin/pages/categories/screens/category_type_choice_widget.dart';
+import 'package:totem_pro_admin/pages/categories/screens/customizable_category_details_screen.dart';
+import 'package:totem_pro_admin/pages/categories/screens/general_category_details_screen.dart';
+
+import '../../core/di.dart';
+import '../../core/enums/category_type.dart';
+import '../../core/enums/form_status.dart';
+import '../../core/enums/wizard_step.dart';
+import '../../models/category.dart';
+import '../../repositories/category_repository.dart';
+import '../../widgets/ds_primary_button.dart';
+import 'cubit/category_wizard_cubit.dart';
+
 
 class CreateCategoryPage extends StatelessWidget {
-  const CreateCategoryPage({super.key});
+  const CreateCategoryPage({super.key, required this.storeId, this.category});
 
+  final int storeId;
+  final Category? category;
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => CreateCategoryCubit(),
-      child: const _CreateCategoryView(),
+      // ✨ A LÓGICA DE INICIALIZAÇÃO FICA TODA AQUI DENTRO ✨
+      create: (context) {
+        // 1. Criamos a instância do Cubit
+        final cubit = CategoryWizardCubit(
+          categoryRepository: getIt<CategoryRepository>(),
+          storeId: storeId,
+          editingCategory: category,
+          // Adicione aqui a dependência do StoresManagerCubit, se necessário
+        );
+
+        return cubit;
+      },
+      // ✨ ENVOLVA O SEU _CreateCategoryView COM UM BlocListener
+      child: BlocListener<CategoryWizardCubit, CategoryWizardState>(
+        listener: (context, state) {
+          // Se o status for 'cancelled' OU 'success', fechamos o painel
+          if (state.status == FormStatus.cancelled || state.status == FormStatus.success) {
+            context.pop();
+          }
+          if (state.status == FormStatus.success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Categoria salva com sucesso!"), backgroundColor: Colors.green),
+            );
+          }
+        },
+        child: const _CreateCategoryView(),
+      ),
     );
   }
 }
 
-class _CreateCategoryView extends StatefulWidget {
+
+
+
+// lib/pages/categories/create_category_page.dart
+
+class _CreateCategoryView extends StatelessWidget {
   const _CreateCategoryView();
 
   @override
-  State<_CreateCategoryView> createState() => _CreateCategoryViewState();
-}
-
-class _CreateCategoryViewState extends State<_CreateCategoryView> with SingleTickerProviderStateMixin {
-  TabController? _tabController;
-
-  @override
   Widget build(BuildContext context) {
-    return BlocConsumer<CreateCategoryCubit, CreateCategoryState>(
-      listener: (context, state) {
-        // Listener para controlar o TabController do wizard de pizza
-        if (state.selectedType == CategoryType.pizza) {
-          if (_tabController == null) {
-            _tabController = TabController(length: 5, vsync: this);
-          }
-          // Move para a aba correta quando o estado do cubit mudar
-          _tabController?.animateTo(state.pizzaStep.index);
-        } else {
-          _tabController?.dispose();
-          _tabController = null;
-        }
-      },
+    return BlocBuilder<CategoryWizardCubit, CategoryWizardState>(
       builder: (context, state) {
-        final cubit = context.read<CreateCategoryCubit>();
+        final cubit = context.read<CategoryWizardCubit>();
+        final bool isDetailsValid = state.categoryName.trim().isNotEmpty;
+        final bool isLoading = state.status == FormStatus.loading;
 
         return Scaffold(
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            // O botão voltar agora tem uma lógica inteligente
+            backgroundColor: Colors.white,
+            elevation: 0,
+            surfaceTintColor: Colors.white,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
               onPressed: () {
-                if (state.selectedType != null) {
-                  cubit.changeType();
+                if (state.step == WizardStep.details) {
+                  cubit.goToTypeSelection();
                 } else {
-                  Navigator.of(context).pop();
+                  context.pop();
                 }
               },
             ),
-            title: Text(state.selectedType == null ? 'Nova Categoria' : 'Criar Categoria'),
+            title: Text(
+              state.editingCategoryId != null ? "Editar Categoria" : "Voltar",
+              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
           ),
-          body: state.selectedType == null
-              ? _buildChoiceView(cubit) // Mostra a tela de escolha
-              : _buildFormView(state, cubit), // Mostra o wizard de criação
-          bottomNavigationBar: _buildBottomButtons(state, cubit),
+
+          body: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: _buildStep(context, state),
+          ),
+
+          // // ✅ --- A CORREÇÃO ESTÁ AQUI --- ✅
+          // // O rodapé agora só é construído se o passo for 'details'
+          // bottomNavigationBar: state.step == WizardStep.details
+          //     ? _buildFooterButtons( // MOSTRA o rodapé na tela de detalhes
+          //   context: context,
+          //   cubit: cubit,
+          //   isFormValid: isDetailsValid,
+          //   isLoading: isLoading,
+          //   isEditing: state.editingCategoryId != null,
+          // )
+          //     : null, // ESCONDE o rodapé na tela de seleção de tipo
         );
       },
     );
   }
 
-  // O corpo da página quando um tipo foi selecionado
-  Widget _buildFormView(CreateCategoryState state, CreateCategoryCubit cubit) {
-    if (state.selectedType == CategoryType.mainItem) {
-      return _buildMainItemForm(state, cubit);
+  // O _buildStep continua igual
+  Widget _buildStep(BuildContext context, CategoryWizardState state) {
+    switch (state.step) {
+      case WizardStep.typeSelection:
+        return const CategoryTypeSelectionScreen(key: ValueKey('type_selection'));
+      case WizardStep.details:
+        if (state.categoryType == CategoryType.GENERAL) {
+          return const GeneralCategoryDetailsScreen(key: ValueKey('general_details'));
+        } else if (state.categoryType == CategoryType.CUSTOMIZABLE) {
+          return const CustomizableCategoryDetailsScreen(key: ValueKey('customizable_details'));
+        } else {
+          return const Center(child: Text("Tipo de categoria não selecionado."));
+        }
     }
-
-    if (state.selectedType == CategoryType.pizza) {
-      return _buildPizzaWizard(state, cubit);
-    }
-
-    return const SizedBox.shrink();
   }
 
-  // A UI do Wizard de Pizza com as Abas
-  Widget _buildPizzaWizard(CreateCategoryState state, CreateCategoryCubit cubit) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(children: [
-            const Text("Tipo da categoria: Pizza", style: TextStyle(fontWeight: FontWeight.bold)),
-            const Spacer(),
-            TextButton(onPressed: cubit.changeType, child: const Text("Alterar"))
-          ]),
-        ),
-        TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          onTap: (index) => cubit.goToPizzaStep(PizzaCreationStep.values[index]),
-          tabs: const [
-            Tab(text: 'Detalhes'),
-            Tab(text: 'Tamanho'),
-            Tab(text: 'Massa'),
-            Tab(text: 'Borda'),
-            Tab(text: 'Disponibilidade'),
-          ],
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            physics: const NeverScrollableScrollPhysics(), // Desabilita o arrastar
-            children: [
-              _buildPizzaDetailsForm(state, cubit), // Formulário de Detalhes
-              _buildPizzaSizeForm(), // Formulário de Tamanhos
-              Center(child: Text("Formulário de Massa")),
-              Center(child: Text("Formulário de Borda")),
-              Center(child: Text("Formulário de Disponibilidade")),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
-  // Widget para os botões de rodapé
-  Widget _buildBottomButtons(CreateCategoryState state, CreateCategoryCubit cubit) {
-    // Não mostra botões na tela de escolha inicial
-    if (state.selectedType == null) return const SizedBox.shrink();
-
-    return BottomAppBar(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton(onPressed: () {
-              // Lógica de cancelar (voltar ou limpar estado)
-              if (state.selectedType != null) cubit.changeType();
-              else Navigator.of(context).pop();
-            }, child: const Text("Cancelar")),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () {
-                if (state.selectedType == CategoryType.mainItem) {
-                  cubit.saveCategory(); // Botão final para item principal
-                } else {
-                  cubit.nextPizzaStep(); // Botão "Continuar" para o wizard de pizza
-                }
-              },
-              child: Text(
-                  state.selectedType == CategoryType.pizza && state.pizzaStep != PizzaCreationStep.availability
-                      ? "Continuar"
-                      : "Criar Categoria"
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Widgets de Formulário (placeholders para simplicidade)
-  Widget _buildChoiceView(CreateCategoryCubit cubit) {
-    return Center(child: TextButton(onPressed: () => cubit.selectType(CategoryType.mainItem), child: Text("Escolher 'Itens Principais'")));
-  }
-  Widget _buildMainItemForm(CreateCategoryState state, CreateCategoryCubit cubit) {
-    return Padding(padding: const EdgeInsets.all(16.0), child: TextField(
-      onChanged: cubit.updateCategoryName,
-      decoration: InputDecoration(labelText: 'Nome da Categoria'),
-    ));
-  }
-  Widget _buildPizzaDetailsForm(CreateCategoryState state, CreateCategoryCubit cubit) {
-    return Padding(padding: const EdgeInsets.all(16.0), child: TextField(
-      onChanged: cubit.updateCategoryName,
-      decoration: InputDecoration(labelText: 'Nome da Categoria de Pizza'),
-    ));
-  }
-  Widget _buildPizzaSizeForm() {
-    return Center(child: Text("Aqui vai o complexo formulário de Tamanhos de Pizza, com inputs e lista."));
-  }
 }

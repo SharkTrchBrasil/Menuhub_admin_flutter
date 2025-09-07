@@ -120,10 +120,22 @@ class _FilterBarState extends State<FilterBar> {
           child: _buildCategoryDropdown(),
         ),
         const SizedBox(width: 16),
+
+
+
         DsButton(
           onPressed: widget.onAddCategory,
           label: 'Adicionar Categoria',
+
+          style: DsButtonStyle.custom,
+          backgroundColor: Colors.white,      // Fundo branco
+          foregroundColor: Colors.black,      // Texto preto
+          borderColor: Colors.black
+          ,
+
+
         ),
+
         const SizedBox(width: 16),
         // IconButton(
         //   onPressed: () {},

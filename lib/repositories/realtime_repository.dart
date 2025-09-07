@@ -16,10 +16,12 @@ import 'package:totem_pro_admin/services/auth_service.dart';
 
 import '../core/enums/connectivity_status.dart';
 import '../models/category.dart';
+import '../models/full_menu_data.dart';
 import '../models/order_notification.dart';
 import '../models/payable_category.dart';
 import '../models/payables_dashboard.dart';
 import '../models/print_job.dart';
+import '../models/prodcut_category_links.dart';
 import '../models/receivable_category.dart';
 import '../models/store.dart';
 import '../models/store_payable.dart';
@@ -83,6 +85,11 @@ class RealtimeRepository {
 
   final _connectivityStatusController = BehaviorSubject<ConnectivityStatus>();
 
+  // ✅ 1. CRIE UM NOVO CONTROLLER E STREAM PARA O MENU COMPLETO
+  final _fullMenuStreams = <int, BehaviorSubject<FullMenuData>>{};
+
+  Stream<FullMenuData> listenToFullMenu(int storeId) =>
+      _fullMenuStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
 
 
 
@@ -105,7 +112,8 @@ class RealtimeRepository {
 
   Stream<FinancialsData?> get onFinancialsUpdated => _financialsController.stream;
   Stream<ConnectivityStatus> get onConnectivityChanged => _connectivityStatusController.stream;
-  // ✅ 2. CRIE MÉTODOS "LISTEN TO" PARA CATEGORIAS E VARIANTS, IGUAL AO DE PRODUTOS
+
+
   Stream<List<Category>> listenToCategories(int storeId) =>
       _categoriesStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])).stream;
 
@@ -314,35 +322,51 @@ class RealtimeRepository {
   }
 
 
+  // ✅ 2. SUBSTITUA SEU MÉTODO _handleProductsUpdated INTEIRO POR ESTE
   void _handleProductsUpdated(dynamic data) {
     log('✅ Evento recebido: products_updated (payload completo)');
     try {
       if (data is! Map || !data.containsKey('store_id')) return;
       final storeId = data['store_id'] as int;
 
-      final products = (data['products'] as List? ?? [])
-          .map((e) => Product.fromJson(e as Map<String, dynamic>))
-          .toList();
-      _productsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(products);
-
-      // ✅ 3. ATUALIZE OS STREAMS "POR LOJA" EM VEZ DOS GLOBAIS
-      if (data.containsKey('variants')) {
-        final variants = (data['variants'] as List? ?? [])
-            .map((e) => Variant.fromJson(e as Map<String, dynamic>))
-            .toList();
-        _variantsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(variants);
+      // Parse das listas principais
+      final allProducts = (data['products'] as List? ?? []).map((p) => Product.fromJson(p)).toList();
+      final allCategories = (data['categories'] as List? ?? []).map((c) => Category.fromJson(c)).toList();
+      final allVariants = (data['variants'] as List? ?? []).map((v) => Variant.fromJson(v)).toList();
+print(data);
+      // A RECONCILIAÇÃO QUE JÁ CONHECEMOS
+      final productMap = {for (var p in allProducts) p.id: p};
+      final reconciledCategories = <Category>[];
+      for (final category in allCategories) {
+        final newProductLinks = <ProductCategoryLink>[];
+        for (final link in category.productLinks) {
+          final fullProduct = productMap[link.productId];
+          if (fullProduct != null) {
+            newProductLinks.add(link.copyWith(product: fullProduct));
+          } else {
+            newProductLinks.add(link);
+          }
+        }
+        reconciledCategories.add(category.copyWith(productLinks: newProductLinks));
       }
 
-      if (data.containsKey('categories')) {
-        final categories = (data['categories'] as List? ?? [])
-            .map((e) => Category.fromJson(e as Map<String, dynamic>))
-            .toList();
-        _categoriesStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(categories);
-      }
+      // ✅ 3. EMITE UM ÚNICO PACOTE DE DADOS CONSISTENTE
+      _fullMenuStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(
+        FullMenuData(
+          products: allProducts,
+          categories: reconciledCategories, // A lista já corrigida!
+          variants: allVariants,
+        ),
+      );
+
+
+
     } catch (e, st) {
-      log('[Socket] ❌ Erro em products_updated', error: e, stackTrace: st);
+      log('[Socket] ❌ Erro CRÍTICO em _handleProductsUpdated.', error: e, stackTrace: st);
     }
   }
+
+
 
 
   void _handleOrdersInitial(dynamic data) {

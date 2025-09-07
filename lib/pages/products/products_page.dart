@@ -12,6 +12,7 @@ import 'package:totem_pro_admin/pages/products/widgets/product_tab.dart';
 
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
+import '../../core/responsive_builder.dart';
 import '../../cubits/scaffold_ui_cubit.dart';
 
 
@@ -34,12 +35,49 @@ class CategoryProductPageState extends State<CategoryProductPage> {
   @override
   void initState() {
     super.initState();
-    // ✅ É AQUI QUE A MÁGICA ACONTECE!
-    // Ao iniciar a tela, avisamos ao AppShell para NÃO construir uma AppBar.
-    // Usamos addPostFrameCallback para garantir que o Cubit já exista no contexto.
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ScaffoldUiCubit>().setAppBar(null);
     });
+  }
+
+
+  void _showMobileActionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.add_circle_outline),
+                title: const Text('Adicionar Categoria'),
+                onTap: () {
+                  Navigator.of(context).pop(); // Fecha o BottomSheet
+                  _navigateToCreateCategory();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_box_outlined),
+                title: const Text('Adicionar Produto'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _navigateToCreateProduct();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_link_outlined),
+                title: const Text('Adicionar Complemento'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _navigateToCreateVariant();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
   Future<bool> hasContent() async {
     // ...
@@ -61,7 +99,7 @@ class CategoryProductPageState extends State<CategoryProductPage> {
   }
 
   void _navigateToCreateCategory() {
-    context.push('/stores/${widget.storeId}/categories');
+    context.push('/stores/${widget.storeId}/categories/new');
   }
 
 
@@ -76,11 +114,20 @@ class CategoryProductPageState extends State<CategoryProductPage> {
   Widget build(BuildContext context) {
 
 
+    final bool isMobile = ResponsiveBuilder.isMobile(context);
+    final double appBarHeight = isMobile ? 160.0 : 180.0; // Maior no mobile
+
 
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-
+        // ✅ 3. ADICIONE O FLOATINGACTIONBUTTON CONDICIONALMENTE
+        floatingActionButton: isMobile
+            ? FloatingActionButton(
+          onPressed: () => _showMobileActionSheet(context),
+          child: const Icon(Icons.add),
+        )
+            : null, // Sem botão no deskto
         body: BlocBuilder<StoresManagerCubit, StoresManagerState>(
           builder: (context, state) {
             if (state is! StoresManagerLoaded) {
@@ -98,10 +145,11 @@ class CategoryProductPageState extends State<CategoryProductPage> {
                   SliverOverlapAbsorber(
                     handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
                     sliver: SliverAppBar(
+                      expandedHeight: appBarHeight,
                       // Usamos uma SliverAppBar invisível para agrupar os cabeçalhos
                       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                       foregroundColor: Theme.of(context).colorScheme.onBackground,
-                      pinned: true, // A TabBar será fixada
+                     // pinned: true, // A TabBar será fixada
                       automaticallyImplyLeading: false,
                       // O conteúdo que rola para cima (seu PageHeader)
                       flexibleSpace: FlexibleSpaceBar(
@@ -118,7 +166,7 @@ class CategoryProductPageState extends State<CategoryProductPage> {
                 children: [
                   MenuContent(
                     allCategories: allCategories,
-                    allProducts: allProducts,
+
                     storeId: widget.storeId,
                   ),
                   ProductListView(
@@ -135,27 +183,7 @@ class CategoryProductPageState extends State<CategoryProductPage> {
             );
           },
         ),
-        floatingActionButton: Builder(builder: (context) {
-          final tabIndex = DefaultTabController.of(context).index;
-          if (tabIndex == 0) { // Aba Cardápio
-            return FloatingActionButton(
-              onPressed: _navigateToCreateCategory,
-              tooltip: 'Adicionar Categoria',
-              child: const Icon(Icons.add),
-            );
-          }
-          if (tabIndex == 1) { // Aba Produtos
-            return SizedBox.shrink();
-          }
-          if (tabIndex == 2) { // ✅ Aba Complementos
-            return FloatingActionButton(
-              onPressed: _navigateToCreateVariant,
-              tooltip: 'Adicionar Grupo de Complementos',
-              child: const Icon(Icons.add),
-            );
-          }
-          return const SizedBox.shrink();
-        }),
+
       ),
     );
   }

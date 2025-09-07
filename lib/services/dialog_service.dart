@@ -13,9 +13,6 @@ import '../models/category.dart';
 import '../pages/banners/widgets/banner_form_dialog.dart';
 
 
-import '../pages/categories/widgets/category_form_dialog.dart';
-
-
 
 import '../pages/edit_settings/general/widgets/add_city_dialog.dart';
 import '../pages/edit_settings/general/widgets/add_neig_dialog.dart';
@@ -28,21 +25,6 @@ class DialogService {
 
 
 
-  static Future<void> showCategoryDialog(
-      BuildContext context,
-      int storeId, {
-        int? categoryId,
-        void Function(dynamic category)? onSaved,
-      }) {
-    return showDialog(
-      context: context,
-      builder: (_) => EditCategoryForm(
-        storeId: storeId,
-        id: categoryId,
-        onSaved: onSaved,
-      ),
-    );
-  }
 
 
   static Future<void> showBannerDialog(

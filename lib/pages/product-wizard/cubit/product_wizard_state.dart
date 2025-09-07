@@ -23,10 +23,16 @@ class ProductWizardState extends Equatable {
   final List<ProductVariantLink> variantLinks;
   final FormStatus submissionStatus;
 
-  // ✅ CAMPO QUE ESTAVA FALTANDO
+
   final List<ProductCategoryLink> categoryLinks;
-  // ✅ CAMPO QUE ESTAVA FALTANDO
+
   final String? errorMessage;
+  final String searchQuery;
+
+  // ✅ CAMPOS ADICIONADOS PARA O MODO DE EDIÇÃO
+  final bool isEditMode;
+  final int? editingProductId;
+
 
   const ProductWizardState({
     this.currentStep = 1,
@@ -38,19 +44,25 @@ class ProductWizardState extends Equatable {
     this.isImported = false,
     this.variantLinks = const [],
     this.submissionStatus = FormStatus.initial,
-    this.categoryLinks = const [], // ✅ ADICIONADO
-    this.errorMessage,             // ✅ ADICIONADO
+    this.categoryLinks = const [],
+    this.errorMessage,
+    this.searchQuery = '',
+    this.isEditMode = false, // ✅ Valor padrão
+    this.editingProductId,
+
   });
 
   factory ProductWizardState.initial() {
     return ProductWizardState(
       productInCreation: Product(available: true, image: ImageModel(), price: 0),
+
     );
   }
 
-  // ✅ ADICIONE ESTE GETTER NO FINAL DA CLASSE
-  /// Retorna `true` se o estado atual for diferente do estado inicial.
+
   bool get isDirty => this != ProductWizardState.initial();
+  //    Ele calcula a validade dinamicamente a partir do estado atual.
+  bool get isStep2Valid => productInCreation.name.trim().isNotEmpty;
 
 
   ProductWizardState copyWith({
@@ -63,8 +75,12 @@ class ProductWizardState extends Equatable {
     bool? isImported,
     List<ProductVariantLink>? variantLinks,
     FormStatus? submissionStatus,
-    List<ProductCategoryLink>? categoryLinks, // ✅ ADICIONADO
-    String? errorMessage,                      // ✅ ADICIONADO
+    List<ProductCategoryLink>? categoryLinks,
+    String? errorMessage,
+    String? searchQuery,
+    bool? isEditMode,
+    int? editingProductId,
+
   }) {
     return ProductWizardState(
       currentStep: currentStep ?? this.currentStep,
@@ -78,6 +94,10 @@ class ProductWizardState extends Equatable {
       submissionStatus: submissionStatus ?? this.submissionStatus,
       categoryLinks: categoryLinks ?? this.categoryLinks,
       errorMessage: errorMessage ?? this.errorMessage,
+      searchQuery: searchQuery ?? this.searchQuery,
+      isEditMode: isEditMode ?? this.isEditMode,
+      editingProductId: editingProductId ?? this.editingProductId,
+
     );
   }
 
@@ -85,6 +105,7 @@ class ProductWizardState extends Equatable {
   List<Object?> get props => [
     currentStep, productType, productInCreation, searchStatus,
     searchResults, catalogProductSelected, isImported, variantLinks,
-    submissionStatus, categoryLinks, errorMessage
+    submissionStatus, categoryLinks, errorMessage,searchQuery, isEditMode,
+    editingProductId,
   ];
 }

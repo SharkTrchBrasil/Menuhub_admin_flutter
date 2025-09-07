@@ -13,53 +13,48 @@ class Step1ProductType extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 24.0),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900), // Aumentei a largura máxima para o layout lado a lado
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Primeiro, qual o tipo de produto?',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Isso nos ajuda a sugerir os campos corretos para o seu item.',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 32),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Text(
+        //   'Primeiro, qual o tipo de produto?',
+        //   style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+        // ),
+        // const SizedBox(height: 8),
+        // Text(
+        //   'Isso nos ajuda a sugerir os campos corretos para o seu item.',
+        //   style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey.shade600),
+        // ),
+         const SizedBox(height: 32),
 
-              BlocBuilder<ProductWizardCubit, ProductWizardState>(
-                builder: (context, state) {
-                  // ✅ LÓGICA DE LAYOUT RESPONSIVO
-                  return ResponsiveBuilder(
-                    // Layout para Celular
-                    mobileBuilder: (context, constraints) => Column(
-                      children: [
-                        _buildPreparedCard(context, state),
-                        const SizedBox(height: 16),
-                        _buildResaleCard(context, state),
-                      ],
-                    ),
-                    // Layout para Desktop/Telas Maiores
-                    desktopBuilder: (context, constraints) => Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: _buildPreparedCard(context, state)),
-                        const SizedBox(width: 24),
-                        Expanded(child: _buildResaleCard(context, state)),
-                      ],
-                    ),
-                  );
-                },
+        BlocBuilder<ProductWizardCubit, ProductWizardState>(
+          builder: (context, state) {
+            // ✅ LÓGICA DE LAYOUT RESPONSIVO
+            return ResponsiveBuilder(
+              // Layout para Celular
+              mobileBuilder: (context, constraints) => SingleChildScrollView(
+
+                child: Column(
+                  children: [
+                    _buildPreparedCard(context, state),
+                    const SizedBox(height: 16),
+                    _buildResaleCard(context, state),
+                  ],
+                ),
               ),
-            ],
-          ),
+              // Layout para Desktop/Telas Maiores
+              desktopBuilder: (context, constraints) => Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _buildPreparedCard(context, state)),
+                  const SizedBox(width: 24),
+                  Expanded(child: _buildResaleCard(context, state)),
+                ],
+              ),
+            );
+          },
         ),
-      ),
+      ],
     );
   }
 
@@ -108,8 +103,10 @@ class _TypeSelectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isSelected = value == groupValue;
     return GestureDetector(
+
       onTap: () => onChanged(value),
       child: Card(
+        margin: EdgeInsets.zero,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),

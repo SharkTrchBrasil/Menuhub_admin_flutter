@@ -92,6 +92,8 @@ class StoresManagerLoaded extends StoresManagerState {
     notificationCounts,
     lastUpdate,
     holidays,
+    lastUpdate,
+    connectivityStatus,
   ];
 }
 

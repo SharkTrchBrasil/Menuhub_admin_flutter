@@ -14,11 +14,13 @@ import '../models/category.dart';
 import '../models/customer_analytics_data.dart';
 import '../models/dashboard_data.dart';
 import '../models/dashboard_insight.dart';
+import '../models/full_menu_data.dart';
 import '../models/payment_method.dart';
 import '../models/peak_hours.dart';
 import '../models/product.dart';
 import '../models/product_analytics_data.dart';
 import '../models/store.dart';
+import '../models/store_relations.dart';
 import '../models/variant.dart';
 import '../repositories/payment_method_repository.dart';
 import '../repositories/product_repository.dart';
@@ -33,14 +35,14 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
   StreamSubscription? _adminStoresListSubscription;
   StreamSubscription? _notificationSubscription;
-  StreamSubscription? _productsSubscription;
+
+
   StreamSubscription? _storeDetailsSubscription;
   StreamSubscription? _dashboardDataSubscription;
   StreamSubscription? _financialsSubscription;
   StreamSubscription? _connectivitySubscription; // ✅ Nova inscrição
-  // ✅ Adicione as novas inscrições
-  StreamSubscription? _categoriesSubscription;
-  StreamSubscription? _variantsSubscription;
+  StreamSubscription? _fullMenuSubscription;
+
 
   StoresManagerCubit({
     required StoreRepository storeRepository,
@@ -62,44 +64,25 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     }
   }
 
-  // ✅ CORREÇÃO: Método _onProductsUpdated simplificado
-  void _onProductsUpdated(List<Product> updatedProducts) {
-    _updateState((currentState, activeStore) {
-      // Este método agora só se preocupa com os produtos.
-      final updatedRelations = activeStore.store.relations.copyWith(
-        products: updatedProducts,
-      );
-      return activeStore.copyWith(
-        store: activeStore.store.copyWith(relations: updatedRelations),
-      );
-    });
-    log("✅ [CUBIT] Produtos atualizados via socket.");
-  }
+// ✨ PASSO 1: Deixe apenas UM método helper para atualização de estado.
+  //    Vamos chamá-lo de _updateActiveStore para ficar bem claro.
+  void _updateActiveStore(
+      StoreWithRole Function(StoresManagerLoaded currentState, StoreWithRole activeStore) updater,
+      ) {
+    if (isClosed) return;
+    final currentState = state;
+    if (currentState is! StoresManagerLoaded || currentState.activeStoreWithRole == null) return;
 
-  // ✅ NOVO: Método para as categorias
-  void _onCategoriesUpdated(List<Category> updatedCategories) {
-    _updateState((currentState, activeStore) {
-      final updatedRelations = activeStore.store.relations.copyWith(
-        categories: updatedCategories,
-      );
-      return activeStore.copyWith(
-        store: activeStore.store.copyWith(relations: updatedRelations),
-      );
-    });
-    log("✅ [CUBIT] Categorias (incluindo vazias) atualizadas via socket.");
-  }
+    final updatedActiveStore = updater(currentState, currentState.activeStoreWithRole!);
+    final newStoresMap = Map<int, StoreWithRole>.from(currentState.stores);
+    newStoresMap[currentState.activeStoreId] = updatedActiveStore;
 
-  // ✅ NOVO: Método para os complementos
-  void _onVariantsUpdated(List<Variant> updatedVariants) {
-    _updateState((currentState, activeStore) {
-      final updatedRelations = activeStore.store.relations.copyWith(
-        variants: updatedVariants,
-      );
-      return activeStore.copyWith(
-        store: activeStore.store.copyWith(relations: updatedRelations),
-      );
-    });
-    log("✅ [CUBIT] Complementos (variants) atualizados via socket.");
+    emit(
+      currentState.copyWith(
+        stores: newStoresMap,
+        lastUpdate: DateTime.now(), // Garante a atualização da UI
+      ),
+    );
   }
 
   void _startRealtimeListeners() {
@@ -134,9 +117,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _storeDetailsSubscription?.cancel();
     _dashboardDataSubscription?.cancel();
     _financialsSubscription?.cancel();
-    _productsSubscription?.cancel();
-    _categoriesSubscription?.cancel(); // ✅ Limpa
-    _variantsSubscription?.cancel();
+    _fullMenuSubscription?.cancel();
     // Cria um stream que emite o ID da loja ativa sempre que ele muda
     final activeStoreIdStream =
         stream
@@ -157,50 +138,48 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
         .switchMap((_) => _realtimeRepository.onFinancialsUpdated)
         .listen(_onFinancialsDataReceived);
 
-    _productsSubscription = activeStoreIdStream
-        .switchMap((storeId) {
-          log(
-            "🔄 [CUBIT] Trocando inscrição de produtos para a loja ID: $storeId",
-          );
-          return _realtimeRepository.listenToProducts(storeId);
-        })
-        .listen(_onProductsUpdated);
-    // ✅ CORREÇÃO: Inscrição de CATEGORIAS agora usa o mesmo padrão `switchMap`
-    _categoriesSubscription = activeStoreIdStream
-        .switchMap((storeId) => _realtimeRepository.listenToCategories(storeId))
-        .listen(_onCategoriesUpdated);
 
-    // ✅ CORREÇÃO: Inscrição de COMPLEMENTOS agora usa o mesmo padrão `switchMap`
-    _variantsSubscription = activeStoreIdStream
-        .switchMap((storeId) => _realtimeRepository.listenToVariants(storeId))
-        .listen(_onVariantsUpdated);
+
+    // ✅ CORREÇÃO: UMA ÚNICA INSCRIÇÃO PARA O MENU INTEIRO
+    _fullMenuSubscription = activeStoreIdStream
+        .switchMap((storeId) {
+      log("🔄 [CUBIT] Trocando inscrição do MENU COMPLETO para a loja ID: $storeId");
+      return _realtimeRepository.listenToFullMenu(storeId);
+    })
+        .listen(_onFullMenuUpdated);
+
+
+
   }
 
-  // ✅ PADRONIZADO: Este método agora usa o helper central
   void _onFinancialsDataReceived(FinancialsData? financialsData) {
     if (financialsData == null) return;
-    _updateState((currentState, activeStore) {
-      final updatedRelations = activeStore.store.relations.copyWith(
+    _updateActiveStore((_, activeStore) {
+      final newRelations = activeStore.store.relations.copyWith(
         payables: financialsData.payables,
         suppliers: financialsData.suppliers,
         payableCategories: financialsData.payableCategories,
         receivables: financialsData.receivables,
         receivableCategories: financialsData.receivableCategories,
       );
-      return activeStore.copyWith(
-        store: activeStore.store.copyWith(relations: updatedRelations),
-      );
+      return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
     });
     log("✅ [CUBIT] Dados financeiros atualizados via socket.");
   }
 
-  // ✅ PADRONIZADO: A lógica complexa deste método foi mantida, mas a atualização final foi padronizada.
+
+
+
+
+
+
   void _onStoreDetailsUpdated(Store? updatedStoreDetails) {
     if (updatedStoreDetails == null) return;
-    _updateState((currentState, activeStore) {
+    _updateActiveStore((_, activeStore) {
       final preservedRelations = activeStore.store.relations;
       final newStore = updatedStoreDetails.copyWith(
         relations: updatedStoreDetails.relations.copyWith(
+          // Preserva as relações que não vêm neste evento
           dashboardData: preservedRelations.dashboardData,
           productAnalytics: preservedRelations.productAnalytics,
           customerAnalytics: preservedRelations.customerAnalytics,
@@ -221,30 +200,29 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     log("✅ [CUBIT] Detalhes da loja atualizados via socket.");
   }
 
-  // ✅ PADRONIZADO: Este método agora usa o helper central
+
+
+
   void _onDashboardDataUpdated(Map<String, dynamic>? dashboardPayload) {
     if (dashboardPayload == null) return;
-    _updateState((currentState, activeStore) {
-      final updatedRelations = activeStore.store.relations.copyWith(
+    _updateActiveStore((_, activeStore) {
+      final newRelations = activeStore.store.relations.copyWith(
         dashboardData: DashboardData.fromJson(dashboardPayload['dashboard']),
-        productAnalytics: ProductAnalyticsResponse.fromJson(
-          dashboardPayload['product_analytics'],
-        ),
-        customerAnalytics: CustomerAnalyticsResponse.fromJson(
-          dashboardPayload['customer_analytics'],
-        ),
+        productAnalytics: ProductAnalyticsResponse.fromJson(dashboardPayload['product_analytics']),
+        customerAnalytics: CustomerAnalyticsResponse.fromJson(dashboardPayload['customer_analytics']),
         peakHours: PeakHours.fromJson(dashboardPayload['peak_hours']),
-        insights:
-            (dashboardPayload['insights'] as List)
-                .map((i) => DashboardInsight.fromJson(i))
-                .toList(),
+        insights: (dashboardPayload['insights'] as List).map((i) => DashboardInsight.fromJson(i)).toList(),
       );
-      return activeStore.copyWith(
-        store: activeStore.store.copyWith(relations: updatedRelations),
-      );
+      return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
     });
     log("✅ [CUBIT] Dados do dashboard atualizados via socket.");
   }
+
+
+
+
+
+
 
   void _onAdminStoresListReceived(List<StoreWithRole> stores) {
     if (isClosed) return;
@@ -281,10 +259,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
         ),
       );
       _realtimeRepository.joinStoreRoom(firstStoreId);
-      // Inicia a primeira inscrição na lista de produtos aqui
-      _productsSubscription = _realtimeRepository
-          .listenToProducts(firstStoreId)
-          .listen(_onProductsUpdated);
+     
     }
   }
 
@@ -382,52 +357,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     }
   }
 
-  // /// Força o recarregamento dos dados da loja ativa a partir do backend.
-  // /// Essencial para manter a UI sincronizada após uma edição.
-  // Future<void> reloadActiveStore() async {
-  //   if (state is! StoresManagerLoaded) return;
-  //
-  //   final loadedState = state as StoresManagerLoaded;
-  //   final activeStoreId = loadedState.activeStoreId;
-  //
-  //   try {
-  //     // ✅ CORREÇÃO: Chama o método 'getStore' que existe no repositório.
-  //     final storeResult = await _storeRepository.getStore(activeStoreId);
-  //
-  //     storeResult.fold(
-  //       // Caso de falha
-  //           (failure) {
-  //         print("❌ StoresManagerCubit: Falha ao recarregar a loja ID $activeStoreId via getStore.");
-  //       },
-  //       // Caso de sucesso
-  //           (updatedStore) {
-  //         // Pega o 'role' do estado atual para manter a consistência.
-  //         final currentRole = loadedState.stores[activeStoreId]?.role;
-  //         if (currentRole == null) {
-  //           print("❌ StoresManagerCubit: Não foi possível encontrar o 'role' para a loja ID $activeStoreId no estado atual.");
-  //           return;
-  //         }
-  //
-  //         // Cria um novo 'StoreWithRole' com os dados atualizados da loja e o 'role' existente.
-  //         final updatedStoreWithRole = StoreWithRole(store: updatedStore, role: currentRole);
-  //
-  //         // Cria uma cópia do mapa de lojas e atualiza a loja modificada.
-  //         final newStoresMap = Map<int, StoreWithRole>.from(loadedState.stores);
-  //         newStoresMap[activeStoreId] = updatedStoreWithRole;
-  //
-  //         // Emite o novo estado com os dados atualizados.
-  //         emit(loadedState.copyWith(
-  //           stores: newStoresMap,
-  //           lastUpdate: DateTime.now(), // Importante para forçar a atualização
-  //         ));
-  //         print("✅ StoresManagerCubit: Loja ID $activeStoreId recarregada com sucesso.");
-  //       },
-  //     );
-  //   } catch (e) {
-  //     print("❌ StoresManagerCubit: Erro ao recarregar a loja ID $activeStoreId: $e");
-  //   }
-  // }
-  //
+
 
   Future<bool> addPause({
     required int storeId,
@@ -524,37 +454,33 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     );
   }
 
-  // ✅ HELPER CORRIGIDO: Agora usa o getter 'activeStoreWithRole'
-  void _updateState(
-    StoreWithRole Function(
-      StoresManagerLoaded currentState,
-      StoreWithRole activeStore,
-    )
-    updater,
-  ) {
-    if (isClosed) return;
-    final currentState = state;
-    // A verificação agora usa o getter correto
-    if (currentState is! StoresManagerLoaded ||
-        currentState.activeStoreWithRole == null)
-      return;
 
-    // A variável agora pega o objeto 'StoreWithRole' completo
-    final currentActiveStore = currentState.activeStoreWithRole!;
 
-    // A função 'updater' é chamada para criar o novo StoreWithRole
-    final updatedActiveStoreWithRole = updater(
-      currentState,
-      currentActiveStore,
-    );
 
-    final newStoresMap = Map<int, StoreWithRole>.from(currentState.stores);
-    newStoresMap[currentState.activeStoreId] = updatedActiveStoreWithRole;
 
-    emit(
-      currentState.copyWith(stores: newStoresMap, lastUpdate: DateTime.now()),
-    );
+
+
+
+  // ✅ ADICIONE ESTE NOVO MÉTODO ÚNICO
+  void _onFullMenuUpdated(FullMenuData menuData) {
+    _updateActiveStore((_, activeStore) {
+      final newRelations = activeStore.store.relations.copyWith(
+        products: menuData.products,
+        categories: menuData.categories, // Já vem reconciliada!
+        variants: menuData.variants,
+      );
+      return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
+    });
+
+
+    log("✅ [CUBIT] Menu completo (produtos, categorias, variantes) atualizado via socket de forma atômica.");
   }
+
+
+
+
+
+
 
   String? getStoreNameById(int storeId) {
     final currentState = state;
@@ -595,24 +521,9 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     );
   }
 
-  Future<void> moveProductsToCategory({
-    required List<int> productIds,
-    required int targetCategoryId,
-  }) async {
-    if (state is! StoresManagerLoaded) return;
-    final storeId = (state as StoresManagerLoaded).activeStoreId;
-    // TODO: Adicionar tratamento de erro (try-catch)
-    await _productRepository.bulkUpdateProductCategory(
-      storeId: storeId,
-      productIds: productIds,
-      targetCategoryId: targetCategoryId,
-    );
-    // O evento de socket cuidará da atualização da UI
-  }
 
-  // Em lib/cubits/store_manager_cubit.dart
 
-  // ✅ CRIE ESTE MÉTODO HELPER PARA REUTILIZAÇÃO
+
   void _cancelSubscriptions() {
     _adminStoresListSubscription?.cancel();
     _notificationSubscription?.cancel();
@@ -620,9 +531,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _storeDetailsSubscription?.cancel();
     _dashboardDataSubscription?.cancel();
     _financialsSubscription?.cancel();
-    _productsSubscription?.cancel();
-    _categoriesSubscription?.cancel();
-    _variantsSubscription?.cancel();
+
 
     _adminStoresListSubscription = null;
   }

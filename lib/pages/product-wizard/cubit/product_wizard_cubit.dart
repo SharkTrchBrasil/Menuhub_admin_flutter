@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:either_dart/either.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
@@ -18,10 +19,6 @@ import '../../../models/product_variant_link.dart';
 import '../../../models/variant_option.dart';
 
 
-// ❌ REMOVA ESTA LINHA:
-// part 'product_wizard_state.dart';
-
-// ✅ ADICIONE ESTA LINHA:
 import 'product_wizard_state.dart';
 
 class ProductWizardCubit extends Cubit<ProductWizardState> {
@@ -39,9 +36,43 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     updateVariantLink(updatedLink);
   }
 
-  // Em lib/pages/product_edit/cubit/product_wizard_cubit.dart
 
-// Adicione este método para adicionar uma opção a um grupo que está sendo criado
+  // ✨ MÉTODO CORRIGIDO: Não recebe mais o controller
+  void resetToSearch() {
+    emit(state.copyWith(
+      catalogProductSelected: false,
+      isImported: false,
+      productInCreation: Product(available: true, image: ImageModel(), price: 0),
+      searchResults: [],
+      searchStatus: SearchStatus.initial,
+      searchQuery: '', // Apenas limpa o estado
+    ));
+  }
+
+  // ✨ MÉTODO CORRIGIDO: Atualiza o estado com o texto digitado
+  void onSearchQueryChanged(String query) {
+    // Atualiza o estado imediatamente para a UI refletir o texto
+    emit(state.copyWith(searchQuery: query));
+
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (query.length >= 3) {
+        _performSearch(query);
+      } else {
+        emit(state.copyWith(searchResults: [], searchStatus: SearchStatus.initial));
+      }
+    });
+  }
+
+
+
+
+
+
+
+
+
+
   void addOptionToLink(VariantOption newOption, ProductVariantLink parentLink) {
     // Encontra o link na lista do estado
     final targetLink = state.variantLinks.firstWhere((link) => link.variant.id == parentLink.variant.id);
@@ -75,23 +106,11 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     emit(state.copyWith(productInCreation: updatedProduct));
   }
 
-// ✅ NOVOS MÉTODOS PARA GERENCIAR OS GRUPOS DE COMPLEMENTOS
   void addVariantLink(ProductVariantLink link) {
     final updatedLinks = List<ProductVariantLink>.from(state.variantLinks)..add(link);
     emit(state.copyWith(variantLinks: updatedLinks));
   }
 
-  // ✅ NOVO: O Cubit agora gerencia o controller de busca
-  void onSearchQueryChanged(String query) {
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (query.length >= 3) {
-        _performSearch(query);
-      } else {
-        emit(state.copyWith(searchResults: [], searchStatus: SearchStatus.initial));
-      }
-    });
-  }
 
 
   void updateVariantLink(ProductVariantLink updatedLink) {
@@ -137,7 +156,7 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
       description: catalogProduct.description,
       ean: catalogProduct.ean,
       image: ImageModel(url: catalogProduct.imagePath!.url),
-
+      masterProductId: catalogProduct.id,
       // Aqui você pode pré-preencher a imagem também se o modelo permitir
     );
     emit(state.copyWith(
@@ -146,24 +165,12 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
       isImported: true,
     ));
   }
-// ✅ NOVO MÉTODO: Para o AppProductImageFormField atualizar a imagem
+
+
   void onImageChanged(ImageModel newImage) {
     final updatedProduct = state.productInCreation.copyWith(image: newImage);
     emit(state.copyWith(productInCreation: updatedProduct));
   }
-
-
-  void resetToSearch(TextEditingController searchController) {
-    searchController.clear(); // Limpa o texto na UI
-    emit(state.copyWith(
-      catalogProductSelected: false,
-      isImported: false,
-      productInCreation: Product(available: true, image: ImageModel(), price: 0),
-      searchResults: [],
-      searchStatus: SearchStatus.initial,
-    ));
-  }
-
 
 
   void removeVariantLink(ProductVariantLink link) {
@@ -171,7 +178,6 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     emit(state.copyWith(variantLinks: updatedLinks));
   }
 
-  // ✅ MÉTODO PARA REORDENAR OS GRUPOS
   void reorderVariantLinks(int oldIndex, int newIndex) {
     // Lógica padrão para reordenação
     if (newIndex > oldIndex) {
@@ -183,33 +189,22 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     emit(state.copyWith(variantLinks: updatedLinks));
   }
 
-// DENTRO DA CLASSE ProductWizardCubit
 
-// ✅ MÉTODO `nextStep` ATUALIZADO
+
+
+  // Em ProductWizardCubit.dart
+
   void nextStep() {
-    // Regra especial para pular a etapa de complementos
-    if (state.currentStep == 2 && state.productType == ProductType.INDUSTRIALIZED) {
-      // Se está no passo 2 e o produto é industrializado, pula direto para o 4
-      emit(state.copyWith(currentStep: 4));
-      return;
-    }
-
-    // Lógica padrão para os outros casos
-    if (state.currentStep < 4) {
+    // A lógica de pulo foi removida. Apenas avança para o próximo passo.
+    // A UI decidirá qual tela mostrar.
+    final totalSteps = state.productType == ProductType.INDUSTRIALIZED ? 3 : 4;
+    if (state.currentStep < totalSteps) {
       emit(state.copyWith(currentStep: state.currentStep + 1));
     }
   }
 
-// ✅ MÉTODO `previousStep` ATUALIZADO
   void previousStep() {
-    // Regra especial para voltar do pulo
-    if (state.currentStep == 4 && state.productType == ProductType.INDUSTRIALIZED) {
-      // Se está no passo 4 e o produto é industrializado, volta direto para o 2
-      emit(state.copyWith(currentStep: 2));
-      return;
-    }
-
-    // Lógica padrão para os outros casos
+    // A lógica de pulo reverso também foi removida.
     if (state.currentStep > 1) {
       emit(state.copyWith(currentStep: state.currentStep - 1));
     }
@@ -218,19 +213,22 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
 
 
   void addCategoryLink(Category category) {
-    if (state.categoryLinks.any((link) => link.category.id == category.id)) return;
+    // Evita adicionar a mesma categoria duas vezes
+    if (state.categoryLinks.any((link) => link.category?.id == category.id)) return;
 
-    // ✅ CORRIGIDO: Usando os nomes de parâmetros corretos ('price' e 'posCode')
+    final currentProduct = state.productInCreation;
+
     final newLink = ProductCategoryLink(
       category: category,
-      price: 0,   // O nome correto do parâmetro é 'price'
-      posCode: null, // O nome correto do parâmetro é 'posCode'
+      product: currentProduct, // Passamos a referência do produto
+      categoryId: category.id!, // O ID da categoria que recebemos
+      price: currentProduct.price!, // Usamos o preço base do produto como padrão
     );
+
 
     final updatedLinks = List<ProductCategoryLink>.from(state.categoryLinks)..add(newLink);
     emit(state.copyWith(categoryLinks: updatedLinks));
   }
-
 
 
   void removeCategoryLink(ProductCategoryLink link) {
@@ -240,26 +238,34 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
 
   void updateCategoryLink(ProductCategoryLink updatedLink) {
     final currentLinks = List<ProductCategoryLink>.from(state.categoryLinks);
-    final index = currentLinks.indexWhere((link) => link.category.id == updatedLink.category.id);
+    final index = currentLinks.indexWhere((link) => link.category?.id == updatedLink.category?.id);
     if (index != -1) {
       currentLinks[index] = updatedLink;
       emit(state.copyWith(categoryLinks: currentLinks));
     }
   }
-// Remova ou substitua o seu método saveProduct() atual por este:
+
+  // ✅ MÉTODO DE SALVAMENTO ATUALIZADO
   Future<void> saveProduct() async {
     emit(state.copyWith(submissionStatus: FormStatus.loading));
 
-    // ✅ CORREÇÃO: Monta o objeto final do produto aqui!
-    // Ele pega os dados básicos de `productInCreation` e combina
-    // com as listas de `variantLinks` e `categoryLinks` do estado.
+    // Monta o objeto final do produto com os links do estado
     final finalProduct = state.productInCreation.copyWith(
-      variantLinks: () => state.variantLinks,
-      categoryLinks: () => state.categoryLinks,
+      categoryLinks: state.categoryLinks,
+      variantLinks: state.variantLinks,
     );
 
-    // Agora sim, enviamos o produto completo para o repositório.
-    final result = await _productRepository.createProductFromWizard(storeId, finalProduct);
+    // Decide se deve CRIAR ou ATUALIZAR
+    final Future<Either<String, Product>> result;
+    if (state.isEditMode) {
+      result = _productRepository.updateProduct(storeId, finalProduct);
+    } else {
+      result = _productRepository.createSimpleProduct(
+        storeId,
+        finalProduct,
+        image: state.productInCreation.image,
+      );
+    }
 
     result.fold(
           (error) => emit(state.copyWith(submissionStatus: FormStatus.error, errorMessage: error)),
@@ -268,9 +274,6 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
   }
 
 
-// DENTRO DA CLASSE ProductWizardCubit
-
-// ✅ NOVO MÉTODO PARA ATUALIZAR UMA OPÇÃO
   void updateOptionInLink({
     required VariantOption updatedOption,
     required ProductVariantLink parentLink,
@@ -292,7 +295,7 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     updateVariantLink(updatedLink);
   }
 
-// ✅ NOVO MÉTODO PARA REMOVER UMA OPÇÃO
+
   void removeOptionFromLink({
     required VariantOption optionToRemove,
     required ProductVariantLink parentLink,
@@ -310,6 +313,33 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
 
     updateVariantLink(updatedLink);
   }
+
+  // ✅ NOVO MÉTODO PARA INICIAR O FLUXO DE EDIÇÃO
+  void startEditFlow(Product product) {
+    emit(ProductWizardState(
+      isEditMode: true,
+      editingProductId: product.id,
+      productInCreation: product,
+      categoryLinks: product.categoryLinks,
+      variantLinks: product.variantLinks ?? [],
+      productType: product.productType,
+      currentStep: 2, // Pula direto para a etapa de detalhes
+    ));
+  }
+
+  // ✅ NOVO MÉTODO PARA LIMPAR O FORMULÁRIO (útil ao fechar o wizard)
+  void clearForm() {
+    emit(ProductWizardState.initial());
+  }
+
+
+
+
+
+
+
+
+
 
 
 

@@ -131,6 +131,84 @@ class AppTheme {
         side: const BorderSide(color: Colors.black, width: 1.5),
       ),
 
+
+ bottomNavigationBarTheme:
+
+BottomNavigationBarThemeData(
+    // Cor do ícone e do texto para o item ATIVO
+    selectedItemColor: dsTheme.primaryColor,// Sua cor primária
+
+    // Cor do ícone e do texto para os itens INATIVOS
+    unselectedItemColor: Colors.black87, // Preto, como você pediu
+
+    // Estilo do texto do item selecionado (ex: um pouco mais forte)
+    selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+
+    // Estilo do texto do item não selecionado
+    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
+
+    // Garante que o tipo seja 'fixed' para que o fundo não mude de cor ao tocar
+    type: BottomNavigationBarType.fixed,
+
+    // Remove a elevação (sombra)
+    elevation: 0,
+
+    // Cor de fundo da barra
+    backgroundColor: Colors.white,
+    ),
+
+ switchTheme:
+
+ SwitchThemeData(
+   // Dimensões do switch
+   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+
+   // Configurações do "thumb" (bolinha)
+   thumbColor: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
+     return Colors.white;
+   }),
+
+   // Tamanho da bolinha (podemos ajustar indiretamente)
+   thumbIcon: MaterialStateProperty.resolveWith<Icon?>((Set<MaterialState> states) {
+     return null;
+   }),
+
+   // Configurações do "track" (trilho/fundo)
+   trackColor: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
+     if (states.contains(MaterialState.selected)) {
+       return dsTheme.primaryColor;// Vermelho
+     }
+     if (states.contains(MaterialState.disabled)) {
+       return Colors.grey.shade300;
+     }
+     return Colors.grey.shade400;
+   }),
+
+   // Configurações da borda do track
+   trackOutlineColor: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
+     if (states.contains(MaterialState.selected)) {
+       return Colors.transparent;
+     }
+     return Colors.grey.shade400;
+   }),
+
+   // Remove efeitos de interação
+   overlayColor: MaterialStateProperty.all(Colors.transparent),
+   splashRadius: 0.0,
+ ),
+
+
+
+
+
+
+
+
+
+
+
+
+
       textTheme: _buildTextTheme(dsTheme),
     );
   }

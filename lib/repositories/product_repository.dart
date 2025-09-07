@@ -354,82 +354,92 @@ class ProductRepository {
   }
 
 
-// Função createProductFromWizard no seu repositório
-  Future<Either<String, Product>> createProductFromWizard(int storeId, Product product, {ImageModel? image}) async { // Adicione a imagem aqui
-    try {
-      // 1. Converta seu objeto de produto para um Mapa
-      final productJson = product.toWizardJson();
 
-      // 2. Crie um objeto FormData
-      // O payload JSON precisa ser convertido para uma String antes de ser adicionado
+
+  // ===================================================================
+  // MÉTODOS DE CRIAÇÃO (ATUALIZADOS)
+  // ===================================================================
+
+  /// Cria um produto simples (ex: bebida, lanche).
+  /// Usa a rota `/simple-product`.
+  Future<Either<String, Product>> createSimpleProduct(
+      int storeId,
+      Product product, {
+        ImageModel? image,
+      }) async {
+    try {
+      // Garanta que seu modelo Product tenha um método para gerar este JSON específico
+      final productJson = product.toSimpleProductJson();
+
       final formData = FormData.fromMap({
         'payload': json.encode(productJson),
       });
 
-      // 3. Adicione a imagem ao FormData APENAS se ela existir
       if (image?.file != null) {
         final fileBytes = await image!.file!.readAsBytes();
         formData.files.add(
-          MapEntry(
-            'image', // O nome do campo deve ser "image", igual no FastAPI
-            MultipartFile.fromBytes(fileBytes, filename: image.file!.name),
-          ),
+          MapEntry('image', MultipartFile.fromBytes(fileBytes, filename: image.file!.name)),
         );
       }
 
-      // 4. Envie o FormData
       final response = await _dio.post(
-        '/stores/$storeId/products/wizard',
-        data: formData, // <--- Use o objeto formData aqui
+        '/stores/$storeId/products/simple-product', // ✅ ROTA CORRETA
+        data: formData,
       );
 
       return Right(Product.fromJson(response.data));
     } on DioException catch (e) {
-      // seu tratamento de erro continua o mesmo...
-      final errorData = e.response?.data;
-      String errorMessage = 'Erro ao criar produto.';
+      final error = e.response?.data['detail'] ?? 'Erro ao criar produto.';
+      return Left(error);
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
+  /// Cria um "sabor" (produto para categoria customizável).
+  /// Usa a rota `/flavor-product`.
+  Future<Either<String, Product>> createFlavorProduct(
+      int storeId,
+      Product product, {
+        required Category parentCategory, // ✅ PARÂMETRO ADICIONADO AQUI
+        ImageModel? image,
+      }) async {
+    try {
+      // ✅ AGORA PASSAMOS A CATEGORIA PARA O MÉTODO toJson
+      final productJson = product.toFlavorProductJson(parentCategoryId: parentCategory.id!);
+      final formData = FormData.fromMap({'payload': json.encode(productJson)});
 
-      if (errorData is Map<String, dynamic>) {
-        if (errorData['detail'] is String) {
-          errorMessage = errorData['detail'];
-        } else if (errorData['detail'] is List) {
-          final firstError = errorData['detail'].isNotEmpty
-              ? errorData['detail'][0]
-              : null;
-          if (firstError is Map<String, dynamic>) {
-            errorMessage = firstError['msg'] ?? errorMessage;
-          }
-        }
+      if (image?.file != null) {
+        final fileBytes = await image!.file!.readAsBytes();
+        formData.files.add(MapEntry('image', MultipartFile.fromBytes(fileBytes, filename: image.file!.name)));
       }
-      return Left(errorMessage);
+
+      final response = await _dio.post('/stores/$storeId/products/flavor-product', data: formData);
+      return Right(Product.fromJson(response.data));
+    } on DioException catch (e) {
+      final error = e.response?.data['detail'] ?? 'Erro ao criar sabor.';
+      return Left(error);
     } catch (e) {
       return Left(e.toString());
     }
   }
 
+  // ===================================================================
+  // MÉTODO DE ATUALIZAÇÃO (UNIFICADO E CORRETO)
+  // ===================================================================
 
-
-
-
-
-
-
-  /// ✅ SUBSTITUA SEU MÉTODO `saveProduct` POR ESTA VERSÃO COMPLETA E CORRIGIDA
-
-  Future<Either<String, Product>> saveProduct(int storeId, Product product) async {
+  Future<Either<String, Product>> updateProduct(
+      int storeId,
+      Product product,
+      ) async {
     if (product.id == null) {
-      return const Left("Use 'createProductFromWizard' para criar novos produtos.");
+      return const Left("ID do produto é inválido para atualização.");
     }
     try {
-      // 1. Gera o JSON com os dados a serem atualizados.
       final productJson = product.toUpdateJson();
-
-      // 2. Cria o FormData, colocando o JSON dentro do "envelope" payload.
       final formData = FormData.fromMap({
         'payload': json.encode(productJson),
       });
 
-      // 3. Adiciona a imagem, se uma nova foi selecionada.
       if (product.image?.file != null) {
         final fileBytes = await product.image!.file!.readAsBytes();
         formData.files.add(
@@ -440,20 +450,40 @@ class ProductRepository {
         );
       }
 
-      // 4. Envia a requisição PATCH com o FormData correto.
       final response = await _dio.patch(
         '/stores/$storeId/products/${product.id}',
-        data: formData, // Envia o FormData
+        data: formData,
       );
-      return Right(Product.fromJson(response.data));
 
+      return Right(Product.fromJson(response.data));
     } on DioException catch (e) {
-      final error = e.response?.data['detail'] ?? 'Erro ao atualizar produto.';
+      final error = e.response?.data['detail'] ?? 'Erro ao atualizar o produto.';
       return Left(error);
     } catch (e) {
       return Left(e.toString());
     }
   }
+
+  // ✅ NOVO MÉTODO PARA ATUALIZAR O PREÇO DE UM SABOR
+  Future<Either<String, void>> updateFlavorPrice({
+    required int storeId,
+    required int flavorPriceId, // O ID do registro na tabela flavor_prices
+    required int newPrice,
+  }) async {
+    try {
+      await _dio.patch(
+        '/stores/$storeId/products/prices/$flavorPriceId',
+        data: {'price': newPrice},
+      );
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(e.response?.data['detail'] ?? 'Erro ao atualizar o preço do sabor.');
+    }
+  }
+
+
+
+
 
   // ✅ NOVO: Método para gerenciar as categorias de um produto
   Future<Either<String, void>> updateProductCategories(int storeId, int productId, List<int> categoryIds) async {
@@ -490,18 +520,36 @@ class ProductRepository {
     }
   }
 
-  // ✅ CORRIGIDO: Usa a nova lógica de apagar e recriar os vínculos
+
+
+  Future<Either<String, void>> removeProductFromCategory({
+    required int storeId,
+    required int productId,
+    required int categoryId,
+  }) async {
+    try {
+      await _dio.delete(
+        '/stores/$storeId/products/$productId/categories/$categoryId',
+      );
+      return const Right(null); // Sucesso
+    } on DioException catch (e) {
+      return Left(e.response?.data['detail'] ?? 'Erro ao remover produto da categoria.');
+    }
+  }
+
+
+
   Future<Either<String, void>> bulkUpdateProductCategory({
     required int storeId,
-    required List<int> productIds,
     required int targetCategoryId,
+    required List<Map<String, dynamic>> products, // ✅ Precisa enviar a lista de produtos
   }) async {
     try {
       await _dio.post(
-        '/stores/$storeId/products/bulk-update-category',
+        '/stores/$storeId/products/bulk-update-category', // A rota de "mover"
         data: {
-          'product_ids': productIds,
           'target_category_id': targetCategoryId,
+          'products': products, // ✅ Enviando o payload completo
         },
       );
       return const Right(null);
@@ -509,6 +557,7 @@ class ProductRepository {
       return Left(e.response?.data['detail'] ?? 'Erro ao mover produtos.');
     }
   }
+
 
 
 

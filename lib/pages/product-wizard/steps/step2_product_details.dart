@@ -1,14 +1,12 @@
-import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:totem_pro_admin/core/di.dart';
+
 import 'package:totem_pro_admin/core/responsive_builder.dart';
-import 'package:totem_pro_admin/models/catalog_product.dart';
-import 'package:totem_pro_admin/repositories/product_repository.dart';
-import 'package:totem_pro_admin/widgets/app_text_field.dart';
+
 import 'package:totem_pro_admin/widgets/mobile_mockup.dart'; // Importe seu mockup
 
-import 'package:brasil_fields/brasil_fields.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../../../core/enums/product_type.dart';
@@ -34,20 +32,32 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
 
   late final TextEditingController _stockQuantityController;
 
+  final _formKey = GlobalKey<FormState>();
+
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController();
+    final cubit = context.read<ProductWizardCubit>();
+    final initialProduct = cubit.state.productInCreation;
 
-    // Inicializa os controladores com os dados do Cubit
-    final initialProduct = context.read<ProductWizardCubit>().state.productInCreation;
+    _searchController = TextEditingController();
     _nameController = TextEditingController(text: initialProduct.name);
     _descriptionController = TextEditingController(text: initialProduct.description);
+    _stockQuantityController = TextEditingController(text: initialProduct.stockQuantity.toString());
 
-    // ✅ 2. INICIALIZE O NOVO CONTROLLER
-    _stockQuantityController = TextEditingController(
-      text: initialProduct.stockQuantity.toString(),
-    );
+    // ✨ 1. ADICIONE LISTENERS PARA ATUALIZAR O CUBIT EM TEMPO REAL
+    _nameController.addListener(() {
+      cubit.updateProduct(cubit.state.productInCreation.copyWith(name: _nameController.text));
+    });
+    _descriptionController.addListener(() {
+      cubit.updateProduct(cubit.state.productInCreation.copyWith(description: _descriptionController.text));
+    });
+    _stockQuantityController.addListener(() {
+      final quantity = int.tryParse(_stockQuantityController.text) ?? 0;
+      cubit.updateProduct(cubit.state.productInCreation.copyWith(stockQuantity: quantity));
+    });
+
+
   }
 
   @override
@@ -60,15 +70,14 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
     super.dispose();
   }
 
-  // ✅ 2. Garante que os campos sejam atualizados se o estado do Cubit mudar
-  // (Ex: quando um produto do catálogo é selecionado)
+
   void _syncControllersWithState(ProductWizardState state) {
     final product = state.productInCreation;
     if (_nameController.text != product.name) {
       _nameController.text = product.name;
     }
     if (_descriptionController.text != product.description) {
-      _descriptionController.text = product.description;
+      _descriptionController.text = product.description ?? '';
     }
 
 
@@ -87,9 +96,13 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
       // Usamos o BlocConsumer para sincronizar os controllers quando o estado muda
       return BlocConsumer<ProductWizardCubit, ProductWizardState>(
         listener: (context, state) {
-          if (!state.catalogProductSelected && _searchController.text.isNotEmpty) {
+
+          // ✅ CORREÇÃO APLICADA AQUI
+          // Limpa a busca APENAS QUANDO um produto do catálogo é efetivamente selecionado.
+          if (state.catalogProductSelected) {
             _searchController.clear();
           }
+
           // Sincroniza os controllers com o estado mais recente
           _syncControllersWithState(state);
         },
@@ -99,25 +112,19 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
 
           return ResponsiveBuilder(
             mobileBuilder: (context, constraints) =>
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: mainContent,
-                ),
+                mainContent,
             desktopBuilder: (context, constraints) =>
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      flex: 6,
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(32.0),
-                        child: mainContent,
-                      ),
+                      flex: 3,
+                      child: mainContent,
                     ),
                     Expanded(
-                      flex: 3,
+                      flex: 2,
                       child: Padding(
-                        padding: const EdgeInsets.only(top: 32.0, right: 32.0),
+                        padding: const EdgeInsets.only(top: 32.0, right: 32.0, left: 32),
                         child: ProductPhoneMockup(
                             product: state.productInCreation),
                       ),
@@ -139,12 +146,15 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Linha com o título "Estoque" e o botão "Ativar/Gerenciar"
+         const Text('Estoque', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+
+
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            const Text('Estoque', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+
             TextButton.icon(
+
               icon: Icon(isStockControlled ? Icons.inventory : Icons.add_business_outlined),
               label: Text(isStockControlled ? 'Gerenciando' : 'Ativar'),
               style: TextButton.styleFrom(
@@ -184,15 +194,16 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
     bool shouldShowSearch = state.productType == ProductType.INDUSTRIALIZED &&
         !state.catalogProductSelected;
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
-      child: shouldShowSearch
-          ? _buildSearchInterface(context, state)
-          : _buildProductFormFields(context, state),
+    return SingleChildScrollView( // Adicionado
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: shouldShowSearch
+            ? _buildSearchInterface(context, state)
+            : _buildProductFormFields(context, state),
+      ),
     );
   }
 
-// Em lib/pages/create_product_wizard/steps/step2_product_details.dart
 
 // --- INTERFACE DE BUSCA SIMPLIFICADA ---
   Widget _buildSearchInterface(BuildContext context, ProductWizardState state) {
@@ -284,80 +295,83 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
     final cubit = context.read<ProductWizardCubit>();
     final bool isReadOnly = state.isImported;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Detalhes do Produto', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 24),
+    return Form( // Envolva sua Column com um Form
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Detalhes do Produto', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
 
-        // --- CAMPO NOME ---
-        TextFormField(
-          controller: _nameController, // ✅ Usa controller
-          readOnly: isReadOnly,
-          decoration: InputDecoration(
-            labelText: 'Nome do produto',
-            filled: isReadOnly,
-            fillColor: isReadOnly ? Colors.grey[200] : null,
-            suffixIcon: isReadOnly
-                ? IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => cubit.resetToSearch(_searchController),
-            )
-                : null,
+          // --- CAMPO NOME ---
+          TextFormField(
+            controller: _nameController, // ✅ Usa controller
+            readOnly: isReadOnly,
+            decoration: InputDecoration(
+              labelText: 'Nome do produto*',
+              filled: isReadOnly,
+              fillColor: isReadOnly ? Colors.grey[200] : null,
+              suffixIcon: isReadOnly
+                  ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => cubit.resetToSearch(),
+              )
+                  : null,
+            ),
+            validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
+
+
+
           ),
-          validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
 
-          onTapOutside: (_) {
-            cubit.updateProduct(product.copyWith(name: _nameController.text));
-          },
-          // ✅ ATUALIZA O CUBIT APENAS QUANDO O USUÁRIO SAI DO CAMPO
 
-        ),
-        const SizedBox(height: 20),
 
-        // --- CAMPO DESCRIÇÃO ---
-        const Text('Descrição', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _descriptionController, // ✅ Usa controller
-          readOnly: isReadOnly,
-          minLines: 3,
-          maxLines: 5,
-          decoration: InputDecoration(
-            hintText: 'Descreva seu produto',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            filled: isReadOnly,
-            fillColor: isReadOnly ? Colors.grey[200] : null,
+
+
+          const SizedBox(height: 20),
+
+          // --- CAMPO DESCRIÇÃO ---
+          const Text('Descrição', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _descriptionController, // ✅ Usa controller
+            readOnly: isReadOnly,
+            minLines: 3,
+            maxLines: 5,
+            decoration: InputDecoration(
+              hintText: 'Descreva seu produto',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              filled: isReadOnly,
+              fillColor: isReadOnly ? Colors.grey[200] : null,
+            ),
+
           ),
-          onTapOutside: (_) {
-            cubit.updateProduct(product.copyWith(description: _descriptionController.text));
-          },
-        ),
-        const SizedBox(height: 20),
+          const SizedBox(height: 20),
 
 
-        _buildStockControls(context, state),
-        const SizedBox(height: 20),
+          _buildStockControls(context, state),
+          const SizedBox(height: 20),
 
-        // --- CAMPO IMAGEM ---
-        if (isReadOnly) ...[
-          // ... (código para mostrar a imagem importada, sem alterações)
-        ] else ...[
-          AppProductImageFormField(
-            initialValue: product.image,
-            title: 'Imagem',
-            onChanged: (newImageModel) {
-              cubit.onImageChanged(newImageModel ?? ImageModel());
-            },
-            validator: (imageModel) {
-              if (product.image?.file == null && (product.image?.url == null || product.image!.url!.isEmpty)) {
-                return 'Selecione uma imagem';
-              }
-              return null;
-            },
-          ),
+          // --- CAMPO IMAGEM ---
+          if (isReadOnly) ...[
+            // ... (código para mostrar a imagem importada, sem alterações)
+          ] else ...[
+            AppProductImageFormField(
+              initialValue: product.image,
+              title: 'Imagem',
+              onChanged: (newImageModel) {
+                cubit.onImageChanged(newImageModel ?? ImageModel());
+              },
+              validator: (imageModel) {
+                if (product.image?.file == null && (product.image?.url == null || product.image!.url!.isEmpty)) {
+                  return 'Selecione uma imagem';
+                }
+                return null;
+              },
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

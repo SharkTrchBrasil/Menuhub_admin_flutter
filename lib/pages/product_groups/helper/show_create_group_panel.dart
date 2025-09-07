@@ -12,12 +12,11 @@ import '../../../../models/product_variant_link.dart';
 import '../../../../models/variant_option.dart';
 import '../../../../repositories/product_repository.dart';
 import '../cubit/create_complement_cubit.dart';
+import '../steps/step3_add_complements.dart';
+import '../widgets/add_option_flow.dart';
 import '../widgets/complement_creation_form.dart';
 import '../widgets/multi_step_panel_container.dart';
 
-// ... outros imports
-
-// ✅ 1. ATUALIZE A ASSINATURA DA FUNÇÃO
 Future<ProductVariantLink?> showCreateGroupPanel(
     BuildContext context, {
       int? productId,
@@ -62,27 +61,20 @@ Future<ProductVariantLink?> showCreateGroupPanel(
 }
 
 
-Future<VariantOption?> showAddOptionToGroupPanel(BuildContext context) async {
-  // Abre o painel e espera que ele retorne um VariantOption
-  final newOption = await showModalBottomSheet<VariantOption>(
-    context: context,
-    isScrollControlled: true, // Permite que o painel seja alto
-    builder: (context) {
-      // O painel agora retorna o VariantOption criado no formulário
-      return FractionallySizedBox(
-        heightFactor: 0.8,
-        child: ComplementCreationForm(
-          // O onBack agora fecha o painel, retornando a opção criada
-          onOptionCreated: (option) {
-            Navigator.of(context).pop(option);
-          },
 
-          onCancel: () {
-            Navigator.of(context).pop();
-          },
-        ),
-      );
-    },
+Future<VariantOption?> showAddOptionToGroupPanel(BuildContext context) async {
+  final newOption = await showResponsiveSidePanelGroup<VariantOption>(
+    context,
+    panel: AddOptionFlow( // ✨ Usando o novo widget!
+      onOptionCreated: (option) {
+        // Quando uma opção é criada, fechamos o painel e retornamos a opção
+        Navigator.of(context).pop(option);
+      },
+      onCancel: () {
+        // Se o usuário cancelar, apenas fechamos o painel
+        Navigator.of(context).pop();
+      },
+    ),
   );
   return newOption;
 }

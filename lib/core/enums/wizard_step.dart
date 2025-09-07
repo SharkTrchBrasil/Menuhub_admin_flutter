@@ -1,0 +1,1 @@
+enum WizardStep { typeSelection, details }

@@ -55,7 +55,7 @@ class MultiStepPanelContainer extends StatelessWidget {
       case CreateComplementStep.groupDetails:
         return Step2GroupDetails(key: key, groupType: state.groupType!);
       case CreateComplementStep.addComplements:
-        return Step3AddComplements(key: key);
+        return Step3AddComplements(key: key,);
 
     // Fluxo de Cópia
       case CreateComplementStep.copyGroup_SelectGroup:

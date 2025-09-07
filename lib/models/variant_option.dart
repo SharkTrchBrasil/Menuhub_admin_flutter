@@ -1,79 +1,115 @@
-import 'package:totem_pro_admin/models/image_model.dart'; // Garanta que este import está correto
+import 'package:totem_pro_admin/models/image_model.dart';
+import 'package:totem_pro_admin/models/product.dart';
 
 class VariantOption {
   // --- Atributos que vêm da API ---
   final int? id;
   final int? variantId;
-  final String resolvedName;
-  final int resolvedPrice;
+  // ✨ REMOVIDO: final String resolvedName;
+  // ✨ REMOVIDO: final int resolvedPrice;
   final String? imagePath;
-  final bool isActuallyAvailable; // ✅ Campo de disponibilidade real
+  final bool isActuallyAvailable;
 
-  // --- Atributos que enviamos para a API ---
+  // --- Atributos que enviamos para a API ou usamos localmente ---
   final String? name_override;
-  final String? description; // ✅ Novo
+  final String? description;
   final int? price_override;
   final bool available;
   final String? pos_code;
   final int? linked_product_id;
-  final bool track_inventory; // ✅ Novo
-  final int stock_quantity; // ✅ Novo
-  final ImageModel? image; // ✅ Para upload do arquivo
+  final Product? linkedProduct; // Perfeito!
+  final bool track_inventory;
+  final int stock_quantity;
+  final ImageModel? image;
 
+  // ✨ CONSTRUTOR CORRIGIDO ✨
   VariantOption({
     this.id,
     this.variantId,
-    String? resolvedName,
-    int? resolvedPrice,
     this.imagePath,
     this.isActuallyAvailable = true,
     this.name_override,
-    this.description, // ✅ Adicionado ao construtor
+    this.description,
     this.price_override,
     this.available = true,
     this.pos_code,
     this.linked_product_id,
-    this.track_inventory = false, // ✅ Adicionado ao construtor
-    this.stock_quantity = 0, // ✅ Adicionado ao construtor
-    this.image, // ✅ Adicionado ao construtor
-  })  : resolvedName = resolvedName ?? name_override ?? '',
-        resolvedPrice = resolvedPrice ?? price_override ?? 0;
+    this.linkedProduct,
+    this.track_inventory = false,
+    this.stock_quantity = 0,
+    this.image,
+  });
 
-  /// Construtor de fábrica para criar a partir de um JSON vindo da API.
+  // ✨ SEU GETTER ESTÁ PERFEITO! ✨
+  String get resolvedName {
+    // Se há um nome customizado, ele tem prioridade.
+    if (name_override != null && name_override!.isNotEmpty) {
+      return name_override!;
+    }
+    // Senão, se há um produto lincado, usamos o nome dele.
+    if (linkedProduct != null) {
+      return linkedProduct!.name;
+    }
+    // Senão, usamos um nome padrão.
+    return "Item sem nome";
+  }
+
+  // ✨ CRIEI UM GETTER PARA O PREÇO, SEGUINDO A MESMA LÓGICA ✨
+  int get resolvedPrice {
+    // Se há um preço customizado, ele tem prioridade.
+    if (price_override != null) {
+      return price_override!;
+    }
+    // Senão, se há um produto lincado, usamos o preço dele.
+    if (linkedProduct != null) {
+      return linkedProduct?.price ?? 0; // Supondo que seu 'Product' tem um campo 'price'
+    }
+    // Senão, o preço é 0.
+    return 0;
+  }
+
+  // O resto do seu código (fromJson, toJson, copyWith) continua praticamente igual,
+  // apenas removemos as referências aos campos que não existem mais.
+
   factory VariantOption.fromJson(Map<String, dynamic> json) {
+    // Se a API retornar um `Product` aninhado, podemos construí-lo aqui também.
+    Product? linkedProductJson = json['linked_product'] != null
+        ? Product.fromJson(json['linked_product'])
+        : null;
+
     return VariantOption(
       id: json['id'],
       variantId: json['variant_id'],
-      resolvedName: json['resolved_name'],
-      resolvedPrice: json['resolved_price'],
       imagePath: json['image_path'],
-      isActuallyAvailable: json['is_actually_available'] ?? true, // ✅ Novo
-      name_override: json['name_override'],
-      description: json['description'], // ✅ Novo
-      price_override: json['price_override'],
+      isActuallyAvailable: json['is_actually_available'] ?? true,
+      // Se 'name_override' for nulo no JSON, usamos o 'resolved_name' que a API manda.
+      name_override: json['name_override'] ?? json['resolved_name'],
+      description: json['description'],
+      price_override: json['price_override'] ?? json['resolved_price'],
       available: json['available'] ?? true,
       pos_code: json['pos_code'],
       linked_product_id: json['linked_product_id'],
-      track_inventory: json['track_inventory'] ?? false, // ✅ Novo
-      stock_quantity: json['stock_quantity'] ?? 0, // ✅ Novo
-      // O 'image' não vem no JSON, ele é apenas para upload
+      linkedProduct: linkedProductJson, // Preenche com o objeto construído do JSON
+      track_inventory: json['track_inventory'] ?? false,
+      stock_quantity: json['stock_quantity'] ?? 0,
     );
   }
 
-  /// Converte o objeto para um JSON a ser enviado para a API.
   Map<String, dynamic> toJson() {
     return {
+      'id': id, // É bom enviar o ID se for uma atualização
       'variant_id': variantId,
       'name_override': name_override,
-      'description': description, // ✅ Novo
+      'description': description,
       'price_override': price_override,
       'available': available,
       'pos_code': pos_code,
       'linked_product_id': linked_product_id,
-      'track_inventory': track_inventory, // ✅ Novo
-      'stock_quantity': stock_quantity, // ✅ Novo
+      'track_inventory': track_inventory,
+      'stock_quantity': stock_quantity,
     };
   }
+
 
   /// Método para criar uma cópia do objeto, útil para o BLoC/Cubit.
   VariantOption copyWith({
@@ -96,8 +132,7 @@ class VariantOption {
     return VariantOption(
       id: id ?? this.id,
       variantId: variantId ?? this.variantId,
-      resolvedName: resolvedName ?? this.resolvedName,
-      resolvedPrice: resolvedPrice ?? this.resolvedPrice,
+
       imagePath: imagePath ?? this.imagePath,
       isActuallyAvailable: isActuallyAvailable ?? this.isActuallyAvailable,
       name_override: name_override ?? this.name_override,
@@ -112,3 +147,5 @@ class VariantOption {
     );
   }
 }
+
+

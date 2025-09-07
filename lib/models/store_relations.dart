@@ -81,19 +81,6 @@ class StoreRelations {
   factory StoreRelations.fromJson(Map<String, dynamic> json) {
 
 
-    final couponsList = (json['coupons'] as List<dynamic>? ?? [])
-        .map((e) => Coupon.fromJson(e as Map<String, dynamic>))
-        .toList();
-
-    // ✅ ADICIONE ESTE PRINT
-    print('--- 1. Dentro do StoreRelations.fromJson ---');
-    print('Cupons encontrados e parseados: ${couponsList.length}');
-    if (couponsList.isNotEmpty) {
-      print('O primeiro cupom tem ${couponsList.first.rules.length} regras.');
-    }
-
-
-
     return StoreRelations(
       paymentMethodGroups: (json['payment_method_groups'] as List<dynamic>?)
           ?.map((e) => PaymentMethodGroup.fromJson(e as Map<String, dynamic>))

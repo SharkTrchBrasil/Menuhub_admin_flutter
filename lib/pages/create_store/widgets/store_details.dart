@@ -141,7 +141,7 @@ class _StoreDetailsStepState extends State<StoreDetailsStep> {
               AppTextField(
                 title: 'URL do Cardápio',
                 hint: 'ex: minhapizzaria',
-                controller: urlController,
+               // controller: urlController,
                 focusNode: urlFocusNode,
                 // Removido o prefix/suffix text para um look mais limpo
                 // ✅ MUDANÇA AQUI: O suffixIcon foi removido

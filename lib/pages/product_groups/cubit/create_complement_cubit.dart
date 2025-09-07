@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-
+import 'package:flutter/material.dart';
 
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/product_variant_link.dart';
@@ -30,7 +30,24 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
 
   // --- CONTROLE DE FLUXO E NAVEGAÇÃO ---
 
+// ✨ NOVO MÉTODO PARA INICIAR O FLUXO DE "ADICIONAR OPÇÃO"
+  void startAddOptionFlow(ProductVariantLink existingLink) {
+    emit(state.copyWith(
+      // Define o passo inicial direto para a adição de complementos
+      step: CreateComplementStep.addComplements,
+      isCopyFlow: false, // Não é o fluxo de cópia de grupo
 
+      // Pré-preenche o estado com os dados do grupo existente
+      groupName: existingLink.variant.name,
+      groupType: _mapVariantTypeToGroupType(existingLink.variant.type),
+      // Carrega os complementos que já existem nesse grupo
+      complements: List<VariantOption>.from(existingLink.variant.options),
+      // Zera os outros campos para um estado limpo
+      isRequired: existingLink.isRequired,
+      minQty: existingLink.minSelectedOptions,
+      maxQty: existingLink.maxSelectedOptions,
+    ));
+  }
   void startFlow(bool isCopy) {
     emit(state.copyWith(
       isCopyFlow: isCopy,
@@ -56,19 +73,51 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
     ));
   }
 
+
+// ✨ MÉTODO ADICIONADO AQUI ✨
+  void clearSelectedItems() {
+    emit(state.copyWith(selectedToCopyIds: {}));
+  }
+
+// ✅ MÉTODO `goBack` SIMPLIFICADO E CORRIGIDO
   void goBack() {
+    // Se já estamos no primeiro passo, não há para onde voltar.
+    // (O botão "Voltar" nem deveria aparecer no Step0InitialChoice)
+    if (state.step == CreateComplementStep.initial) return;
+
+    // Lógica clara para voltar um passo
     CreateComplementStep newStep;
     switch (state.step) {
       case CreateComplementStep.selectType:
       case CreateComplementStep.copyGroup_SelectGroup:
         newStep = CreateComplementStep.initial;
         break;
+      case CreateComplementStep.groupDetails:
+        newStep = CreateComplementStep.selectType;
+        break;
+      case CreateComplementStep.addComplements:
+        newStep = CreateComplementStep.groupDetails;
+        break;
+      case CreateComplementStep.copyGroup_SetRules:
+        newStep = CreateComplementStep.copyGroup_SelectGroup;
+        break;
       default:
-        newStep = CreateComplementStep.values[state.step.index - 1];
+        newStep = CreateComplementStep.initial;
     }
+
     emit(state.copyWith(
-        step: newStep, status: FormStatus.initial, errorMessage: null));
+      step: newStep,
+    ));
   }
+
+
+
+
+
+
+
+
+
 
   // --- FLUXO DE CRIAÇÃO ---
 
@@ -142,43 +191,26 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
     }
   }
 
+
+
+  Future<void> fetchInitialItemsToCopy() async {
+    // Apenas chama a busca com uma query vazia para pegar todos os itens iniciais
+    // Supondo que `groupType` já esteja definido no estado
+    if (state.groupType != null) {
+      searchItemsToCopy("", type: state.groupType!);
+    }
+  }
+
+
+
   Future<ProductVariantLink?> completeFlowAndGetResult() async {
     emit(state.copyWith(status: FormStatus.loading));
     try {
-      Variant finalVariant;
-
-      if (state.isCopyFlow) {
-        // --- FLUXO DE CÓPIA ---
-        if (state.selectedVariantToCopy == null) {
-          throw Exception("Nenhum grupo foi selecionado para cópia.");
-        }
-        // Apenas pega a variante que já foi selecionada
-        finalVariant = state.selectedVariantToCopy!;
-      } else {
-        // --- FLUXO DE CRIAÇÃO ---
-        // Cria um novo objeto Variant com os dados coletados, TUDO EM MEMÓRIA.
-        final newVariantData = Variant(
-          // Usamos um ID negativo temporário para diferenciá-lo de itens já salvos
-          id: -DateTime.now().millisecondsSinceEpoch,
-          name: state.groupName,
-          type: _mapGroupTypeToVariantType(state.groupType!),
-          options: state.complements,
-        );
-        finalVariant = newVariantData;
-
-        // NENHUMA CHAMADA AO REPOSITÓRIO É FEITA AQUI.
-      }
-
-      // Monta o objeto ProductVariantLink que será o resultado final do painel.
-      final linkResult = ProductVariantLink(
-        variant: finalVariant,
-        minSelectedOptions: state.minQty,
-        maxSelectedOptions: state.maxQty,
-        uiDisplayMode: state.maxQty > 1 ? UIDisplayMode.MULTIPLE : UIDisplayMode.SINGLE,
-      );
+      final linkResult = state.isCopyFlow
+          ? _buildResultForCopyFlow()
+          : _buildResultForCreateFlow();
 
       emit(state.copyWith(status: FormStatus.success));
-      // Retorna o link montado para a tela que chamou o painel
       return linkResult;
 
     } catch (e) {
@@ -187,9 +219,37 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
     }
   }
 
+// Método auxiliar para o fluxo de CÓPIA
+  ProductVariantLink _buildResultForCopyFlow() {
+    if (state.selectedVariantToCopy == null) {
+      throw Exception("Nenhum grupo foi selecionado para cópia.");
+    }
+    return ProductVariantLink(
+      variant: state.selectedVariantToCopy!,
+      minSelectedOptions: state.minQty,
+      maxSelectedOptions: state.maxQty,
+      uiDisplayMode: state.maxQty > 1 ? UIDisplayMode.MULTIPLE : UIDisplayMode.SINGLE,
+    );
+  }
+
+// Método auxiliar para o fluxo de CRIAÇÃO
+  ProductVariantLink _buildResultForCreateFlow() {
+    final newVariantData = Variant(
+      id: -DateTime.now().millisecondsSinceEpoch,
+      name: state.groupName,
+      type: _mapGroupTypeToVariantType(state.groupType!),
+      options: state.complements,
+    );
+
+    return ProductVariantLink(
+      variant: newVariantData,
+      minSelectedOptions: state.minQty,
+      maxSelectedOptions: state.maxQty,
+      uiDisplayMode: state.maxQty > 1 ? UIDisplayMode.MULTIPLE : UIDisplayMode.SINGLE,
+    );
+  }
 
 
-  // DENTRO DA CLASSE CreateComplementGroupCubit
 
 // ✅ NOVO MÉTODO 1: Para marcar e desmarcar itens
   void toggleItemForCopy(dynamic item) {
@@ -210,43 +270,42 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
     emit(state.copyWith(selectedToCopyIds: updatedIds));
   }
 
-// ✅ NOVO MÉTODO 2: Para adicionar os selecionados à lista principal
+// DENTRO DA CLASSE CreateComplementGroupCubit
+
   void addSelectedItemsToGroup() {
-    // Pega a lista de itens disponíveis para cópia e os IDs selecionados
     final availableItems = state.itemsAvailableToCopy;
     final selectedIds = state.selectedToCopyIds;
 
-    // Filtra apenas os itens que foram selecionados
     final selectedItems = availableItems.where((item) {
       final int itemId = (item is Product) ? item.id! : (item as Variant).id!;
       return selectedIds.contains(itemId);
     }).toList();
 
-    // Converte os itens selecionados em VariantOption
     final newOptions = selectedItems.map((item) {
       if (item is Product) {
-        // Se for um produto (Cross-Sell), cria uma opção linkada a ele
+        // ✨ LÓGICA ATUALIZADA AQUI ✨
+        // Agora, além do ID, passamos o objeto Product inteiro.
+        // A UI poderá ler o nome e outras informações diretamente dele.
         return VariantOption(
           linked_product_id: item.id,
-          // O nome e o preço serão resolvidos automaticamente pelo modelo
+          linkedProduct: item, // Passa o objeto completo!
         );
       } else if (item is Variant) {
-        // Se for um grupo (Ingrediente/Especificação), cria uma opção com o nome dele
+        // Para outros complementos, a lógica continua a mesma.
         return VariantOption(
           name_override: item.name,
-          price_override: 0, // Assume preço 0, pode ser editado depois
+          price_override: 0,
         );
       }
-      return null; // Caso de segurança
-    }).whereType<VariantOption>().toList(); // Filtra qualquer nulo
+      return null;
+    }).whereType<VariantOption>().toList();
 
-    // Adiciona as novas opções à lista de complementos já existente
-    final updatedComplements = List<VariantOption>.from(state.complements)..addAll(newOptions);
+    final updatedComplements = List<VariantOption>.from(state.complements)
+      ..addAll(newOptions);
 
-    // Emite o novo estado com a lista de complementos atualizada e limpa a seleção
     emit(state.copyWith(
       complements: updatedComplements,
-      selectedToCopyIds: {}, // Limpa os checkboxes
+      selectedToCopyIds: {},
     ));
   }
 

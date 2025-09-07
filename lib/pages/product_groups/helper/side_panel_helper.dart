@@ -9,8 +9,9 @@ Future<T?> showResponsiveSidePanelGroup<T>(
     BuildContext context, {
       required Widget panel,
     }) {
-  if (ResponsiveBuilder.isDesktop(context)) {
-    // --- LÓGICA PARA DESKTOP ---
+
+
+
     return showGeneralDialog<T>(
       context: context,
       barrierDismissible: true,
@@ -26,7 +27,7 @@ Future<T?> showResponsiveSidePanelGroup<T>(
             child: Material(
               elevation: 8,
               child: SizedBox(
-                width: MediaQuery.of(context).size.width / 2, // Ocupa metade da tela
+                width: ResponsiveBuilder.isMobile(context) ? MediaQuery.of(context).size.width : MediaQuery.of(context).size.width / 2, // Ocupa metade da tela
                 height: double.infinity, // Ocupa toda a altura
                 child: child,
               ),
@@ -35,24 +36,5 @@ Future<T?> showResponsiveSidePanelGroup<T>(
         );
       },
     );
-  } else {
-    // --- LÓGICA PARA MOBILE ---
-    return showModalBottomSheet<T>(
-      context: context,
-      isScrollControlled: true, // Permite ocupar a tela inteira
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.95, // Começa com 95% da tela
-        minChildSize: 0.5,
-        maxChildSize: 1.0,
-        builder: (_, controller) => ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24.0),
-            topRight: Radius.circular(24.0),
-          ),
-          child: panel,
-        ),
-      ),
-    );
-  }
+
 }

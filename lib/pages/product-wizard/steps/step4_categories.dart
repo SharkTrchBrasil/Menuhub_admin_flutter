@@ -63,46 +63,41 @@ class Step4Categories extends StatelessWidget {
     return BlocBuilder<ProductWizardCubit, ProductWizardState>(
       builder: (context, state) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Disponível em:',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Adicione o produto em uma ou mais categorias e defina suas regras de venda.',
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 32),
-                  _buildTableHeader(),
-                  const Divider(height: 1),
-                  if (state.categoryLinks.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: Center(
-                          child: Text(
-                              "Este produto precisa estar em pelo menos uma categoria.")),
-                    )
-                  else
-                    ...state.categoryLinks
-                        .map((link) => _CategoryLinkRow(key: ValueKey(link.category.id), link: link)),
 
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: () => _showAddCategoryDialog(context),
-                    icon: const Icon(Icons.add),
-                    label: const Text("Adicionar categoria"),
-                  ),
-                ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Disponível em:',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                'Adicione o produto em uma ou mais categorias e defina suas regras de venda.',
+                style: TextStyle(color: Colors.grey.shade600),
               ),
-            ),
+              const SizedBox(height: 32),
+              _buildTableHeader(),
+              const Divider(height: 1),
+              if (state.categoryLinks.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Center(
+                      child: Text(
+                          "Este produto precisa estar em pelo menos uma categoria.")),
+                )
+              else
+                ...state.categoryLinks
+                    .map((link) => _CategoryLinkRow(key: ValueKey(link.category?.id), link: link)),
+
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () => _showAddCategoryDialog(context),
+                icon: const Icon(Icons.add),
+                label: const Text("Adicionar categoria"),
+              ),
+            ],
           ),
         );
       },
@@ -175,11 +170,11 @@ class _CategoryLinkRowState extends State<_CategoryLinkRow> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(flex: 3, child: Text(widget.link.category.name, style: const TextStyle(fontWeight: FontWeight.bold))),
+          Expanded(flex: 3, child: Text(widget.link.category?.name ?? '', style: const TextStyle(fontWeight: FontWeight.bold))),
           Expanded(
             flex: 2,
             child: AppTextField(
-              controller: _priceController,
+
               hint: '0,00',
               formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
               keyboardType: TextInputType.number,
@@ -190,7 +185,7 @@ class _CategoryLinkRowState extends State<_CategoryLinkRow> {
           Expanded(
             flex: 2,
             child: AppTextField(
-              controller: _pdvController,
+
               hint: 'CSAXDR',
               onTapOutside: (_) => _updateLink(), title: '',
             ),

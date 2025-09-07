@@ -10,7 +10,9 @@ import 'package:totem_pro_admin/pages/products/widgets/table_header.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import '../../../core/responsive_builder.dart';
 import '../../../widgets/fixed_header.dart';
-import 'move_category.dart';
+import '../../product_groups/helper/side_panel_helper.dart';
+import '../BulkCategoryPage.dart';
+
 
 // Enum para as opções de ordenação
 enum SortOption { nameAsc, nameDesc, priceAsc, priceDesc }
@@ -59,9 +61,7 @@ class _ProductListViewState extends State<ProductListView> {
     super.dispose();
   }
 
-  // --- Lógica de Negócio ---
 
-  // DENTRO DA CLASSE _ProductListViewState
 
   void _sortProducts(List<Product> products) {
     products.sort((a, b) {
@@ -71,13 +71,14 @@ class _ProductListViewState extends State<ProductListView> {
         case SortOption.nameDesc:
           return b.name.toLowerCase().compareTo(a.name.toLowerCase());
 
-      // ✅ --- CORREÇÃO APLICADA AQUI --- ✅
-      // Trocamos 'basePrice' pelo novo campo 'price'.
-      // Como 'price' é obrigatório, não precisamos mais do '?? 0'.
+
         case SortOption.priceAsc:
-          return a.price.compareTo(b.price);
+        // Se o preço for nulo, consideramos como infinito para que vá para o final.
+          return (a.price ?? double.infinity).compareTo(b.price ?? double.infinity);
+
         case SortOption.priceDesc:
-          return b.price.compareTo(a.price);
+        // A mesma lógica, mas com a ordem invertida.
+          return (b.price ?? double.infinity).compareTo(a.price ?? double.infinity);
       }
     });
   }
@@ -103,7 +104,10 @@ class _ProductListViewState extends State<ProductListView> {
     });
   }
 
-  // --- Métodos de UI (Dialogs) ---
+
+
+
+
 
   void _showFilterBottomSheet() {
     showModalBottomSheet(
@@ -145,6 +149,23 @@ class _ProductListViewState extends State<ProductListView> {
     );
   }
 
+
+
+
+  void _showAddToCategoryWizard(List<Product> selectedProducts) {
+
+    showResponsiveSidePanelGroup(
+      context,
+      panel: BulkAddToCategoryWizard(
+        storeId: widget.storeId,
+        selectedProducts: selectedProducts,
+        allCategories: widget.allCategories,
+      ),
+    );
+  }
+
+
+
   void _showConfirmationDialog({
     required String title,
     required String content,
@@ -177,15 +198,7 @@ class _ProductListViewState extends State<ProductListView> {
     );
   }
 
-  void _showMoveToCategoryDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => MoveToCategoryDialog(
-        allCategories: widget.allCategories,
-        selectedProductIds: _selectedProductIds.toList(),
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +275,16 @@ class _ProductListViewState extends State<ProductListView> {
                     isDestructive: true,
                     onConfirm: () => context.read<StoresManagerCubit>().removeProducts(_selectedProductIds.toList()),
                   ),
-                  onAddToCategory: _showMoveToCategoryDialog,
+                  onAddToCategory: () {
+                    // 1. Filtra a lista principal de produtos para pegar os objetos completos dos IDs selecionados
+                    final selectedProducts = widget.products
+                        .where((p) => _selectedProductIds.contains(p.id))
+                        .toList();
+
+                    // 2. Chama o wizard, agora passando a lista correta de Product
+                    _showAddToCategoryWizard(selectedProducts);
+                  },
+
                 ),
                // const Divider(height: 1, thickness: 1),
               ],

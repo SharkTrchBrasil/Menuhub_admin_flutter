@@ -198,7 +198,7 @@ class _SignInPageState extends State<SignInPage> {
               ),
               const SizedBox(height: 50),
               AppTextField(
-                controller: _emailController,
+               // controller: _emailController,
                 title: 'email'.tr(),
                 hint: 'enter_your_email'.tr(),
                 validator: (s) {
@@ -210,7 +210,7 @@ class _SignInPageState extends State<SignInPage> {
               ),
               const SizedBox(height: 30),
               AppTextField(
-                controller: _passwordController,
+              //  controller: _passwordController,
                 title: 'password'.tr(),
                 hint: 'enter_your_password'.tr(),
                 isHidden: true,

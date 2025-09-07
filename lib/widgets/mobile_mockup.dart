@@ -143,7 +143,7 @@ final bool showVar;
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
-            product.price.toPrice() ?? "0,00",
+            product.price?.toPrice() ?? "0,00",
 
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
