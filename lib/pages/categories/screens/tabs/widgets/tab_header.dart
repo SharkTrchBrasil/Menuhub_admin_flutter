@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:totem_pro_admin/core/responsive_builder.dart';
 
 /// Um widget simples e reutilizável para exibir um cabeçalho padronizado
 /// dentro de uma aba ou seção, contendo um título e um subtítulo.
@@ -16,7 +17,7 @@ class TabHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ResponsiveBuilder.isDesktop(context) ? Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // O Row permite adicionar um ícone ao lado do título facilmente
@@ -51,6 +52,6 @@ class TabHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
+    ): SizedBox.shrink();
   }
 }

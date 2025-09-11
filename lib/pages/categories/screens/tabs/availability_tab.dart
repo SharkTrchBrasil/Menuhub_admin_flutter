@@ -8,13 +8,22 @@ import 'package:totem_pro_admin/pages/categories/cubit/category_wizard_cubit.dar
 import '../../../../models/availability_model.dart';
 
 
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/pages/categories/screens/tabs/widgets/tab_header.dart';
+import '../../../../core/enums/available_type.dart';
+import 'package:totem_pro_admin/pages/categories/cubit/category_wizard_cubit.dart';
+import '../../../../models/availability_model.dart';
 
 class AvailabilityTab extends StatelessWidget {
   const AvailabilityTab({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final cubit = context.read<CategoryWizardCubit>();
+
     return BlocBuilder<CategoryWizardCubit, CategoryWizardState>(
+      // Otimização para reconstruir apenas quando os dados de disponibilidade mudarem
       buildWhen: (p, c) => p.availabilityType != c.availabilityType || p.schedules != c.schedules,
       builder: (context, state) {
         return SingleChildScrollView(
@@ -22,32 +31,39 @@ class AvailabilityTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
-              // ✅ 2. SUBSTITUA O TEXTO ANTIGO PELO NOVO WIDGET
-              TabHeader(
+              const TabHeader(
                 title: 'Disponibilidade',
-                subtitle:  'Defina quando os itens desta categoria poderão ser comprados',
-
+                subtitle: 'Defina quando os itens desta categoria poderão ser comprados',
               ),
-
-
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               _buildTypeSelector(context, state.availabilityType),
               const SizedBox(height: 24),
-              // O ListView agora sempre terá o que mostrar quando 'scheduled' for selecionado
               if (state.availabilityType == AvailabilityType.scheduled)
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: state.schedules.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 24),
-                  itemBuilder: (context, index) {
-                    return _ScheduleRuleCard(
-                      key: ValueKey(state.schedules[index].id),
-                      rule: state.schedules[index],
-                      ruleIndex: index,
-                    );
-                  },
+                Column(
+                  children: [
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: state.schedules.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 24),
+                      itemBuilder: (context, index) {
+                        final rule = state.schedules[index];
+                        return _ScheduleRuleCard(
+                          // Passa a regra inteira, que contém o localId
+                          key: ValueKey(rule.localId),
+                          rule: rule,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    // Botão para adicionar novas regras de horário
+                    OutlinedButton.icon(
+                      onPressed: cubit.addScheduleRule,
+                      icon: const Icon(Icons.add),
+                      label: const Text("Adicionar outra regra de horário"),
+                      style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -55,8 +71,6 @@ class AvailabilityTab extends StatelessWidget {
       },
     );
   }
-
-
 
   Widget _buildTypeSelector(BuildContext context, AvailabilityType currentType) {
     final cubit = context.read<CategoryWizardCubit>();
@@ -68,7 +82,7 @@ class AvailabilityTab extends StatelessWidget {
           value: AvailabilityType.always,
           groupValue: currentType,
           onChanged: (value) => cubit.availabilityTypeChanged(value!),
-          activeColor: const Color(0xFFEA1D2C),
+          activeColor: Theme.of(context).primaryColor,
         ),
         RadioListTile<AvailabilityType>(
           title: const Text('Dias e horários específicos'),
@@ -76,7 +90,7 @@ class AvailabilityTab extends StatelessWidget {
           value: AvailabilityType.scheduled,
           groupValue: currentType,
           onChanged: (value) => cubit.availabilityTypeChanged(value!),
-          activeColor: const Color(0xFFEA1D2C),
+          activeColor: Theme.of(context).primaryColor,
         ),
       ],
     );
@@ -86,11 +100,15 @@ class AvailabilityTab extends StatelessWidget {
 // Widget para o card de uma regra de horário
 class _ScheduleRuleCard extends StatelessWidget {
   final ScheduleRule rule;
-  final int ruleIndex;
-  const _ScheduleRuleCard({super.key, required this.rule, required this.ruleIndex});
+  // ✅ REMOVIDO: Não precisamos mais do índice
+  // final int ruleIndex;
+
+  const _ScheduleRuleCard({super.key, required this.rule});
 
   @override
   Widget build(BuildContext context) {
+    final cubit = context.read<CategoryWizardCubit>();
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -101,12 +119,24 @@ class _ScheduleRuleCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Dias da semana', style: TextStyle(fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Dias da semana', style: TextStyle(fontWeight: FontWeight.bold)),
+              // Botão para remover a regra inteira
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                onPressed: () => cubit.removeScheduleRule(rule.localId!),
+                tooltip: 'Remover esta regra de horário',
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           _WeekDaySelector(
             selectedDays: rule.days,
             onDayToggled: (dayIndex) {
-              context.read<CategoryWizardCubit>().toggleDay(ruleIndex, dayIndex);
+              // ✅ CORRIGIDO: Passa o localId da regra
+              cubit.toggleDay(rule.localId, dayIndex);
             },
           ),
           const SizedBox(height: 24),
@@ -114,12 +144,11 @@ class _ScheduleRuleCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Horários', style: TextStyle(fontWeight: FontWeight.bold)),
-              Flexible(
-                child: TextButton.icon(
-                  onPressed: () => context.read<CategoryWizardCubit>().addShift(ruleIndex),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Adicionar turno', overflow: TextOverflow.ellipsis,),
-                ),
+              TextButton.icon(
+                // ✅ CORRIGIDO: Passa o localId da regra
+                onPressed: () => cubit.addShift(rule.localId),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Adicionar turno', overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -132,7 +161,8 @@ class _ScheduleRuleCard extends StatelessWidget {
             itemBuilder: (context, shiftIndex) {
               return _TimeShiftSelector(
                 shift: rule.shifts[shiftIndex],
-                ruleIndex: ruleIndex,
+                // ✅ CORRIGIDO: Passa o localId da regra
+                ruleLocalId: rule.localId,
                 shiftIndex: shiftIndex,
               );
             },
@@ -143,24 +173,24 @@ class _ScheduleRuleCard extends StatelessWidget {
   }
 }
 
+// Em: availability_tab.dart
 
-
-// --- NOVO SELETOR DE HORÁRIO COM DROPDOWNS ---
+// Seletor de horário
 class _TimeShiftSelector extends StatelessWidget {
   final TimeShift shift;
-  final int ruleIndex;
+  final String ruleLocalId;
   final int shiftIndex;
 
   const _TimeShiftSelector({
     required this.shift,
-    required this.ruleIndex,
+    required this.ruleLocalId,
     required this.shiftIndex,
   });
 
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<CategoryWizardCubit>();
-    // Geramos a lista de horários com intervalo de 10 minutos
+    // Geramos a lista de horários. (Esta função auxiliar deve estar no arquivo)
     final timeSlots = _generateTimeSlots(10);
 
     return Column(
@@ -170,10 +200,12 @@ class _TimeShiftSelector extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('${shiftIndex + 1}º turno', style: const TextStyle(fontWeight: FontWeight.bold)),
-            if (cubit.state.schedules[ruleIndex].shifts.length > 1)
+
+            // ✅ CORREÇÃO LÓGICA: Encontra a regra pelo localId para verificar o tamanho da lista de turnos
+            if (context.watch<CategoryWizardCubit>().state.schedules.firstWhere((r) => r.localId == ruleLocalId).shifts.length > 1)
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.grey, size: 20),
-                onPressed: () => cubit.removeShift(ruleIndex, shiftIndex),
+                onPressed: () => cubit.removeShift(ruleLocalId, shiftIndex),
               ),
           ],
         ),
@@ -186,7 +218,8 @@ class _TimeShiftSelector extends StatelessWidget {
                 timeSlots: timeSlots,
                 onChanged: (time) {
                   if (time != null) {
-                    cubit.updateShiftTime(ruleIndex, shiftIndex, time, isStart: true);
+                    // ✅ CORREÇÃO DO ERRO: Passa o 'ruleLocalId' em vez de 'ruleIndex'
+                    cubit.updateShiftTime(ruleLocalId, shiftIndex, time, isStart: true);
                   }
                 },
               ),
@@ -201,25 +234,26 @@ class _TimeShiftSelector extends StatelessWidget {
                 timeSlots: timeSlots,
                 onChanged: (time) {
                   if (time != null) {
-                    cubit.updateShiftTime(ruleIndex, shiftIndex, time, isStart: false);
+                    // ✅ CORREÇÃO DO ERRO: Passa o 'ruleLocalId' em vez de 'ruleIndex'
+                    cubit.updateShiftTime(ruleLocalId, shiftIndex, time, isStart: false);
                   }
                 },
-                // ✅ VALIDAÇÃO PARA O HORÁRIO FINAL
                 validator: (endTime) {
+                  // A validação está correta
                   if (shift.startTime != null && endTime != null) {
                     final startMinutes = shift.startTime!.hour * 60 + shift.startTime!.minute;
                     final endMinutes = endTime.hour * 60 + endTime.minute;
                     if (endMinutes <= startMinutes) {
-                      return 'Inválido'; // A mensagem de erro principal já está na UI
+                      return 'Inválido';
                     }
                   }
-                  return null; // Válido
+                  return null;
                 },
               ),
             ),
           ],
         ),
-        // Mensagem de erro que aparece abaixo dos dropdowns
+        // A mensagem de erro está correta
         if (shift.startTime != null && shift.endTime != null &&
             (shift.endTime!.hour * 60 + shift.endTime!.minute) <= (shift.startTime!.hour * 60 + shift.startTime!.minute))
           const Padding(
@@ -233,6 +267,7 @@ class _TimeShiftSelector extends StatelessWidget {
     );
   }
 }
+
 
 class TimePickerDropdown extends StatelessWidget {
   final TimeOfDay? selectedValue;

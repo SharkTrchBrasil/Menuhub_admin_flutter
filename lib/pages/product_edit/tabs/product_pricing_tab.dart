@@ -5,63 +5,66 @@ import 'package:flutter/services.dart';
 import 'package:totem_pro_admin/models/prodcut_category_links.dart';
 import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart';
 
+import '../../../cubits/store_manager_cubit.dart';
+import '../../../cubits/store_manager_state.dart';
+import '../../product-wizard/cubit/product_wizard_cubit.dart';
+import '../../product-wizard/cubit/product_wizard_state.dart';
+import '../../product_groups/helper/side_panel_helper.dart';
+import '../../products/widgets/product_categories_manager.dart';
+import '../widgets/category_link_wizard.dart';
+
 class ProductPricingTab extends StatelessWidget {
   const ProductPricingTab({super.key});
 
+  // ✅ 1. LÓGICA DE NAVEGAÇÃO MOVIDA PARA UM MÉTODO AUXILIAR LIMPO
+  Future<void> _showAddCategoryWizard(BuildContext context) async {
+    final wizardCubit = context.read<ProductWizardCubit>();
+    final storesState = context.read<StoresManagerCubit>().state;
+
+    // ✅ 2. VERIFICAÇÃO DE SEGURANÇA
+    if (storesState is! StoresManagerLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Aguarde os dados da loja serem carregados.")),
+      );
+      return;
+    }
+
+    // ✅ 3. ACESSO SEGURO À LISTA DE CATEGORIAS
+    final allCategories = storesState.activeStore?.relations.categories ?? [];
+
+    final newLink = await showResponsiveSidePanelGroup<ProductCategoryLink>(
+      context,
+      panel: CategoryLinkWizard(
+        product: wizardCubit.state.productInCreation,
+        allCategories: allCategories,
+      ),
+    );
+
+    if (newLink != null && context.mounted) {
+      wizardCubit.addCategoryLink(newLink);
+    }
+  }
+
+
+
+
+
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<EditProductCubit, EditProductState>(
+    return BlocBuilder<ProductWizardCubit, ProductWizardState>(
       builder: (context, state) {
-        final cubit = context.read<EditProductCubit>();
-        final links = state.editedProduct.categoryLinks;
+        final cubit = context.read<ProductWizardCubit>();
 
-        if (links.isEmpty) {
-          return const Center(child: Text("Este produto não está em nenhuma categoria."));
-        }
-
-        return ListView.separated(
-          padding: const EdgeInsets.all(24.0),
-          itemCount: links.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 16),
-          itemBuilder: (context, index) {
-            final link = links[index];
-            return _CategoryPriceRow(
-              key: ValueKey(link.categoryId),
-              link: link,
-              onPriceChanged: (newPrice) => cubit.updatePriceInCategory(link, newPrice),
-            );
-          },
+        // A tela agora só precisa construir o widget reutilizável e conectar os fios
+        return ProductCategoriesManager(
+          categoryLinks: state.categoryLinks,
+          onAddCategory: () => _showAddCategoryWizard(context),
+          onUpdateLink: cubit.updateCategoryLink,
+          onRemoveLink: cubit.removeCategoryLink,
+          onTogglePause: (ProductCategoryLink value) {  },
         );
       },
     );
   }
 }
 
-class _CategoryPriceRow extends StatelessWidget {
-  final ProductCategoryLink link;
-  final ValueChanged<int> onPriceChanged;
-
-  const _CategoryPriceRow({super.key, required this.link, required this.onPriceChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(link.category?.name ?? 'Categoria desconhecida'),
-        trailing: SizedBox(
-          width: 120,
-          child: TextFormField(
-            initialValue: UtilBrasilFields.obterReal(link.price / 100),
-            decoration: const InputDecoration(labelText: 'Preço', prefixText: 'R\$ '),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter()],
-            onFieldSubmitted: (value) {
-              final priceInCents = (UtilBrasilFields.converterMoedaParaDouble(value) * 100).toInt();
-              onPriceChanged(priceInCents);
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}

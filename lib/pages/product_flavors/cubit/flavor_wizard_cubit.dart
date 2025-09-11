@@ -3,11 +3,12 @@ import 'package:either_dart/either.dart';
 import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
+import 'package:totem_pro_admin/models/flavor_price.dart'; // ✅ Garanta que FlavorPrice está importado
 import 'package:totem_pro_admin/repositories/product_repository.dart';
-import 'package:totem_pro_admin/core/enums/category_type.dart';
 import 'package:totem_pro_admin/models/option_group.dart';
 import 'package:totem_pro_admin/models/product.dart';
+
+import '../../../core/enums/category_type.dart';
 
 part 'flavor_wizard_state.dart';
 
@@ -22,42 +23,37 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
         _storeId = storeId,
         super(FlavorWizardState.initial());
 
-  // ✅ MÉTODO 'startFlow' CORRIGIDO E COMPLETO
+
   void startFlow({Product? product, required Category parentCategory}) {
     // Pega a lista de todos os tamanhos disponíveis na categoria pai
     final sizeOptions = parentCategory.optionGroups
         .firstWhere(
           (g) => g.name == 'Tamanho',
-      orElse: () => OptionGroup(name: 'Tamanho', items: [], minSelection: 0, maxSelection: 0),
+      orElse: () => OptionGroup(name: 'Tamanho', items: [], minSelection: 1 , maxSelection: 1),
     )
         .items;
 
     if (product != null) {
       // --- MODO DE EDIÇÃO ---
 
-      // 1. Cria um mapa para busca rápida de preços: {id_do_tamanho: objeto_price}
+      // 1. Cria um mapa para busca rápida de preços: {id_do_tamanho: objeto_FlavorPrice}
       final priceMap = {for (var p in product.prices) p.sizeOptionId: p};
 
-      // 2. Itera sobre todos os TAMANHOS disponíveis na categoria
-      final linksWithData = sizeOptions.map((sizeOption) {
-        // 3. Para cada tamanho, pega as informações de preço existentes ou usa valores padrão
-        final existingPriceInfo = priceMap[sizeOption.id];
-        final price = existingPriceInfo?.price ?? 0;
-        // (Adapte aqui para pegar o pos_code se ele existir no seu modelo FlavorPrice)
-        // final posCode = existingPriceInfo?.posCode ?? '';
+      // 2. Itera sobre todos os TAMANHOS e cria a lista de FlavorPrice
+      final pricesWithData = sizeOptions.map((sizeOption) {
+        final existingPrice = priceMap[sizeOption.id];
+        return FlavorPrice(
+          sizeOptionId: sizeOption.id!,
+          price: existingPrice?.price ?? 0,
+          posCode: existingPrice?.posCode,
+          isAvailable: existingPrice?.isAvailable ?? true,
+          id: existingPrice?.id,
 
-        return ProductCategoryLink(
-          categoryId: parentCategory.id!,
-          optionItemId: sizeOption.id,
-          price: price,
-          // posCode: posCode,
-          product: product,
-          category: parentCategory,
         );
       }).toList();
 
-      // 4. Atualiza o produto com a nova lista de links preenchida
-      final updatedProduct = product.copyWith(categoryLinks: linksWithData);
+      // 3. Atualiza o produto com a nova lista de PREÇOS preenchida
+      final updatedProduct = product.copyWith(prices: pricesWithData);
 
       emit(FlavorWizardState(
         product: updatedProduct,
@@ -67,38 +63,38 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
 
     } else {
       // --- MODO DE CRIAÇÃO ---
-      final initialLinks = sizeOptions
-          .map((sizeOption) => ProductCategoryLink(
-        categoryId: parentCategory.id!,
-        optionItemId: sizeOption.id,
+      // Cria uma lista inicial de FlavorPrice, um para cada tamanho
+      final initialPrices = sizeOptions
+          .map((sizeOption) => FlavorPrice(
+        sizeOptionId: sizeOption.id!,
         price: 0,
-        product: Product(),
-        category: parentCategory,
       ))
           .toList();
 
+      // Inicia o estado com a lista de PREÇOS
       emit(FlavorWizardState(
-        product: Product(categoryLinks: initialLinks),
+        product: Product(prices: initialPrices),
         parentCategory: parentCategory,
       ));
     }
   }
 
-  // ✅ O MÉTODO startEditFlow() FOI REMOVIDO, POIS A LÓGICA AGORA ESTÁ NO startFlow()
-
   void updateProduct(Product updatedProduct) {
     emit(state.copyWith(product: updatedProduct));
   }
 
-  // Este método pode ser removido ou adaptado, pois a lógica de preço agora está na UI
-  void updatePriceForSize(int optionItemId, int priceInCents) {
-    final updatedLinks = state.product.categoryLinks.map((link) {
-      if (link.optionItemId == optionItemId) {
-        return link.copyWith(price: priceInCents);
+
+  void updateFlavorPrice(FlavorPrice updatedPrice) {
+    final updatedPrices = state.product.prices.map((flavorPrice) {
+      if (flavorPrice.sizeOptionId == updatedPrice.sizeOptionId) {
+        return updatedPrice; // Substitui o preço antigo pelo novo
       }
-      return link;
+      return flavorPrice;
     }).toList();
-    updateProduct(state.product.copyWith(categoryLinks: updatedLinks));
+
+    emit(state.copyWith(
+      product: state.product.copyWith(prices: updatedPrices),
+    ));
   }
 
   Future<void> submitFlavor() async {
@@ -108,7 +104,6 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
 
     final Future<Either<String, Product>> result;
 
-    // A lógica de submit já está correta, não precisa mudar
     if (state.isEditMode) {
       result = _productRepository.updateProduct(_storeId, state.product);
     } else {

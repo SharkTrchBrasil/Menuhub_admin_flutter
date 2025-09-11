@@ -3,6 +3,7 @@ import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/prodcut_category_links.dart';
 
+import '../../../models/flavor_price.dart';
 import '../../../models/option_group.dart';
 
 class FlavorPriceTab extends StatelessWidget {
@@ -25,29 +26,27 @@ class FlavorPriceTab extends StatelessWidget {
         // Dentro do itemBuilder do ListView
         final sizeOption = sizeGroup.items[index];
 
-// Encontra o link de preço correspondente ao tamanho específico
-        final priceLink = product.categoryLinks.firstWhere(
-              (link) => link.optionItemId == sizeOption.id, // ✅ CORREÇÃO APLICADA AQUI
-          orElse: () => ProductCategoryLink(
-              categoryId: parentCategory.id!,
-              optionItemId: sizeOption.id, // Garanta que o fallback também tenha o id
-              price: 0,
-              product: product,
-              category: parentCategory),
+
+        // ✅ LÓGICA CORRIGIDA: Encontra o FlavorPrice correspondente ao tamanho
+        final flavorPrice = product.prices.firstWhere(
+              (p) => p.sizeOptionId == sizeOption.id,
+          // Fallback para o caso de algo dar errado (não deve acontecer com a lógica do Cubit)
+          orElse: () => FlavorPrice(sizeOptionId: sizeOption.id!, price: 0),
         );
+
+
+
 
 
         return _PriceRow(
           sizeName: sizeOption.name,
-          priceLink: priceLink,
-          // Dentro do widget _PriceRow, no callback onUpdate
-          onUpdate: (updatedLink) {
-            final updatedLinks = product.categoryLinks.map(
-                    (link) => link.optionItemId == updatedLink.optionItemId // ✅ CORREÇÃO APLICADA AQUI
-                    ? updatedLink
-                    : link
+          flavorPrice: flavorPrice,
+          // O onUpdate agora passa o FlavorPrice atualizado
+          onUpdate: (updatedPrice) {
+            final updatedPrices = product.prices.map(
+                    (p) => p.sizeOptionId == updatedPrice.sizeOptionId ? updatedPrice : p
             ).toList();
-            onUpdate(product.copyWith(categoryLinks: updatedLinks));
+            onUpdate(product.copyWith(prices: updatedPrices));
           },
         );
       },
@@ -58,10 +57,10 @@ class FlavorPriceTab extends StatelessWidget {
 // Widget auxiliar para cada linha de preço
 class _PriceRow extends StatelessWidget {
   final String sizeName;
-  final ProductCategoryLink priceLink;
-  final ValueChanged<ProductCategoryLink> onUpdate;
+  final FlavorPrice flavorPrice;
+  final ValueChanged<FlavorPrice> onUpdate;
 
-  const _PriceRow({required this.sizeName, required this.priceLink, required this.onUpdate});
+  const _PriceRow({required this.sizeName, required this.flavorPrice, required this.onUpdate});
 
   @override
   Widget build(BuildContext context) {
@@ -74,27 +73,27 @@ class _PriceRow extends StatelessWidget {
             SizedBox(
               width: 120,
               child: TextFormField(
-                initialValue: (priceLink.price / 100).toStringAsFixed(2),
+                initialValue: (flavorPrice.price / 100).toStringAsFixed(2),
                 decoration: const InputDecoration(labelText: 'Preço', prefixText: 'R\$ '),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (value) {
                   final doubleValue = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
-                  onUpdate(priceLink.copyWith(price: (doubleValue * 100).round()));
+                  onUpdate(flavorPrice.copyWith(price: (doubleValue * 100).round()));
                 },
               ),
             ),
             const SizedBox(width: 16),
             // TODO: Adicionar o Switch de status aqui
-            Switch(value: priceLink.isAvailable, onChanged: (val){
-              onUpdate(priceLink.copyWith(isAvailable: val));
+            Switch(value: flavorPrice.isAvailable, onChanged: (val){
+              onUpdate(flavorPrice.copyWith(isAvailable: val));
             }),
           ],
         ),
         const SizedBox(height: 8),
         TextFormField(
-          initialValue: priceLink.posCode,
+          initialValue: flavorPrice.posCode,
           decoration: const InputDecoration(labelText: 'Cód. PDV'),
-          onChanged: (value) => onUpdate(priceLink.copyWith(posCode: value)),
+          onChanged: (value) => onUpdate(flavorPrice.copyWith(posCode: value)),
         ),
       ],
     );

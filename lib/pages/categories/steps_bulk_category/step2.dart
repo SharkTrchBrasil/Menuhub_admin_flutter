@@ -6,6 +6,7 @@ import '../../../models/product.dart';
 import '../cubit/bulk_category_cubit.dart';
 import '../cubit/bulk_category_state.dart';
 
+
 class Step2SetPrices extends StatelessWidget {
   const Step2SetPrices({super.key});
 
@@ -107,7 +108,7 @@ class _ProductPriceRowState extends State<_ProductPriceRow> {
         children: [
           // Informações do produto
           Expanded(
-            flex: 3,
+            flex: 2,
             child: Text(widget.product.name, overflow: TextOverflow.ellipsis),
           ),
           // Campo de preço

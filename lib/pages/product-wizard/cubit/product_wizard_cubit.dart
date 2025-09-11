@@ -1,92 +1,50 @@
 import 'dart:async';
 
+
+import 'package:bloc/bloc.dart';
 import 'package:either_dart/either.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/core/di.dart';
+import 'package:totem_pro_admin/core/enums/beverage.dart';
+import 'package:totem_pro_admin/core/enums/foodtags.dart';
+import 'package:totem_pro_admin/core/enums/form_status.dart';
+import 'package:totem_pro_admin/core/enums/product_type.dart';
 import 'package:totem_pro_admin/models/catalog_product.dart';
+import 'package:totem_pro_admin/models/category.dart';
+import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/models/product.dart';
-
+import 'package:totem_pro_admin/models/prodcut_category_links.dart';
+import 'package:totem_pro_admin/models/product_variant_link.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
-
-import '../../../core/enums/form_status.dart';
-import '../../../core/enums/product_type.dart';
-import '../../../models/category.dart';
-import '../../../models/image_model.dart';
-import '../../../models/prodcut_category_links.dart';
-import '../../../models/product_variant_link.dart';
 import '../../../models/variant_option.dart';
-
-
 import 'product_wizard_state.dart';
+
 
 class ProductWizardCubit extends Cubit<ProductWizardState> {
   final ProductRepository _productRepository = getIt<ProductRepository>();
-  final int storeId; // ✅ O Cubit precisa saber a qual loja o produto pertence
+  final int storeId;
   Timer? _debounce;
 
-  // ✅ Construtor corrigido para receber o storeId
   ProductWizardCubit({required this.storeId}) : super(ProductWizardState.initial());
 
+  // ✅ 1. O MÉTODO startEditFlow(Category category) FOI REMOVIDO.
+  //    Ele pertencia ao CUBIT de Categorias.
 
-  void updateVariantLinkName(ProductVariantLink linkToUpdate, String newName) {
-    final updatedVariant = linkToUpdate.variant.copyWith(name: newName);
-    final updatedLink = linkToUpdate.copyWith(variant: updatedVariant);
-    updateVariantLink(updatedLink);
-  }
-
-
-  // ✨ MÉTODO CORRIGIDO: Não recebe mais o controller
-  void resetToSearch() {
-    emit(state.copyWith(
-      catalogProductSelected: false,
-      isImported: false,
-      productInCreation: Product(available: true, image: ImageModel(), price: 0),
-      searchResults: [],
-      searchStatus: SearchStatus.initial,
-      searchQuery: '', // Apenas limpa o estado
+  // ✅ 2. O MÉTODO startEditFlow(Product product) FOI MANTIDO.
+  //    Ele é o correto para iniciar a edição de um PRODUTO.
+  void startEditFlow(Product product) {
+    emit(ProductWizardState(
+      isEditMode: true,
+      editingProductId: product.id,
+      productInCreation: product,
+      categoryLinks: product.categoryLinks,
+      variantLinks: product.variantLinks ?? [],
+      productType: product.productType,
+      currentStep: 2, // Pula direto para a etapa de detalhes
     ));
   }
 
-  // ✨ MÉTODO CORRIGIDO: Atualiza o estado com o texto digitado
-  void onSearchQueryChanged(String query) {
-    // Atualiza o estado imediatamente para a UI refletir o texto
-    emit(state.copyWith(searchQuery: query));
-
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (query.length >= 3) {
-        _performSearch(query);
-      } else {
-        emit(state.copyWith(searchResults: [], searchStatus: SearchStatus.initial));
-      }
-    });
-  }
-
-
-
-
-
-
-
-
-
-
-  void addOptionToLink(VariantOption newOption, ProductVariantLink parentLink) {
-    // Encontra o link na lista do estado
-    final targetLink = state.variantLinks.firstWhere((link) => link.variant.id == parentLink.variant.id);
-
-    // Cria uma nova lista de opções, adicionando a nova
-    final updatedOptions = List<VariantOption>.from(targetLink.variant.options)..add(newOption);
-
-    // Cria cópias atualizadas dos objetos
-    final updatedVariant = targetLink.variant.copyWith(options: updatedOptions);
-    final updatedLink = targetLink.copyWith(variant: updatedVariant);
-
-    // Atualiza o link na lista principal do estado
-    updateVariantLink(updatedLink);
-  }
+  // --- MÉTODOS DE CONTROLE DO WIZARD ---
 
   void setProductType(ProductType type) {
     final showForm = (type == ProductType.PREPARED);
@@ -94,53 +52,36 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
       productType: type,
       catalogProductSelected: showForm,
       isImported: false,
-      productInCreation: Product(available: true, image: ImageModel(), price: 0),
-
-      // Também é uma boa prática resetar o estado da busca
+      productInCreation: Product(available: true),
       searchResults: [],
       searchStatus: SearchStatus.initial,
     ));
   }
 
-  void updateProduct(Product updatedProduct) {
-    emit(state.copyWith(productInCreation: updatedProduct));
-  }
-
-  void addVariantLink(ProductVariantLink link) {
-    final updatedLinks = List<ProductVariantLink>.from(state.variantLinks)..add(link);
-    emit(state.copyWith(variantLinks: updatedLinks));
-  }
-
-
-
-  void updateVariantLink(ProductVariantLink updatedLink) {
-    final currentLinks = List<ProductVariantLink>.from(state.variantLinks);
-    final index = currentLinks.indexWhere((link) => link.variant.id == updatedLink.variant.id);
-
-    if (index != -1) {
-      currentLinks[index] = updatedLink;
-      emit(state.copyWith(variantLinks: currentLinks));
+  void nextStep() {
+    final totalSteps = state.productType == ProductType.INDUSTRIALIZED ? 3 : 4;
+    if (state.currentStep < totalSteps) {
+      emit(state.copyWith(currentStep: state.currentStep + 1));
     }
+  }
+
+  void previousStep() {
+    if (state.currentStep > 1) {
+      emit(state.copyWith(currentStep: state.currentStep - 1));
+    }
+  }
+
+  // --- MÉTODOS DE BUSCA NO CATÁLOGO ---
+
+  void onSearchQueryChanged(String query) {
+    emit(state.copyWith(searchQuery: query));
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (query.length >= 3) _performSearch(query);
+    });
   }
 
   Future<void> _performSearch(String query) async {
-    emit(state.copyWith(searchStatus: SearchStatus.loading));
-    final result = await _productRepository.searchMasterProducts(query);
-    result.fold(
-          (error) => emit(state.copyWith(searchStatus: SearchStatus.failure)),
-          (products) => emit(state.copyWith(
-        searchStatus: SearchStatus.success,
-        searchResults: products,
-      )),
-    );
-  }
-
-
-  Future<void> searchCatalog(String query) async {
-    if (query.length < 3) {
-      emit(state.copyWith(searchResults: [], searchStatus: SearchStatus.initial));
-      return;
-    }
     emit(state.copyWith(searchStatus: SearchStatus.loading));
     final result = await _productRepository.searchMasterProducts(query);
     result.fold(
@@ -150,14 +91,12 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
   }
 
   void selectCatalogProduct(CatalogProduct catalogProduct) {
-    // Cria um novo `Product` a partir dos dados do catálogo
     final newProduct = state.productInCreation.copyWith(
       name: catalogProduct.name,
       description: catalogProduct.description,
       ean: catalogProduct.ean,
-      image: ImageModel(url: catalogProduct.imagePath!.url),
+      image: catalogProduct.imagePath != null ? ImageModel(url: catalogProduct.imagePath!.url) : null,
       masterProductId: catalogProduct.id,
-      // Aqui você pode pré-preencher a imagem também se o modelo permitir
     );
     emit(state.copyWith(
       productInCreation: newProduct,
@@ -166,70 +105,27 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     ));
   }
 
+  void resetToSearch() {
+    emit(state.copyWith(
+      catalogProductSelected: false,
+      isImported: false,
+      productInCreation: Product(available: true),
+      searchQuery: '',
+    ));
+  }
 
-  void onImageChanged(ImageModel newImage) {
-    final updatedProduct = state.productInCreation.copyWith(image: newImage);
+  // --- MÉTODOS PARA ATUALIZAR O PRODUTO EM MEMÓRIA ---
+
+  void updateProduct(Product updatedProduct) {
     emit(state.copyWith(productInCreation: updatedProduct));
   }
 
-
-  void removeVariantLink(ProductVariantLink link) {
-    final updatedLinks = List<ProductVariantLink>.from(state.variantLinks)..remove(link);
-    emit(state.copyWith(variantLinks: updatedLinks));
-  }
-
-  void reorderVariantLinks(int oldIndex, int newIndex) {
-    // Lógica padrão para reordenação
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-    final updatedLinks = List<ProductVariantLink>.from(state.variantLinks);
-    final item = updatedLinks.removeAt(oldIndex);
-    updatedLinks.insert(newIndex, item);
-    emit(state.copyWith(variantLinks: updatedLinks));
-  }
-
-
-
-
-  // Em ProductWizardCubit.dart
-
-  void nextStep() {
-    // A lógica de pulo foi removida. Apenas avança para o próximo passo.
-    // A UI decidirá qual tela mostrar.
-    final totalSteps = state.productType == ProductType.INDUSTRIALIZED ? 3 : 4;
-    if (state.currentStep < totalSteps) {
-      emit(state.copyWith(currentStep: state.currentStep + 1));
-    }
-  }
-
-  void previousStep() {
-    // A lógica de pulo reverso também foi removida.
-    if (state.currentStep > 1) {
-      emit(state.copyWith(currentStep: state.currentStep - 1));
-    }
-  }
-
-
-
-  void addCategoryLink(Category category) {
-    // Evita adicionar a mesma categoria duas vezes
-    if (state.categoryLinks.any((link) => link.category?.id == category.id)) return;
-
-    final currentProduct = state.productInCreation;
-
-    final newLink = ProductCategoryLink(
-      category: category,
-      product: currentProduct, // Passamos a referência do produto
-      categoryId: category.id!, // O ID da categoria que recebemos
-      price: currentProduct.price!, // Usamos o preço base do produto como padrão
-    );
-
-
+  // ✅ 3. MÉTODO 'addCategoryLink' ATUALIZADO E SEGURO
+  void addCategoryLink(ProductCategoryLink newLink) {
+    if (state.categoryLinks.any((link) => link.category?.id == newLink.category?.id)) return;
     final updatedLinks = List<ProductCategoryLink>.from(state.categoryLinks)..add(newLink);
     emit(state.copyWith(categoryLinks: updatedLinks));
   }
-
 
   void removeCategoryLink(ProductCategoryLink link) {
     final updatedLinks = List<ProductCategoryLink>.from(state.categoryLinks)..remove(link);
@@ -245,17 +141,155 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     }
   }
 
-  // ✅ MÉTODO DE SALVAMENTO ATUALIZADO
+  // --- MÉTODOS PARA ATRIBUTOS (COPIADOS DO EDIT CUBIT) ---
+
+  void controlStockToggled(bool controlStock) {
+    final p = state.productInCreation;
+    updateProduct(p.copyWith(controlStock: controlStock, stockQuantity: controlStock ? p.stockQuantity : 0));
+  }
+
+  void stockQuantityChanged(String value) {
+    updateProduct(state.productInCreation.copyWith(stockQuantity: int.tryParse(value) ?? 0));
+  }
+
+  void unitChanged(String unit) {
+    updateProduct(state.productInCreation.copyWith(unit: unit));
+  }
+
+  void weightChanged(String weight) {
+    updateProduct(state.productInCreation.copyWith(weight: int.tryParse(weight)));
+  }
+
+  void servesUpToChanged(int? count) {
+    updateProduct(state.productInCreation.copyWith(servesUpTo: count));
+  }
+
+  void toggleDietaryTag(FoodTag tag) {
+    final newTags = Set<FoodTag>.from(state.productInCreation.dietaryTags);
+    newTags.contains(tag) ? newTags.remove(tag) : newTags.add(tag);
+    updateProduct(state.productInCreation.copyWith(dietaryTags: newTags));
+  }
+
+  void toggleBeverageTag(BeverageTag tag) {
+    final newTags = Set<BeverageTag>.from(state.productInCreation.beverageTags);
+    newTags.contains(tag) ? newTags.remove(tag) : newTags.add(tag);
+    updateProduct(state.productInCreation.copyWith(beverageTags: newTags));
+  }
+
+
+
+
+
+
+  // Em ProductWizardCubit
+
+// --- MÉTODOS PARA A ABA "GRUPO DE COMPLEMENTOS" ---
+
+// Remove um grupo de complementos (um link inteiro) do produto em memória
+  void removeVariantLink(ProductVariantLink linkToRemove) {
+    final updatedLinks = List<ProductVariantLink>.from(state.variantLinks)
+      ..removeWhere((link) => link.variant.id == linkToRemove.variant.id);
+    updateProduct(state.productInCreation.copyWith(variantLinks: updatedLinks));
+  }
+
+// Atualiza um grupo de complementos (ex: regras de min/max)
+  void updateVariantLink(ProductVariantLink updatedLink) {
+    final updatedLinks = state.variantLinks.map((link) {
+      return link.variant.id == updatedLink.variant.id ? updatedLink : link;
+    }).toList();
+    updateProduct(state.productInCreation.copyWith(variantLinks: updatedLinks));
+  }
+
+
+
+// Altera o nome do grupo de complementos
+  void updateVariantLinkName(ProductVariantLink linkToUpdate, String newName) {
+    final updatedVariant = linkToUpdate.variant.copyWith(name: newName);
+    final updatedLink = linkToUpdate.copyWith(variant: updatedVariant);
+    updateVariantLink(updatedLink); // Reutiliza o método que já temos!
+  }
+
+// Adiciona uma nova opção (ex: "Bacon") a um grupo existente (ex: "Adicionais")
+  void addOptionToLink(VariantOption newOption, ProductVariantLink parentLink) {
+    final updatedOptions = List<VariantOption>.from(parentLink.variant.options)..add(newOption);
+    final updatedLink = parentLink.copyWith(
+      variant: parentLink.variant.copyWith(options: updatedOptions),
+    );
+    updateVariantLink(updatedLink);
+  }
+
+// Atualiza uma opção que já existe dentro de um grupo
+  void updateOptionInLink({
+    required VariantOption updatedOption,
+    required ProductVariantLink parentLink,
+  }) {
+    final updatedOptions = parentLink.variant.options.map((option) {
+      return option.id == updatedOption.id ? updatedOption : option;
+    }).toList();
+    final updatedLink = parentLink.copyWith(
+      variant: parentLink.variant.copyWith(options: updatedOptions),
+    );
+    updateVariantLink(updatedLink);
+  }
+
+// Remove uma opção de dentro de um grupo
+  void removeOptionFromLink({
+    required VariantOption optionToRemove,
+    required ProductVariantLink parentLink,
+  }) {
+    final updatedOptions = parentLink.variant.options
+        .where((option) => option.id != optionToRemove.id)
+        .toList();
+    final updatedLink = parentLink.copyWith(
+      variant: parentLink.variant.copyWith(options: updatedOptions),
+    );
+    updateVariantLink(updatedLink);
+  }
+
+// Reordena a lista de grupos de complementos
+  void reorderVariantLinks(int oldIndex, int newIndex) {
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    final updatedLinks = List<ProductVariantLink>.from(state.variantLinks);
+    final item = updatedLinks.removeAt(oldIndex);
+    updatedLinks.insert(newIndex, item);
+    updateProduct(state.productInCreation.copyWith(variantLinks: updatedLinks));
+  }
+
+  void addVariantLink(ProductVariantLink newLink) {
+    // Garante que não vamos adicionar um grupo que já existe
+    if (state.variantLinks.any((link) => link.variant.id == newLink.variant.id)) return;
+
+    final updatedLinks = List<ProductVariantLink>.from(state.variantLinks)..add(newLink);
+    // Reutiliza o método 'updateProduct' que já temos para manter o código limpo
+    updateProduct(state.productInCreation.copyWith(variantLinks: updatedLinks));
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // --- AÇÃO FINAL DE SALVAR ---
+
   Future<void> saveProduct() async {
     emit(state.copyWith(submissionStatus: FormStatus.loading));
 
-    // Monta o objeto final do produto com os links do estado
     final finalProduct = state.productInCreation.copyWith(
       categoryLinks: state.categoryLinks,
       variantLinks: state.variantLinks,
     );
 
-    // Decide se deve CRIAR ou ATUALIZAR
     final Future<Either<String, Product>> result;
     if (state.isEditMode) {
       result = _productRepository.updateProduct(storeId, finalProduct);
@@ -269,79 +303,13 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
 
     result.fold(
           (error) => emit(state.copyWith(submissionStatus: FormStatus.error, errorMessage: error)),
-          (product) => emit(state.copyWith(submissionStatus: FormStatus.success)),
+      // ✅ MELHORIA: Atualiza o estado com o produto final que veio do servidor
+          (product) => emit(state.copyWith(
+        submissionStatus: FormStatus.success,
+        productInCreation: product,
+      )),
     );
   }
-
-
-  void updateOptionInLink({
-    required VariantOption updatedOption,
-    required ProductVariantLink parentLink,
-  }) {
-    // Encontra o link pai na lista de links do estado
-    final targetLink = state.variantLinks.firstWhere((link) => link.variant.id == parentLink.variant.id);
-
-    // Cria uma nova lista de opções, substituindo a antiga pela atualizada
-    final updatedOptions = targetLink.variant.options.map((option) {
-      return option.id == updatedOption.id ? updatedOption : option;
-    }).toList();
-
-    // Cria uma cópia atualizada do link com a nova lista de opções
-    final updatedLink = targetLink.copyWith(
-      variant: targetLink.variant.copyWith(options: updatedOptions),
-    );
-
-    // Finalmente, atualiza o link na lista principal do estado
-    updateVariantLink(updatedLink);
-  }
-
-
-  void removeOptionFromLink({
-    required VariantOption optionToRemove,
-    required ProductVariantLink parentLink,
-  }) {
-    final targetLink = state.variantLinks.firstWhere((link) => link.variant.id == parentLink.variant.id);
-
-    // Cria uma nova lista de opções, removendo a opção desejada
-    final updatedOptions = targetLink.variant.options.where((option) {
-      return option.id != optionToRemove.id;
-    }).toList();
-
-    final updatedLink = targetLink.copyWith(
-      variant: targetLink.variant.copyWith(options: updatedOptions),
-    );
-
-    updateVariantLink(updatedLink);
-  }
-
-  // ✅ NOVO MÉTODO PARA INICIAR O FLUXO DE EDIÇÃO
-  void startEditFlow(Product product) {
-    emit(ProductWizardState(
-      isEditMode: true,
-      editingProductId: product.id,
-      productInCreation: product,
-      categoryLinks: product.categoryLinks,
-      variantLinks: product.variantLinks ?? [],
-      productType: product.productType,
-      currentStep: 2, // Pula direto para a etapa de detalhes
-    ));
-  }
-
-  // ✅ NOVO MÉTODO PARA LIMPAR O FORMULÁRIO (útil ao fechar o wizard)
-  void clearForm() {
-    emit(ProductWizardState.initial());
-  }
-
-
-
-
-
-
-
-
-
-
-
 
   @override
   Future<void> close() {

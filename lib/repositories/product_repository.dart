@@ -42,9 +42,7 @@ class ProductRepository {
   }
 
 
-// DENTRO DA CLASSE ProductRepository
 
-// ✅ NOVO MÉTODO PARA ATUALIZAR AS REGRAS DE UM LINK
   Future<Either<String, ProductVariantLink>> updateVariantLinkRules({
     required int storeId,
     required int productId,
@@ -291,7 +289,7 @@ class ProductRepository {
     }
   }
 
-  // (Assumindo que você tenha um ProductRepository)
+
   Future<void> updateProductsAvailability({
     required int storeId,
     required List<int> productIds,
@@ -395,6 +393,8 @@ class ProductRepository {
       return Left(e.toString());
     }
   }
+
+
   /// Cria um "sabor" (produto para categoria customizável).
   /// Usa a rota `/flavor-product`.
   Future<Either<String, Product>> createFlavorProduct(
@@ -585,6 +585,29 @@ class ProductRepository {
 
 
 
+
+
+
+// ✅ NOVO MÉTODO PARA PAUSAR/ATIVAR UM VÍNCulo
+  Future<Either<String, void>> toggleLinkAvailability({
+    required int storeId,
+    required int productId,
+    required int categoryId,
+    required bool isAvailable, // O NOVO status de disponibilidade
+  }) async {
+    try {
+      // Chama a rota PATCH que criamos no backend para o vínculo específico
+      await _dio.patch(
+        '/stores/$storeId/products/$productId/categories/$categoryId',
+        data: {
+          'is_available': isAvailable, // Envia apenas o campo que queremos alterar
+        },
+      );
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(e.response?.data['detail'] ?? 'Erro ao atualizar status do produto na categoria.');
+    }
+  }
 
 
 }

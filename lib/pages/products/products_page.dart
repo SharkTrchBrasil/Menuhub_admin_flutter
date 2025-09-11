@@ -12,8 +12,13 @@ import 'package:totem_pro_admin/pages/products/widgets/product_tab.dart';
 
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
+import '../../core/di.dart';
 import '../../core/responsive_builder.dart';
 import '../../cubits/scaffold_ui_cubit.dart';
+import '../../repositories/category_repository.dart';
+import '../../repositories/product_repository.dart';
+import '../../widgets/app_toasts.dart' as BotToast;
+import 'cubit/products_cubit.dart';
 
 
 class CategoryProductPage extends StatefulWidget {
@@ -32,6 +37,7 @@ class CategoryProductPageState extends State<CategoryProductPage> {
     _scrollController.dispose();
     super.dispose();
   }
+
   @override
   void initState() {
     super.initState();
@@ -42,46 +48,11 @@ class CategoryProductPageState extends State<CategoryProductPage> {
   }
 
 
-  void _showMobileActionSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return SafeArea(
-          child: Wrap(
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.add_circle_outline),
-                title: const Text('Adicionar Categoria'),
-                onTap: () {
-                  Navigator.of(context).pop(); // Fecha o BottomSheet
-                  _navigateToCreateCategory();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.add_box_outlined),
-                title: const Text('Adicionar Produto'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _navigateToCreateProduct();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.add_link_outlined),
-                title: const Text('Adicionar Complemento'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _navigateToCreateVariant();
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
   Future<bool> hasContent() async {
     // ...
-    final state = context.read<StoresManagerCubit>().state;
+    final state = context
+        .read<StoresManagerCubit>()
+        .state;
     if (state is StoresManagerLoaded) {
       final hasCategories =
           state.activeStore?.relations.categories.isNotEmpty ?? false;
@@ -106,87 +77,111 @@ class CategoryProductPageState extends State<CategoryProductPage> {
   void _navigateToCreateProduct() {
     context.push('/stores/${widget.storeId}/products/new');
   }
-  void _navigateToCreateVariant() {
-    context.push('/stores/${widget.storeId}/variants/new');
-  }
+
 
   @override
   Widget build(BuildContext context) {
-
-
     final bool isMobile = ResponsiveBuilder.isMobile(context);
-    final double appBarHeight = isMobile ? 160.0 : 180.0; // Maior no mobile
+    final double appBarHeight = isMobile ? 160.0 : 180.0;
+
+    // ✅ PASSO 1: FORNEÇA O CUBIT DE AÇÕES NO TOPO DA ÁRVORE DE WIDGETS DA TELA.
+    return BlocProvider(
+      create: (context) =>
+          ProductsCubit(
+            categoryRepository: getIt<CategoryRepository>(),
+            // Se o ProductsCubit também for gerenciar produtos, adicione o repositório aqui:
+             productRepository: getIt<ProductRepository>(),
+          ),
+      child: DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          floatingActionButton: isMobile
+              ? FloatingActionButton(
+            // A navegação para criar continua sendo uma ação de UI, o que está correto.
+            onPressed: _navigateToCreateCategory,
+            child: const Icon(Icons.add),
+          )
+              : null,
+          // ✅ PASSO 2: ADICIONE O LISTENER PARA GERENCIAR O FEEDBACK VISUAL
+          //    DE FORMA CENTRALIZADA PARA TODAS AS AÇÕES.
+          body: BlocListener<ProductsCubit, ProductsState>(
+            listener: (context, state) {
 
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        // ✅ 3. ADICIONE O FLOATINGACTIONBUTTON CONDICIONALMENTE
-        floatingActionButton: isMobile
-            ? FloatingActionButton(
-          onPressed: () => _showMobileActionSheet(context),
-          child: const Icon(Icons.add),
-        )
-            : null, // Sem botão no deskto
-        body: BlocBuilder<StoresManagerCubit, StoresManagerState>(
-          builder: (context, state) {
-            if (state is! StoresManagerLoaded) {
-              return const Center(child: DotLoading());
-            }
 
-            final allCategories = state.activeStore?.relations.categories ?? [];
-            final allProducts = state.activeStore?.relations.products ?? [];
-            final allVariants = state.activeStore?.relations.variants ?? []; // ✅ Obtenha os variants
-            return NestedScrollView(
-              controller: _scrollController,
-              headerSliverBuilder: (context, innerBoxIsScrolled) {
-                // ✅ ESTRUTURA DO CABEÇALHO CORRIGIDA E MAIS ROBUSTA
-                return <Widget>[
-                  SliverOverlapAbsorber(
-                    handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                    sliver: SliverAppBar(
-                      expandedHeight: appBarHeight,
-                      // Usamos uma SliverAppBar invisível para agrupar os cabeçalhos
-                      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                      foregroundColor: Theme.of(context).colorScheme.onBackground,
-                     // pinned: true, // A TabBar será fixada
-                      automaticallyImplyLeading: false,
-                      // O conteúdo que rola para cima (seu PageHeader)
-                      flexibleSpace: FlexibleSpaceBar(
-                        background: PageHeader(),
-                        collapseMode: CollapseMode.pin,
+              if (state is ProductsActionSuccess) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message),
+                      backgroundColor: Colors.green),
+                );
+              }
+              else if (state is ProductsActionFailure) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(state.error), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: BlocBuilder<StoresManagerCubit, StoresManagerState>(
+              builder: (context, state) {
+                if (state is! StoresManagerLoaded) {
+                  return const Center(child: DotLoading());
+                }
+
+                final allCategories = state.activeStore?.relations.categories ??
+                    [];
+                final allProducts = state.activeStore?.relations.products ?? [];
+                final allVariants = state.activeStore?.relations.variants ?? [];
+
+                // O restante da sua lógica de UI continua exatamente igual...
+                return NestedScrollView(
+                  controller: _scrollController,
+                  headerSliverBuilder: (context, innerBoxIsScrolled) {
+                    return <Widget>[
+                      SliverOverlapAbsorber(
+                        handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                            context),
+                        sliver: SliverAppBar(
+                          expandedHeight: appBarHeight,
+                          backgroundColor: Theme
+                              .of(context)
+                              .scaffoldBackgroundColor,
+                          foregroundColor: Theme
+                              .of(context)
+                              .colorScheme
+                              .onBackground,
+                          automaticallyImplyLeading: false,
+                          flexibleSpace: FlexibleSpaceBar(
+                            background: PageHeader(),
+                            collapseMode: CollapseMode.pin,
+                          ),
+                          bottom: PageTabBar(),
+                        ),
                       ),
-                      // A parte de baixo da AppBar, que será a TabBar
-                      bottom: PageTabBar(),
-                    ),
+                    ];
+                  },
+                  body: TabBarView(
+                    children: [
+                      MenuContent(
+                        allCategories: allCategories,
+                        storeId: widget.storeId,
+                      ),
+                      ProductListView(
+                        storeId: widget.storeId,
+                        products: allProducts,
+                        allCategories: allCategories,
+                        onAddProduct: _navigateToCreateProduct,
+                      ),
+                      VariantsTabView(
+                          variants: allVariants, storeId: widget.storeId),
+                    ],
                   ),
-                ];
+                );
               },
-              body: TabBarView(
-                children: [
-                  MenuContent(
-                    allCategories: allCategories,
-
-                    storeId: widget.storeId,
-                  ),
-                  ProductListView(
-                    storeId: widget.storeId,
-                    products: allProducts,
-                    allCategories: allCategories,
-                    onAddProduct: _navigateToCreateProduct,
-                  ),
-                  // ✅ Conecte o novo widget aqui
-                  VariantsTabView(variants: allVariants, storeId: widget.storeId,),
-
-                ],
-              ),
-            );
-          },
+            ),
+          ),
         ),
-
       ),
     );
   }
 }
-
-

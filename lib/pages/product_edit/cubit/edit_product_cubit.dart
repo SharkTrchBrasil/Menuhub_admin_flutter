@@ -1,8 +1,10 @@
 import 'package:bloc/bloc.dart';
+import 'package:bot_toast/bot_toast.dart';
+import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
-import 'package:totem_pro_admin/core/enums/form_status.dart' hide FormStatus;
+import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/prodcut_category_links.dart';
@@ -10,6 +12,7 @@ import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../../core/enums/beverage.dart';
+import '../../../core/enums/cashback_type.dart';
 import '../../../core/enums/foodtags.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
@@ -57,38 +60,44 @@ class EditProductCubit extends Cubit<EditProductState> {
     emit(state.copyWith(editedProduct: state.editedProduct.copyWith(categoryLinks: updatedLinks)));
   }
 
-  // --- Métodos para a Aba "Disponibilidade" ---
-  void availabilityChanged(bool isAvailable) {
-    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(available: isAvailable)));
-  }
-  // (Adicione aqui outros métodos para os switches: featured, controlStock, etc.)
 
-  // --- Ação Principal de Salvar ---
   Future<void> saveProduct() async {
-    if (!state.isDirty) {
-      print("Nenhuma alteração detectada, não salvando.");
-      return;
-    }
+    // A verificação de 'isDirty' agora é feita apenas na UI, o que está ótimo.
+    // Se o botão está habilitado, significa que há mudanças.
+
     emit(state.copyWith(status: FormStatus.loading));
 
     final result = await _productRepository.updateProduct(_storeId, state.editedProduct);
 
     result.fold(
-          (error) => emit(state.copyWith(status: FormStatus.error, errorMessage: error)),
-          (updatedProductFromServer) {
-        // ✅ Sucesso: Atualiza ambos os produtos no estado com a versão final que veio do servidor.
-        emit(state.copyWith(
-          status: FormStatus.success,
-          editedProduct: updatedProductFromServer,
-          // Também atualiza o 'original' para que 'isDirty' se torne falso
-          // e o botão Salvar seja desabilitado até a próxima mudança.
-          originalProduct: updatedProductFromServer,
-        ));
+          (error) {
+        if (!isClosed) {
+          // Em caso de erro, apenas emitimos o erro. O estado continua 'sujo'
+          // para que o usuário possa tentar salvar novamente.
+          emit(state.copyWith(status: FormStatus.error, errorMessage: error));
+        }
+      },
+          (savedProduct) {
+        if (!isClosed) {
+          // ✅ --- AQUI ESTÁ A MÁGICA ---
+
+          // 1. Emite o estado de SUCESSO. O BlocListener na UI vai pegar
+          //    este evento e mostrar o SnackBar verde.
+          emit(state.copyWith(status: FormStatus.success));
+
+          // 2. Emite um NOVO estado "limpo" logo em seguida.
+          //    Ele usa o produto recém-salvo (retornado pela API) como a nova
+          //    base. Agora, `initialProduct` e `editedProduct` serão iguais.
+          //    Isso fará com que `isDirty` se torne `false`, e o BlocBuilder
+          //    na UI vai reconstruir o botão no estado desabilitado.
+          emit(EditProductState.fromProduct(savedProduct));
+        }
       },
     );
   }
 
-// Em EditProductCubit
+
+
 
 // Este método precisa do BuildContext para poder abrir o painel lateral
   Future<void> addNewComplementGroup(BuildContext context) async {
@@ -138,9 +147,6 @@ class EditProductCubit extends Cubit<EditProductState> {
   }
 
 
-  // Em EditProductCubit
-
-// --- Métodos para a Aba "Complementos" ---
 
   void addVariantLink(ProductVariantLink newLink) {
     final updatedLinks = List<ProductVariantLink>.from(state.editedProduct.variantLinks ?? [])..add(newLink);
@@ -218,48 +224,155 @@ class EditProductCubit extends Cubit<EditProductState> {
 
 
 
+// ✅ --- LÓGICA PARA A ABA "DISPONIBILIDADE E OPÇÕES" ---
 
+  void availabilityChanged(bool isAvailable) {
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(available: isAvailable)));
+  }
+
+  void featuredToggled(bool isFeatured) {
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(featured: isFeatured)));
+  }
+
+  void controlStockToggled(bool controlStock) {
+    final stockQuantity = controlStock ? state.editedProduct.stockQuantity : 0;
+    emit(state.copyWith(
+      editedProduct: state.editedProduct.copyWith(
+        controlStock: controlStock,
+        stockQuantity: stockQuantity,
+      ),
+    ));
+  }
+
+  void stockQuantityChanged(String value) {
+    final quantity = int.tryParse(value) ?? 0;
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(stockQuantity: quantity)));
+  }
+
+// ✅ --- LÓGICA PARA A SEÇÃO DE ATRIBUTOS (a que faltava) ---
 
   void servesUpToChanged(int? count) {
-    // Adapte para chamar o método de update correto do seu Cubit
-    // Ex: updateProduct(product.copyWith(servesUpTo: count));
+    emit(state.copyWith(
+      editedProduct: state.editedProduct.copyWith(servesUpTo: count),
+    ));
   }
 
   void weightChanged(String weight) {
-    // Adapte para chamar o método de update correto do seu Cubit
-    // Ex: updateProduct(product.copyWith(weight: int.tryParse(weight)));
+    emit(state.copyWith(
+      // tryParse é seguro: se o texto for inválido, ele retorna null
+      editedProduct: state.editedProduct.copyWith(weight: int.tryParse(weight)),
+    ));
   }
 
   void unitChanged(String unit) {
-    // Adapte para chamar o método de update correto do seu Cubit
-    // Ex: updateProduct(product.copyWith(unit: unit));
+    emit(state.copyWith(
+      editedProduct: state.editedProduct.copyWith(unit: unit),
+    ));
   }
 
-// Em seu CUBIT
-
   void toggleDietaryTag(FoodTag tag) {
-    final product = state.editedProduct; // ou state.productInCreation
+    final product = state.editedProduct;
     final newTags = Set<FoodTag>.from(product.dietaryTags);
     if (newTags.contains(tag)) {
       newTags.remove(tag);
     } else {
       newTags.add(tag);
     }
-    // Chame o método de update correto do seu CUBIT
-    // Ex: emit(state.copyWith(editedProduct: product.copyWith(dietaryTags: newTags)));
+    emit(state.copyWith(editedProduct: product.copyWith(dietaryTags: newTags)));
   }
 
   void toggleBeverageTag(BeverageTag tag) {
-    final product = state.editedProduct; // ou state.productInCreation
+    final product = state.editedProduct;
     final newTags = Set<BeverageTag>.from(product.beverageTags);
     if (newTags.contains(tag)) {
       newTags.remove(tag);
     } else {
       newTags.add(tag);
     }
-    // Chame o método de update correto do seu CUBIT
-    // Ex: emit(state.copyWith(editedProduct: product.copyWith(beverageTags: newTags)));
+    emit(state.copyWith(editedProduct: product.copyWith(beverageTags: newTags)));
   }
+
+
+// Em EditProductCubit.dart
+
+// --- Métodos para a Nova Aba "Cashback" ---
+
+  void cashbackTypeChanged(CashbackType? newType) {
+    if (newType == null) return;
+
+    // Se o tipo for mudado para 'nenhum', zera o valor por segurança.
+    final newCashbackValue = (newType == CashbackType.none) ? 0 : state.editedProduct.cashbackValue;
+
+    emit(state.copyWith(
+      editedProduct: state.editedProduct.copyWith(
+        cashbackType: newType,
+        cashbackValue: newCashbackValue,
+      ),
+    ));
+  }
+
+  void cashbackValueChanged(String value) {
+    final product = state.editedProduct;
+    int newValueInCents = 0;
+
+    if (product.cashbackType == CashbackType.fixed) {
+      // Converte de R$ para centavos
+      newValueInCents = (UtilBrasilFields.converterMoedaParaDouble(value) * 100).toInt();
+    } else {
+      // Para percentual, o valor já é o número inteiro
+      newValueInCents = int.tryParse(value) ?? 0;
+    }
+
+    emit(state.copyWith(
+      editedProduct: product.copyWith(cashbackValue: newValueInCents),
+    ));
+  }
+
+
+  void addCategoryLink(ProductCategoryLink newLink) {
+    // Evita adicionar a mesma categoria duas vezes
+    if (state.editedProduct.categoryLinks.any((link) => link.categoryId == newLink.categoryId)) {
+      return;
+    }
+    final updatedLinks = List<ProductCategoryLink>.from(state.editedProduct.categoryLinks)..add(newLink);
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(categoryLinks: updatedLinks)));
+  }
+
+  void removeCategoryLink(ProductCategoryLink linkToRemove) {
+    final updatedLinks = List<ProductCategoryLink>.from(state.editedProduct.categoryLinks)
+      ..removeWhere((link) => link.categoryId == linkToRemove.categoryId);
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(categoryLinks: updatedLinks)));
+  }
+
+  void updateCategoryLink(ProductCategoryLink updatedLink) {
+    final updatedLinks = state.editedProduct.categoryLinks.map((link) {
+      return link.categoryId == updatedLink.categoryId ? updatedLink : link;
+    }).toList();
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(categoryLinks: updatedLinks)));
+  }
+
+
+
+  Future<void> togglePauseInCategory(ProductCategoryLink linkToToggle) async {
+
+
+    final result = await _productRepository.toggleLinkAvailability(
+      storeId: _storeId,
+      productId: linkToToggle.productId!,
+      categoryId: linkToToggle.categoryId,
+      isAvailable: !linkToToggle.isAvailable, // Envia o valor invertido
+    );
+
+
+
+    result.fold(
+            (error) => BotToast.showText(text: "Erro: $error"),
+            (_) { /* Sucesso! O socket vai atualizar a UI, não precisamos fazer nada. */ }
+    );
+  }
+
+
+
 
 
 

@@ -219,7 +219,62 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   }
 
 
+  Category? getCategoryById(int categoryId) {
+    final currentState = state;
+    // Garante que o estado seja 'Loaded' e que haja uma loja ativa.
+    if (currentState is! StoresManagerLoaded || currentState.activeStoreWithRole == null) {
+      log('❌ [getCategoryById] Tentou buscar categoria, mas o estado não está carregado.');
+      return null;
+    }
 
+    try {
+      // Acessa a lista de categorias completas que já está no estado.
+      final allCategories = currentState.activeStoreWithRole!.store.relations.categories;
+
+      // Encontra e retorna a categoria correspondente.
+      return allCategories.firstWhere((category) => category.id == categoryId);
+    } catch (e) {
+      // 'firstWhere' lança um erro se não encontrar, então capturamos.
+      log('⚠️ [getCategoryById] Categoria com ID $categoryId não encontrada no estado atual.');
+      return null;
+    }
+  }
+
+// Em: cubits/store_manager_cubit.dart
+  Product? getProductById(int productId) {
+    final currentState = state;
+    if (currentState is! StoresManagerLoaded || currentState.activeStoreWithRole == null) {
+      return null;
+    }
+    try {
+      // Acessa a lista de produtos completa que já está no estado.
+      final allProducts = currentState.activeStoreWithRole!.store.relations.products;
+      return allProducts.firstWhere((p) => p.id == productId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+
+
+
+
+  /// Busca um grupo de complemento (Variant) completo pelo seu ID
+  /// dentro do estado atual da loja ativa.
+  Variant? getVariantById(int variantId) {
+    final currentState = state;
+    if (currentState is! StoresManagerLoaded || currentState.activeStoreWithRole == null) {
+      return null;
+    }
+    try {
+      // Acessa a lista de variantes que já está no estado.
+      final allVariants = currentState.activeStoreWithRole!.store.relations.variants;
+      return allVariants.firstWhere((variant) => variant.id == variantId);
+    } catch (e) {
+      // Retorna nulo se o 'firstWhere' não encontrar o item
+      return null;
+    }
+  }
 
 
 

@@ -12,7 +12,7 @@ enum CreateComplementStep {
   copyGroup_SetRules,
 }
 
-enum FormStatus { initial, loading, success, error }
+
 enum GroupType { ingredients, specifications, crossSell, disposables }
 
 class CreateComplementGroupState extends Equatable {

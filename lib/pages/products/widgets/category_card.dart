@@ -1,20 +1,18 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/svg.dart';
+
 import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
+
 import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_list_item.dart';
-import 'package:totem_pro_admin/repositories/category_repository.dart';
+
 import 'package:totem_pro_admin/services/dialog_service.dart';
-import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
-import '../../../core/di.dart';
-import '../../../core/responsive_builder.dart';
-import 'package:bot_toast/bot_toast.dart';
 
 import '../../categories/widgets/category_card_header.dart';
 import '../../categories/widgets/empty_category.dart';
+import '../cubit/products_cubit.dart';
 
 
 class CategoryCard extends StatefulWidget {
@@ -50,91 +48,44 @@ class _CategoryCardState extends State<CategoryCard> {
     super.dispose();
   }
 
-  // ✨ 2. Lógica para salvar o nome editado
-  Future<void> _saveCategoryName() async {
+  void _saveCategoryName() {
+    // A validação continua aqui, pois é controle de UI
     if (_nameController.text.trim().isEmpty || _nameController.text == widget.category.name) {
       setState(() => _isEditingName = false);
       return;
     }
-
-    final updatedCategory = widget.category.copyWith(name: _nameController.text.trim());
-    final result = await getIt<CategoryRepository>().updateCategory(widget.storeId, updatedCategory);
-
-    result.fold(
-          (error) => BotToast.showText(text: "Erro ao salvar: $error"),
-          (success) {
-        BotToast.showText(text: "Categoria atualizada!");
-
-      },
+    // Delega a ação para o Cubit
+    context.read<ProductsCubit>().updateCategoryName(
+      widget.storeId,
+      widget.category,
+      _nameController.text,
     );
+    // A UI local é atualizada imediatamente
     setState(() => _isEditingName = false);
   }
 
-  // Lógica para pausar/ativar a categoria
-  Future<void> _toggleCategoryStatus() async {
-    // 1. Cria uma cópia da categoria com o status invertido
-    final updatedCategory = widget.category.copyWith(active: !widget.category.active);
-
-    // Mostra um feedback de carregamento
-    BotToast.showLoading();
-
-    // 2. Chama o repositório para salvar a mudança no backend
-    final result = await getIt<CategoryRepository>().updateCategory(widget.storeId, updatedCategory);
-
-    BotToast.closeAllLoading();
-
-    result.fold(
-          (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.red));
-        }
-      },
-          (success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Status da categoria atualizado!")));
-          // 3. Avisa o Cubit global para atualizar a UI de todo o app
-
-        }
-      },
-    );
+  void _toggleCategoryStatus() {
+    context.read<ProductsCubit>().toggleCategoryStatus(widget.storeId, widget.category);
   }
 
 
-  Future<void> _deleteCategory(BuildContext context, int storeId, Category category) async {
+  Future<void> _deleteCategory() async {
     final confirmed = await DialogService.showConfirmationDialog(
       context,
       title: 'Confirmar Exclusão',
-      content: 'Tem certeza que deseja excluir a categoria "${category.name}"?',
+      content: 'Tem certeza que deseja excluir a categoria "${widget.category.name}"?',
     );
 
     if (confirmed == true && context.mounted) {
-      BotToast.showLoading();
-      final result = await getIt<CategoryRepository>().deleteCategory(storeId, category.id!);
-      BotToast.closeAllLoading();
-
-      result.fold(
-            (error) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao excluir: error'), backgroundColor: Colors.red));
-          }
-        },
-            (success) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Categoria "${category.name}" excluída.')));
-            // Avisa o Cubit global para atualizar a UI
-
-          }
-        },
-      );
+      // Apenas notifica o Cubit sobre a intenção de deletar
+      context.read<ProductsCubit>().deleteCategory(widget.storeId, widget.category);
     }
   }
 
 
 
 
-  // Em _CategoryCardState
-
-  void _navigateToAddItem() async { // ✨ 1. Transforma o método em async
+  void _navigateToAddItem() async {
     // 2. Espera o resultado da navegação (a tela do wizard)
     final result = await context.push<bool>(
       '/stores/${widget.storeId}/products/create',
@@ -153,7 +104,17 @@ class _CategoryCardState extends State<CategoryCard> {
   }
 
   void _navigateToEditCategory() {
-    context.push('/stores/${widget.storeId}/categories/${widget.category.id}', extra: widget.category);
+
+    context.goNamed(
+      'category-edit', // Chama a rota de edição pelo nome
+      pathParameters: {
+        'storeId': widget.storeId.toString(),
+        'categoryId': widget.category.id.toString(),
+      },
+      extra: widget.category, // Continuamos enviando o 'extra' para o carregamento rápido!
+    );
+
+
   }
 
   @override
@@ -180,12 +141,12 @@ class _CategoryCardState extends State<CategoryCard> {
             onAddItem: _navigateToAddItem,
             onToggleStatus: _toggleCategoryStatus,
             onEditCategory: _navigateToEditCategory,
-            onDeleteCategory: () => _deleteCategory(context, widget.storeId, widget.category),
+            onDeleteCategory: () => _deleteCategory(),
           ),
 
           // A lista de produtos
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(8.0),
             child: widget.products.isEmpty
                 ? EmptyCategoryCardContent(onAddItem: _navigateToAddItem)
                 : ListView.separated(
@@ -198,16 +159,24 @@ class _CategoryCardState extends State<CategoryCard> {
                 // ✅ --- A LÓGICA PARA ENCONTRAR O PREÇO CORRETO VIVE AQUI ---
                 int priceForThisCategory = 0;
                 try {
-                  // Encontra o link específico para esta categoria
-                  final link = product.categoryLinks.firstWhere(
+
+
+                  // ✅ --- LÓGICA ROBUSTA PARA ENCONTRAR O PREÇO ---
+// Usa 'firstWhereOrNull' que retorna o link ou `null` se não encontrar. Não lança exceção.
+                  final link = product.categoryLinks.firstWhereOrNull(
                         (link) => link.categoryId == widget.category.id,
                   );
-                  priceForThisCategory = link.price; // Pega o preço do link
+
+// Se o link não for encontrado (o produto não pertence a esta categoria),
+// podemos simplesmente não renderizar o item ou mostrar um preço padrão.
+                  final int priceForThisCategory = link?.price ?? product.price ?? 0;
+// ✅ --- FIM DA LÓGICA ---
+
+
                 } catch (e) {
                   // Se não encontrar (caso raro), usa o preço base ou 0 como fallback
                   priceForThisCategory = product.price ?? 0;
                 }
-                // ✅ --- FIM DA LÓGICA ---
 
 
 

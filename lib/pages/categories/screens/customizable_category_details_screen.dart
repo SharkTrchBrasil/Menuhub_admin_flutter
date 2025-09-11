@@ -1,20 +1,14 @@
-// lib/features/categories/screens/customizable_category_details_screen.dart
+// Em: lib/pages/categories/screens/customizable_category_details_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'package:totem_pro_admin/pages/categories/screens/general_category_details_screen.dart';
-import 'package:totem_pro_admin/pages/categories/screens/tabs/availability_tab.dart';
-import 'package:totem_pro_admin/pages/categories/screens/tabs/mass_tab.dart';
-import 'package:totem_pro_admin/pages/categories/screens/tabs/pizza_options_tab.dart' hide PizzaOptionsTab;
-import 'package:totem_pro_admin/pages/categories/screens/tabs/pizza_size_tab.dart';
-import 'package:totem_pro_admin/pages/categories/screens/tabs/tab_details_screen.dart';
-
-import '../../../core/enums/form_status.dart';
-import '../../../core/enums/pizzaoption.dart';
-import '../../../widgets/ds_primary_button.dart';
+import 'package:totem_pro_admin/core/enums/form_status.dart';
+import 'package:totem_pro_admin/models/option_group.dart';
+import 'package:totem_pro_admin/pages/categories/screens/tabs/option_groups_tab.dart';
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import '../cubit/category_wizard_cubit.dart';
+import 'tabs/availability_tab.dart';
 
-
+import 'tabs/tab_details_screen.dart';
 
 class CustomizableCategoryDetailsScreen extends StatefulWidget {
   const CustomizableCategoryDetailsScreen({super.key});
@@ -23,25 +17,35 @@ class CustomizableCategoryDetailsScreen extends StatefulWidget {
   State<CustomizableCategoryDetailsScreen> createState() => _CustomizableCategoryDetailsScreenState();
 }
 
-class _CustomizableCategoryDetailsScreenState extends State<CustomizableCategoryDetailsScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final int _tabCount = 5; // Total de abas
+// ✅ Precisamos de um TickerProvider para a animação das abas
+class _CustomizableCategoryDetailsScreenState extends State<CustomizableCategoryDetailsScreen> with TickerProviderStateMixin {
+  TabController? _tabController;
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _tabCount, vsync: this);
-    // Adiciona um listener para redesenhar a tela (e o botão) quando a aba mudar
-    _tabController.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ✅ Lógica para recriar o TabController quando o número de abas muda
+    final groupCount = context.watch<CategoryWizardCubit>().state.optionGroups.length;
+    final tabCount = 3 + groupCount; // Detalhes + N Grupos + Disponibilidade + Aba '+'
+
+    if (_tabController?.length != tabCount) {
+      // Guarda o índice atual para tentar restaurá-lo
+      final oldIndex = _tabController?.index ?? 0;
+      _tabController?.dispose(); // Descarta o controller antigo
+
+      // Cria um novo controller com o tamanho correto
+      _tabController = TabController(
+        length: tabCount,
+        vsync: this,
+        initialIndex: oldIndex < tabCount ? oldIndex : tabCount - 1,
+      );
+      _tabController!.addListener(() => setState(() {}));
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -50,120 +54,99 @@ class _CustomizableCategoryDetailsScreenState extends State<CustomizableCategory
     return BlocBuilder<CategoryWizardCubit, CategoryWizardState>(
       builder: (context, state) {
         final cubit = context.read<CategoryWizardCubit>();
-        final bool isDetailsValid = state.categoryName
-            .trim()
-            .isNotEmpty;
+        final bool isDetailsValid = state.categoryName.trim().isNotEmpty;
         final bool isLoading = state.status == FormStatus.loading;
+        final bool isEditMode = state.editingCategoryId != null;
 
-        // Determina se estamos na última aba
-        final bool isLastTab = _tabController.index == _tabCount - 1;
+        // ✅ Monta a lista de widgets para as abas
+        final List<Widget> tabs = [
+          const Tab(text: "Detalhes"),
+          ...state.optionGroups.map((group) => Tab(text: group.name.isEmpty ? "Novo Grupo" : group.name)),
+          const Tab(text: "Disponibilidade"),
+          if (isDetailsValid) const Tab(icon: Icon(Icons.add)),
+        ];
 
-        // ✅ A TELA AGORA TEM SEU PRÓPRIO SCAFFOLD COM RODAPÉ DINÂMICO
+        // ✅ Monta a lista de widgets para o CONTEÚDO das abas
+        final List<Widget> tabViews = [
+          const TabDetailsScreen(),
+          ...state.optionGroups.map((group) => OptionGroupsTab(key: ValueKey(group.localId))),
+          const AvailabilityTab(),
+          if (isDetailsValid) Container(color: Colors.grey[50]), // Placeholder para a aba '+'
+        ];
+
         return Scaffold(
-            appBar: TabBar(
-              tabAlignment: TabAlignment.start,
-              controller: _tabController,
-              // Conecta o controller
-              isScrollable: true,
-              labelColor: Colors.red,
-              indicatorColor: Colors.red,
-              tabs: [
-                const Tab(text: "Detalhes"),
-                Tab(child: Text("Tamanhos", style: TextStyle(
-                    color: isDetailsValid ? null : Colors.grey.shade400))),
-                Tab(child: Text("Massas", style: TextStyle(
-                    color: isDetailsValid ? null : Colors.grey.shade400))),
-                Tab(child: Text("Bordas", style: TextStyle(
-                    color: isDetailsValid ? null : Colors.grey.shade400))),
-                Tab(child: Text("Disponibilidade",)),
-              ],
-              // Impede o clique em abas desabilitadas
-              onTap: (index) {
-                if (!isDetailsValid && index > 0) {
-                  _tabController.index = 0;
-                }
-              },
-            ),
-            body: TabBarView(
-              controller: _tabController, // Conecta o controller
-              physics: isDetailsValid
-                  ? const AlwaysScrollableScrollPhysics()
-                  : const NeverScrollableScrollPhysics(),
+          appBar: AppBar(
+            automaticallyImplyLeading: false, // Remove a seta de voltar padrão da AppBar
+            elevation: 1,
+            backgroundColor: Colors.white,
+            flexibleSpace: Column(
               children: [
-                const TabDetailsScreen(), // A aba de detalhes que criamos
-                isDetailsValid
-                    ? const PizzaSizesScreen()
-                    : _buildDisabledTabPlaceholder(),
-                // ✅ ABA DE MASSAS
-                isDetailsValid
-                    ?  PizzaOptionsTab(type: PizzaOptionType.dough)
-                    : _buildDisabledTabPlaceholder(),
-
-                // ✅ ABA DE BORDAS - USA O MESMO WIDGET!
-                isDetailsValid
-                    ?  PizzaOptionsTab(type: PizzaOptionType.edge)
-                    : _buildDisabledTabPlaceholder(),
-                isDetailsValid ? const AvailabilityTab() : _buildDisabledTabPlaceholder(), // ✅ NOVA TELA
+                // Aqui você pode adicionar um header se quiser, acima das abas
+                const Spacer(),
+                TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  tabs: tabs,
+                  onTap: (index) {
+                    // Impede o clique em abas desabilitadas
+                    if (!isDetailsValid && index > 0) {
+                      _tabController!.index = 0;
+                      return;
+                    }
+                    // Se clicar na aba '+', adiciona um grupo
+                    if (isDetailsValid && index == tabs.length - 1) {
+                      cubit.addOptionGroup();
+                      // Anima para a penúltima aba (a que acabou de ser criada)
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _tabController?.animateTo(tabs.length - 2);
+                      });
+                    }
+                  },
+                ),
               ],
             ),
-            // ✅ RODAPÉ DINÂMICO
-            bottomNavigationBar: Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Colors.grey.shade200)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Flexible(
-                    child: DsButton(
-                      label: 'Cancelar',
-                      style: DsButtonStyle.secondary,
-                      onPressed: isLoading ? null : cubit.cancelWizard,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-
-                  Flexible(
-                    child:
-                    DsButton(
-                    isLoading: isLoading,
-                    // ✨ O LABEL E A AÇÃO MUDAM DE ACORDO COM A ABA
-                    label: isLastTab ? "Salvar Categoria" : "Continuar",
-                    onPressed: isDetailsValid && !isLoading
-                        ? () {
-                      if (isLastTab) {
-                        cubit.submitCategory();
-                      } else {
-                        // Avança para a próxima aba
-                        _tabController.animateTo(_tabController.index + 1);
-                      }
-                    }
-                        : null,
-                  ),
-        )
-                ],
-              ),
-            )
+          ),
+          body: TabBarView(
+            controller: _tabController,
+            physics: isDetailsValid ? const AlwaysScrollableScrollPhysics() : const NeverScrollableScrollPhysics(),
+            children: tabViews,
+          ),
+          bottomNavigationBar: _buildBottomBar(context, cubit, isEditMode, isDetailsValid, isLoading),
         );
       },
     );
   }
 
-
-
-
-// Widget auxiliar para a tela de aviso
-  Widget _buildDisabledTabPlaceholder() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24.0),
-        child: Text(
-          "Preencha o nome da categoria na aba 'Detalhes' para continuar.",
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
+  // Rodapé com botão de salvar sempre ativo no modo de edição
+  Widget _buildBottomBar(
+      BuildContext context,
+      CategoryWizardCubit cubit,
+      bool isEditMode,
+      bool isDetailsValid,
+      bool isLoading,
+      ) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          DsButton(
+            label: 'Cancelar',
+            style: DsButtonStyle.secondary,
+            onPressed: isLoading ? null : cubit.cancelWizard,
+          ),
+          const SizedBox(width: 16),
+          DsButton(
+            isLoading: isLoading,
+            label: "Salvar Categoria",
+            onPressed: isDetailsValid && !isLoading ? cubit.submitCategory : null,
+          ),
+        ],
       ),
     );
   }

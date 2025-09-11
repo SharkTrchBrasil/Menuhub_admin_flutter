@@ -11,7 +11,7 @@ import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import '../../../core/responsive_builder.dart';
 import '../../../widgets/fixed_header.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
-import '../BulkCategoryPage.dart';
+import '../../categories/BulkCategoryPage.dart';
 
 
 // Enum para as opções de ordenação
@@ -298,7 +298,6 @@ class _ProductListViewState extends State<ProductListView> {
             child: NoResultsState(),
           )
         else
-        // Substitua seu SliverPadding por este código mais limpo e automático
 
         // ✅ CÓDIGO CORRIGIDO (com SliverList)
           SliverPadding(

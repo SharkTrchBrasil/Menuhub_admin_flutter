@@ -5,8 +5,9 @@ import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/pages/products/steps_bulk_category/step1.dart';
-import 'package:totem_pro_admin/pages/products/steps_bulk_category/step2.dart';
+import 'package:totem_pro_admin/pages/categories/steps_bulk_category/step1.dart';
+import 'package:totem_pro_admin/pages/categories/steps_bulk_category/step2.dart';
+
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import '../../repositories/product_repository.dart';
 import 'cubit/bulk_category_cubit.dart';
@@ -48,9 +49,6 @@ class _BulkAddToCategoryWizardState extends State<BulkAddToCategoryWizard> {
     _pageController.animateToPage(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -70,10 +68,32 @@ class _BulkAddToCategoryWizardState extends State<BulkAddToCategoryWizard> {
         },
         child: Scaffold(
           backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            automaticallyImplyLeading: false, // Remove o botão de voltar padrão
+            title: const Text(
+              'Adicionar à Categoria',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            centerTitle: false,
+            actions: [
+              IconButton(
+                icon: Icon(Icons.close, color: Colors.grey[700]),
+                onPressed: () => context.pop(),
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(100.0), // Altura do header do wizard
+              child: _buildWizardHeader(context),
+            ),
+          ),
           body: Column(
             children: [
-              // Header personalizado no estilo iFood
-              _buildWizardHeader(context),
               Expanded(
                 child: PageView(
                   controller: _pageController,
@@ -92,39 +112,12 @@ class _BulkAddToCategoryWizardState extends State<BulkAddToCategoryWizard> {
     );
   }
 
-Widget _buildWizardHeader(BuildContext context) {
+  Widget _buildWizardHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), // Ajuste do padding
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-        SizedBox(height: 24,),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'Adicionar a uma categoria existente',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: () => context.pop(),
-                child: Icon(
-                  Icons.close,
-                  color: Colors.grey[700],
-                  size: 24,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 36),
-
           // Barra de progresso
           Row(
             children: [
@@ -156,7 +149,7 @@ Widget _buildWizardHeader(BuildContext context) {
             alignment: Alignment.centerRight,
             child: Text(
               'Passo $_currentStep de 2',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 color: Colors.black,
                 fontWeight: FontWeight.bold,
@@ -167,7 +160,6 @@ Widget _buildWizardHeader(BuildContext context) {
       ),
     );
   }
-// Em _BulkAddToCategoryWizardState
 
   Widget _buildBottomActionBar(BuildContext context) {
     return BlocBuilder<BulkAddToCategoryCubit, BulkAddToCategoryState>(
@@ -182,31 +174,18 @@ Widget _buildWizardHeader(BuildContext context) {
             border: Border(top: BorderSide(color: Colors.grey.shade200)),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.end, // Alinhado à direita para consistência
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // Botão Voltar (só aparece a partir do passo 2)
-              if (_currentStep == 2)
-                TextButton(
-                  // Desabilita o botão se estiver carregando
-                  onPressed: isLoading ? null : _previousStep,
-                  child: const Text('Voltar'),
-                )
-              else
-              // Usamos um Spacer para empurrar o botão 'Continuar' para a direita no passo 1
-                const Spacer(),
 
-              // Botão Continuar/Concluir
               DsButton(
                 isLoading: isLoading,
                 label: _currentStep == 1 ? "Continuar" : "Concluir",
-                // Habilita o botão com base na validação de cada passo
                 onPressed: (isLoading || (_currentStep == 1 && !isStep1Valid))
                     ? null
                     : () {
                   if (_currentStep == 1) {
                     _nextStep();
                   } else {
-
                     cubit.submit();
                   }
                 },
@@ -217,9 +196,4 @@ Widget _buildWizardHeader(BuildContext context) {
       },
     );
   }
-
-
 }
-
-
-

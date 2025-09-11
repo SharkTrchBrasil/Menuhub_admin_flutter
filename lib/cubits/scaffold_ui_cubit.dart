@@ -3,51 +3,58 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
 //==============================================================================
-// ESTADO (STATE) - JÁ ESTAVA CORRETO
+// ESTADO (STATE) - Adicionamos a flag 'showDrawer'
 //==============================================================================
 class ScaffoldUiState extends Equatable {
   final PreferredSizeWidget? appBar;
   final FloatingActionButton? fab;
+  final bool showDrawer; // ✅ NOVO CAMPO
 
   const ScaffoldUiState({
     this.appBar,
     this.fab,
+    this.showDrawer = true, // ✅ Por padrão, o drawer é visível
   });
 
   ScaffoldUiState copyWith({
     ValueGetter<PreferredSizeWidget?>? appBar,
     ValueGetter<FloatingActionButton?>? fab,
+    bool? showDrawer, // ✅
   }) {
     return ScaffoldUiState(
       appBar: appBar != null ? appBar() : this.appBar,
       fab: fab != null ? fab() : this.fab,
+      showDrawer: showDrawer ?? this.showDrawer, // ✅
     );
   }
 
   @override
-  List<Object?> get props => [appBar, fab];
+  List<Object?> get props => [appBar, fab, showDrawer]; // ✅
 }
 
 
 //==============================================================================
-// CUBIT - CORRIGIDO
+// CUBIT - Adicionamos o método 'setShowDrawer'
 //==============================================================================
 class ScaffoldUiCubit extends Cubit<ScaffoldUiState> {
   ScaffoldUiCubit() : super(const ScaffoldUiState());
 
-  /// Define o AppBar a ser exibido no Scaffold principal.
-  /// Passe `null` para remover a AppBar customizada e usar a padrão do AppShell.
-  void setAppBar(PreferredSizeWidget? appBar) { // ✅ CORREÇÃO AQUI
+  void setAppBar(PreferredSizeWidget? appBar) {
     emit(state.copyWith(appBar: () => appBar));
   }
 
-  /// Define o FloatingActionButton a ser exibido no Scaffold principal.
-  void setFab(FloatingActionButton? fab) { // ✅ CORREÇÃO AQUI
+  void setFab(FloatingActionButton? fab) {
     emit(state.copyWith(fab: () => fab));
+  }
+
+  // ✅ NOVO MÉTODO PARA CONTROLAR O DRAWER
+  void setShowDrawer(bool show) {
+    emit(state.copyWith(showDrawer: show));
   }
 
   /// Limpa todos os widgets customizáveis, revertendo ao estado inicial.
   void clearAll() {
-    emit(const ScaffoldUiState(appBar: null, fab: null));
+    // Agora também reseta o drawer para o padrão (visível)
+    emit(const ScaffoldUiState(appBar: null, fab: null, showDrawer: true));
   }
 }

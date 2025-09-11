@@ -253,25 +253,28 @@ class _ResponsiveButtonContent extends StatelessWidget {
 
         if (useVerticalLayout) {
           content = Row(
-            mainAxisSize: MainAxisSize.min,
+
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 20, color: textStyle.color),
+                Flexible(child: Icon(icon, size: 20, color: textStyle.color)),
                 const SizedBox(height: 4),
               ],
-              Text(
-                label,
-                style: textStyle,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  style: textStyle,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           );
         } else {
           content = Row(
-            mainAxisSize: MainAxisSize.min,
+
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -279,6 +282,7 @@ class _ResponsiveButtonContent extends StatelessWidget {
                 Icon(icon, size: 18, color: textStyle.color),
                 const SizedBox(width: 8),
               ],
+              const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   label,

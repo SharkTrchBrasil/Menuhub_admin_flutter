@@ -38,7 +38,7 @@ class CategoryCardHeader extends StatelessWidget {
     // Esconde os botões principais se o nome estiver sendo editado
     if (isEditingName) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
         child: Row(
           children: [
             Flexible(
@@ -59,7 +59,7 @@ class CategoryCardHeader extends StatelessWidget {
 
     // Layout padrão do cabeçalho
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
       child: Row(
         children: [
           // Nome da Categoria
@@ -110,9 +110,10 @@ class CategoryCardHeader extends StatelessWidget {
           PopupMenuButton<String>(
             tooltip: "Mais opções",
             onSelected: (value) {
+              if (value == 'add') onAddItem();
               if (value == 'edit') onEditCategory();
               if (value == 'delete') onDeleteCategory();
-              // Adicionar outras ações como "Duplicar"
+
             },
             itemBuilder: (context) => [
               if (ResponsiveBuilder.isMobile(context))

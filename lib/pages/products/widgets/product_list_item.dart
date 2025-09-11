@@ -2,16 +2,21 @@ import 'package:brasil_fields/brasil_fields.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_actions_shhet.dart';
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 
 
 
 import '../../../core/di.dart';
 
 import '../../../core/enums/category_type.dart';
+import '../../../cubits/store_manager_cubit.dart';
+import '../../../cubits/store_manager_state.dart';
 import '../../../models/category.dart';
 import '../../../models/product.dart';
 import '../../../repositories/product_repository.dart';
@@ -83,141 +88,123 @@ class _ProductListItemState extends State<ProductListItem> {
     super.dispose();
   }
 
-  /// Garante que se o produto for atualizado externamente (via socket),
-  /// os campos de texto locais também sejam atualizados.
+
+
+
+
   @override
   void didUpdateWidget(covariant ProductListItem oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.product != oldWidget.product) {
-      // ✅ CORRIGIDO: Usa o novo campo 'price'
-
+    // ✅ CORREÇÃO: Comparar o displayPrice que vem do pai
+    if (widget.product != oldWidget.product || widget.displayPrice != oldWidget.displayPrice) {
       final newPriceFormatted = UtilBrasilFields.obterReal(widget.displayPrice / 100);
       if (_priceController.text != newPriceFormatted) {
         _priceController.text = newPriceFormatted;
       }
-      // Atualiza o controlador de estoque se o valor mudou
-      final newStock = widget.product.stockQuantity.toString() ?? '0';
+      final newStock = widget.product.stockQuantity.toString();
       if (_stockController.text != newStock) {
         _stockController.text = newStock;
       }
     }
   }
 
-  // Função chamada quando o foco do campo de preço muda
   void _onPriceFocusChange() {
-    // Se o campo perdeu o foco, tentamos salvar
-    if (!_priceFocusNode.hasFocus) {
-      _updateProductField(
-        newValue: _priceController.text,
-        isPrice: true,
-      );
-    }
+    if (!_priceFocusNode.hasFocus) _updatePrice();
   }
-
 
   void _onStockFocusChange() {
-    if (!_stockFocusNode.hasFocus) {
-      _updateProductField(
-        newValue: _stockController.text,
-        isPrice: false,
-      );
-    }
+    if (!_stockFocusNode.hasFocus) _updateStock();
   }
 
 
-  Future<void> _updateProductField({required String newValue, required bool isPrice}) async {
-    // A lógica para o estoque continua a mesma
-    if (!isPrice) {
-      final originalValue = widget.product.stockQuantity;
-      final parsedValue = int.tryParse(newValue) ?? 0;
-      if (originalValue != parsedValue) {
-        try {
-          final updatedProduct = widget.product.copyWith(stockQuantity: parsedValue);
-          await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${widget.product.name}: ${isPrice ? "Preço" : "Estoque"} atualizado com sucesso!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } catch (e) {
-          // Em caso de erro, reverte a mudança no campo de texto
-          setState(() {
-            if (isPrice) {
-              _priceController.text = UtilBrasilFields.obterReal((originalValue ?? 0) / 100);
-            } else {
-              _stockController.text = originalValue?.toString() ?? '0';
-            }
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Erro ao atualizar: $e'), backgroundColor: Colors.red),
-            );
-          }
-        }
-      }
-      return;
-    }
+  Future<void> _toggleAvailabilityInCategory() async {
+    final bool currentLinkAvailability = widget.product.categoryLinks
+        .firstWhere((link) => link.categoryId == widget.parentCategory.id)
+        .isAvailable;
 
-    // ✅ --- NOVA LÓGICA PARA ATUALIZAR O PREÇO --- ✅
-    final originalPrice = widget.product.price;
-    final parsedPrice = (UtilBrasilFields.converterMoedaParaDouble(newValue) * 100).toInt();
+    // Chama o método específico do repositório para o VÍNCULO
+    await getIt<ProductRepository>().toggleLinkAvailability(
+      storeId: widget.storeId,
+      productId: widget.product.id!,
+      categoryId: widget.parentCategory.id!,
+      isAvailable: !currentLinkAvailability, // Envia o novo status (invertido)
+    );
+    // O socket vai cuidar de atualizar a UI.
+  }
 
-    // Só atualiza se o valor mudou
+  Future<void> _updatePrice() async {
+    final originalPrice = widget.displayPrice;
+    final parsedPrice = (UtilBrasilFields.converterMoedaParaDouble(_priceController.text) * 100).toInt();
+
+    // Só chama a API se o valor realmente mudou
     if (originalPrice != parsedPrice) {
-      // Garante que o produto tem uma categoria principal para atualizar
-      if (widget.product.categoryLinks.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro: Produto sem categoria principal para atualizar o preço.'), backgroundColor: Colors.red),
-        );
-        return;
-      }
-
-      // 2. Acessa a categoria e o ID de forma segura
-      final primaryCategory = widget.product.categoryLinks.first.category;
-      if (primaryCategory == null || primaryCategory.id == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro: A categoria principal do produto não foi encontrada.'), backgroundColor: Colors.red),
-        );
-        return;
-      }
-
-
-
       try {
+        // ✅ USA O MÉTODO OTIMIZADO DO REPOSITÓRIO
         await getIt<ProductRepository>().updateProductCategoryPrice(
           storeId: widget.storeId,
           productId: widget.product.id!,
-          categoryId: primaryCategory.id!,
+          // Usa o ID da categoria pai para garantir que estamos atualizando o preço certo
+          categoryId: widget.parentCategory.id!,
           newPrice: parsedPrice,
         );
-
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${widget.product.name}: Preço atualizado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
+        // Não precisamos de SnackBar de sucesso, o socket atualizará a UI
       } catch (e) {
         // Em caso de erro, reverte a mudança no campo de texto
-        setState(() {
-          _priceController.text = UtilBrasilFields.obterReal((originalPrice ?? 0) / 100);
-        });
         if (mounted) {
+          setState(() {
+            _priceController.text = UtilBrasilFields.obterReal(originalPrice / 100);
+          });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao atualizar: $e'), backgroundColor: Colors.red),
+            SnackBar(content: Text('Erro ao atualizar o preço: $e'), backgroundColor: Colors.red),
           );
         }
       }
     }
   }
 
+
+  Future<void> _deactivateAndClearStock() async {
+    // Se já está em 0 e desativado, não faz nada
+    if (widget.product.stockQuantity == 0 && !widget.product.controlStock) return;
+
+    // Cria uma cópia do produto com os dois campos atualizados
+    final updatedProduct = widget.product.copyWith(
+      stockQuantity: 0,
+      controlStock: false,
+    );
+    // Chama o método de update geral para salvar as duas alterações de uma vez
+    await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
+  }
+
+
+  void _updateStock() async {
+    final originalQuantity = widget.product.stockQuantity;
+    final parsedQuantity = int.tryParse(_stockController.text) ?? 0;
+
+    // A nova regra de negócio: o controle de estoque só está ativo se a quantidade > 0
+    final bool newControlStatus = parsedQuantity > 0;
+
+    // Só chama a API se algo realmente mudou
+    if (originalQuantity != parsedQuantity || widget.product.controlStock != newControlStatus) {
+      try {
+        final updatedProduct = widget.product.copyWith(
+          stockQuantity: parsedQuantity,
+          controlStock: newControlStatus, // Atualiza o status de controle junto
+        );
+        await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
+      }  catch (e) {
+        if (mounted) {
+          // setState(() {
+          //   _stockController.text = originalValue.toString();
+          // });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao atualizar o estoque: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
 
 
   Future<void> _removeProductFromCategory() async {
@@ -242,16 +229,19 @@ class _ProductListItemState extends State<ProductListItem> {
   @override
   Widget build(BuildContext context) {
     final hasComplements = widget.product.variantLinks!.isNotEmpty;
+    final link = widget.product.categoryLinks.firstWhere((l) => l.categoryId == widget.parentCategory.id);
+
+    final isAvailableInThisCategory = link.isAvailable;
 
 
     final bool isCustomizable = widget.parentCategory.type == CategoryType.CUSTOMIZABLE; // ✅ Correto (com 'c' minúsculo)
 
-    final bool isAvailable = widget.product.available;
-    final Color textColor = isAvailable ? Colors.black : Colors.grey.shade500;
+
+    final Color textColor = isAvailableInThisCategory ? Colors.black : Colors.grey.shade500;
 
     return Container(
       decoration: BoxDecoration(
-        color: isAvailable ? const Color(0xFFFFFFFF)  : const Color(0xFFF5F5F5) ,
+        color: isAvailableInThisCategory ? const Color(0xFFFFFFFF)  : const Color(0xFFF5F5F5) ,
         borderRadius: BorderRadius.circular(8),
         //   border: Border.all(color: Colors.grey.shade200),
       ),
@@ -271,7 +261,7 @@ class _ProductListItemState extends State<ProductListItem> {
                 SizedBox(width: 10,),
 
 
-                  _buildDefaultImage(isAvailable), // Senão, usa a lógica de imagem padrão
+                  _buildDefaultImage(isAvailableInThisCategory), // Senão, usa a lógica de imagem padrão
 
                 const SizedBox(width: 12),
 
@@ -290,10 +280,10 @@ class _ProductListItemState extends State<ProductListItem> {
 
 
                 if (ResponsiveBuilder.isDesktop(context))
-                  ..._buildDesktopActions(textColor, isCustomizable)
+                  ..._buildDesktopActions(textColor, isCustomizable, isAvailableInThisCategory)
                 else
-                  ..._buildMobileActions(isCustomizable),
-                const SizedBox(width: 16),
+                  ..._buildMobileActions(isCustomizable, isAvailableInThisCategory),
+
 
 
               ],
@@ -338,30 +328,29 @@ class _ProductListItemState extends State<ProductListItem> {
 
 
 
-  List<Widget> _buildDesktopActions(Color textColor, bool isCustomizable) {
+  List<Widget> _buildDesktopActions(Color textColor, bool isCustomizable, bool isAvailableInThisCategory) {
     if (isCustomizable) {
       // --- LAYOUT PARA SABORES (CUSTOMIZÁVEL) ---
       return [
         _buildPriceDisplay(),
         const SizedBox(width: 12),
-        _buildSharedActionButtons(textColor,isCustomizable ),
+        _buildSharedActionButtons(textColor,isCustomizable, isAvailableInThisCategory ),
       ];
     } else {
       // --- LAYOUT PARA PRODUTOS SIMPLES ---
       return [
-        _buildStockField(),
+        _buildStockField(isAvailableInThisCategory),
         const SizedBox(width: 12),
-        _buildPriceField(),
+        _buildPriceField(isAvailableInThisCategory),
         const SizedBox(width: 12),
-        _buildSharedActionButtons(textColor, isCustomizable),
+        _buildSharedActionButtons(textColor, isCustomizable, isAvailableInThisCategory),
       ];
     }
   }
 
   // Métodos para construir os campos de texto (refatorados)
-  Widget _buildStockField() {
+  Widget _buildStockField(bool isAvailableInThisCategory) {
 
-    final isAvailable = widget.product.available;
 
 
 
@@ -380,16 +369,15 @@ class _ProductListItemState extends State<ProductListItem> {
           border:  OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           // ✅ Aplicar estilo desativado ao campo de estoque
-          enabled: isAvailable,
-          fillColor: isAvailable ? null : Colors.white70,
+          enabled: isAvailableInThisCategory,
+          fillColor: isAvailableInThisCategory ? null : Colors.white70,
         ),
       ),
     ),
   );
   }
-  Widget _buildPriceField() {
+  Widget _buildPriceField(bool isAvailableInThisCategory) {
 
-    final isAvailable = widget.product.available;
     return  Tooltip(
     message: 'Preço',
     child: SizedBox(
@@ -409,8 +397,8 @@ class _ProductListItemState extends State<ProductListItem> {
 
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           // ✅ Aplicar estilo desativado ao campo de preço
-          enabled: isAvailable,
-          fillColor: isAvailable ? null : Colors.white70,
+          enabled: isAvailableInThisCategory,
+          fillColor: isAvailableInThisCategory ? null : Colors.white70,
         ),
       ),
     ),
@@ -420,8 +408,8 @@ class _ProductListItemState extends State<ProductListItem> {
   }
 
 
-  Widget _buildSharedActionButtons(Color textColor, bool isCustomizable) {
-    final isAvailable = widget.product.available;
+  Widget _buildSharedActionButtons(Color textColor, bool isCustomizable, bool isAvailableInThisCategory) {
+
     return Row(
       children: [
 
@@ -430,14 +418,11 @@ class _ProductListItemState extends State<ProductListItem> {
         // Botão de Pausar/Ativar
         IconButton(
           icon: Icon(
-              isAvailable ? Icons.pause_circle_outline : Icons.play_circle_outline,
-              color: isAvailable ? Colors.orange : Colors.green
+              isAvailableInThisCategory ? Icons.pause_circle_outline : Icons.play_circle_outline,
+              color: isAvailableInThisCategory ? Colors.green : Colors.orange
           ),
-          tooltip: isAvailable ? 'Pausar item' : 'Ativar item',
-          onPressed: () async {
-            final updatedProduct = widget.product.copyWith(available: !isAvailable);
-            await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
-          },
+          tooltip: isAvailableInThisCategory ? 'Pausar item' : 'Ativar item',
+          onPressed: _toggleAvailabilityInCategory,
         ),
 
         // Menu de Opções
@@ -448,10 +433,10 @@ class _ProductListItemState extends State<ProductListItem> {
               // ✅ LÓGICA DE NAVEGAÇÃO DINÂMICA
               if (isCustomizable) {
                 // Navega para a tela de edição de SABORES
-                context.go('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
+                context.push('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
               } else {
                 // Navega para a tela de edição de ITENS SIMPLES
-                context.go('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
+                context.push('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
               }
             } else if (value == 'delete') {
               _removeProductFromCategory();
@@ -566,7 +551,7 @@ class _ProductListItemState extends State<ProductListItem> {
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
                   // Navega para a tela de edição de sabores
-                  context.go('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
+                  context.push('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
                 },
               ),
             ],
@@ -577,15 +562,12 @@ class _ProductListItemState extends State<ProductListItem> {
     );
   }
 
-  List<Widget> _buildMobileActions( bool isCustomizable) {
+  List<Widget> _buildMobileActions( bool isCustomizable, bool isAvailableInThisCategory) {
     return [
       IconButton(
-        icon: Icon(widget.product.available ? Icons.pause_circle_outline : Icons.play_circle_outline, color: widget.product.available ? Colors.orange : Colors.green),
+        icon: Icon(isAvailableInThisCategory ? Icons.pause_circle_outline : Icons.play_circle_outline, color: isAvailableInThisCategory ? Colors.orange : Colors.green),
         tooltip: widget.product.available ? 'Pausar item' : 'Ativar item',
-        onPressed: () async {
-          final updatedProduct = widget.product.copyWith(available: !widget.product.available);
-          await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
-        },
+        onPressed: _toggleAvailabilityInCategory,
       ),
       IconButton(
         icon: const Icon(Icons.more_vert),
@@ -624,163 +606,200 @@ class _ProductListItemState extends State<ProductListItem> {
     );
   }
 
-  void _showMobileActionSheet(BuildContext context,  bool isCustomizable) {
+  // Em _ProductListItemState
+
+  void _showMobileActionSheet(BuildContext context, bool isCustomizable) {
     showModalBottomSheet(
       isScrollControlled: true,
       context: context,
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadiusDirectional.only(
           topEnd: Radius.circular(25),
           topStart: Radius.circular(25),
         ),
       ),
-
-
       builder: (ctx) {
-        // Usamos um StatefulBuilder para que o BottomSheet possa atualizar seu próprio estado (ex: ícone de pausar)
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            final isAvailable = widget.product.available;
-            return Container(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        // ✅ 1. O CONTEÚDO AGORA É UM WIDGET SEPARADO E INTELIGENTE
+        return ProductActionsSheet(
+         displayPrice: widget.displayPrice,
+          storeId: widget.storeId,
+          product: widget.product,
+          parentCategory: widget.parentCategory,
 
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0, bottom: 16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Ações do produto',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close),
-                          onPressed: () => Navigator.of(ctx).pop(),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Campos de Preço e Estoque
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Preço',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                              ),
-                              const SizedBox(height: 4),
-                              TextField(
-                                controller: _priceController,
-                                focusNode: _priceFocusNode,
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                ),
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  CentavosInputFormatter(moeda: true),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Estoque',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                              ),
-                              const SizedBox(height: 4),
-                              TextField(
-                                controller: _stockController,
-                                focusNode: _stockFocusNode,
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                ),
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Divider(height: 1),
-                  const SizedBox(height: 16),
-                  // Lista de Ações
-                  ListTile(
-                    leading: Icon(isAvailable ? Icons.pause : Icons.play_arrow, color: isAvailable ? Colors.red : Colors.green),
-                    title: Text(isAvailable ? 'Pausar item' : 'Ativar item', style: TextStyle(fontWeight: FontWeight.w600)),
-                    onTap: () async {
-
-
-                      Navigator.of(ctx).pop(); // Fecha o bottom sheet
-                      final updatedProduct = widget.product.copyWith(available: !isAvailable);
-                      await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.edit),
-                    title: const Text('Editar item', style: TextStyle(fontWeight: FontWeight.w600)),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-
-                      // ✅ LÓGICA DE NAVEGAÇÃO DINÂMICA
-                      if (isCustomizable) {
-                        // Navega para a tela de edição de SABORES
-                        context.go('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
-                      } else {
-                        // Navega para a tela de edição de ITENS SIMPLES
-                        context.go('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
-                      }
-
-
-
-                 //     context.go('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
-
-
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.delete_outline, color: Colors.red),
-                    title: const Text('Remover item', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600) ),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                    _removeProductFromCategory();
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
         );
       },
     );
   }
+
+// ... (seus outros métodos, como _buildStockDetails, _buildStockControlWidget, etc., podem ser movidos para o novo widget abaixo se forem exclusivos dele)
+  //
+  // void _showMobileActionSheet(BuildContext context,  bool isCustomizable) {
+  //   showModalBottomSheet(
+  //     isScrollControlled: true,
+  //     context: context,
+  //     backgroundColor: Colors.white,
+  //     shape: RoundedRectangleBorder(
+  //       borderRadius: BorderRadiusDirectional.only(
+  //         topEnd: Radius.circular(25),
+  //         topStart: Radius.circular(25),
+  //       ),
+  //     ),
+  //
+  //
+  //     builder: (ctx) {
+  //       // Usamos um StatefulBuilder para que o BottomSheet possa atualizar seu próprio estado (ex: ícone de pausar)
+  //       return StatefulBuilder(
+  //         builder: (BuildContext context, StateSetter setModalState) {
+  //
+  //
+  //           // ✅ 1. A LÓGICA DE ESTADO AGORA FICA AQUI DENTRO
+  //           //    Isso garante que a UI reflita o estado mais recente do produto
+  //           final link = widget.product.categoryLinks.firstWhere((l) => l.categoryId == widget.parentCategory.id);
+  //           final isAvailableInThisCategory = link.isAvailable;
+  //
+  //
+  //           return Container(
+  //             padding: const EdgeInsets.all(8.0),
+  //             child: Column(
+  //               mainAxisSize: MainAxisSize.min,
+  //               crossAxisAlignment: CrossAxisAlignment.start,
+  //               children: [
+  //
+  //                 Padding(
+  //                   padding: const EdgeInsets.only(top: 8.0, bottom: 16),
+  //                   child: Row(
+  //                     children: [
+  //                       Expanded(
+  //                         child: Align(
+  //                           alignment: Alignment.center,
+  //                           child: Text(
+  //                             'Ações do produto',
+  //                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+  //                           ),
+  //                         ),
+  //                       ),
+  //                       IconButton(
+  //                         icon: Icon(Icons.close),
+  //                         onPressed: () => Navigator.of(ctx).pop(),
+  //                       ),
+  //                     ],
+  //                   ),
+  //                 ),
+  //
+  //                 if(!isCustomizable)
+  //                 Padding(
+  //                   padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12),
+  //                   child: Row(
+  //                     children: [
+  //                       Expanded(
+  //                         child: Column(
+  //                           crossAxisAlignment: CrossAxisAlignment.start,
+  //                           children: [
+  //                             const Text(
+  //                               'Preço',
+  //                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+  //                             ),
+  //                             const SizedBox(height: 4),
+  //                             TextField(
+  //                               controller: _priceController,
+  //                               focusNode: _priceFocusNode,
+  //                               decoration: const InputDecoration(
+  //                                 isDense: true,
+  //                                 border: OutlineInputBorder(),
+  //                                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+  //                               ),
+  //                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+  //                               inputFormatters: [
+  //                                 FilteringTextInputFormatter.digitsOnly,
+  //                                 CentavosInputFormatter(moeda: true),
+  //                               ],
+  //                             ),
+  //                           ],
+  //                         ),
+  //                       ),
+  //                       const SizedBox(width: 16),
+  //
+  //
+  //                       Expanded(
+  //                         child: Column(
+  //                           crossAxisAlignment: CrossAxisAlignment.start,
+  //                           mainAxisAlignment: MainAxisAlignment.center,
+  //                           children: [
+  //
+  //                             widget.product.controlStock ? _buildStockDetails(setModalState)
+  //
+  //                            : _buildStockControlWidget() ,
+  //
+  //
+  //
+  //
+  //
+  //                           ],
+  //                         ),
+  //                       ),
+  //
+  //
+  //
+  //
+  //                     ],
+  //                   ),
+  //                 ),
+  //                 const SizedBox(height: 16),
+  //                 if(!isCustomizable)
+  //                 const Divider(height: 1),
+  //                 const SizedBox(height: 16),
+  //                 // Lista de Ações
+  //                 ListTile(
+  //                   leading: Icon(isAvailableInThisCategory ? Icons.pause : Icons.play_arrow, color: isAvailableInThisCategory ? Colors.red : Colors.green),
+  //                   title: Text(isAvailableInThisCategory ? 'Pausar item' : 'Ativar item', style: TextStyle(fontWeight: FontWeight.w600)),
+  //                   onTap: (){
+  //                     Navigator.of(ctx).pop();
+  //                     _toggleAvailabilityInCategory;
+  //                   }
+  //                 ),
+  //                 ListTile(
+  //                   leading: const Icon(Icons.edit),
+  //                   title: const Text('Editar item', style: TextStyle(fontWeight: FontWeight.w600)),
+  //                   onTap: () {
+  //                     Navigator.of(ctx).pop();
+  //
+  //                     // ✅ LÓGICA DE NAVEGAÇÃO DINÂMICA
+  //                     if (isCustomizable) {
+  //                       // Navega para a tela de edição de SABORES
+  //                       context.push('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
+  //                     } else {
+  //                       // Navega para a tela de edição de ITENS SIMPLES
+  //                       context.push('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
+  //                     }
+  //
+  //
+  //
+  //                //     context.go('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
+  //
+  //
+  //                   },
+  //                 ),
+  //                 ListTile(
+  //                   leading: const Icon(Icons.delete_outline, color: Colors.red),
+  //                   title: const Text('Remover item', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600) ),
+  //                   onTap: () {
+  //                     Navigator.of(ctx).pop();
+  //                   _removeProductFromCategory();
+  //                   },
+  //                 ),
+  //               ],
+  //             ),
+  //           );
+  //         },
+  //       );
+  //     },
+  //   );
+  // }
+
+
+
+
 }
 
 

@@ -1,31 +1,76 @@
 import '../core/enums/foodtags.dart';
 import 'package:equatable/equatable.dart';
 
-// Adicionado Equatable para facilitar comparações no CUBIT
 class OptionItem extends Equatable {
-  final int? id;
+  final int? id; // ID do banco de dados (nulo se for um item novo)
+  final String? localId; // ✅ NOVO CAMPO: ID temporário para a UI
   final String name;
   final String? description;
-  final int price; // ✅ Alterado para int (centavos)
+  final int price;
   final bool isActive;
   final int? priority;
   final String? externalCode;
-  final int? slices;       // ✨ NOVO
-  final int? maxFlavors;   // ✨ NOVO
+  final int? slices;
+  final int? maxFlavors;
   final Set<FoodTag> tags;
 
   const OptionItem({
     this.id,
+    this.localId, // ✅ Adicionado ao construtor
     required this.name,
     this.description,
-    this.price = 0, // ✅
+    this.price = 0,
     this.isActive = true,
     this.priority,
     this.externalCode,
-    this.slices,     // ✨
-    this.maxFlavors, // ✨
+    this.slices,
+    this.maxFlavors,
     this.tags = const {},
   });
+
+  @override
+  List<Object?> get props => [
+    id,
+    localId, // ✅ Adicionado aos props
+    name,
+    description,
+    price,
+    isActive,
+    priority,
+    externalCode,
+    slices,
+    maxFlavors,
+    tags
+  ];
+
+  OptionItem copyWith({
+    int? id,
+    String? localId, // ✅ Adicionado ao copyWith
+    String? name,
+    String? description,
+    int? price,
+    bool? isActive,
+    int? priority,
+    String? externalCode,
+    int? slices,
+    int? maxFlavors,
+    Set<FoodTag>? tags,
+  }) {
+    return OptionItem(
+      id: id ?? this.id,
+      localId: localId ?? this.localId, // ✅ Adicionado ao copyWith
+      name: name ?? this.name,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      isActive: isActive ?? this.isActive,
+      priority: priority ?? this.priority,
+      externalCode: externalCode ?? this.externalCode,
+      slices: slices ?? this.slices,
+      maxFlavors: maxFlavors ?? this.maxFlavors,
+      tags: tags ?? this.tags,
+    );
+  }
+
 
   factory OptionItem.fromJson(Map<String, dynamic> json) {
     // Lógica para tags, se houver
@@ -63,34 +108,5 @@ class OptionItem extends Equatable {
     };
   }
 
-  // copyWith e props atualizados
-  @override
-  List<Object?> get props => [id, name, description, price, isActive, priority, externalCode, slices, maxFlavors, tags];
 
-
-  OptionItem copyWith({
-    int? id,
-    String? name,
-    String? description,
-    int? price,
-    bool? isActive,
-    int? priority,
-    String? externalCode,
-    int? slices,
-    int? maxFlavors,
-    Set<FoodTag>? tags,
-  }) {
-    return OptionItem(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      description: description ?? this.description,
-      price: price ?? this.price,
-      isActive: isActive ?? this.isActive,
-      priority: priority ?? this.priority,
-      externalCode: externalCode ?? this.externalCode,
-      slices: slices ?? this.slices,
-      maxFlavors: maxFlavors ?? this.maxFlavors,
-      tags: tags ?? this.tags,
-    );
-  }
 }

@@ -27,13 +27,16 @@ class MultiStepPanelContainer extends StatelessWidget {
     return BlocBuilder<CreateComplementGroupCubit, CreateComplementGroupState>(
       builder: (context, state) {
         // Usamos o AnimatedSwitcher para uma transição suave entre as telas
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          transitionBuilder: (child, animation) {
-            // Efeito de Fade (aparecer e desaparecer)
-            return FadeTransition(opacity: animation, child: child);
-          },
-          child: _buildStepWidget(state), // Decide qual tela/passo mostrar
+        return Scaffold(
+          appBar: AppBar(automaticallyImplyLeading: false,),
+          body: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (child, animation) {
+              // Efeito de Fade (aparecer e desaparecer)
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child: _buildStepWidget(state), // Decide qual tela/passo mostrar
+          ),
         );
       },
     );

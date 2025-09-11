@@ -14,7 +14,11 @@ import '../widgets/app_selection_form_field.dart';
 import 'category.dart';
 import 'kit_component.dart';
 
-class Product implements SelectableItem {
+import 'package:equatable/equatable.dart';
+
+// ✅ 1. ADICIONE 'extends Equatable' AQUI
+class Product extends Equatable implements SelectableItem {
+
   final int? id;
   final String name;
   final String? description; // ✅ Tornado nullable
@@ -52,7 +56,7 @@ class Product implements SelectableItem {
   final List<ProductRating>? productRatings; // ✅ Novo campo
   final String? fileKey; // ✅ Novo campo
 
-  Product({
+ const Product({
     this.id,
     this.name = '',
     this.description,
@@ -92,13 +96,7 @@ class Product implements SelectableItem {
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
-    final dietaryTagsSet = (json['dietary_tags'] as List<dynamic>? ?? [])
-        .map((tagString) => FoodTag.values.byName(tagString.toLowerCase()))
-        .toSet();
 
-    final beverageTagsSet = (json['beverage_tags'] as List<dynamic>? ?? [])
-        .map((tagString) => BeverageTag.values.byName(tagString.toLowerCase()))
-        .toSet();
 
     return Product(
       id: json['id'],
@@ -129,8 +127,8 @@ class Product implements SelectableItem {
       promotionalPrice: json['promotional_price'],
       primaryCategoryId: json['primary_category_id'],
       hasMultiplePrices: json['has_multiple_prices'] ?? false,
-      dietaryTags: dietaryTagsSet,
-      beverageTags: beverageTagsSet,
+
+
       categoryLinks: (json['category_links'] as List<dynamic>? ?? [])
           .map((link) => ProductCategoryLink.fromJson(link))
           .toList(),
@@ -151,6 +149,20 @@ class Product implements SelectableItem {
           .map((rating) => ProductRating.fromJson(rating))
           .toList(),
       fileKey: json['file_key'],
+
+
+      dietaryTags: (json['dietary_tags'] as List<dynamic>? ?? [])
+          .map((tagString) => apiValueToFoodTag[tagString]) // Usa o mapa reverso
+          .whereType<FoodTag>() // Filtra qualquer valor nulo se a API enviar uma tag desconhecida
+          .toSet(),
+
+      beverageTags: (json['beverage_tags'] as List<dynamic>? ?? [])
+          .map((tagString) => apiValueToBeverageTag[tagString]) // Usa o mapa reverso
+          .whereType<BeverageTag>() // Filtra nulos
+          .toSet(),
+
+
+
     );
   }
 
@@ -246,12 +258,14 @@ class Product implements SelectableItem {
       'unit': unit,
       'weight': weight,
       'serves_up_to': servesUpTo,
-      'dietary_tags': dietaryTags.map((tag) => tag.name.toUpperCase()).toList(),
-      'beverage_tags': beverageTags.map((tag) => tag.name.toUpperCase()).toList(),
+      'dietary_tags': dietaryTags.map((tag) => foodTagNames[tag]!).toList(),
+      'beverage_tags': beverageTags.map((tag) => beverageTagNames[tag]!).toList(),
       'category_links': categoryLinks.map((link) => link.toJson()).toList(),
       'variant_links': (variantLinks ?? []).map((link) => link.toWizardJson()).toList(),
     };
   }
+
+
 
   Map<String, dynamic> toFlavorProductJson({required int parentCategoryId}) {
     return {
@@ -269,27 +283,85 @@ class Product implements SelectableItem {
     };
   }
 
+
   Map<String, dynamic> toUpdateJson() {
     return {
+      // --- Dados Básicos (Aba "Sobre o Produto") ---
       'name': name,
       'description': description,
       'ean': ean,
+
+      // --- Opções (Aba "Disponibilidade e Opções") ---
       'available': available,
-      'stock_quantity': stockQuantity,
+      'featured': featured,
+      'priority': priority, // ✅ Re-adicionado
+
+      // --- Estoque ---
       'control_stock': controlStock,
+      'stock_quantity': stockQuantity,
       'min_stock': minStock,
       'max_stock': maxStock,
-      'unit': unit,
-      'featured': featured,
-      'priority': priority,
+
+      // --- Cashback ---
       'cashback_type': cashbackType.name,
       'cashback_value': cashbackValue,
-      'dietary_tags': dietaryTags.map((tag) => tag.name).toList(),
-      'beverage_tags': beverageTags.map((tag) => tag.name).toList(),
-      'serves_up_to': servesUpTo,
+
+      // --- Atributos ---
+      'unit': unit,
       'weight': weight,
+      'serves_up_to': servesUpTo,
+      'dietary_tags': dietaryTags.map((tag) => foodTagNames[tag]!).toList(),
+      'beverage_tags': beverageTags.map((tag) => beverageTagNames[tag]!).toList(),
+
+      // --- ✅ VÍNCULOS (O mais importante que faltava) ---
+      'category_links': categoryLinks.map((link) => link.toJson()).toList(),
+      'variant_links': (variantLinks ?? []).map((link) => link.toWizardJson()).toList(),
+
+      // --- ✅ Preços (para sabores de produtos customizáveis) ---
+      'prices': prices.map((price) => price.toJson()).toList(),
     };
   }
+
+  // ✅ 2. ADICIONE A LISTA 'props' COMPLETA
+  @override
+  List<Object?> get props => [
+    id,
+    name,
+    description,
+    available,
+    image,
+    ean,
+    stockQuantity,
+    controlStock,
+    minStock,
+    maxStock,
+    unit,
+    priority,
+    featured,
+    storeId,
+    servesUpTo,
+    weight,
+    soldCount,
+    variantLinks,
+    cashbackType,
+    cashbackValue,
+    productType,
+    categoryLinks,
+    price,
+    costPrice,
+    isOnPromotion,
+    promotionalPrice,
+    primaryCategoryId,
+    hasMultiplePrices,
+    dietaryTags,
+    beverageTags,
+    masterProductId,
+    prices,
+    defaultOptions,
+    components,
+    productRatings,
+    fileKey,
+  ];
 
   @override
   String get title => name;

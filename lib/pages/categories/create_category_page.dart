@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:totem_pro_admin/pages/categories/screens/category_template_selection_screen.dart';
 import 'package:totem_pro_admin/pages/categories/screens/category_type_choice_widget.dart';
 import 'package:totem_pro_admin/pages/categories/screens/customizable_category_details_screen.dart';
 import 'package:totem_pro_admin/pages/categories/screens/general_category_details_screen.dart';
+import 'package:totem_pro_admin/pages/categories/screens/pricing_model_selection_screen.dart';
 
 import '../../core/di.dart';
 import '../../core/enums/category_type.dart';
@@ -40,7 +42,12 @@ class CreateCategoryPage extends StatelessWidget {
         listener: (context, state) {
           // Se o status for 'cancelled' OU 'success', fechamos o painel
           if (state.status == FormStatus.cancelled || state.status == FormStatus.success) {
-            context.pop();
+            context.goNamed(
+              'products', // O nome da sua tela de lista principal
+              pathParameters: {
+                'storeId': context.read<CategoryWizardCubit>().storeId.toString(),
+              },
+            );
           }
           if (state.status == FormStatus.success) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -57,7 +64,7 @@ class CreateCategoryPage extends StatelessWidget {
 
 
 
-// lib/pages/categories/create_category_page.dart
+
 
 class _CreateCategoryView extends StatelessWidget {
   const _CreateCategoryView();
@@ -79,11 +86,25 @@ class _CreateCategoryView extends StatelessWidget {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black),
               onPressed: () {
-                if (state.step == WizardStep.details) {
+
+                final cubit = context.read<CategoryWizardCubit>();
+
+
+                if (cubit.state.editingCategoryId == null && cubit.state.step == WizardStep.details) {
                   cubit.goToTypeSelection();
-                } else {
-                  context.pop();
                 }
+                // Em todos os outros casos (editando, no primeiro passo, etc.), saia da tela.
+                else {
+                  // Navega explicitamente para a lista, pois 'pop' não é seguro.
+                  context.goNamed(
+                    'products',
+                    pathParameters: {'storeId': cubit.storeId.toString()},
+                  );
+                }
+
+
+
+
               },
             ),
             title: Text(
@@ -97,17 +118,7 @@ class _CreateCategoryView extends StatelessWidget {
             child: _buildStep(context, state),
           ),
 
-          // // ✅ --- A CORREÇÃO ESTÁ AQUI --- ✅
-          // // O rodapé agora só é construído se o passo for 'details'
-          // bottomNavigationBar: state.step == WizardStep.details
-          //     ? _buildFooterButtons( // MOSTRA o rodapé na tela de detalhes
-          //   context: context,
-          //   cubit: cubit,
-          //   isFormValid: isDetailsValid,
-          //   isLoading: isLoading,
-          //   isEditing: state.editingCategoryId != null,
-          // )
-          //     : null, // ESCONDE o rodapé na tela de seleção de tipo
+
         );
       },
     );
@@ -118,6 +129,13 @@ class _CreateCategoryView extends StatelessWidget {
     switch (state.step) {
       case WizardStep.typeSelection:
         return const CategoryTypeSelectionScreen(key: ValueKey('type_selection'));
+    // ✅ ADICIONE ESTE NOVO CASE
+      case WizardStep.pricingModelSelection:
+        return const PricingModelSelectionScreen(key: ValueKey('pricing_model_selection'));
+
+      case WizardStep.templateSelection:
+        return const CategoryTemplateSelectionScreen(key: ValueKey('template_selection'));
+
       case WizardStep.details:
         if (state.categoryType == CategoryType.GENERAL) {
           return const GeneralCategoryDetailsScreen(key: ValueKey('general_details'));

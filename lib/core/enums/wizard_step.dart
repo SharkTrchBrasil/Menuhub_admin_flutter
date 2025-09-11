@@ -1,1 +1,1 @@
-enum WizardStep { typeSelection, details }
+enum WizardStep { typeSelection, pricingModelSelection, templateSelection, details }

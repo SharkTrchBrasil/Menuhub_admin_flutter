@@ -10,8 +10,11 @@ import '../../core/enums/form_status.dart';
 import '../../core/enums/product_type.dart';
 import '../../core/responsive_builder.dart';
 import '../../models/category.dart';
+import '../../models/prodcut_category_links.dart';
 import 'cubit/product_wizard_cubit.dart';
 import 'cubit/product_wizard_state.dart';
+
+
 
 class ProductWizardPage extends StatefulWidget {
   const ProductWizardPage({super.key, required this.storeId, this.category});
@@ -22,6 +25,9 @@ class ProductWizardPage extends StatefulWidget {
   @override
   State<ProductWizardPage> createState() => _ProductWizardPageState();
 }
+
+
+
 
 class _ProductWizardPageState extends State<ProductWizardPage> {
   late final PageController _pageController;
@@ -42,11 +48,23 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) {
+        // 1. Criamos a instância do Cubit primeiro.
         final cubit = ProductWizardCubit(storeId: widget.storeId);
 
-        // ✅ Se a categoria veio pelo construtor, adiciona no Cubit
+        // 2. Verificamos se uma categoria foi passada para a página.
         if (widget.category != null) {
-          cubit.addCategoryLink(widget.category!);
+
+          // ✅ 3. A MÁGICA: Criamos o objeto 'ProductCategoryLink' que o CUBIT espera.
+          final initialLink = ProductCategoryLink(
+            category: widget.category!,
+            categoryId: widget.category!.id!,
+            // Pega o preço inicial do produto que está no estado do CUBIT (geralmente 0)
+            price: cubit.state.productInCreation.price ?? 0,
+            product: cubit.state.productInCreation,
+          );
+
+          // ✅ 4. Agora sim, enviamos o objeto 'ProductCategoryLink' completo.
+          cubit.addCategoryLink(initialLink);
         }
 
         return cubit;
@@ -106,61 +124,54 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
               context.pop();
             }
           },
+          // ✅ A ESTRUTURA AGORA COMEÇA COM O BLOCBUILDER
+          child: BlocBuilder<ProductWizardCubit, ProductWizardState>(
+            builder: (context, state) {
+              // A lista de steps é calculada aqui dentro, pois depende do estado
+              final List<Widget> steps = [
+                const Step1ProductType(),
+                Step2ProductDetails(),
+                if (state.productType != ProductType.INDUSTRIALIZED)
+                  const Step3Complements(),
+                Step4Categories(),
+              ];
 
-          child: Scaffold(
-            body: BlocBuilder<ProductWizardCubit, ProductWizardState>(
-              builder: (context, state) {
-                // 1. Cria a lista de etapas dinamicamente.
-                //    A etapa 3 só é incluída se o produto não for industrializado.
-                final List<Widget> steps = [
-                  const Step1ProductType(),
-                  Step2ProductDetails(),
-                  if (state.productType != ProductType.INDUSTRIALIZED)
-                    const Step3Complements(),
-                  Step4Categories(),
-                ];
-
-                return Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24,
-                    vertical: 14,
+              // ✅ O SCAFFOLD É CONSTRUÍDO AQUI DENTRO
+              return Scaffold(
+                // 1. UMA APPBAR SIMPLES, APENAS PARA DAR ESTRUTURA E COR
+                appBar: AppBar(
+                  toolbarHeight: 0, // Esconde a barra de ferramentas padrão
+                  elevation: 0,
+                  backgroundColor: Colors.white,
+                  // 2. NOSSO CABEÇALHO CUSTOMIZADO VAI NO 'bottom' DA APPBAR
+                  bottom: _buildWizardHeader(context, state, steps.length),
+                ),
+                // 3. O PAGEVIEW COM OS PASSOS É O 'body' DO SCAFFOLD
+                body: Padding(
+                  padding:  EdgeInsets.all(ResponsiveBuilder.isMobile(context) ? 14 :24.0),
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: steps,
                   ),
-                  child: SingleChildScrollView(
-                    // Alterado de ListView para SingleChildScrollView
-                    child: Column(
-                      children: [
-                        _buildWizardHeader(context, state, steps.length),
-                        SizedBox(
-                          // Adicionado SizedBox com altura fixa
-                          height:
-                              MediaQuery.of(context).size.height ,
-                              // Ajuste conforme necessário
-                          child: PageView(
-                            controller: _pageController,
-                            physics: const NeverScrollableScrollPhysics(),
-                            children: steps,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-            bottomNavigationBar: _buildBottomActionBar(),
+                ),
+                // 4. O RODAPÉ COM OS BOTÕES
+                bottomNavigationBar: _buildBottomActionBar(),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-
-
-  Widget _buildWizardHeader(
+  // ✅ O MÉTODO DO CABEÇALHO AGORA PRECISA SER UM 'PreferredSizeWidget'
+  PreferredSizeWidget _buildWizardHeader(
       BuildContext context,
       ProductWizardState state,
       int totalSteps,
       ) {
+    // A lógica interna para definir os textos continua a mesma
     String titleText = 'Criar produto';
     if (state.productType == ProductType.PREPARED) {
       titleText = 'Criar produto preparado';
@@ -168,63 +179,69 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
       titleText = 'Criar produto industrializado';
     }
 
-    // ✅ A LÓGICA DE 'visualStep' FOI REMOVIDA.
-    //    Agora state.currentStep já é o passo visual correto.
-
-    return Container(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Text(
-                  titleText,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+    // Envolvemos nosso Column em um PreferredSize para que ele possa ser usado no 'bottom' da AppBar
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(120.0), // Altura do nosso cabeçalho
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    titleText,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: 'Fechar',
-                onPressed: () => context.pop(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                children: List.generate(totalSteps, (index) {
-                  // A comparação agora é direta com state.currentStep
-                  final bool isActive = (index + 1) <= state.currentStep;
-                  return Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 4),
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isActive ? Theme.of(context).primaryColor : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Fechar',
+                  onPressed: () => context.pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // A barra de progresso
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  children: List.generate(totalSteps, (index) {
+                    final bool isActive = (index + 1) <= state.currentStep;
+                    return Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 4),
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: isActive ? Theme.of(context).primaryColor : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 8),
-              // O texto também usa os valores diretos
-              Text(
-                'Passo ${state.currentStep} de $totalSteps',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ],
+                    );
+                  }),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Passo ${state.currentStep} de $totalSteps',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
+
+
+
+
 
   Widget _buildBottomActionBar() {
     return BlocBuilder<ProductWizardCubit, ProductWizardState>(
@@ -307,22 +324,30 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Sair da página'),
-            content: const Text(
-              'Ao sair da página, este produto não será criado. Ele e as informações cadastradas serão perdidas.',
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false), // Não sair
-                child: const Text('Cancelar'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true), // Sair
-                style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('Confirmar'),
-              ),
-            ],
+        title: const Text('Sair da página'),
+        content: const Text(
+          'Ao sair da página, este produto não será criado. Ele e as informações cadastradas serão perdidas.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false), // Não sair
+            child: const Text('Cancelar'),
           ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true), // Sair
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
     );
   }
 }
+
+
+
+
+
+
+
+

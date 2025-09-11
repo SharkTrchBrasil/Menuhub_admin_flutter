@@ -70,6 +70,16 @@ class AppTheme {
         ),
       ),
 
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        modalBackgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(16.0),
+          ),
+        ),
+      ),
+
       cardTheme: CardThemeData(
         color: dsTheme.cardColor,
         elevation: 1,
@@ -267,7 +277,7 @@ BottomNavigationBarThemeData(
   // ===================================================================
   static final ThemeData lightTheme = fromDsTheme(
     DsTheme(
-      primaryColor: const Color(0xFFff0502),
+      primaryColor: const Color(0xFF151515),
       mode: DsThemeMode.light,
       fontFamily: DsThemeFontFamily.roboto,
       themeName: DsThemeName.classic,
@@ -279,7 +289,7 @@ BottomNavigationBarThemeData(
   // ===================================================================
   static final ThemeData darkTheme = fromDsTheme(
     DsTheme(
-      primaryColor: const Color(0xFFff0502),
+      primaryColor: const Color(0xFF151515),
       mode: DsThemeMode.dark,
       fontFamily: DsThemeFontFamily.roboto,
       themeName: DsThemeName.classic,

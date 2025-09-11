@@ -33,7 +33,7 @@ class TabDetailsScreen extends StatelessWidget {
 
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(14.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

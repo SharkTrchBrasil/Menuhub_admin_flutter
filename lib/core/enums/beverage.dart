@@ -22,3 +22,9 @@ const Map<BeverageTag, String> beverageTagDescriptions = {
   BeverageTag.alcoholic: 'Contém álcool. Venda proibida para menores.',
   BeverageTag.natural: 'Feita com ingredientes naturais, sem conservantes.',
 };
+
+
+
+// Dicionário reverso para busca rápida: "Bebida gelada" -> BeverageTag.coldDrink
+final Map<String, BeverageTag> apiValueToBeverageTag =
+beverageTagNames.map((key, value) => MapEntry(value, key));

@@ -19,13 +19,15 @@ class AppProductImageFormField extends StatelessWidget {
     required this.title,
     this.initialValue,
     required this.onChanged,
-    required this.validator,
+    this.validator,
+    this.enabled = true,
   });
 
   final String title;
   final ImageModel? initialValue;
-  final String? Function(ImageModel?) validator;
+  final String? Function(ImageModel?)? validator;
   final Function(ImageModel?) onChanged;
+  final bool enabled;
 
   // ✅ Lógica de seleção de imagem extraída para uma função reutilizável
   Future<void> _pickAndCropImage(BuildContext context, FormFieldState<ImageModel> state) async {
@@ -102,7 +104,7 @@ class AppProductImageFormField extends StatelessWidget {
     const double imagePreviewSize = 80.0;
 
     return InkWell(
-      onTap: () => _pickAndCropImage(context, state),
+      onTap: enabled ? () => _pickAndCropImage(context, state) : null,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(8),
@@ -173,21 +175,21 @@ class AppProductImageFormField extends StatelessWidget {
           // 2. Spacer para empurrar os botões para a direita
           const Spacer(),
 
-          // 3. Botões de ação à direita
-          // Botão de Alterar
+     if(enabled)
           IconButton(
             icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
             tooltip: 'Alterar foto',
-            onPressed: () => _pickAndCropImage(context, state),
+            onPressed: enabled ? () => _pickAndCropImage(context, state) : null,
           ),
-          // Botão de Remover
+
+          if(enabled)
           IconButton(
             icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
             tooltip: 'Remover foto',
-            onPressed: () {
+            onPressed: enabled ? () {
               state.didChange(null);
               onChanged(null);
-            },
+            } : null,
           ),
         ],
       ),
@@ -206,11 +208,9 @@ class AppProductImageFormField extends StatelessWidget {
   }
 
 
-
-
   Widget _buildImage(ImageModel model) {
-
     const double displaySize = 80.0;
+
     if (model.file != null) {
       if (kIsWeb) {
         return FutureBuilder<Uint8List>(
@@ -263,7 +263,7 @@ class AppProductImageFormField extends StatelessWidget {
       height: size,
       color: Colors.grey[200],
       child: const Center(
-        child: CircularProgressIndicator(),
+        child: CircularProgressIndicator(strokeWidth: 2),
       ),
     );
   }
@@ -273,13 +273,26 @@ class AppProductImageFormField extends StatelessWidget {
       width: size,
       height: size,
       color: Colors.red[50],
-      child: const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 48, color: Colors.red),
-          SizedBox(height: 8),
-          Text('Erro ao carregar', style: TextStyle(color: Colors.red)),
-        ],
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min, // ✅ IMPORTANTE: Evita overflow
+          children: [
+            const Icon(Icons.error_outline, size: 24, color: Colors.red), // ✅ Tamanho reduzido
+            const SizedBox(height: 4),
+            Text(
+              'Erro',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 10, // ✅ Fonte menor
+                height: 1.0, // ✅ Altura de linha reduzida
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1, // ✅ Máximo de linhas
+              overflow: TextOverflow.ellipsis, // ✅ Overflow controlado
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -289,16 +302,33 @@ class AppProductImageFormField extends StatelessWidget {
       width: size,
       height: size,
       color: Colors.grey[200],
-      child: const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.photo_camera, size: 48, color: Colors.grey),
-          SizedBox(height: 8),
-          Text('Adicionar imagem', style: TextStyle(color: Colors.grey)),
-        ],
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min, // ✅ IMPORTANTE: Evita overflow
+          children: [
+            const Icon(Icons.photo_camera, size: 24, color: Colors.grey), // ✅ Tamanho reduzido
+            const SizedBox(height: 4),
+            Text(
+              'Adicionar',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 10, // ✅ Fonte menor
+                height: 1.0, // ✅ Altura de linha reduzida
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1, // ✅ Máximo de linhas
+              overflow: TextOverflow.ellipsis, // ✅ Overflow controlado
+            ),
+          ],
+        ),
       ),
     );
   }
+
+
+
+
 }
 
 

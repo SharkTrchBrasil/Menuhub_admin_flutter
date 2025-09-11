@@ -4,14 +4,15 @@ import 'package:totem_pro_admin/models/option_group.dart';
 import 'package:totem_pro_admin/models/prodcut_category_links.dart';
 import 'package:totem_pro_admin/widgets/app_selection_form_field.dart';
 
-// ✨ Supondo que seu enum CashbackType esteja em um arquivo separado, importe-o.
-// Se não, você pode defini-lo aqui.
+
 import '../core/enums/available_type.dart';
 import '../core/enums/cashback_type.dart';
 import '../core/enums/category_type.dart';
+import '../core/enums/pricing_strategy.dart';
 import 'availability_model.dart';
+import 'package:equatable/equatable.dart';
 
-class Category implements SelectableItem {
+class Category extends Equatable implements SelectableItem{
   final int? id;
   final String name;
   final int priority;
@@ -30,6 +31,9 @@ class Category implements SelectableItem {
   final List<ScheduleRule> schedules;
   final String? printerDestination;
 
+  final PricingStrategy pricingStrategy;
+  final bool priceVariesBySize;
+
   const Category({
     this.id,
     required this.name,
@@ -46,9 +50,19 @@ class Category implements SelectableItem {
     this.availabilityType = AvailabilityType.always,
     this.schedules = const [],
     this.printerDestination,
+    this.pricingStrategy = PricingStrategy.sumOfItems,
+    this.priceVariesBySize = false,
   });
 
-// Em lib/models/category.dart
+
+  // ✅ 5. ADICIONE OS PROPS DO EQUATABLE
+  @override
+  List<Object?> get props => [
+    id, name, priority, image, active, type, optionGroups, cashbackType,
+    cashbackValue, productLinks, availabilityType, schedules,
+    printerDestination, pricingStrategy,priceVariesBySize
+  ];
+
 
   factory Category.fromJson(Map<String, dynamic> map) {
     // --- LÓGICA ROBUSTA E SIMPLIFICADA PARA ENUMS EM MAIÚSCULAS ---
@@ -70,6 +84,15 @@ class Category implements SelectableItem {
     );
 
     // --- FIM DA LÓGICA ---
+
+
+    final pricingStrategyString = map['pricing_strategy'] as String? ?? 'SUM_OF_ITEMS';
+    final pricingStrategyParsed = PricingStrategy.values.firstWhere(
+          (e) => e.name.toUpperCase() == pricingStrategyString,
+      orElse: () => PricingStrategy.sumOfItems,
+    );
+
+
 
     return Category(
       id: map['id'],
@@ -97,6 +120,8 @@ class Category implements SelectableItem {
           ?.map((scheduleJson) => ScheduleRule.fromJson(scheduleJson))
           .toList() ?? [],
       printerDestination: map['printer_destination'], // ✨
+      pricingStrategy: pricingStrategyParsed,
+      priceVariesBySize: map['price_varies_by_size'] ?? false,
     );
   }
 
@@ -126,6 +151,8 @@ class Category implements SelectableItem {
       'option_groups': optionGroups.map((group) => group.toJson()).toList(),
       'product_links': productLinks.map((link) => link.toJson()).toList(),
       'printer_destination': printerDestination, // ✨
+      'pricing_strategy': pricingStrategy.name.toUpperCase(),
+      'price_varies_by_size': priceVariesBySize,
 
       // Campos opcionais (só inclui se não forem nulos)
       if (id != null) 'id': id,
@@ -152,6 +179,8 @@ class Category implements SelectableItem {
     AvailabilityType? availabilityType,
     List<ScheduleRule>? schedules,
     String? printerDestination,
+    PricingStrategy? pricingStrategy,
+    bool? priceVariesBySize
   }) {
     return Category(
       id: id ?? this.id,
@@ -167,6 +196,8 @@ class Category implements SelectableItem {
       availabilityType: availabilityType ?? this.availabilityType,
       schedules: schedules ?? this.schedules,
       printerDestination: printerDestination ?? this.printerDestination,
+      pricingStrategy: pricingStrategy ?? this.pricingStrategy,
+      priceVariesBySize: priceVariesBySize ?? this.priceVariesBySize,
     );
   }
 

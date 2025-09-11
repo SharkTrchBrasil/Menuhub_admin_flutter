@@ -4,6 +4,7 @@ import 'package:totem_pro_admin/models/category.dart';
 import '../cubit/bulk_category_cubit.dart';
 import '../cubit/bulk_category_state.dart';
 
+
 class Step1SelectCategory extends StatelessWidget {
   final List<Category> allCategories;
   const Step1SelectCategory({super.key, required this.allCategories});

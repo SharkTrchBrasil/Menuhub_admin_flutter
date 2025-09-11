@@ -25,11 +25,7 @@ const Map<FoodTag, String> foodTagNames = {
   FoodTag.lacFree: 'Zero lactose',
 };
 
-// ✅ ADICIONE ESTE MAPA "TRADUTOR"
-const Map<FoodTag, String> foodTagApiValues = {
-  FoodTag.vegetarian: 'Vegetariano',
-  FoodTag.vegan: 'Vegano',
-  FoodTag.organic: 'Orgânico',
-  FoodTag.sugarFree: 'Sem açúcar',
-  FoodTag.lacFree: 'Zero lactose',
-};
+
+// Dicionário reverso para busca rápida: "Vegetariano" -> FoodTag.vegetarian
+final Map<String, FoodTag> apiValueToFoodTag =
+foodTagNames.map((key, value) => MapEntry(value, key));

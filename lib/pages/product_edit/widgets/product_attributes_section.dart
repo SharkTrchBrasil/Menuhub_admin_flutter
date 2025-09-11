@@ -4,14 +4,11 @@ import 'package:totem_pro_admin/models/product.dart';
 
 import '../../../core/enums/beverage.dart';
 
-
-
 class ProductAttributesSection extends StatelessWidget {
   final Product product;
-  // ✅ 1. AGORA TEMOS DOIS CALLBACKS, UM PARA CADA TIPO DE TAG
+  final bool isImported;
   final ValueChanged<FoodTag> onDietaryTagToggled;
   final ValueChanged<BeverageTag> onBeverageTagToggled;
-
   final ValueChanged<int?> onServesUpToChanged;
   final ValueChanged<String> onWeightChanged;
   final ValueChanged<String> onUnitChanged;
@@ -19,8 +16,9 @@ class ProductAttributesSection extends StatelessWidget {
   const ProductAttributesSection({
     super.key,
     required this.product,
-    required this.onDietaryTagToggled, // ✅
-    required this.onBeverageTagToggled, // ✅
+    required this.isImported,
+    required this.onDietaryTagToggled,
+    required this.onBeverageTagToggled,
     required this.onServesUpToChanged,
     required this.onWeightChanged,
     required this.onUnitChanged,
@@ -28,39 +26,81 @@ class ProductAttributesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ✅ 2. CHAMADA PARA A SEÇÃO DE RESTRIÇÕES ALIMENTARES
-        _buildTagsSection<FoodTag>(
-          context: context,
-          title: 'Restrições alimentares',
-          subtitle: 'Informe se seu produto é adequado a restrições...',
-          allTags: FoodTag.values,
-          selectedTags: product.dietaryTags,
-          tagNames: foodTagNames, // Seu mapa de nomes para FoodTag
-          onToggled: onDietaryTagToggled,
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        collapsedShape: const Border(),
+        shape: const Border(),
+        title: Row(
+          children: [
+            Icon(Icons.rocket_launch_outlined, color: Theme.of(context).primaryColor),
+            const SizedBox(width: 12),
+            const Text(
+              "Destaques e Atributos",
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+            ),
+          ],
         ),
-        const SizedBox(height: 24),
-
-        // ✅ 3. CHAMADA PARA A SEÇÃO DE BEBIDAS
-        _buildTagsSection<BeverageTag>(
-          context: context,
-          title: 'Em caso de bebidas',
-          subtitle: '', // Subtítulo opcional
-          allTags: BeverageTag.values,
-          selectedTags: product.beverageTags,
-          tagNames: beverageTagNames, // Seu mapa de nomes para BeverageTag
-          onToggled: onBeverageTagToggled,
+        subtitle: const Text(
+          "Informações que ajudam a vender mais e organizar seu cardápio.",
+          style: TextStyle(fontSize: 12),
         ),
-        const SizedBox(height: 24),
-
-        _buildItemSizeSection(context),
-        const SizedBox(height: 24),
-        _buildDisclaimerSection(context),
-      ],
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            // ✅ ESTRUTURA DO CONTEÚDO SIMPLIFICADA (sem a Column extra)
+            //    Agora o if/else fica diretamente na lista de children.
+            child: isImported
+            // --- SE FOR IMPORTADO, MOSTRA APENAS AS TAGS DE BEBIDA ---
+                ? _buildTagsSection<BeverageTag>(
+              context: context,
+              title: 'Características da bebida',
+              allTags: BeverageTag.values,
+              selectedTags: product.beverageTags,
+              tagNames: beverageTagNames,
+              onToggled: onBeverageTagToggled,
+            )
+            // --- SE NÃO FOR IMPORTADO, MOSTRA TODAS AS SEÇÕES ---
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTagsSection<FoodTag>(
+                  context: context,
+                  title: 'Restrições alimentares',
+                  subtitle: 'Informe se seu produto é adequado a restrições...',
+                  allTags: FoodTag.values,
+                  selectedTags: product.dietaryTags,
+                  tagNames: foodTagNames,
+                  onToggled: onDietaryTagToggled,
+                ),
+                const Divider(height: 48), // Divisor visual
+                _buildTagsSection<BeverageTag>(
+                  context: context,
+                  title: 'Em caso de bebidas',
+                  allTags: BeverageTag.values,
+                  selectedTags: product.beverageTags,
+                  tagNames: beverageTagNames,
+                  onToggled: onBeverageTagToggled,
+                ),
+                const Divider(height: 48), // Divisor visual
+                _buildItemSizeSection(context),
+                const SizedBox(height: 24),
+                _buildDisclaimerSection(context),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
+
 
   // ✅ 4. NOVO MÉTODO AUXILIAR GENÉRICO E REUTILIZÁVEL
   Widget _buildTagsSection<T extends Enum>({
@@ -86,14 +126,26 @@ class ProductAttributesSection extends StatelessWidget {
           runSpacing: 8.0,
           children: allTags.map((tag) {
             final isSelected = selectedTags.contains(tag);
-            return FilterChip(
-              label: Text(tagNames[tag]!),
-              selected: isSelected,
-              onSelected: (_) => onToggled(tag),
-              selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
-              checkmarkColor: Theme.of(context).primaryColor,
-              shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade300)),
+            return ActionChip(
+              label: Text(
+                tagNames[tag]!,
+                style: TextStyle(
+                  color: isSelected ? Theme.of(context).primaryColor : Colors.black87,
+                  // ✅ Sem bold para manter layout consistente
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+              onPressed: () => onToggled(tag),
+              backgroundColor: Colors.white,
+              side: BorderSide(
+                color: isSelected
+                    ? Theme.of(context).primaryColor
+                    : Colors.grey.shade300,
+                width: isSelected ? 1.5 : 1.0,
+              ),
+              shape: StadiumBorder(),
               elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // ✅ Padding consistente
             );
           }).toList(),
         ),
@@ -146,17 +198,23 @@ class ProductAttributesSection extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             // Dropdown "Unidade"
+            // Dropdown "Unidade"
             SizedBox(
               width: 80,
               child: DropdownButtonFormField<String>(
-                value: product.unit.isNotEmpty ? product.unit : 'g',
-                items: ['g', 'kg', 'ml', 'L'].map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                value: ['g', 'kg', 'ml', 'L'].contains(product.unit) && product.unit.isNotEmpty
+                    ? product.unit
+                    : null, // <-- só aceita se estiver na lista
+                items: ['g', 'kg', 'ml', 'L']
+                    .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                    .toList(),
                 onChanged: (val) {
                   if (val != null) onUnitChanged(val);
                 },
                 decoration: const InputDecoration(border: OutlineInputBorder()),
               ),
             ),
+
           ],
         ),
       ],
