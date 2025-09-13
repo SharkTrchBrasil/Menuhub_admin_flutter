@@ -3,12 +3,12 @@ import 'package:either_dart/either.dart';
 import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/flavor_price.dart'; // ✅ Garanta que FlavorPrice está importado
+import 'package:totem_pro_admin/models/flavor_price.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/models/option_group.dart';
 import 'package:totem_pro_admin/models/product.dart';
-
 import '../../../core/enums/category_type.dart';
+import '../../../core/enums/option_group_type.dart';
 
 part 'flavor_wizard_state.dart';
 
@@ -23,57 +23,36 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
         _storeId = storeId,
         super(FlavorWizardState.initial());
 
-
   void startFlow({Product? product, required Category parentCategory}) {
-    // Pega a lista de todos os tamanhos disponíveis na categoria pai
-    final sizeOptions = parentCategory.optionGroups
-        .firstWhere(
-          (g) => g.name == 'Tamanho',
-      orElse: () => OptionGroup(name: 'Tamanho', items: [], minSelection: 1 , maxSelection: 1),
-    )
-        .items;
+    // Busca o grupo de tamanho pelo TIPO, não pelo nome (mais robusto)
+    final sizeGroup = parentCategory.optionGroups.firstWhere(
+          (g) => g.groupType == OptionGroupType.size,
+      orElse: () => const OptionGroup(name: 'Tamanho', items: [], minSelection: 1, maxSelection: 1, groupType: OptionGroupType.size),
+    );
 
-    if (product != null) {
-      // --- MODO DE EDIÇÃO ---
+    List<FlavorPrice> prices;
 
-      // 1. Cria um mapa para busca rápida de preços: {id_do_tamanho: objeto_FlavorPrice}
+    if (product != null) { // --- MODO DE EDIÇÃO ---
       final priceMap = {for (var p in product.prices) p.sizeOptionId: p};
-
-      // 2. Itera sobre todos os TAMANHOS e cria a lista de FlavorPrice
-      final pricesWithData = sizeOptions.map((sizeOption) {
+      prices = sizeGroup.items.map((sizeOption) {
         final existingPrice = priceMap[sizeOption.id];
-        return FlavorPrice(
-          sizeOptionId: sizeOption.id!,
-          price: existingPrice?.price ?? 0,
-          posCode: existingPrice?.posCode,
-          isAvailable: existingPrice?.isAvailable ?? true,
-          id: existingPrice?.id,
-
-        );
+        return existingPrice ?? FlavorPrice(sizeOptionId: sizeOption.id!, price: 0);
       }).toList();
 
-      // 3. Atualiza o produto com a nova lista de PREÇOS preenchida
-      final updatedProduct = product.copyWith(prices: pricesWithData);
-
       emit(FlavorWizardState(
-        product: updatedProduct,
+        product: product.copyWith(prices: prices),
         parentCategory: parentCategory,
         isEditMode: true,
       ));
 
-    } else {
-      // --- MODO DE CRIAÇÃO ---
-      // Cria uma lista inicial de FlavorPrice, um para cada tamanho
-      final initialPrices = sizeOptions
-          .map((sizeOption) => FlavorPrice(
+    } else { // --- MODO DE CRIAÇÃO ---
+      prices = sizeGroup.items.map((sizeOption) => FlavorPrice(
         sizeOptionId: sizeOption.id!,
         price: 0,
-      ))
-          .toList();
+      )).toList();
 
-      // Inicia o estado com a lista de PREÇOS
       emit(FlavorWizardState(
-        product: Product(prices: initialPrices),
+        product: const Product().copyWith(prices: prices),
         parentCategory: parentCategory,
       ));
     }
@@ -83,18 +62,11 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
     emit(state.copyWith(product: updatedProduct));
   }
 
-
   void updateFlavorPrice(FlavorPrice updatedPrice) {
-    final updatedPrices = state.product.prices.map((flavorPrice) {
-      if (flavorPrice.sizeOptionId == updatedPrice.sizeOptionId) {
-        return updatedPrice; // Substitui o preço antigo pelo novo
-      }
-      return flavorPrice;
+    final updatedPrices = state.product.prices.map((p) {
+      return p.sizeOptionId == updatedPrice.sizeOptionId ? updatedPrice : p;
     }).toList();
-
-    emit(state.copyWith(
-      product: state.product.copyWith(prices: updatedPrices),
-    ));
+    emit(state.copyWith(product: state.product.copyWith(prices: updatedPrices)));
   }
 
   Future<void> submitFlavor() async {
@@ -102,25 +74,20 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
 
     emit(state.copyWith(status: FormStatus.loading));
 
-    final Future<Either<String, Product>> result;
+    // ✅ GARANTE QUE O OBJETO ENVIADO É O QUE ESTÁ NO ESTADO
+    final productToSave = state.product;
 
-    if (state.isEditMode) {
-      result = _productRepository.updateProduct(_storeId, state.product);
-    } else {
-      result = _productRepository.createFlavorProduct(
-        _storeId,
-        state.product,
-        parentCategory: state.parentCategory,
-      );
-    }
+    final result = state.isEditMode
+        ? _productRepository.updateProduct(_storeId, productToSave)
+        : _productRepository.createFlavorProduct(
+      _storeId,
+      productToSave,
+      parentCategory: state.parentCategory,
+    );
 
     result.fold(
-          (error) {
-        if (!isClosed) emit(state.copyWith(status: FormStatus.error, errorMessage: error));
-      },
-          (success) {
-        if (!isClosed) emit(state.copyWith(status: FormStatus.success));
-      },
+          (error) => emit(state.copyWith(status: FormStatus.error, errorMessage: error)),
+          (success) => emit(state.copyWith(status: FormStatus.success)),
     );
   }
 }

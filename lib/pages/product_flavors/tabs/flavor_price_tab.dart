@@ -3,6 +3,7 @@ import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/prodcut_category_links.dart';
 
+import '../../../core/enums/option_group_type.dart';
 import '../../../models/flavor_price.dart';
 import '../../../models/option_group.dart';
 
@@ -15,9 +16,11 @@ class FlavorPriceTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Encontra o grupo de opções de "Tamanho" na categoria pai
-    final sizeGroup = parentCategory.optionGroups.firstWhere((g) => g.name == 'Tamanho', orElse: () => OptionGroup(name: 'Tamanho', items: [], minSelection: 0, maxSelection: 0));
-
+    // Dentro de FlavorPriceTab -> build()
+    final sizeGroup = parentCategory.optionGroups.firstWhere(
+          (g) => g.groupType == OptionGroupType.size, // ✅ CORREÇÃO: Procuramos pelo TIPO, não pelo NOME.
+      orElse: () => const OptionGroup(name: 'Tamanho', items: [], minSelection: 0, maxSelection: 0),
+    );
     return ListView.separated(
       padding: const EdgeInsets.all(24),
       itemCount: sizeGroup.items.length,

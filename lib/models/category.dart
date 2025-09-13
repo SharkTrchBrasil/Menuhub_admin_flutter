@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:recase/recase.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/models/option_group.dart';
 import 'package:totem_pro_admin/models/prodcut_category_links.dart';
@@ -7,6 +8,7 @@ import 'package:totem_pro_admin/widgets/app_selection_form_field.dart';
 
 import '../core/enums/available_type.dart';
 import '../core/enums/cashback_type.dart';
+import '../core/enums/category_template_type.dart';
 import '../core/enums/category_type.dart';
 import '../core/enums/pricing_strategy.dart';
 import 'availability_model.dart';
@@ -33,6 +35,7 @@ class Category extends Equatable implements SelectableItem{
 
   final PricingStrategy pricingStrategy;
   final bool priceVariesBySize;
+  final CategoryTemplateType selectedTemplate;
 
   const Category({
     this.id,
@@ -52,6 +55,7 @@ class Category extends Equatable implements SelectableItem{
     this.printerDestination,
     this.pricingStrategy = PricingStrategy.sumOfItems,
     this.priceVariesBySize = false,
+  this.selectedTemplate = CategoryTemplateType.none,
   });
 
 
@@ -60,7 +64,7 @@ class Category extends Equatable implements SelectableItem{
   List<Object?> get props => [
     id, name, priority, image, active, type, optionGroups, cashbackType,
     cashbackValue, productLinks, availabilityType, schedules,
-    printerDestination, pricingStrategy,priceVariesBySize
+    printerDestination, pricingStrategy,priceVariesBySize,  selectedTemplate
   ];
 
 
@@ -92,7 +96,12 @@ class Category extends Equatable implements SelectableItem{
       orElse: () => PricingStrategy.sumOfItems,
     );
 
-
+    // ✅ LÓGICA PARA PARSE DO NOVO CAMPO
+    final templateString = map['selected_template'] as String? ?? 'NONE';
+    final templateParsed = CategoryTemplateType.values.firstWhere(
+    (e) => e.name.toUpperCase() == templateString,
+    orElse: () => CategoryTemplateType.none,
+    );
 
     return Category(
       id: map['id'],
@@ -115,7 +124,7 @@ class Category extends Equatable implements SelectableItem{
       cashbackValue: double.tryParse(map['cashback_value']?.toString() ?? '0.0') ?? 0.0,
 
       availabilityType: availabilityTypeParsed, // ✨ Usa o valor parseado corretamente
-
+      selectedTemplate: templateParsed, // ✅ Usa o valor parseado
       schedules: (map['schedules'] as List<dynamic>?)
           ?.map((scheduleJson) => ScheduleRule.fromJson(scheduleJson))
           .toList() ?? [],
@@ -151,8 +160,15 @@ class Category extends Equatable implements SelectableItem{
       'option_groups': optionGroups.map((group) => group.toJson()).toList(),
       'product_links': productLinks.map((link) => link.toJson()).toList(),
       'printer_destination': printerDestination, // ✨
-      'pricing_strategy': pricingStrategy.name.toUpperCase(),
+
+
+      // ✅ 2. CORREÇÃO PRINCIPAL AQUI
+      'pricing_strategy': pricingStrategy.name.constantCase, // 'sumOfItems' -> 'SUM_OF_ITEMS'
       'price_varies_by_size': priceVariesBySize,
+      'selected_template': selectedTemplate.name.toUpperCase(),
+
+
+
 
       // Campos opcionais (só inclui se não forem nulos)
       if (id != null) 'id': id,
@@ -180,7 +196,8 @@ class Category extends Equatable implements SelectableItem{
     List<ScheduleRule>? schedules,
     String? printerDestination,
     PricingStrategy? pricingStrategy,
-    bool? priceVariesBySize
+    bool? priceVariesBySize,
+    CategoryTemplateType? selectedTemplate,
   }) {
     return Category(
       id: id ?? this.id,
@@ -198,7 +215,8 @@ class Category extends Equatable implements SelectableItem{
       printerDestination: printerDestination ?? this.printerDestination,
       pricingStrategy: pricingStrategy ?? this.pricingStrategy,
       priceVariesBySize: priceVariesBySize ?? this.priceVariesBySize,
-    );
+      selectedTemplate: selectedTemplate ?? this.selectedTemplate,
+);
   }
 
   @override

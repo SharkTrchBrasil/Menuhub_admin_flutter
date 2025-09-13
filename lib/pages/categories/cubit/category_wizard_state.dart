@@ -26,6 +26,7 @@ class CategoryWizardState extends Equatable {
   // Dados de retorno
   final Category? createdCategory;
   final bool priceVariesBySize;
+  final CategoryTemplateType selectedTemplate;
 
 
   const CategoryWizardState({
@@ -46,6 +47,7 @@ class CategoryWizardState extends Equatable {
     this.createdCategory,
     this.pricingStrategy = PricingStrategy.sumOfItems,
     this.priceVariesBySize = false,
+    this.selectedTemplate = CategoryTemplateType.none,
   });
 
   factory CategoryWizardState.initial() => const CategoryWizardState();
@@ -70,8 +72,8 @@ class CategoryWizardState extends Equatable {
       schedules: category.schedules,
       pricingStrategy: category.pricingStrategy ?? PricingStrategy.sumOfItems,
       priceVariesBySize: category.priceVariesBySize ?? false,
-      // Mapeia os OptionGroups do banco, adicionando um localId para a UI
-      // gerenciar adições/remoções antes de salvar.
+      selectedTemplate: category.selectedTemplate,
+
       optionGroups: category.optionGroups.map((group) {
         return group.copyWith(
           localId: uuid.v4(),
@@ -99,6 +101,7 @@ class CategoryWizardState extends Equatable {
     Category? createdCategory,
     PricingStrategy? pricingStrategy,
     bool? priceVariesBySize,
+    CategoryTemplateType? selectedTemplate,
   }) {
     return CategoryWizardState(
       step: step ?? this.step,
@@ -118,6 +121,7 @@ class CategoryWizardState extends Equatable {
       createdCategory: createdCategory ?? this.createdCategory,
         pricingStrategy: pricingStrategy ?? this.pricingStrategy,
       priceVariesBySize: priceVariesBySize ?? this.priceVariesBySize,
+      selectedTemplate: selectedTemplate ?? this.selectedTemplate,
     );
   }
 
@@ -140,5 +144,6 @@ class CategoryWizardState extends Equatable {
     createdCategory,
     pricingStrategy,
     priceVariesBySize,
+    selectedTemplate,
   ];
 }

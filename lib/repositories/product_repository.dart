@@ -137,15 +137,23 @@ class ProductRepository {
   }
 
 
-  Future<Either<void, void>> deleteProduct( int storeId, int id) async {
+
+
+
+  // ✅ NOVA ROTA PARA ARQUIVAR (SOFT DELETE)
+  Future<Either<void, void>>  archiveProduct(int storeId, int productId) async {
     try {
-      await _dio.delete('/stores/$storeId/products/$id');
+      // A rota do backend que criamos para arquivar
+      await _dio.patch('/admin/stores/$storeId/products/$productId/archive');
       return const Right(null);
-    } catch (e) {
-      debugPrint('Error deleteNeighborhood: $e');
+
+    } on DioException catch (e) {
+      debugPrint('Error archiveproduct: $e');
       return const Left(null);
     }
   }
+
+
 
 
   Future<Either<void, VariantOption>> saveVariantOption(

@@ -10,7 +10,7 @@ class FlavorWizardState extends Equatable {
   // ✅ 1. ADICIONE A PROPRIEDADE PARA A MENSAGEM DE ERRO
   final String? errorMessage;
 
-  final Map<int, int> pricesBySize;
+
 
 
 
@@ -20,7 +20,7 @@ class FlavorWizardState extends Equatable {
     this.status = FormStatus.initial,
     this.isEditMode = false,
     this.errorMessage,
-    this.pricesBySize = const {},
+
   });
 
   factory FlavorWizardState.initial() => FlavorWizardState(
@@ -42,10 +42,10 @@ class FlavorWizardState extends Equatable {
       status: status ?? this.status,
       isEditMode: isEditMode ?? this.isEditMode,
       errorMessage: errorMessage ?? this.errorMessage,
-      pricesBySize: pricesBySize ?? this.pricesBySize,
+
     );
   }
 
   @override
-  List<Object?> get props => [product, parentCategory, status, isEditMode, errorMessage, pricesBySize];
+  List<Object?> get props => [product, parentCategory, status, isEditMode, errorMessage];
 }

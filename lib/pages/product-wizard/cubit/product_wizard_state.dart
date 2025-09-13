@@ -8,6 +8,7 @@ import 'package:totem_pro_admin/core/enums/product_type.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 
 import '../../../core/enums/form_status.dart';
+import '../../../core/enums/product_status.dart';
 import '../../../models/prodcut_category_links.dart';
 
 
@@ -54,7 +55,7 @@ class ProductWizardState extends Equatable {
 
   factory ProductWizardState.initial() {
     return ProductWizardState(
-      productInCreation: Product(available: true, image: ImageModel(), price: 0),
+      productInCreation: Product(status: ProductStatus.ACTIVE, image: ImageModel(), price: 0),
 
     );
   }

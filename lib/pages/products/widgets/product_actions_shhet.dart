@@ -1,4 +1,3 @@
-// Garanta que todos estes imports estejam no topo do seu arquivo
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,7 +18,7 @@ class ProductActionsSheet extends StatefulWidget {
   final int storeId;
   final Product product;
   final Category parentCategory;
-  final int displayPrice;
+  final String displayPrice; // ✅ Já é String
 
   const ProductActionsSheet({
     required this.storeId,
@@ -37,23 +36,21 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
   late final TextEditingController _stockController;
   late final FocusNode _priceFocusNode;
   late final FocusNode _stockFocusNode;
-
-  // ✅ 1. VARIÁVEL DE ESTADO LOCAL PARA O CONTROLE DE ESTOQUE
   late bool _isStockControlled;
 
   @override
   void initState() {
     super.initState();
-    // Usa 'widget.displayPrice' para o preço, pois é o preço contextual da categoria
-    _priceController = TextEditingController(
-      text: UtilBrasilFields.obterReal(widget.displayPrice / 100.0),
-    );
+
+    // ✅ CORREÇÃO: displayPrice já é String formatada, usa diretamente
+    _priceController = TextEditingController(text: widget.displayPrice);
+
     _stockController = TextEditingController(
-      text: widget.product.stockQuantity.toString(),
+      text: widget.product.stockQuantity?.toString() ?? '0',
     );
+
     _priceFocusNode = FocusNode()..addListener(_onPriceFocusChange);
     _stockFocusNode = FocusNode()..addListener(_onStockFocusChange);
-    // Inicia o estado local com o valor do produto
     _isStockControlled = widget.product.controlStock;
   }
 
@@ -66,8 +63,6 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
     super.dispose();
   }
 
-  // --- MÉTODOS DE AÇÃO (AGORA VIVEM AQUI) ---
-
   void _onPriceFocusChange() {
     if (!_priceFocusNode.hasFocus) _updatePrice();
   }
@@ -76,26 +71,36 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
     if (!_stockFocusNode.hasFocus) _updateStock();
   }
 
-  // ✅ MÉTODO DE ATUALIZAR PREÇO (CHAMA O CUBIT)
+  // ✅ CORREÇÃO: Agora converte o texto formatado para centavos
   void _updatePrice() {
-    final parsedPrice =
-        (UtilBrasilFields.converterMoedaParaDouble(_priceController.text) * 100)
-            .toInt();
-    if (widget.displayPrice != parsedPrice) {
-      context.read<ProductsCubit>().updateProductPriceInCategory(
-        storeId: widget.storeId,
-        productId: widget.product.id!,
-        categoryId: widget.parentCategory.id!,
-        newPrice: parsedPrice,
-      );
+    final originalPriceText = widget.displayPrice;
+    final newPriceText = _priceController.text;
+
+    // Só atualiza se o texto mudou
+    if (originalPriceText != newPriceText) {
+      try {
+        final priceInCents = (UtilBrasilFields.converterMoedaParaDouble(newPriceText) * 100).toInt();
+
+        context.read<ProductsCubit>().updateProductPriceInCategory(
+          storeId: widget.storeId,
+          productId: widget.product.id!,
+          categoryId: widget.parentCategory.id!,
+          newPrice: priceInCents,
+        );
+      } catch (e) {
+        // Reverte em caso de erro
+        _priceController.text = originalPriceText;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao atualizar preço: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
-  // ✅ MÉTODO DE ATUALIZAR ESTOQUE (CHAMA O CUBIT)
   void _updateStock() {
     final parsedQuantity = int.tryParse(_stockController.text) ?? 0;
-    // A UI local é atualizada separadamente para uma resposta mais rápida
     final newControlStatus = parsedQuantity > 0;
+
     if (_isStockControlled != newControlStatus) {
       setState(() {
         _isStockControlled = newControlStatus;
@@ -109,12 +114,10 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
     );
   }
 
-  // ✅ 3. MÉTODO DE "ATIVAR" AGORA APENAS ATUALIZA A UI LOCAL
   void _activateStockControl() {
     setState(() {
       _isStockControlled = true;
     });
-    // Pede foco para o campo de texto para o usuário começar a digitar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _stockFocusNode.requestFocus();
     });
@@ -128,21 +131,19 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
         if (state is StoresManagerLoaded) {
           try {
             currentProduct = state.activeStore!.relations.products.firstWhere(
-              (p) => p.id == widget.product.id,
+                  (p) => p.id == widget.product.id,
             );
           } catch (e) {
-            /* Mantém a versão antiga se não encontrar */
+            // Mantém a versão antiga se não encontrar
           }
         }
 
         final link = widget.product.categoryLinks.firstWhere(
-          (l) => l.categoryId == widget.parentCategory.id,
+              (l) => l.categoryId == widget.parentCategory.id,
         );
 
         final isAvailableInThisCategory = link.isAvailable;
-
-        final isCustomizable =
-            widget.parentCategory.type == CategoryType.CUSTOMIZABLE;
+        final isCustomizable = widget.parentCategory.type == CategoryType.CUSTOMIZABLE;
 
         return Container(
           padding: const EdgeInsets.all(8.0),
@@ -173,6 +174,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
                   ],
                 ),
               ),
+
               // Campos de Preço e Estoque
               if (!isCustomizable)
                 Padding(
@@ -205,10 +207,9 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
                                   vertical: 12,
                                 ),
                               ),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                              keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                                 CentavosInputFormatter(moeda: true),
@@ -219,10 +220,9 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child:
-                            _isStockControlled
-                                ? _buildStockDetails()
-                                : _buildStockControlWidget(),
+                        child: _isStockControlled
+                            ? _buildStockDetails()
+                            : _buildStockControlWidget(),
                       ),
                     ],
                   ),
@@ -233,8 +233,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
               ListTile(
                 leading: Icon(
                   isAvailableInThisCategory ? Icons.pause : Icons.play_arrow,
-                  color:
-                      isAvailableInThisCategory ? Colors.orange : Colors.green,
+                  color: isAvailableInThisCategory ? Colors.orange : Colors.green,
                 ),
                 title: Text(
                   isAvailableInThisCategory
@@ -255,31 +254,27 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
                 leading: const Icon(Icons.edit),
                 title: const Text('Editar item'),
                 onTap: () {
-                  Navigator.of(context).pop(); // Fecha o menu de opções
-
+                  Navigator.of(context).pop();
                   final storeIdStr = widget.storeId.toString();
                   final productIdStr = currentProduct.id.toString();
 
                   if (isCustomizable) {
-                    // ✅ Navega para a rota de edição de sabor usando o NOME e PARÂMETROS
                     context.goNamed(
                       'flavor-edit',
                       pathParameters: {
                         'storeId': storeIdStr,
                         'productId': productIdStr,
                       },
-                      extra:
-                          currentProduct, // O 'extra' ainda é útil aqui para a carga inicial!
+                      extra: currentProduct,
                     );
                   } else {
-                    // ✅ Navega para a rota de edição de produto usando o NOME e PARÂMETROS
                     context.goNamed(
                       'product-edit',
                       pathParameters: {
                         'storeId': storeIdStr,
                         'productId': productIdStr,
                       },
-                      extra: currentProduct, // O 'extra' ainda é útil aqui!
+                      extra: currentProduct,
                     );
                   }
                 },
@@ -335,9 +330,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
               icon: const Icon(Icons.clear, size: 20),
               tooltip: 'Zerar e desativar estoque',
               onPressed: () {
-                // Zera o campo localmente
                 _stockController.text = '0';
-                // Chama a função de update, que agora sabe que 0 significa desativar
                 _updateStock();
               },
             ),

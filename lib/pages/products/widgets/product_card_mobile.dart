@@ -6,6 +6,7 @@ import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
 import '../../../core/di.dart';
 import '../../../core/enums/category_type.dart';
+import '../../../core/enums/product_status.dart';
 import '../../../models/product.dart';
 import '../../../repositories/product_repository.dart';
 import '../../../services/dialog_service.dart';
@@ -31,10 +32,11 @@ class ProductCardMobile extends StatefulWidget {
 class _ProductCardMobileState extends State<ProductCardMobile> {
   @override
   Widget build(BuildContext context) {
-    final bool isAvailable = widget.product.available;
+
+    // ✅ LÓGICA CENTRALIZADA AQUI
+    final bool isActive = widget.product.status == ProductStatus.ACTIVE;
     final bool hasCategory = widget.product.categoryLinks.isNotEmpty;
-    final bool isCustomizable = hasCategory &&
-        widget.product.categoryLinks.first.category?.type == CategoryType.CUSTOMIZABLE;
+    final bool isCustomizable = hasCategory && widget.product.categoryLinks.first.category?.type == CategoryType.CUSTOMIZABLE;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8),
@@ -44,7 +46,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
           width: double.infinity,
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: widget.product.available ? Colors.white :Color(0xFFFFF8EB),
+            color: isActive ? Colors.white :Color(0xFFFFF8EB),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: widget.isSelected
@@ -81,7 +83,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                           mainAxisAlignment: MainAxisAlignment.center, // centraliza verticalmente
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (!widget.product.available)
+                            if (!isActive)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 4),
                                 child: Row(
@@ -150,7 +152,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                       height: 70, // mesma altura da imagem
                       child: Align(
                         alignment: Alignment.topCenter,
-                        child: _buildMobileActions(context, isCustomizable),
+                        child: _buildMobileActions(context, isCustomizable, isActive),
                       ),
                     ),
                   ],
@@ -160,7 +162,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
               const SizedBox(height: 16),
 
               // Detalhes do produto
-              _buildProductDetails(context),
+              _buildProductDetails(context, isActive),
             ],
           ),
         ),
@@ -168,7 +170,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
     );
   }
 
-  Widget _buildProductDetails(BuildContext context) {
+  Widget _buildProductDetails(BuildContext context, bool isActive) {
     // ✅ LÓGICA PARA DETERMINAR O TEXTO DO ESTOQUE
     final String stockText;
     if (widget.product.controlStock) {
@@ -242,7 +244,8 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                   child: _ActionButtons(
                     product: widget.product,
                     storeId: widget.storeId,
-                    onStateChanged: () => setState(() {}),
+                    isActive:isActive,
+                    onToggle: () => _toggleStatus(context),
                   ),
                 ),
               ],
@@ -253,7 +256,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
     );
   }
 
-  Widget _buildMobileActions(BuildContext context, bool isCustomizable) {
+  Widget _buildMobileActions(BuildContext context, bool isCustomizable, bool isActive) {
     if (widget.isSelected) {
       return Checkbox(
         value: true,
@@ -269,12 +272,12 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(),
         tooltip: 'Mais ações',
-        onPressed: () => _showMobileActionSheet(context, isCustomizable),
+        onPressed: () => _showMobileActionSheet(context, isCustomizable, isActive),
       );
     }
   }
 
-  void _showMobileActionSheet(BuildContext context, bool isCustomizable) {
+  void _showMobileActionSheet(BuildContext context, bool isCustomizable, bool isActive) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -315,11 +318,11 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                   },
                 ),
                 _ActionButtonItem(
-                  icon: widget.product.available ? Icons.pause : Icons.play_arrow,
-                  text: widget.product.available ? 'Pausar produto' : 'Ativar produto',
+                  icon: isActive ? Icons.pause : Icons.play_arrow,
+                  text: isActive ? 'Pausar produto' : 'Ativar produto',
                   onTap: () {
                     Navigator.of(ctx).pop();
-                    _toggleAvailability(context);
+                    _toggleStatus(context);
                   },
                 ),
                 _ActionButtonItem(
@@ -338,7 +341,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                   color: Colors.red,
                   onTap: () {
                     Navigator.of(ctx).pop();
-                    _deleteProduct(context);
+                    _archiveProduct(context);
                   },
                 ),
                 const SizedBox(height: 8),
@@ -353,62 +356,42 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
     );
   }
 
-  Future<void> _toggleAvailability(BuildContext context) async {
+
+  // ✅ MÉTODOS DE AÇÃO CORRIGIDOS E CENTRALIZADOS
+  Future<void> _toggleStatus(BuildContext context) async {
+    final newStatus = widget.product.status == ProductStatus.ACTIVE
+        ? ProductStatus.INACTIVE
+        : ProductStatus.ACTIVE;
+
+    final updatedProduct = widget.product.copyWith(status: newStatus);
+
     try {
-      final updatedProduct = widget.product.copyWith(available: !widget.product.available);
       await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            updatedProduct.available
-                ? 'Produto ativado com sucesso'
-                : 'Produto pausado com sucesso',
-          ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      // O socket já atualiza a UI, o SnackBar é opcional
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao atualizar produto: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 
-  Future<void> _deleteProduct(BuildContext context) async {
+  Future<void> _archiveProduct(BuildContext context) async {
     final confirmed = await DialogService.showConfirmationDialog(
       context,
-      title: 'Confirmar Exclusão',
-      content: 'Tem certeza que deseja excluir o produto "${widget.product.name}"?',
+      title: 'Confirmar Arquivamento',
+      content: 'Tem certeza que deseja arquivar o produto "${widget.product.name}"? Ele será movido para a lixeira.',
     );
 
     if (confirmed == true && mounted) {
       try {
-        await getIt<ProductRepository>().deleteProduct(widget.storeId, widget.product.id!);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Produto excluído com sucesso'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        await getIt<ProductRepository>().archiveProduct(widget.storeId, widget.product.id!);
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erro ao excluir: $e'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao arquivar: $e')));
       }
     }
   }
 }
+
+
+
 
 class _InfoItem extends StatelessWidget {
   final String title;
@@ -457,11 +440,13 @@ class _ActionButtonItem extends StatelessWidget {
   final Color? color;
   final VoidCallback onTap;
 
+
   const _ActionButtonItem({
     required this.icon,
     required this.text,
     this.color,
     required this.onTap,
+
   });
 
   @override
@@ -487,63 +472,31 @@ class _ActionButtonItem extends StatelessWidget {
   }
 }
 
-class _ActionButtons extends StatefulWidget {
+class _ActionButtons extends StatelessWidget {
   final Product product;
   final int storeId;
-  final VoidCallback onStateChanged;
+  final bool isActive;
+  final VoidCallback onToggle; // ✅ Parâmetro renomeado para clareza
 
   const _ActionButtons({
     required this.product,
     required this.storeId,
-    required this.onStateChanged,
+    required this.isActive,
+    required this.onToggle,
   });
 
   @override
-  State<_ActionButtons> createState() => _ActionButtonsState();
-}
-
-class _ActionButtonsState extends State<_ActionButtons> {
-
-
-  @override
   Widget build(BuildContext context) {
-
-    return
- IconButton(
+    return IconButton(
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(),
       icon: Icon(
-        widget.product.available ? Icons.pause : Icons.play_arrow,
+        isActive ? Icons.pause : Icons.play_arrow,
         size: 18,
-        color: widget.product.available
-            ? Colors.orange
-            :  Colors.green
+        color: isActive ? Colors.orange : Colors.green,
       ),
-      onPressed: _toggleAvailability,
-      tooltip: widget.product.available ? 'Pausar produto' : 'Ativar produto',
+      onPressed: onToggle, // ✅ Usa o callback passado
+      tooltip: isActive ? 'Pausar produto' : 'Ativar produto',
     );
-  }
-
-  Future<void> _toggleAvailability() async {
-
-
-    try {
-      final updatedProduct = widget.product.copyWith(available: !widget.product.available);
-      await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
-      widget.onStateChanged();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao atualizar: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-
-      }
-    }
   }
 }

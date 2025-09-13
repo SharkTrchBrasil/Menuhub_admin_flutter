@@ -38,7 +38,7 @@ class TabDetailsScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
             //  const SizedBox(height: 24),
-
+              _buildHeader(context, state),
               // ✅ 2. SUBSTITUA O TEXTO ANTIGO PELO NOVO WIDGET
             TabHeader(
                 title: title,
@@ -57,7 +57,7 @@ class TabDetailsScreen extends StatelessWidget {
               const SizedBox(height: 24),
               _buildNameField(context, state, cubit),
               const SizedBox(height: 24),
-              _buildSettingsRow(context, state, cubit),
+
               const SizedBox(height: 24),
            //   _buildStatusSwitch(context, state, isLoading),
             //  const SizedBox(height: 24),
@@ -101,119 +101,6 @@ class TabDetailsScreen extends StatelessWidget {
     );
   }
 
-
-
-
-  Widget _buildPrinterDropdown(BuildContext context, CategoryWizardState state, CategoryWizardCubit cubit) {
-    // A lógica para definir as opções e o valor atual continua a mesma
-    const List<String> printerDestinations = ['', 'cozinha', 'bar', 'balcao'];
-    final currentValue = printerDestinations.contains(state.printerDestination)
-        ? state.printerDestination
-        : null;
-
-    // A mudança é na estrutura do Card
-    return Card(
-      elevation: 1,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0), // ✅ Padding ajustado para 16
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ✅ 1. Header replicado do Cashback, com ícone e cor de Impressão
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50, // Nova cor para diferenciar
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.print_outlined, // Ícone relevante para impressão
-                    color: Colors.blue.shade700,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Destino de Impressão", // Novo título
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16), // Espaçador igual
-
-            // ✅ 2. O Dropdown que já funcionava agora é o corpo do card
-            DropdownButtonFormField<String>(
-              value: currentValue,
-              decoration: InputDecoration(
-                labelText: "Local de Impressão", // Label ajustado
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-              items: printerDestinations.map((String destination) {
-                return DropdownMenuItem<String>(
-                  value: destination,
-                  child: Text(destination.isEmpty ? 'Nenhum / Padrão da Loja' : destination),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  cubit.printerDestinationChanged(newValue);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingsRow(BuildContext context, CategoryWizardState state, CategoryWizardCubit cubit) {
-    final isMobile = ResponsiveBuilder.isMobile(context);
-
-    // Se for mobile, retorna uma Coluna com os widgets empilhados
-    if (isMobile) {
-      return Column(
-        children: [
-          _buildPrinterDropdown(context, state, cubit),
-          const SizedBox(height: 24),
-          _buildCashbackSection(context, state),
-        ],
-      );
-    }
-    // Se for desktop, retorna uma Linha com os widgets lado a lado
-    else {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start, // Alinha os cards pelo topo
-        children: [
-          // O Expanded faz com que cada widget filho ocupe o espaço disponível igualmente
-          Expanded(
-            flex: 1, // Ocupa uma fração do espaço
-            child: _buildPrinterDropdown(context, state, cubit),
-          ),
-          const SizedBox(width: 24), // Espaçamento entre os cards
-          Expanded(
-            flex: 1, // Ocupa a outra fração do espaço
-            child: _buildCashbackSection(context, state),
-          ),
-        ],
-      );
-    }
-  }
 
 
   Widget _buildNameField(BuildContext context, CategoryWizardState state, CategoryWizardCubit cubit) {
@@ -292,115 +179,6 @@ class TabDetailsScreen extends StatelessWidget {
     );
   }
 
-
-  Widget _buildCashbackSection(BuildContext context, CategoryWizardState state) {
-    final cubit = context.read<CategoryWizardCubit>();
-    final isMobile = ResponsiveBuilder.isMobile(context);
-
-    return Card(
-      elevation: 1,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.purple.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.monetization_on,
-                    color: Colors.purple.shade700,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Regra de Cashback",
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Dropdown para tipo de cashback
-            DropdownButtonFormField<CashbackType>(
-              value: state.cashbackType,
-              onChanged: (value) {
-                if (value != null) {
-                  cubit.cashbackTypeChanged(value);
-                }
-              },
-              decoration: InputDecoration(
-                labelText: "Tipo de Cashback",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-              items: CashbackType.values.map((type) {
-                return DropdownMenuItem<CashbackType>(
-                  value: type,
-                  child: Text(_getCashbackTypeLabel(type)),
-                );
-              }).toList(),
-              isExpanded: true,
-            ),
-
-            // Campo de valor apenas se cashback estiver ativo
-            if (state.cashbackType != CashbackType.none) ...[
-              const SizedBox(height: 16),
-              TextFormField(
-                initialValue: state.cashbackValue,
-                onChanged: cubit.cashbackValueChanged,
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: "Valor do Cashback",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  prefixText: state.cashbackType == CashbackType.fixed ? "R\$ " : null,
-                  suffixText: state.cashbackType == CashbackType.percentage ? "%" : null,
-                ),
-              ),
-            ]
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getCashbackTypeLabel(CashbackType type) {
-    switch (type) {
-      case CashbackType.none:
-        return "Nenhum cashback";
-      case CashbackType.percentage:
-        return "Percentual (%)";
-      case CashbackType.fixed:
-        return "Valor fixo (R\$)";
-      default:
-        return "Nenhum";
-    }
-  }
 
   Widget _buildFooterButtons(BuildContext context, CategoryWizardState state, bool isLoading, bool isMobile) {
     return Container(

@@ -1,33 +1,42 @@
-// ✅ 1. Importe o Equatable para comparação de objetos
+// Em: lib/models/option_group.dart
 import 'package:equatable/equatable.dart';
+import 'package:recase/recase.dart';
 import 'package:totem_pro_admin/models/option_item.dart';
 
+import '../core/enums/option_group_type.dart';
 import '../core/enums/pricing_strategy.dart';
 
-// ✅ 2. Adicione 'extends Equatable'
 class OptionGroup extends Equatable {
-  final int? id; // ID do banco de dados (pode ser nulo se for um grupo novo)
-  final String? localId; // ✅ 3. ID temporário para a UI gerenciar itens novos
+  final int? id;
+  final String? localId;
   final String name;
   final int minSelection;
   final int maxSelection;
   final int? priority;
   final List<OptionItem> items;
   final PricingStrategy pricingStrategy;
+  final OptionGroupType groupType;
+  final bool isConfigurable;
 
   const OptionGroup({
     this.id,
-    this.localId, // ✅ Adicionado ao construtor
+    this.localId,
     required this.name,
-    required this.minSelection,
-    required this.maxSelection,
+    this.minSelection = 1,
+    this.maxSelection = 1,
     this.priority,
     this.items = const [],
     this.pricingStrategy = PricingStrategy.sumOfItems,
+    this.groupType = OptionGroupType.generic,
+    this.isConfigurable = true,
   });
 
-  // ✅ 4. MÉTODO COPYWITH COMPLETO
-  /// Cria uma cópia do objeto, permitindo a alteração de campos específicos.
+  @override
+  List<Object?> get props => [
+    id, localId, name, minSelection, maxSelection, priority, items,
+    pricingStrategy, groupType, isConfigurable
+  ];
+
   OptionGroup copyWith({
     int? id,
     String? localId,
@@ -36,68 +45,70 @@ class OptionGroup extends Equatable {
     int? maxSelection,
     int? priority,
     List<OptionItem>? items,
-    PricingStrategy? pricingStrategy
+    PricingStrategy? pricingStrategy,
+    OptionGroupType? groupType,
+    bool? isConfigurable,
   }) {
     return OptionGroup(
-        id: id ?? this.id,
-        localId: localId ?? this.localId,
-        name: name ?? this.name,
-        minSelection: minSelection ?? this.minSelection,
-        maxSelection: maxSelection ?? this.maxSelection,
-        priority: priority ?? this.priority,
-        items: items ?? this.items,
-        pricingStrategy: pricingStrategy ?? this.pricingStrategy
+      id: id ?? this.id,
+      localId: localId ?? this.localId,
+      name: name ?? this.name,
+      minSelection: minSelection ?? this.minSelection,
+      maxSelection: maxSelection ?? this.maxSelection,
+      priority: priority ?? this.priority,
+      items: items ?? this.items,
+      pricingStrategy: pricingStrategy ?? this.pricingStrategy,
+      groupType: groupType ?? this.groupType,
+      isConfigurable: isConfigurable ?? this.isConfigurable,
     );
   }
 
-  // ✅ 5. PROPS PARA O EQUATABLE
-  //    Isso garante que o BLoC saiba quando um OptionGroup realmente mudou.
-  @override
-  List<Object?> get props => [id, localId, name, minSelection, maxSelection, priority, items, pricingStrategy];
-
-  // ✅ MÉTODO FROMJSON COMPLETO
   factory OptionGroup.fromJson(Map<String, dynamic> json) {
+    // ✅ LÓGICA ROBUSTA PARA PARSE DE ENUMS
+    final groupTypeString = json['group_type'] as String? ?? 'GENERIC';
+    final groupType = OptionGroupType.values.firstWhere(
+          (e) => e.name.toUpperCase() == groupTypeString.toUpperCase(),
+      orElse: () => OptionGroupType.generic,
+    );
+
+    final pricingStrategyString = json['pricing_strategy'] as String? ?? 'SUM_OF_ITEMS';
+    final pricingStrategy = PricingStrategy.values.firstWhere(
+          (e) => e.name.constantCase == pricingStrategyString,
+      orElse: () => PricingStrategy.sumOfItems,
+    );
+
     return OptionGroup(
       id: json['id'],
-      localId: json['local_id'], // ✅ Adicionado localId
-      name: json['name'],
-      minSelection: json['min_selection'] ?? 0,
+      name: json['name'] ?? '',
+      minSelection: json['min_selection'] ?? 1,
       maxSelection: json['max_selection'] ?? 1,
       priority: json['priority'],
-      pricingStrategy: json['pricing_strategy'] != null
-          ? PricingStrategy.values.firstWhere(
-            (e) => e.toString() == 'PricingStrategy.${json['pricing_strategy']}',
-        orElse: () => PricingStrategy.sumOfItems,
-      )
-          : PricingStrategy.sumOfItems,
+      groupType: groupType,
+      pricingStrategy: pricingStrategy,
+      isConfigurable: json['is_configurable'] ?? true,
       items: (json['items'] as List<dynamic>?)
           ?.map((itemJson) => OptionItem.fromJson(itemJson))
           .toList() ??
           [],
+      // Note que 'localId' não é lido do JSON, pois ele só existe no frontend.
     );
   }
 
-  // ✅ MÉTODO TOJSON COMPLETO
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'local_id': localId, // ✅ Adicionado localId
       'name': name,
       'min_selection': minSelection,
       'max_selection': maxSelection,
       'priority': priority,
-      'pricing_strategy': pricingStrategy.toString().split('.').last, // Converte enum para string
+
+      // ✅ ENVIA OS ENUMS E FLAGS NO FORMATO CORRETO PARA A API
+      'group_type': groupType.name.toUpperCase(),
+      'pricing_strategy': pricingStrategy.name.constantCase,
+      'is_configurable': isConfigurable,
+
       'items': items.map((item) => item.toJson()).toList(),
+      // Note que 'local_id' não é enviado, pois o backend não precisa dele.
     };
-  }
-
-  // ✅ MÉTODO PARA CONVERSÃO DE JSON EM LOTE (OPCIONAL)
-  static List<OptionGroup> fromJsonList(List<dynamic> jsonList) {
-    return jsonList.map((json) => OptionGroup.fromJson(json)).toList();
-  }
-
-  // ✅ MÉTODO PARA CONVERSÃO PARA JSON EM LOTE (OPCIONAL)
-  static List<Map<String, dynamic>> toJsonList(List<OptionGroup> groups) {
-    return groups.map((group) => group.toJson()).toList();
   }
 }

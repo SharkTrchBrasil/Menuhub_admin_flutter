@@ -8,6 +8,7 @@ import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/enums/beverage.dart';
 import 'package:totem_pro_admin/core/enums/foodtags.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
+import 'package:totem_pro_admin/core/enums/product_status.dart';
 import 'package:totem_pro_admin/core/enums/product_type.dart';
 import 'package:totem_pro_admin/models/catalog_product.dart';
 import 'package:totem_pro_admin/models/category.dart';
@@ -52,7 +53,7 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
       productType: type,
       catalogProductSelected: showForm,
       isImported: false,
-      productInCreation: Product(available: true),
+      productInCreation: Product(status: ProductStatus.ACTIVE),
       searchResults: [],
       searchStatus: SearchStatus.initial,
     ));
@@ -109,7 +110,7 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     emit(state.copyWith(
       catalogProductSelected: false,
       isImported: false,
-      productInCreation: Product(available: true),
+      productInCreation: Product(status: ProductStatus.ACTIVE),
       searchQuery: '',
     ));
   }

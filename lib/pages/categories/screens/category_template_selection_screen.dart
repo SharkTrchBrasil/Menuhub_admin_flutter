@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:totem_pro_admin/models/option_group_template.dart';
+import '../../../core/enums/category_template_type.dart';
 import '../cubit/category_wizard_cubit.dart';
 
 class CategoryTemplateSelectionScreen extends StatelessWidget {
@@ -11,67 +12,67 @@ class CategoryTemplateSelectionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final cubit = context.read<CategoryWizardCubit>();
 
-    // Lista de templates disponíveis
+
     final templates = [
       _TemplateInfo(
         title: "Pizza",
         icon: Icons.local_pizza_outlined,
         color: const Color(0xFFF4511E),
-        onTap: () => cubit.applyTemplate(CategoryTemplates.forPizza()),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.pizza),
       ),
       _TemplateInfo(
         title: "Açaí",
         icon: Icons.icecream_outlined,
         color: const Color(0xFF7B1FA2),
-        onTap: () => cubit.applyTemplate(CategoryTemplates.forAcai()),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.acai),
       ),
       _TemplateInfo(
         title: "Lanches",
         icon: Icons.lunch_dining_outlined,
         color: const Color(0xFFF57C00),
-        onTap: () => cubit.applyTemplate(CategoryTemplates.forLanches()),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.snacks), // CORRIGIDO
       ),
       _TemplateInfo(
         title: "Sushi",
         icon: Icons.restaurant_outlined,
         color: const Color(0xFFD32F2F),
-        onTap: () => cubit.applyTemplate(CategoryTemplates.forSushi()),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.sushi),
       ),
       _TemplateInfo(
         title: "Saladas",
         icon: Icons.eco_outlined,
         color: const Color(0xFF388E3C),
-        onTap: () => cubit.applyTemplate(CategoryTemplates.forSaladas()),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.salads),
       ),
       _TemplateInfo(
         title: "Sobremesas",
         icon: Icons.cake_outlined,
         color: const Color(0xFF7B1FA2),
-        onTap: () => cubit.applyTemplate(CategoryTemplates.forSobremesas()),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.desserts), // CORRIGIDO
       ),
       _TemplateInfo(
         title: "Bebidas",
         icon: Icons.local_drink_outlined,
         color: const Color(0xFF0288D1),
-        onTap: () => cubit.applyTemplate(CategoryTemplates.forBebidas()),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.drinks),
       ),
       _TemplateInfo(
         title: "Café da Manhã",
         icon: Icons.free_breakfast_outlined,
         color: const Color(0xFF5D4037),
-        onTap: () => cubit.applyTemplate(CategoryTemplates.forCafeDaManha()),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.breakfast), // CORRIGIDO
       ),
       _TemplateInfo(
         title: "Marmitas",
         icon: Icons.set_meal_outlined,
         color: const Color(0xFFFFA000),
-        onTap: () => cubit.applyTemplate(CategoryTemplates.forMarmitas()),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.lunchBoxes), // CORRIGIDO
       ),
       _TemplateInfo(
         title: "Do Zero",
         icon: Icons.add_circle_outline,
         color: const Color(0xFF78909C),
-        onTap: () => cubit.applyTemplate([]),
+        onTap: () => cubit.applyTemplate(CategoryTemplateType.blank),
       ),
     ];
 

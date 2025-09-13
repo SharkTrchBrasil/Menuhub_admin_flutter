@@ -15,7 +15,10 @@ import 'package:totem_pro_admin/core/enums/category_type.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/core/enums/wizard_step.dart';
 
+import '../../../core/enums/category_template_type.dart';
+import '../../../core/enums/option_group_type.dart';
 import '../../../core/enums/pricing_strategy.dart';
+import '../../../models/option_group_template.dart';
 
 part 'category_wizard_state.dart';
 
@@ -33,6 +36,33 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
         ? CategoryWizardState.initial()
         : CategoryWizardState.fromCategory(editingCategory),
   );
+
+
+
+  void applyTemplate(CategoryTemplateType template) {
+    List<OptionGroup> groups;
+
+    // O switch decide qual template carregar
+    switch (template) {
+      case CategoryTemplateType.pizza:
+        groups = CategoryTemplates.forPizza();
+        break;
+      case CategoryTemplateType.acai:
+        groups = CategoryTemplates.forAcai();
+        break;
+    // Adicione cases para seus outros templates (lanches, marmitas, etc.)
+      case CategoryTemplateType.blank:
+      default:
+        groups = []; // "Começar do Zero"
+    }
+
+    emit(state.copyWith(
+      selectedTemplate: template, // ✅ Guarda o template escolhido
+      optionGroups: groups,
+      step: WizardStep.details,
+    ));
+  }
+
 
   // --- NAVEGAÇÃO DO WIZARD ---
   // ATUALIZE ESTE MÉTODO
@@ -61,13 +91,8 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
       step: WizardStep.templateSelection,
     ));
   }
-  // ✅ NOVO MÉTODO PARA APLICAR UM TEMPLATE
-  void applyTemplate(List<OptionGroup> groups) {
-    emit(state.copyWith(
-      optionGroups: groups,
-      step: WizardStep.details, // Avança para os detalhes após aplicar
-    ));
-  }
+
+
 
 
 
@@ -105,6 +130,8 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
       name: 'Novo Grupo',
       minSelection: 1,
       maxSelection: 1,
+      groupType: OptionGroupType.generic,
+      isConfigurable: true,
       items: [OptionItem(localId: _uuid.v4(), name: 'Nova Opção', isActive: true)],
     );
     final updatedGroups = List<OptionGroup>.from(state.optionGroups)..add(newGroup);
@@ -284,9 +311,10 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
       cashbackValue: double.tryParse(state.cashbackValue.replaceAll(',', '.')) ?? 0.0,
       printerDestination: state.printerDestination.isNotEmpty ? state.printerDestination : null,
 
-      // ✅ MAPEAMENTO SIMPLIFICADO: A lista de OptionGroups já está pronta no estado.
+
       optionGroups: state.optionGroups,
 
+      selectedTemplate: state.selectedTemplate,
       schedules: state.schedules,
       availabilityType: state.availabilityType,
       pricingStrategy: state.pricingStrategy,

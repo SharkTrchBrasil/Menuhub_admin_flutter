@@ -9,6 +9,7 @@ import 'package:totem_pro_admin/models/flavor_price.dart';
 import '../core/enums/beverage.dart';
 import '../core/enums/cashback_type.dart';
 import '../core/enums/foodtags.dart';
+import '../core/enums/product_status.dart';
 import '../core/enums/product_type.dart';
 import '../widgets/app_selection_form_field.dart';
 import 'category.dart';
@@ -22,7 +23,7 @@ class Product extends Equatable implements SelectableItem {
   final int? id;
   final String name;
   final String? description; // ✅ Tornado nullable
-  final bool available;
+  final ProductStatus status;
   final ImageModel? image;
   final String? ean; // ✅ Tornado nullable
   final int stockQuantity;
@@ -60,7 +61,7 @@ class Product extends Equatable implements SelectableItem {
     this.id,
     this.name = '',
     this.description,
-    this.available = true,
+   this.status = ProductStatus.ACTIVE,
     this.image,
     this.ean,
     this.stockQuantity = 0,
@@ -102,7 +103,7 @@ class Product extends Equatable implements SelectableItem {
       id: json['id'],
       name: json['name'] ?? '',
       description: json['description'],
-      available: json['available'] ?? true,
+      status: productStatusFromString(json['status']),
       image: json['image_path'] != null
           ? ImageModel(url: json['image_path'])
           : null,
@@ -170,7 +171,7 @@ class Product extends Equatable implements SelectableItem {
     int? id,
     String? name,
     String? description,
-    bool? available,
+    ProductStatus? status,
     ImageModel? image,
     String? ean,
     int? stockQuantity,
@@ -208,7 +209,7 @@ class Product extends Equatable implements SelectableItem {
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
-      available: available ?? this.available,
+      status: status ?? this.status,
       image: image ?? this.image,
       ean: ean ?? this.ean,
       stockQuantity: stockQuantity ?? this.stockQuantity,
@@ -250,7 +251,7 @@ class Product extends Equatable implements SelectableItem {
       'name': name,
       'description': description,
       'ean': ean,
-      'available': available,
+      'status': status.name,
       'product_type': productType.name.toUpperCase(),
       'stock_quantity': stockQuantity,
       'control_stock': controlStock,
@@ -272,7 +273,7 @@ class Product extends Equatable implements SelectableItem {
       'name': name,
       'description': description,
       'ean': ean,
-      'available': available,
+      'status': status.name,
       'product_type': ProductType.INDIVIDUAL.name,
       'stock_quantity': stockQuantity,
       'control_stock': controlStock,
@@ -292,7 +293,7 @@ class Product extends Equatable implements SelectableItem {
       'ean': ean,
 
       // --- Opções (Aba "Disponibilidade e Opções") ---
-      'available': available,
+      'status': status.name,
       'featured': featured,
       'priority': priority, // ✅ Re-adicionado
 
@@ -328,7 +329,7 @@ class Product extends Equatable implements SelectableItem {
     id,
     name,
     description,
-    available,
+    status,
     image,
     ean,
     stockQuantity,

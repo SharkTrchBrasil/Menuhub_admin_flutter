@@ -121,6 +121,8 @@ dependencies:
   boleto_utils: ^1.1.0
   flutter_barcode_scanner_plus: ^3.0.8
   signature: ^6.3.0
+  recase: ^4.1.0
+  flutter_speed_dial: ^7.0.0
 
 
 

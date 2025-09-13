@@ -14,6 +14,7 @@ import 'package:equatable/equatable.dart';
 import '../../../core/enums/beverage.dart';
 import '../../../core/enums/cashback_type.dart';
 import '../../../core/enums/foodtags.dart';
+import '../../../core/enums/product_status.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
 import '../../../models/product_variant_link.dart';
@@ -226,9 +227,16 @@ class EditProductCubit extends Cubit<EditProductState> {
 
 // ✅ --- LÓGICA PARA A ABA "DISPONIBILIDADE E OPÇÕES" ---
 
-  void availabilityChanged(bool isAvailable) {
-    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(available: isAvailable)));
+  void statusChanged(bool isActive) {
+    // ✅ A lógica agora decide entre os status ACTIVE e INACTIVE
+    final newStatus = isActive ? ProductStatus.ACTIVE : ProductStatus.INACTIVE;
+
+    // ✅ Em vez de 'available', atualizamos o campo 'status'
+    emit(state.copyWith(
+        editedProduct: state.editedProduct.copyWith(status: newStatus)
+    ));
   }
+
 
   void featuredToggled(bool isFeatured) {
     emit(state.copyWith(editedProduct: state.editedProduct.copyWith(featured: isFeatured)));

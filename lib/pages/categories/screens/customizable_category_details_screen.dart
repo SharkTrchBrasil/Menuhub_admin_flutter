@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/option_group.dart';
 import 'package:totem_pro_admin/pages/categories/screens/tabs/option_groups_tab.dart';
+import 'package:totem_pro_admin/pages/categories/screens/tabs/settings_tab.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import '../cubit/category_wizard_cubit.dart';
 import 'tabs/availability_tab.dart';
@@ -63,15 +64,37 @@ class _CustomizableCategoryDetailsScreenState extends State<CustomizableCategory
           const Tab(text: "Detalhes"),
           ...state.optionGroups.map((group) => Tab(text: group.name.isEmpty ? "Novo Grupo" : group.name)),
           const Tab(text: "Disponibilidade"),
-          if (isDetailsValid) const Tab(icon: Icon(Icons.add)),
+          const Tab(text: "Configurações"),
+
         ];
 
-        // ✅ Monta a lista de widgets para o CONTEÚDO das abas
+        // ✅ Monta a lista de widgets para o CONTEÚDO das abas (AQUI ESTÁ A CORREÇÃO)
         final List<Widget> tabViews = [
           const TabDetailsScreen(),
-          ...state.optionGroups.map((group) => OptionGroupsTab(key: ValueKey(group.localId))),
+
+
+
+          ...state.optionGroups.map((group) {
+            return OptionGroupContentTab(
+              key: ValueKey(group.localId), // Chave para o Flutter saber qual aba é qual
+              group: group,
+            );
+          }),
+
+
+
+
+
+
+
+
+
           const AvailabilityTab(),
-          if (isDetailsValid) Container(color: Colors.grey[50]), // Placeholder para a aba '+'
+
+
+          const SettingsTab(),
+
+
         ];
 
         return Scaffold(
@@ -94,14 +117,14 @@ class _CustomizableCategoryDetailsScreenState extends State<CustomizableCategory
                       _tabController!.index = 0;
                       return;
                     }
-                    // Se clicar na aba '+', adiciona um grupo
-                    if (isDetailsValid && index == tabs.length - 1) {
-                      cubit.addOptionGroup();
-                      // Anima para a penúltima aba (a que acabou de ser criada)
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _tabController?.animateTo(tabs.length - 2);
-                      });
-                    }
+                    // // Se clicar na aba '+', adiciona um grupo
+                    // if (isDetailsValid && index == tabs.length - 1) {
+                    //   cubit.addOptionGroup();
+                    //   // Anima para a penúltima aba (a que acabou de ser criada)
+                    //   WidgetsBinding.instance.addPostFrameCallback((_) {
+                    //     _tabController?.animateTo(tabs.length - 2);
+                    //   });
+                    // }
                   },
                 ),
               ],
@@ -128,23 +151,24 @@ class _CustomizableCategoryDetailsScreenState extends State<CustomizableCategory
       ) {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
-      ),
+
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          DsButton(
-            label: 'Cancelar',
-            style: DsButtonStyle.secondary,
-            onPressed: isLoading ? null : cubit.cancelWizard,
+          Flexible(
+            child: DsButton(
+              label: 'Cancelar',
+              style: DsButtonStyle.secondary,
+              onPressed: isLoading ? null : cubit.cancelWizard,
+            ),
           ),
           const SizedBox(width: 16),
-          DsButton(
-            isLoading: isLoading,
-            label: "Salvar Categoria",
-            onPressed: isDetailsValid && !isLoading ? cubit.submitCategory : null,
+          Flexible(
+            child: DsButton(
+              isLoading: isLoading,
+              label: "Salvar Categoria",
+              onPressed: isDetailsValid && !isLoading ? cubit.submitCategory : null,
+            ),
           ),
         ],
       ),

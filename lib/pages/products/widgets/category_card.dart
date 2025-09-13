@@ -10,6 +10,7 @@ import 'package:totem_pro_admin/pages/products/widgets/product_list_item.dart';
 
 import 'package:totem_pro_admin/services/dialog_service.dart';
 
+import '../../../core/enums/category_type.dart';
 import '../../categories/widgets/category_card_header.dart';
 import '../../categories/widgets/empty_category.dart';
 import '../cubit/products_cubit.dart';
@@ -156,31 +157,42 @@ class _CategoryCardState extends State<CategoryCard> {
               itemBuilder: (context, index) {
                 final product = widget.products[index];
 
-                // ✅ --- A LÓGICA PARA ENCONTRAR O PREÇO CORRETO VIVE AQUI ---
-                int priceForThisCategory = 0;
-                try {
+                String displayPriceText = 'R\$ 0,00'; // Valor padrão seguro
 
+                // ✅ --- INÍCIO DA NOVA LÓGICA DE PREÇO ---
 
-                  // ✅ --- LÓGICA ROBUSTA PARA ENCONTRAR O PREÇO ---
-// Usa 'firstWhereOrNull' que retorna o link ou `null` se não encontrar. Não lança exceção.
+                if (widget.category.type == CategoryType.CUSTOMIZABLE) {
+                  // LÓGICA PARA PIZZAS, AÇAÍS, ETC.
+
+                  // Filtra apenas os preços válidos (maiores que zero)
+                  final validPrices = product.prices.where((p) => p.price > 0).map((p) => p.price).toList();
+
+                  if (validPrices.isNotEmpty) {
+                    // Encontra o menor preço entre os tamanhos
+                    final minPrice = validPrices.reduce((a, b) => a < b ? a : b);
+                    // Formata o preço em centavos para o formato R$ XX,XX
+                    final formattedPrice = (minPrice / 100).toStringAsFixed(2).replaceAll('.', ',');
+                    displayPriceText = formattedPrice;
+                  } else {
+                    displayPriceText = '0,00';
+                  }
+
+                } else {
+                  // LÓGICA PARA CATEGORIAS GERAIS (LANCHES, BEBIDAS, ETC.)
                   final link = product.categoryLinks.firstWhereOrNull(
                         (link) => link.categoryId == widget.category.id,
                   );
 
-// Se o link não for encontrado (o produto não pertence a esta categoria),
-// podemos simplesmente não renderizar o item ou mostrar um preço padrão.
-                  final int priceForThisCategory = link?.price ?? product.price ?? 0;
-// ✅ --- FIM DA LÓGICA ---
+                  final priceInCents = link?.price ?? product.price ?? 0;
 
-
-                } catch (e) {
-                  // Se não encontrar (caso raro), usa o preço base ou 0 como fallback
-                  priceForThisCategory = product.price ?? 0;
+                  if (priceInCents > 0) {
+                    final formattedPrice = (priceInCents / 100).toStringAsFixed(2).replaceAll('.', ',');
+                    displayPriceText = formattedPrice;
+                  } else {
+                    displayPriceText = '0,00'; // Ou 'Preço a definir'
+                  }
                 }
-
-
-
-
+                // ✅ --- FIM DA NOVA LÓGICA DE PREÇO ---
 
 
                 return Container(
@@ -194,7 +206,7 @@ class _CategoryCardState extends State<CategoryCard> {
                     storeId: widget.storeId,
                     product: product,
                     parentCategory: widget.category,
-                    displayPrice: priceForThisCategory,
+                    displayPriceText: displayPriceText,
 
                   ),
                 );

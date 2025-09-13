@@ -1,226 +1,342 @@
-// Em: lib/pages/categories/screens/tabs/option_groups_tab.dart
+// Em: lib/pages/categories/screens/tabs/option_group_content_tab.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:totem_pro_admin/pages/categories/cubit/category_wizard_cubit.dart';
+import 'package:totem_pro_admin/core/enums/pricing_strategy.dart';
 import 'package:totem_pro_admin/models/option_group.dart';
-import 'package:totem_pro_admin/models/option_item.dart';
+import 'package:totem_pro_admin/pages/categories/cubit/category_wizard_cubit.dart';
+import 'package:totem_pro_admin/pages/categories/screens/tabs/widgets/item_card_default.dart';
+import 'package:totem_pro_admin/pages/categories/screens/tabs/widgets/sizes_cards.dart';
 
-import '../../../../core/enums/pricing_strategy.dart';
 
-class OptionGroupsTab extends StatelessWidget {
-  const OptionGroupsTab({super.key});
+import '../../../../core/enums/category_template_type.dart';
+import '../../../../core/enums/option_group_type.dart';
 
-  @override
-  Widget build(BuildContext context) {
-    // Usamos 'watch' aqui para que a tela inteira reconstrua se um grupo for adicionado/removido
-    final cubit = context.watch<CategoryWizardCubit>();
-    final state = cubit.state;
-    final optionGroups = state.optionGroups;
 
-    return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            if (optionGroups.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 48.0),
-                  child: Text("Nenhum grupo de opções foi adicionado ainda."),
-                ),
-              ),
 
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: optionGroups.length,
-              itemBuilder: (context, index) {
-                final group = optionGroups[index];
-                return _OptionGroupCard(
-                  key: ValueKey(group.localId),
-                  group: group,
-                  // ✅ Passamos a flag de precificação para o widget filho
-                  priceVariesBySize: state.priceVariesBySize,
-                );
-              },
-              onReorder: (oldIndex, newIndex) {
-                cubit.reorderOptionGroups(oldIndex, newIndex);
-              },
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: cubit.addOptionGroup,
-              icon: const Icon(Icons.add),
-              label: const Text("Adicionar novo grupo de opções"),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Widget para exibir e editar um único OptionGroup
-class _OptionGroupCard extends StatelessWidget {
+class OptionGroupContentTab extends StatelessWidget {
   final OptionGroup group;
-  final bool priceVariesBySize; // ✅ Recebe a flag
-
-  const _OptionGroupCard({
-    super.key,
-    required this.group,
-    required this.priceVariesBySize,
-  });
+  const OptionGroupContentTab({super.key, required this.group});
 
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<CategoryWizardCubit>();
+    final state = context.watch<CategoryWizardCubit>().state;
 
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 16),
-      child: ExpansionTile(
-        key: PageStorageKey(group.localId),
-        title: Text(group.name.isEmpty ? "Novo Grupo" : group.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: () => cubit.removeOptionGroup(group.localId!),
-            ),
-            const Icon(Icons.keyboard_arrow_down),
-          ],
-        ),
+    final bool isSizeGroup = group.groupType == OptionGroupType.size;
+    final bool isPizzaTemplate = state.selectedTemplate == CategoryTemplateType.pizza;
+    final bool showPizzaSizeUI = isSizeGroup && isPizzaTemplate;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0).copyWith(top: 0),
-            child: Column(
-              children: [
-                TextFormField(
-                  initialValue: group.name,
-                  decoration: const InputDecoration(labelText: "Nome do Grupo"),
-                  onChanged: (newName) {
-                    cubit.updateOptionGroup(group.copyWith(name: newName));
-                  },
-                ),
-                const SizedBox(height: 16),
 
-                // ✅ SELETOR DE ESTRATÉGIA DE PREÇO ADICIONADO AQUI
-                DropdownButtonFormField<PricingStrategy>(
-                  value: group.pricingStrategy,
-                  decoration: const InputDecoration(
-                    labelText: "Como o preço deste grupo será calculado?",
-                    border: OutlineInputBorder(),
-                  ),
-                  items: PricingStrategy.values.map((strategy) {
-                    return DropdownMenuItem(
-                      value: strategy,
-                      child: Text(_getStrategyLabel(strategy)),
-                    );
-                  }).toList(),
-                  onChanged: (newStrategy) {
-                    if (newStrategy != null) {
-                      cubit.updateGroupPricingStrategy(group.localId!, newStrategy);
-                    }
-                  },
-                ),
 
-                const Divider(height: 32),
 
-                ...group.items.map((item) => _OptionItemRow(
+
+          if (group.items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48.0),
+              child: Center(child: Text("Nenhuma opção adicionada. Clique no botão abaixo.")),
+            ),
+
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: group.items.length,
+            itemBuilder: (context, index) {
+              final item = group.items[index];
+              if (showPizzaSizeUI) {
+                return PizzaSizeItemCard(
                   key: ValueKey(item.localId),
                   item: item,
-                  // ✅ Passa a flag para o widget filho
-                  priceVariesBySize: priceVariesBySize,
                   onUpdate: (updatedItem) => cubit.updateOptionItem(group.localId!, updatedItem),
                   onRemove: () => cubit.removeOptionItem(group.localId!, item.localId!),
-                )),
-                const SizedBox(height: 12),
-                TextButton.icon(
-                  onPressed: () => cubit.addOptionItem(group.localId!),
-                  icon: const Icon(Icons.add),
-                  label: const Text("Adicionar opção"),
-                ),
-              ],
+                );
+              } else {
+                return DoughItemCard(
+                  key: ValueKey(item.localId),
+                  item: item,
+
+                  onUpdate: (updatedItem) => cubit.updateOptionItem(group.localId!, updatedItem),
+                  onRemove: () => cubit.removeOptionItem(group.localId!, item.localId!),
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 24),
+
+          // ===================================================================
+          // ✅ BLOCO 4: BOTÕES DE AÇÃO NO FINAL
+          // ===================================================================
+          ElevatedButton.icon(
+            onPressed: () => cubit.addOptionItem(group.localId!),
+            icon: const Icon(Icons.add),
+            label: const Text("Adicionar Nova Opção"),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
             ),
-          )
+          ),
+          if (group.isConfigurable) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: Wrap(
+                spacing: 24,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: [
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: () => _showMobileSettingsDialog(context, cubit, group),
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey,),
+                    label: const Text("Editar Regras do Grupo", style: TextStyle(color: Colors.grey),),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    onPressed: () => _showDeleteConfirmationDialog(context, cubit, group),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text("Apagar Grupo"),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
-  }
-
-
-  String _getStrategyLabel(PricingStrategy strategy) {
-    switch (strategy) {
-      case PricingStrategy.sumOfItems:
-        return "Soma dos preços dos itens";
-      case PricingStrategy.highestPrice:
-        return "Preço do item mais caro";
-      case PricingStrategy.lowestPrice:
-        return "Preço do item mais barato";
-    }
   }
 }
 
 
-
-// Widget para exibir e editar um único OptionItem
-class _OptionItemRow extends StatelessWidget {
-  final OptionItem item;
-  final bool priceVariesBySize; // ✅ Recebe a flag
-  final ValueChanged<OptionItem> onUpdate;
-  final VoidCallback onRemove;
-
-  const _OptionItemRow({
-    super.key,
-    required this.item,
-    required this.priceVariesBySize,
-    required this.onUpdate,
-    required this.onRemove,
-  });
+class _GroupSettings extends StatelessWidget {
+  final OptionGroup group;
+  const _GroupSettings({required this.group});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextFormField(
-              initialValue: item.name,
-              decoration: const InputDecoration(labelText: "Nome da Opção", isDense: true),
-              onChanged: (newName) => onUpdate(item.copyWith(name: newName)),
+    final cubit = context.read<CategoryWizardCubit>();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Regras do Grupo', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: TextFormField(initialValue: group.minSelection.toString(), onChanged: (v) => cubit.updateOptionGroup(group.copyWith(minSelection: int.tryParse(v) ?? 0)), decoration: const InputDecoration(labelText: "Mínimo"))),
+                const SizedBox(width: 16),
+                Expanded(child: TextFormField(initialValue: group.maxSelection.toString(), onChanged: (v) => cubit.updateOptionGroup(group.copyWith(maxSelection: int.tryParse(v) ?? 1)), decoration: const InputDecoration(labelText: "Máximo"))),
+              ],
             ),
-          ),
-
-          // ✅ LÓGICA CONDICIONAL AQUI!
-          // O campo de preço só aparece se a flag for verdadeira para este grupo.
-          if (!priceVariesBySize) ...[
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 100,
-              child: TextFormField(
-                initialValue: (item.price / 100).toStringAsFixed(2),
-                decoration: const InputDecoration(labelText: "Preço", prefixText: "R\$ ", isDense: true),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (newPrice) {
-                  final priceInCents = ((double.tryParse(newPrice.replaceAll(',', '.')) ?? 0) * 100).round();
-                  onUpdate(item.copyWith(price: priceInCents));
-                },
-              ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<PricingStrategy>(
+              value: group.pricingStrategy,
+              decoration: const InputDecoration(labelText: "Cálculo de Preço", border: OutlineInputBorder()),
+              items: PricingStrategy.values.map((s) => DropdownMenuItem(value: s, child: Text(_getStrategyLabel(s)))).toList(),
+              onChanged: (val) { if (val != null) cubit.updateGroupPricingStrategy(group.localId!, val); },
             ),
           ],
-
-          IconButton(
-            icon: const Icon(Icons.delete_forever, size: 20),
-            onPressed: onRemove,
-            color: Colors.grey.shade600,
-          )
-        ],
+        ),
       ),
     );
+  }
+}
+
+class _ItemsList extends StatelessWidget {
+  final OptionGroup group;
+  final bool showPizzaSizeUI;
+  const _ItemsList({required this.group, required this.showPizzaSizeUI});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<CategoryWizardCubit>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (group.items.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 48.0),
+            child: Center(child: Text("Nenhuma opção adicionada.")),
+          ),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: group.items.length,
+          itemBuilder: (context, index) {
+            final item = group.items[index];
+            if (showPizzaSizeUI) {
+              return PizzaSizeItemCard(
+                key: ValueKey(item.localId),
+                item: item,
+                onUpdate: (updatedItem) => cubit.updateOptionItem(group.localId!, updatedItem),
+                onRemove: () => cubit.removeOptionItem(group.localId!, item.localId!),
+              );
+            } else {
+              return DoughItemCard(
+                key: ValueKey(item.localId),
+                item: item,
+               // showPrice: group.groupType != OptionGroupType.size,
+                onUpdate: (updatedItem) => cubit.updateOptionItem(group.localId!, updatedItem),
+                onRemove: () => cubit.removeOptionItem(group.localId!, item.localId!),
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+
+// =======================================================================
+// DIÁLOGOS E FUNÇÕES AUXILIARES (extraídos da classe para maior clareza)
+
+  // =======================================================================
+  // DIÁLOGOS
+  // =======================================================================
+
+}
+
+
+void _showRenameDialog(BuildContext context, CategoryWizardCubit cubit, OptionGroup group) {
+  final TextEditingController controller = TextEditingController(text: group.name);
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Renomear Grupo'),
+      content: TextFormField(
+        controller: controller,
+        decoration: const InputDecoration(
+          labelText: 'Nome do grupo',
+          border: OutlineInputBorder(),
+        ),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (controller.text.trim().isNotEmpty) {
+              cubit.updateOptionGroup(group.copyWith(name: controller.text.trim()));
+              Navigator.pop(context);
+            }
+          },
+          child: const Text('Salvar'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showMobileSettingsDialog(BuildContext context, CategoryWizardCubit cubit, OptionGroup group) {
+  final minController = TextEditingController(text: group.minSelection.toString());
+  final maxController = TextEditingController(text: group.maxSelection.toString());
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Configurações do Grupo'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: minController,
+              decoration: const InputDecoration(
+                labelText: "Mínimo de Opções",
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: maxController,
+              decoration: const InputDecoration(
+                labelText: "Máximo de Opções",
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<PricingStrategy>(
+              value: group.pricingStrategy,
+              decoration: const InputDecoration(
+                labelText: "Estratégia de Preço",
+                border: OutlineInputBorder(),
+              ),
+              items: PricingStrategy.values.map((strategy) {
+                return DropdownMenuItem(
+                  value: strategy,
+                  child: Text(_getStrategyLabel(strategy)),
+                );
+              }).toList(),
+              onChanged: (newStrategy) {
+                if (newStrategy != null) {
+                  cubit.updateGroupPricingStrategy(group.localId!, newStrategy);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () {
+            cubit.updateOptionGroup(group.copyWith(
+              minSelection: int.tryParse(minController.text) ?? 0,
+              maxSelection: int.tryParse(maxController.text) ?? 1,
+            ));
+            Navigator.pop(context);
+          },
+          child: const Text('Salvar'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showDeleteConfirmationDialog(BuildContext context, CategoryWizardCubit cubit, OptionGroup group) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Remover Grupo'),
+      content: Text('Tem certeza que deseja remover o grupo "${group.name}"?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () {
+            cubit.removeOptionGroup(group.localId!);
+            Navigator.pop(context);
+          },
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Remover'),
+        ),
+      ],
+    ),
+  );
+}
+
+String _getStrategyLabel(PricingStrategy strategy) {
+  switch (strategy) {
+    case PricingStrategy.sumOfItems:
+      return "Soma dos preços dos itens";
+    case PricingStrategy.highestPrice:
+      return "Preço do item mais caro";
+    case PricingStrategy.lowestPrice:
+      return "Preço do item mais barato";
   }
 }

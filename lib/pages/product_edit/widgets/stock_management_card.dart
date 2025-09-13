@@ -146,7 +146,7 @@ class _StockManagementCardState extends State<StockManagementCard> {
                         controller: _stockController,
                         focusNode: _stockFocusNode,
 
-                        readOnly: widget.isImported,
+                      //  readOnly: widget.isImported,
                         keyboardType: TextInputType.number,
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         onChanged: widget.onQuantityChanged,

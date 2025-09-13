@@ -1,295 +1,157 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_image.dart';
+import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
+import '../../../core/di.dart';
+import '../../../core/enums/category_type.dart';
+import '../../../core/enums/product_status.dart';
 import '../../../models/product.dart';
+import '../../../repositories/product_repository.dart';
+import '../../../services/dialog_service.dart';
 
-
-class ProductCardDesktop extends StatelessWidget {
-
+class ProductCardDesktop extends StatefulWidget {
   final Product product;
   final bool isSelected;
   final VoidCallback onTap;
   final int storeId;
 
-
-
-  const ProductCardDesktop({super.key, required this.product, required this.isSelected, required this.onTap, required this.storeId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1200,
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Cabeçalho da tabela
-          const TableHeader(),
-          // Linhas da tabela
-          Expanded(
-            child: ListView(
-              children: const [
-                ProductTableRow(
-                  productName: '2 Geladinhos Gourmet feitos com Geleia de Morango caseira, preparada artesanalme',
-                  description: 'Bife acebolado',
-                  classification: 'Item principal',
-                  availableIn: 'Bebidas',
-                  status: ProductStatus.categoryPaused,
-                  imageUrl: 'https://static-images.ifood.com.br/pratos/3900c306-26fe-4d16-acac-1b57791c6dda/202507272200_8IIB_i.jpg',
-                ),
-                ProductTableRow(
-                  productName: 'Bolo Cac Milho com Coco',
-                  description: 'Compra por peso',
-                  classification: 'Item principal',
-                  availableIn: 'Doces',
-                  status: ProductStatus.complementWithoutPrice,
-                  imageUrl: 'https://static-images.ifood.com.br/pratos/820af392-002c-47b1-bfae-d7ef31743c7f/202204181221_dzhse5mipfn.jpg',
-                ),
-                ProductTableRow(
-                  productName: 'Coca-Cola',
-                  description: '',
-                  classification: 'Item principal',
-                  availableIn: 'Açais, Bebidas + 1',
-                  status: ProductStatus.promotion,
-                  imageUrl: 'https://static-images.ifood.com.br/pratos/820af392-002c-47b1-bfae-d7ef31743c7f/202410251738_gacxmhpa7dk.jpeg',
-                ),
-                ProductTableRow(
-                  productName: 'Hambuerguer',
-                  description: 'Produto pausado',
-                  classification: 'Item principal',
-                  availableIn: 'Bebidas',
-                  status: ProductStatus.outOfStock,
-                  imageUrl: 'https://static-images.ifood.com.br/pratos/3900c306-26fe-4d16-acac-1b57791c6dda/202507311404_3F6E_i.jpg',
-                ),
-                ProductTableRow(
-                  productName: 'Top Burgão',
-                  description: 'File, Cebola, Pão, Alface',
-                  classification: 'Item principal',
-                  availableIn: 'Hamburguers (1)',
-                  status: ProductStatus.normal,
-                  imageUrl: 'https://static-images.ifood.com.br/pratos/3900c306-26fe-4d16-acac-1b57791c6dda/202507272201_L180_i.jpg',
-                ),
-              ],
-            ),
-          ),
-          // Rodapé da tabela
-          const TableFooter(),
-        ],
-      ),
-    );
-  }
-}
-
-class TableHeader extends StatelessWidget {
-  const TableHeader({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFEBEBEB))),
-      ),
-      child: const Row(
-        children: [
-          SizedBox(width: 60, child: _HeaderCheckbox()),
-          SizedBox(width: 100, child: Text('Imagem', style: TextStyle(fontSize: 14, color: Colors.grey))),
-          Expanded(flex: 3, child: Text('Produto', style: TextStyle(fontSize: 14, color: Colors.grey))),
-          Expanded(flex: 1, child: Text('Classificação', style: TextStyle(fontSize: 14, color: Colors.grey))),
-          Expanded(flex: 1, child: Text('Disponível em', style: TextStyle(fontSize: 14, color: Colors.grey))),
-          SizedBox(width: 120, child: Text('Ações', style: TextStyle(fontSize: 14, color: Colors.grey))),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderCheckbox extends StatelessWidget {
-  const _HeaderCheckbox();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFEBEBEB)),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Checkbox(
-        value: false,
-        onChanged: (value) {},
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
-      ),
-    );
-  }
-}
-
-enum ProductStatus {
-  normal,
-  categoryPaused,
-  complementWithoutPrice,
-  outOfStock,
-  promotion
-}
-
-class ProductTableRow extends StatelessWidget {
-  final String productName;
-  final String description;
-  final String classification;
-  final String availableIn;
-  final ProductStatus status;
-  final String imageUrl;
-
-  const ProductTableRow({
+  const ProductCardDesktop({
     super.key,
-    required this.productName,
-    required this.description,
-    required this.classification,
-    required this.availableIn,
-    required this.status,
-    required this.imageUrl,
+    required this.product,
+    required this.isSelected,
+    required this.onTap,
+    required this.storeId,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: status == ProductStatus.outOfStock || status == ProductStatus.categoryPaused
-            ? const Color(0xFFFFF8EB)
-            : Colors.white,
-        border: const Border(bottom: BorderSide(color: Color(0xFFEBEBEB))),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Checkbox
-          SizedBox(width: 60, child: _ProductCheckbox()),
-          // Imagem
-          SizedBox(width: 100, child: _ProductImage(imageUrl: imageUrl)),
-          // Informações do produto
-          Expanded(
-            flex: 3,
-            child: _ProductInfo(
-              productName: productName,
-              description: description,
-              status: status,
-            ),
-          ),
-          // Classificação
-          Expanded(
-            flex: 1,
-            child: Text(
-              classification,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-          ),
-          // Disponível em
-          Expanded(
-            flex: 1,
-            child: Text(
-              availableIn,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-          ),
-          // Ações
-          SizedBox(width: 120, child: _ProductActions(status: status)),
-        ],
-      ),
-    );
-  }
+  State<ProductCardDesktop> createState() => _ProductCardDesktopState();
 }
 
-class _ProductCheckbox extends StatelessWidget {
+class _ProductCardDesktopState extends State<ProductCardDesktop> {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFEBEBEB)),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Checkbox(
-        value: false,
-        onChanged: (value) {},
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
-      ),
-    );
-  }
-}
+    // ✅ LÓGICA CENTRALIZADA AQUI (igual à versão mobile)
+    final bool isActive = widget.product.status == ProductStatus.ACTIVE;
+    final bool hasCategory = widget.product.categoryLinks.isNotEmpty;
+    final bool isCustomizable = hasCategory &&
+        widget.product.categoryLinks.first.category?.type == CategoryType.CUSTOMIZABLE;
 
-class _ProductImage extends StatelessWidget {
-  final String imageUrl;
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : const Color(0xFFFFF8EB),
+          border: Border.all(
+            color: widget.isSelected
+                ? Theme.of(context).primaryColor
+                : const Color(0xFFEBEBEB),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Checkbox de seleção
+            SizedBox(
+              width: 60,
+              child: Checkbox(
+                value: widget.isSelected,
+                onChanged: (_) => widget.onTap(),
+                activeColor: Theme.of(context).primaryColor,
+              ),
+            ),
 
-  const _ProductImage({required this.imageUrl});
+            // Imagem do produto
+            SizedBox(
+              width: 100,
+              child: ProductImage(product: widget.product),
+            ),
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        image: DecorationImage(
-          image: NetworkImage(imageUrl),
-          fit: BoxFit.cover,
+            // Informações do produto
+            Expanded(
+              flex: 3,
+              child: _ProductInfoDesktop(
+                product: widget.product,
+                isActive: isActive,
+              ),
+            ),
+
+            // Classificação (simplificado - você pode adaptar conforme sua necessidade)
+            Expanded(
+              flex: 1,
+              child: Text(
+                hasCategory ? 'Categorizado' : 'Sem categoria',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ),
+
+            // Disponível em (categorias)
+            Expanded(
+              flex: 1,
+              child: Text(
+                '${widget.product.categoryLinks.length} ${widget.product.categoryLinks.length == 1 ? "categoria" : "categorias"}',
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            ),
+
+            // Ações
+            SizedBox(
+              width: 120,
+              child: _DesktopActions(
+                product: widget.product,
+                storeId: widget.storeId,
+                isActive: isActive,
+                isCustomizable: isCustomizable,
+                onToggle: () => _toggleStatus(context),
+              ),
+            ),
+          ],
         ),
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 24,
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(8),
-                  bottomRight: Radius.circular(8),
-                ),
-              ),
-              child: const Center(
-                child: Text(
-                  'Alterar',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
+  }
+
+  // ✅ MÉTODOS DE AÇÃO (iguais à versão mobile)
+  Future<void> _toggleStatus(BuildContext context) async {
+    final newStatus = widget.product.status == ProductStatus.ACTIVE
+        ? ProductStatus.INACTIVE
+        : ProductStatus.ACTIVE;
+
+    final updatedProduct = widget.product.copyWith(status: newStatus);
+
+    try {
+      await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  Future<void> _archiveProduct(BuildContext context) async {
+    final confirmed = await DialogService.showConfirmationDialog(
+      context,
+      title: 'Confirmar Arquivamento',
+      content: 'Tem certeza que deseja arquivar o produto "${widget.product.name}"? Ele será movido para a lixeira.',
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await getIt<ProductRepository>().archiveProduct(widget.storeId, widget.product.id!);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao arquivar: $e')));
+      }
+    }
   }
 }
 
-class _ProductInfo extends StatelessWidget {
-  final String productName;
-  final String description;
-  final ProductStatus status;
+class _ProductInfoDesktop extends StatelessWidget {
+  final Product product;
+  final bool isActive;
 
-  const _ProductInfo({
-    required this.productName,
-    required this.description,
-    required this.status,
+  const _ProductInfoDesktop({
+    required this.product,
+    required this.isActive,
   });
 
   @override
@@ -298,35 +160,37 @@ class _ProductInfo extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Status indicator
-        if (status != ProductStatus.normal && status != ProductStatus.promotion)
-          Row(
-            children: [
-              Container(
-                width: 16,
-                height: 16,
-                padding: const EdgeInsets.all(2),
-                child: Icon(
-                  Icons.info_outline,
-                  color: _getStatusColor(status),
-                  size: 12,
+        if (!isActive)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 16,
+                  height: 16,
+                  padding: const EdgeInsets.all(2),
+                  child: const Icon(
+                    Icons.info_outline,
+                    color: Color(0xFFE7A74E),
+                    size: 12,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _getStatusText(status),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _getStatusColor(status),
-                  fontWeight: FontWeight.w500,
+                const SizedBox(width: 8),
+                const Text(
+                  'Pausado',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFE7A74E),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        if (status != ProductStatus.normal && status != ProductStatus.promotion)
-          const SizedBox(height: 4),
+
         // Nome do produto
         Text(
-          productName,
+          product.name,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -335,115 +199,131 @@ class _ProductInfo extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
+
         // Descrição
-        if (description.isNotEmpty) const SizedBox(height: 4),
-        if (description.isNotEmpty)
+        if (product.description?.isNotEmpty ?? false) ...[
+          const SizedBox(height: 4),
           Text(
-            description,
+            product.description!,
             style: const TextStyle(
               fontSize: 12,
               color: Colors.grey,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
+        ],
+
+        // Informações adicionais (vendidos, estoque)
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Text(
+              'VENDIDOS: ${product.soldCount}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              product.controlStock ? 'ESTOQUE: ${product.stockQuantity}' : 'ESTOQUE: Ilimitado',
+              style: TextStyle(
+                fontSize: 12,
+                color: product.controlStock ? Colors.grey : Colors.green,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
-
-  Color _getStatusColor(ProductStatus status) {
-    switch (status) {
-      case ProductStatus.categoryPaused:
-      case ProductStatus.outOfStock:
-        return const Color(0xFFE7A74E);
-      case ProductStatus.complementWithoutPrice:
-        return const Color(0xFFEA1D2C);
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _getStatusText(ProductStatus status) {
-    switch (status) {
-      case ProductStatus.categoryPaused:
-        return 'Categoria pausada';
-      case ProductStatus.complementWithoutPrice:
-        return 'Complemento sem preço';
-      case ProductStatus.outOfStock:
-        return 'Produto sem estoque';
-      default:
-        return '';
-    }
-  }
 }
 
-class _ProductActions extends StatelessWidget {
-  final ProductStatus status;
+class _DesktopActions extends StatelessWidget {
+  final Product product;
+  final int storeId;
+  final bool isActive;
+  final bool isCustomizable;
+  final VoidCallback onToggle;
 
-  const _ProductActions({required this.status});
+  const _DesktopActions({
+    required this.product,
+    required this.storeId,
+    required this.isActive,
+    required this.isCustomizable,
+    required this.onToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Botão Pausar
-        Tooltip(
-          message: 'Pausar em tudo',
-          child: IconButton(
-            icon: const Icon(Icons.pause, size: 20),
-            color: status == ProductStatus.outOfStock || status == ProductStatus.categoryPaused
-                ? const Color(0xFFEA1D2C).withOpacity(0.5)
-                : const Color(0xFFEA1D2C),
-            onPressed: status == ProductStatus.outOfStock || status == ProductStatus.categoryPaused
-                ? null
-                : () {},
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.transparent,
-            ),
+        // Botão de pausar/ativar
+        IconButton(
+          icon: Icon(
+            isActive ? Icons.pause : Icons.play_arrow,
+            size: 20,
           ),
+          color: isActive ? const Color(0xFFEA1D2C) : Colors.green,
+          onPressed: onToggle,
+          tooltip: isActive ? 'Pausar produto' : 'Ativar produto',
         ),
-        // Botão Ativar
-        Tooltip(
-          message: 'Ativar em tudo',
-          child: IconButton(
-            icon: const Icon(Icons.play_arrow, size: 20),
-            color: status == ProductStatus.outOfStock || status == ProductStatus.categoryPaused
-                ? const Color(0xFFEA1D2C)
-                : const Color(0xFFEA1D2C).withOpacity(0.5),
-            onPressed: status == ProductStatus.outOfStock || status == ProductStatus.categoryPaused
-                ? () {}
-                : null,
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.transparent,
+
+        // Botão de editar
+        IconButton(
+          icon: const Icon(Icons.edit, size: 20),
+          color: Colors.grey,
+          onPressed: () {
+            if (isCustomizable) {
+              context.push(
+                '/stores/$storeId/products/${product.id}/edit-flavor',
+                extra: product,
+              );
+            } else {
+              context.push(
+                '/stores/$storeId/products/${product.id}',
+                extra: product,
+              );
+            }
+          },
+          tooltip: 'Editar produto',
+        ),
+
+        // Botão de mais opções
+        PopupMenuButton(
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              child: const Text('Duplicar produto'),
+              onTap: () {
+                // Implementar duplicação aqui
+              },
             ),
-          ),
+            PopupMenuItem(
+              child: const Text('Remover', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Future.delayed(Duration.zero, () {
+                  _showArchiveDialog(context);
+                });
+              },
+            ),
+          ],
+          icon: const Icon(Icons.more_vert, size: 20),
+          tooltip: 'Mais ações',
         ),
       ],
     );
   }
-}
 
-class TableFooter extends StatelessWidget {
-  const TableFooter({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFEBEBEB))),
-      ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Exibindo 5 de 19',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-            ),
-          ),
-          // Aqui viriam os controles de paginação
-        ],
-      ),
-    );
+  void _showArchiveDialog(BuildContext context) {
+    DialogService.showConfirmationDialog(
+      context,
+      title: 'Confirmar Arquivamento',
+      content: 'Tem certeza que deseja arquivar o produto "${product.name}"? Ele será movido para a lixeira.',
+    ).then((confirmed) {
+      if (confirmed == true) {
+        getIt<ProductRepository>().archiveProduct(storeId, product.id!);
+      }
+    });
   }
 }
