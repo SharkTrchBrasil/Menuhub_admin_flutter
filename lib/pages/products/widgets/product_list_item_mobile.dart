@@ -1,7 +1,8 @@
-import 'package:brasil_fields/brasil_fields.dart';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_svg/svg.dart';
 
@@ -14,6 +15,7 @@ import '../../../core/enums/category_type.dart';
 import '../../../models/category.dart';
 import '../../../models/product.dart';
 import '../../../repositories/product_repository.dart';
+import '../cubit/products_cubit.dart';
 
 
 class ProductListItemMobile extends StatefulWidget {
@@ -330,6 +332,7 @@ class _ProductListItemMobileState extends State<ProductListItemMobile> {
           storeId: widget.storeId,
           product: widget.product,
           parentCategory: widget.parentCategory,
+          productsCubit: context.read<ProductsCubit>(),
         );
       },
     );

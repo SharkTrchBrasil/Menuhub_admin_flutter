@@ -1,3 +1,5 @@
+// ✅ ARQUIVO ATUALIZADO: Step2SetRules.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
@@ -5,33 +7,17 @@ import 'package:totem_pro_admin/models/variant.dart';
 
 import '../cubit/create_complement_cubit.dart';
 import '../widgets/wizard_footer.dart';
-import '../widgets/wizard_header.dart';
 
-class Step2SetRules extends StatefulWidget {
+// ✨ 1. Convertido para StatelessWidget
+class Step2SetRules extends StatelessWidget {
   const Step2SetRules({super.key});
 
   @override
-  State<Step2SetRules> createState() => _Step2SetRulesState();
-}
-
-class _Step2SetRulesState extends State<Step2SetRules> {
-  late bool _isRequired;
-  late int _minQty;
-  late int _maxQty;
-
-  @override
-  void initState() {
-    super.initState();
-    final state = context.read<CreateComplementGroupCubit>().state;
-    _isRequired = state.isRequired;
-    _minQty = state.minQty;
-    _maxQty = state.maxQty;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final cubit = context.read<CreateComplementGroupCubit>();
-    final selectedVariant = cubit.state.selectedVariantToCopy;
+    // ✨ 2. Usamos `context.watch` para que a tela se reconstrua quando o estado do Cubit mudar
+    final cubit = context.watch<CreateComplementGroupCubit>();
+    final state = cubit.state;
+    final selectedVariant = state.selectedVariantToCopy;
 
     if (selectedVariant == null) {
       return const Center(child: Text("Erro: Nenhum grupo selecionado para copiar."));
@@ -39,54 +25,40 @@ class _Step2SetRulesState extends State<Step2SetRules> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            WizardHeader(
-              title: "Copiar grupo",
-              currentStep: 2,
-              totalSteps: 2,
-              onClose: () => Navigator.of(context).pop(),
+            const Text(
+              "Agora, defina a regra do grupo",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Agora, defina a regra do grupo",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 24),
-                    ResponsiveBuilder.isDesktop(context)
-                        ? _buildDesktopLayout(selectedVariant)
-                        : _buildMobileLayout(selectedVariant),
-                  ],
-                ),
-              ),
-            ),
-            WizardFooter(
-              onBack: cubit.goBack,
-              continueLabel: "Concluir",
-              onContinue: () async {
-                cubit.updateRulesForCopiedGroup(isRequired: _isRequired, min: _minQty, max: _maxQty);
-                final result = await cubit.completeFlowAndGetResult();
-                if (result != null && mounted) {
-                  Navigator.of(context).pop(result);
-                }
-              },
-            ),
+            const SizedBox(height: 24),
+            ResponsiveBuilder.isDesktop(context)
+                ? _buildDesktopLayout(context, selectedVariant) // Passa o context
+                : _buildMobileLayout(context, selectedVariant), // Passa o context
           ],
         ),
+      ),
+      bottomNavigationBar: WizardFooter(
+        onBack: cubit.goBack,
+        continueLabel: "Concluir",
+        // ✨ A ação de continuar agora é mais simples
+        onContinue: () async {
+          // As regras já estão salvas no Cubit, então só precisamos finalizar
+          final result = await cubit.completeFlowAndGetResult();
+          if (result != null && context.mounted) {
+            Navigator.of(context).pop(result);
+          }
+        },
       ),
     );
   }
 
   // --- LAYOUTS RESPONSIVOS ---
 
-  Widget _buildDesktopLayout(Variant variant) {
+  Widget _buildDesktopLayout(BuildContext context, Variant variant) {
     const headerStyle = TextStyle(color: Colors.black54, fontWeight: FontWeight.bold);
 
     return Column(
@@ -113,11 +85,11 @@ class _Step2SetRulesState extends State<Step2SetRules> {
             children: [
               Expanded(flex: 2, child: _buildGroupInfoCell(variant)),
               const SizedBox(width: 16),
-              Expanded(flex: 2, child: _buildRequiredOptionalSelector()),
+              Expanded(flex: 2, child: _buildRequiredOptionalSelector(context)), // Passa o context
               const SizedBox(width: 16),
-              Expanded(flex: 2, child: _buildQuantityStepper(isMin: true)),
+              Expanded(flex: 2, child: _buildQuantityStepper(context, isMin: true)), // Passa o context
               const SizedBox(width: 16),
-              Expanded(flex: 2, child: _buildQuantityStepper(isMin: false)),
+              Expanded(flex: 2, child: _buildQuantityStepper(context, isMin: false)), // Passa o context
             ],
           ),
         ),
@@ -125,7 +97,7 @@ class _Step2SetRulesState extends State<Step2SetRules> {
     );
   }
 
-  Widget _buildMobileLayout(Variant variant) {
+  Widget _buildMobileLayout(BuildContext context, Variant variant) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -138,11 +110,11 @@ class _Step2SetRulesState extends State<Step2SetRules> {
           children: [
             _buildGroupInfoCell(variant),
             const Divider(height: 24),
-            _buildMobileRuleRow("Obrigatoriedade", _buildRequiredOptionalSelector()),
+            _buildMobileRuleRow("Obrigatoriedade", _buildRequiredOptionalSelector(context)),
             const SizedBox(height: 16),
-            _buildMobileRuleRow("Quantidade Mínima", _buildQuantityStepper(isMin: true)),
+            _buildMobileRuleRow("Quantidade Mínima", _buildQuantityStepper(context, isMin: true)),
             const SizedBox(height: 16),
-            _buildMobileRuleRow("Quantidade Máxima", _buildQuantityStepper(isMin: false)),
+            _buildMobileRuleRow("Quantidade Máxima", _buildQuantityStepper(context, isMin: false)),
           ],
         ),
       ),
@@ -182,9 +154,13 @@ class _Step2SetRulesState extends State<Step2SetRules> {
     );
   }
 
-  Widget _buildRequiredOptionalSelector() {
+  // ✨ 3. Todos os widgets de formulário agora leem e escrevem DIRETAMENTE no Cubit
+  Widget _buildRequiredOptionalSelector(BuildContext context) {
+    final cubit = context.read<CreateComplementGroupCubit>();
+    final state = cubit.state;
+
     return DropdownButtonFormField<bool>(
-      value: _isRequired,
+      value: state.isRequired, // Lê do estado do Cubit
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -196,22 +172,29 @@ class _Step2SetRulesState extends State<Step2SetRules> {
       ],
       onChanged: (newSelection) {
         if (newSelection == null) return;
-        setState(() {
-          _isRequired = newSelection;
-          if (_isRequired && _minQty < 1) {
-            _minQty = 1;
-            if (_maxQty < 1) _maxQty = 1;
-          }
-          if (!_isRequired) {
-            _minQty = 0;
-          }
-        });
+        bool newIsRequired = newSelection;
+        int newMinQty = state.minQty;
+        int newMaxQty = state.maxQty;
+
+        if (newIsRequired && newMinQty < 1) {
+          newMinQty = 1;
+          if (newMaxQty < 1) newMaxQty = 1;
+        }
+        if (!newIsRequired) {
+          newMinQty = 0;
+        }
+
+        // Escreve as novas regras no Cubit
+        cubit.updateRulesForCopiedGroup(isRequired: newIsRequired, min: newMinQty, max: newMaxQty);
       },
     );
   }
 
-  Widget _buildQuantityStepper({required bool isMin}) {
-    int value = isMin ? _minQty : _maxQty;
+  Widget _buildQuantityStepper(BuildContext context, {required bool isMin}) {
+    final cubit = context.read<CreateComplementGroupCubit>();
+    final state = cubit.state;
+
+    int value = isMin ? state.minQty : state.maxQty;
 
     return Container(
       height: 42,
@@ -225,39 +208,41 @@ class _Step2SetRulesState extends State<Step2SetRules> {
           IconButton(
             padding: EdgeInsets.zero,
             icon: const Icon(Icons.remove, size: 20),
-            onPressed: value > (isMin ? 0 : _minQty)
-                ? () => setState(() {
+            onPressed: value > (isMin ? 0 : state.minQty)
+                ? () {
+              int newMin = state.minQty;
+              int newMax = state.maxQty;
+              bool newIsRequired = state.isRequired;
+
               if (isMin) {
-                _minQty--;
-                // ✨ LÓGICA DE SINCRONIA ATUALIZADA AQUI ✨
-                // Se a quantidade mínima voltar para 0, o grupo se torna opcional.
-                if (_minQty == 0) {
-                  _isRequired = false;
-                }
+                newMin--;
+                if (newMin == 0) newIsRequired = false;
               } else {
-                _maxQty--;
+                newMax--;
               }
-            })
+              cubit.updateRulesForCopiedGroup(isRequired: newIsRequired, min: newMin, max: newMax);
+            }
                 : null,
           ),
           Text(value.toString(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           IconButton(
             padding: EdgeInsets.zero,
             icon: const Icon(Icons.add, size: 20),
-            onPressed: () => setState(() {
+            onPressed: () {
+              int newMin = state.minQty;
+              int newMax = state.maxQty;
+              bool newIsRequired = state.isRequired;
+
               if (isMin) {
-                if(value < _maxQty) {
-                  _minQty++;
-                  // ✨ LÓGICA DE SINCRONIA ATUALIZADA AQUI ✨
-                  // Se a quantidade mínima for maior que 0, o grupo se torna obrigatório.
-                  if (_minQty > 0) {
-                    _isRequired = true;
-                  }
+                if (value < state.maxQty) {
+                  newMin++;
+                  if (newMin > 0) newIsRequired = true;
                 }
               } else {
-                _maxQty++;
+                newMax++;
               }
-            }),
+              cubit.updateRulesForCopiedGroup(isRequired: newIsRequired, min: newMin, max: newMax);
+            },
           ),
         ],
       ),

@@ -9,6 +9,9 @@ import 'package:totem_pro_admin/pages/product_edit/widgets/category_link_wizard.
 import 'package:totem_pro_admin/pages/product_groups/helper/side_panel_helper.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_categories_manager.dart';
 
+import '../../../core/enums/bulk_action_type.dart';
+import '../../categories/BulkCategoryPage.dart';
+
 // Sugestão: Renomeie a classe para refletir sua função
 class ProductPricingTab extends StatelessWidget {
   const ProductPricingTab({super.key});
@@ -27,18 +30,21 @@ class ProductPricingTab extends StatelessWidget {
 
     final allCategories = storesState.activeStore?.relations.categories ?? [];
 
-    final newLink = await showResponsiveSidePanelGroup<ProductCategoryLink>(
+    // ✅ 1. CORREÇÃO APLICADA AQUI: ESPERA UMA LISTA
+    final newLinks = await showResponsiveSidePanelGroup<List<ProductCategoryLink>>(
       context,
-      panel: CategoryLinkWizard(
-        // Passa o produto que está sendo editado
-        product: editCubit.state.editedProduct,
+      panel: BulkAddToCategoryWizard(
+        storeId: storesState.activeStore!.core.id!,
+        selectedProducts: [editCubit.state.editedProduct],
         allCategories: allCategories,
+        actionType: BulkActionType.add,
       ),
     );
 
-    if (newLink != null && context.mounted) {
-      // Chama o método do EditProductCubit
-      editCubit.addCategoryLink(newLink);
+    // ✅ 2. CORREÇÃO APLICADA AQUI: TRATA O RESULTADO COMO UMA LISTA
+    if (newLinks != null && newLinks.isNotEmpty && context.mounted) {
+      // Como neste fluxo só adicionamos um link, pegamos o primeiro da lista.
+      editCubit.addCategoryLink(newLinks.first);
     }
   }
 

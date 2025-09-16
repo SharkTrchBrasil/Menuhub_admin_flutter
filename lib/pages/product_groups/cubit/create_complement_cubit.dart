@@ -10,6 +10,7 @@ import 'package:totem_pro_admin/repositories/product_repository.dart';
 
 import '../../../../core/enums/ui_display_mode.dart';
 import '../../../../core/enums/variant_type.dart';
+import '../../../core/enums/create_compement_step.dart';
 import '../../../core/enums/form_status.dart';
 
 part 'create_complement_state.dart';
@@ -57,6 +58,30 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
     ));
   }
 
+  void setSelectedGroupToCopy(Variant? group) {
+    emit(state.copyWith(selectedVariantToCopy: group));
+  }
+
+  void groupTypeChanged(GroupType type) {
+    emit(state.copyWith(groupType: type));
+  }
+
+
+  void setFlowType(bool isCopy) {
+    emit(state.copyWith(isCopyFlow: isCopy));
+  }
+
+  void groupNameChanged(String name) {
+    emit(state.copyWith(groupName: name));
+  }
+
+  void rulesChanged({bool? isRequired, int? minQty, int? maxQty}) {
+    emit(state.copyWith(
+      isRequired: isRequired,
+      minQty: minQty,
+      maxQty: maxQty,
+    ));
+  }
   // ✅ NOVO MÉTODO PARA INICIAR O FLUXO DE EDIÇÃO
   void startEditFlow(ProductVariantLink linkToEdit) {
     emit(state.copyWith(

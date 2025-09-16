@@ -8,10 +8,12 @@ import 'package:totem_pro_admin/pages/products/widgets/product_card_item.dart';
 import 'package:totem_pro_admin/pages/products/widgets/sliver_filter.dart';
 import 'package:totem_pro_admin/pages/products/widgets/table_header.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+import '../../../core/enums/bulk_action_type.dart';
 import '../../../core/responsive_builder.dart';
 import '../../../widgets/fixed_header.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
 import '../../categories/BulkCategoryPage.dart';
+import '../cubit/products_cubit.dart';
 
 
 // Enum para as opções de ordenação
@@ -20,13 +22,13 @@ enum SortOption { nameAsc, nameDesc, priceAsc, priceDesc }
 // ===================================================================
 // WIDGET PRINCIPAL DA ABA "PRODUTOS"
 // ===================================================================
-class ProductListView extends StatefulWidget {
+class ProductListTab extends StatefulWidget {
   final List<Product> products;
   final List<Category> allCategories;
   final VoidCallback onAddProduct;
   final int storeId;
 
-  const ProductListView({
+  const ProductListTab({
     super.key,
     required this.products,
     required this.allCategories,
@@ -35,10 +37,10 @@ class ProductListView extends StatefulWidget {
   });
 
   @override
-  State<ProductListView> createState() => _ProductListViewState();
+  State<ProductListTab> createState() => _ProductListTabState();
 }
 
-class _ProductListViewState extends State<ProductListView> {
+class _ProductListTabState extends State<ProductListTab> {
   // --- Estados do Widget ---
   final _searchController = TextEditingController();
   String _searchText = '';
@@ -159,7 +161,7 @@ class _ProductListViewState extends State<ProductListView> {
       panel: BulkAddToCategoryWizard(
         storeId: widget.storeId,
         selectedProducts: selectedProducts,
-        allCategories: widget.allCategories,
+        allCategories: widget.allCategories, actionType: BulkActionType.move,
       ),
     );
   }
@@ -200,6 +202,7 @@ class _ProductListViewState extends State<ProductListView> {
 
 
 
+
   @override
   Widget build(BuildContext context) {
     final filteredProducts = widget.products
@@ -211,7 +214,7 @@ class _ProductListViewState extends State<ProductListView> {
 
     // ✅ ALTURA DINÂMICA: A altura do header fixo muda se há itens selecionados
     final bool hasSelection = _selectedProductIds.isNotEmpty;
-    final double persistentHeaderHeight = hasSelection ? 140.0 : 140.0;
+    final double persistentHeaderHeight = hasSelection ? 128.0 : 70.0;
 
     // ✅ ESTRUTURA PRINCIPAL ALTERADA PARA CUSTOMSCROLLVIEW
     return CustomScrollView(
@@ -244,14 +247,20 @@ class _ProductListViewState extends State<ProductListView> {
             height: persistentHeaderHeight, // Altura para acomodar os filtros e a barra de seleção
             child: Column(
               children: [
-                ProductFilters(
-                  searchController: _searchController,
-                  sortOption: _sortOption,
-                  onSortChanged: (value) {
-                    if (value != null) setState(() => _sortOption = value);
-                  },
-                  onFilterTap: _showFilterBottomSheet,
+
+                Container(
+                  color: Colors.white,
+                  child: ProductFilters(
+                    searchController: _searchController,
+                    sortOption: _sortOption,
+                    onSortChanged: (value) {
+                      if (value != null) setState(() => _sortOption = value);
+                    },
+                    onFilterTap: _showFilterBottomSheet,
+                  ),
                 ),
+
+
                 TableHeader(
                   selectedCount: _selectedProductIds.length,
                   isAllSelected: isAllSelected,
@@ -260,20 +269,40 @@ class _ProductListViewState extends State<ProductListView> {
                     title: 'Pausar produtos',
                     content: 'Tem certeza que deseja pausar os ${_selectedProductIds.length} produtos selecionados?',
                     confirmText: 'Pausar produtos',
-                    onConfirm: () => context.read<StoresManagerCubit>().pauseProducts(_selectedProductIds.toList()),
+                    onConfirm: () {
+
+                      context.read<StoresManagerCubit>().pauseProducts(_selectedProductIds.toList());
+                      // ✅ Limpa a seleção após a confirmação
+                      setState(() => _selectedProductIds.clear());
+                    },
                   ),
+
                   onActivate: () => _showConfirmationDialog(
                     title: 'Ativar produtos',
                     content: 'Tem certeza que deseja ativar os ${_selectedProductIds.length} produtos selecionados?',
                     confirmText: 'Ativar produtos',
-                    onConfirm: () => context.read<StoresManagerCubit>().activateProducts(_selectedProductIds.toList()),
-                  ),
+    onConfirm: () {
+    context.read<StoresManagerCubit>().activateProducts(_selectedProductIds.toList());
+    // ✅ Limpa a seleção após a confirmação
+    setState(() => _selectedProductIds.clear());
+    },
+    ),
+
+
+
                   onRemove: () => _showConfirmationDialog(
-                    title: 'Remover produtos',
-                    content: 'Esta ação não pode ser desfeita. Tem certeza que deseja remover os ${_selectedProductIds.length} produtos selecionados?',
-                    confirmText: 'Sim, Remover',
-                    isDestructive: true,
-                    onConfirm: () => context.read<StoresManagerCubit>().removeProducts(_selectedProductIds.toList()),
+                    title: 'Arquivar produtos', // ✅ Texto alterado
+                    content: 'Os produtos arquivados não aparecerão no seu cardápio, mas poderão ser restaurados. Deseja arquivar os ${_selectedProductIds.length} produtos selecionados?', // ✅ Texto alterado
+                    confirmText: 'Sim, Arquivar', // ✅ Texto alterado
+                    isDestructive: false, // Arquivar não é tão destrutivo, pode ser `false`
+
+                    onConfirm: () {
+                      context.read<StoresManagerCubit>().archiveProducts(_selectedProductIds.toList());
+                      // ✅ Limpa a seleção após a confirmação
+                      setState(() => _selectedProductIds.clear());
+                    },
+
+
                   ),
                   onAddToCategory: () {
                     // 1. Filtra a lista principal de produtos para pegar os objetos completos dos IDs selecionados
@@ -283,6 +312,7 @@ class _ProductListViewState extends State<ProductListView> {
 
                     // 2. Chama o wizard, agora passando a lista correta de Product
                     _showAddToCategoryWizard(selectedProducts);
+                    setState(() => _selectedProductIds.clear());
                   },
 
                 ),
@@ -319,6 +349,10 @@ class _ProductListViewState extends State<ProductListView> {
                         }
                       },
                       storeId: widget.storeId,
+                      // Passamos uma função que chama o método do CUBIT.
+                      onStatusToggle: () {
+                        context.read<ProductsCubit>().toggleProductStatus(widget.storeId, product);
+                      },
                     ),
                   );
                 },

@@ -5,6 +5,8 @@ import 'package:totem_pro_admin/models/product_variant_link.dart';
 import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart';
 import 'package:totem_pro_admin/pages/product_edit/widgets/variant_link_card.dart';
 
+import '../../../widgets/ds_primary_button.dart';
+
 // ✨ AGORA É UM STATELESSWIDGET
 class ComplementGroupsTab extends StatelessWidget {
   const ComplementGroupsTab({super.key});
@@ -25,6 +27,7 @@ class ComplementGroupsTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+
               _buildHeader(context), // O cabeçalho com o botão de adicionar
               const SizedBox(height: 24),
               if (links.isEmpty)
@@ -38,19 +41,85 @@ class ComplementGroupsTab extends StatelessWidget {
     );
   }
 
-  // Cabeçalho da aba
+
+
   Widget _buildHeader(BuildContext context) {
+    // Verifica se é mobile baseado na largura da tela
+    final bool isMobile = MediaQuery.of(context).size.width < 768;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: isMobile
+          ? _buildMobileHeader(context)
+          : _buildDesktopHeader(context),
+    );
+  }
+
+  Widget _buildDesktopHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text("Grupos de Complementos", style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-        ElevatedButton.icon(
-          // O botão agora simplesmente chama o método do CUBIT
-          onPressed: () => context.read<EditProductCubit>().addNewComplementGroup(context),
-          icon: const Icon(Icons.add),
-          label: const Text("Adicionar grupo"),
+        // Título
+        Expanded(
+          child: Text(
+            "Grupos de Complementos: os clientes amam e você vende mais",
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF151515), // ifdl-text-color-primary
+              fontFamily: 'iFood RC Textos, Helvetica, Arial, sans-serif',
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+
+        const SizedBox(width: 16),
+
+        // Botão
+        _buildAddButton(context),
+      ],
+    );
+  }
+
+  Widget _buildMobileHeader(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Título
+        Text(
+          "Mais Opções para o Cliente, Mais Lucro para Você",
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+
+
+            fontSize: 20,
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+
+        const SizedBox(height: 24),
+
+        // Botão alinhado à direita
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: _buildAddButton(context)),
+          ],
         ),
       ],
+    );
+  }
+
+
+  Widget _buildAddButton(BuildContext context) {
+    return DsButton(
+      style: DsButtonStyle.secondary,
+      onPressed: () => context.read<EditProductCubit>().addNewComplementGroup(context),
+ label: 'Adicionar novo grupo',
+
     );
   }
 

@@ -9,6 +9,8 @@ import 'package:totem_pro_admin/widgets/app_text_field.dart';
 
 import '../../../../cubits/store_manager_state.dart';
 import '../../../../models/prodcut_category_links.dart';
+import '../../../core/enums/bulk_action_type.dart';
+import '../../categories/BulkCategoryPage.dart';
 import '../../product_edit/widgets/category_link_wizard.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
 import '../../products/widgets/product_categories_manager.dart';
@@ -20,32 +22,35 @@ import '../cubit/product_wizard_state.dart';
 class Step4Categories extends StatelessWidget {
   const Step4Categories({super.key});
 
-  // ✅ 1. LÓGICA DE NAVEGAÇÃO MOVIDA PARA UM MÉTODO AUXILIAR LIMPO
   Future<void> _showAddCategoryWizard(BuildContext context) async {
     final wizardCubit = context.read<ProductWizardCubit>();
     final storesState = context.read<StoresManagerCubit>().state;
 
-    // ✅ 2. VERIFICAÇÃO DE SEGURANÇA
     if (storesState is! StoresManagerLoaded) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Aguarde os dados da loja serem carregados.")),
-      );
+      // ... (verificação de segurança)
       return;
     }
 
-    // ✅ 3. ACESSO SEGURO À LISTA DE CATEGORIAS
     final allCategories = storesState.activeStore?.relations.categories ?? [];
 
-    final newLink = await showResponsiveSidePanelGroup<ProductCategoryLink>(
+    // ✅ 1. MUDE O TIPO DE RETORNO ESPERADO AQUI
+    // Antes: <ProductCategoryLink>
+    // Agora: <List<ProductCategoryLink>>
+    final newLinks = await showResponsiveSidePanelGroup<List<ProductCategoryLink>>(
       context,
-      panel: CategoryLinkWizard(
-        product: wizardCubit.state.productInCreation,
+      panel: BulkAddToCategoryWizard(
+        storeId: storesState.activeStore!.core.id!,
+        selectedProducts: [wizardCubit.state.productInCreation],
         allCategories: allCategories,
+        actionType: BulkActionType.add, // Informa que a ação é de adicionar
       ),
     );
 
-    if (newLink != null && context.mounted) {
-      wizardCubit.addCategoryLink(newLink);
+    // ✅ 2. ATUALIZE A LÓGICA PARA LIDAR COM A LISTA
+    // Verificamos se a lista não é nula e não está vazia
+    if (newLinks != null && newLinks.isNotEmpty && context.mounted) {
+      // Como neste fluxo só adicionamos um link, pegamos o primeiro da lista
+      wizardCubit.addCategoryLink(newLinks.first);
     }
   }
 
@@ -62,7 +67,8 @@ class Step4Categories extends StatelessWidget {
           onUpdateLink: cubit.updateCategoryLink,
           onRemoveLink: cubit.removeCategoryLink,
 
-          onTogglePause: (ProductCategoryLink value) {  },
+          onTogglePause: cubit.toggleLinkAvailability,
+
         );
       },
     );

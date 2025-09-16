@@ -1,4 +1,3 @@
-// lib/.../widgets/complement_form_cubit.dart
 import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,19 +21,21 @@ class ComplementFormState extends Equatable {
   final String name;
   final String description;
   final String price;
-  final VariantOption? createdOption; // Para notificar a UI quando uma opção for criada
+  final String pdvCode; // NOVO CAMPO: Código PDV
+  final VariantOption? createdOption;
 
   const ComplementFormState({
     this.isPrepared = true,
     this.isLoadingSearch = false,
     this.searchResults = const [],
     this.selectedCatalogProduct,
-    this.image =  const ImageModel(),
+    this.image = const ImageModel(),
     this.trackInventory = false,
     this.stockQuantity = '0',
     this.name = '',
     this.description = '',
     this.price = '',
+    this.pdvCode = '', // Inicializado como string vazia
     this.createdOption,
   });
 
@@ -50,6 +51,7 @@ class ComplementFormState extends Equatable {
     String? name,
     String? description,
     String? price,
+    String? pdvCode, // NOVO PARÂMETRO: Código PDV
     VariantOption? createdOption,
     bool clearCreatedOption = false,
   }) {
@@ -64,6 +66,7 @@ class ComplementFormState extends Equatable {
       name: name ?? this.name,
       description: description ?? this.description,
       price: price ?? this.price,
+      pdvCode: pdvCode ?? this.pdvCode, // NOVA ATRIBUIÇÃO: Código PDV
       createdOption: clearCreatedOption ? null : createdOption ?? this.createdOption,
     );
   }
@@ -80,6 +83,7 @@ class ComplementFormState extends Equatable {
     name,
     description,
     price,
+    pdvCode, // ADICIONADO: Código PDV na lista de props
     createdOption,
   ];
 }
@@ -89,7 +93,7 @@ class ComplementFormCubit extends Cubit<ComplementFormState> {
   final ProductRepository _productRepository = getIt<ProductRepository>();
   Timer? _debounce;
 
-  ComplementFormCubit() : super( ComplementFormState());
+  ComplementFormCubit() : super(ComplementFormState());
 
   void toggleProductType(bool isPrepared) {
     emit(state.copyWith(isPrepared: isPrepared));
@@ -109,6 +113,10 @@ class ComplementFormCubit extends Cubit<ComplementFormState> {
     });
   }
 
+  void clearForm() {
+    emit(ComplementFormState(isPrepared: state.isPrepared));
+  }
+
   Future<void> _performSearch(String query) async {
     emit(state.copyWith(isLoadingSearch: true));
     final result = await _productRepository.searchMasterProducts(query);
@@ -125,6 +133,8 @@ class ComplementFormCubit extends Cubit<ComplementFormState> {
       name: product.name,
       description: product.description ?? '',
       image: ImageModel(url: product.imagePath?.url),
+      // Para produtos industrializados, podemos preencher automaticamente o código PDV se disponível
+      pdvCode: product.ean ?? product.ean ?? '', // Use EAN como fallback para PDV
     ));
   }
 
@@ -135,6 +145,7 @@ class ComplementFormCubit extends Cubit<ComplementFormState> {
       name: '',
       description: '',
       price: '',
+      pdvCode: '', // Limpa o código PDV também
       image: ImageModel(),
     ));
   }
@@ -143,11 +154,10 @@ class ComplementFormCubit extends Cubit<ComplementFormState> {
   void nameChanged(String value) => emit(state.copyWith(name: value));
   void descriptionChanged(String value) => emit(state.copyWith(description: value));
   void priceChanged(String value) => emit(state.copyWith(price: value));
+  void pdvCodeChanged(String value) => emit(state.copyWith(pdvCode: value)); // NOVO MÉTODO: Código PDV
   void imageChanged(ImageModel? image) => emit(state.copyWith(image: image ?? ImageModel()));
   void trackInventoryChanged(bool value) => emit(state.copyWith(trackInventory: value));
   void stockQuantityChanged(String value) => emit(state.copyWith(stockQuantity: value));
-
-// DENTRO DA CLASSE ComplementFormCubit
 
   void submit() {
     final newOption = VariantOption(
@@ -158,9 +168,9 @@ class ComplementFormCubit extends Cubit<ComplementFormState> {
       track_inventory: state.trackInventory,
       stock_quantity: int.tryParse(state.stockQuantity) ?? 0,
       available: true,
+      pos_code: state.pdvCode.trim().isNotEmpty ? state.pdvCode.trim() : null, // NOVO: Inclui código PDV
     );
 
-    // Apenas emita o estado com a opção criada. O Listener na UI cuidará do resto.
     emit(state.copyWith(createdOption: newOption));
   }
 

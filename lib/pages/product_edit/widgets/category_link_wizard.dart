@@ -12,11 +12,11 @@ import 'package:totem_pro_admin/models/prodcut_category_links.dart';
 import '../../../widgets/ds_primary_button.dart';
 import '../cubit/category_link_cubit.dart';
 
-class CategoryLinkWizard extends StatelessWidget {
+class CategoryLinkWizardex extends StatelessWidget {
   final Product product;
   final List<Category> allCategories;
 
-  const CategoryLinkWizard({
+  const CategoryLinkWizardex({
     super.key,
     required this.product,
     required this.allCategories,
@@ -77,7 +77,7 @@ class _CategoryLinkWizardViewState extends State<_CategoryLinkWizardView> {
             physics: const NeverScrollableScrollPhysics(),
             children: [
               _Step1SelectCategory(
-                allCategories: (context.findAncestorWidgetOfExactType<CategoryLinkWizard>())!.allCategories,
+                allCategories: (context.findAncestorWidgetOfExactType<CategoryLinkWizardex>())!.allCategories,
                 product: state.linkData.product!,
               ),
               _Step2SetPriceAndDetails(link: state.linkData),

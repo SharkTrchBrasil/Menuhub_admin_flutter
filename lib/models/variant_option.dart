@@ -97,8 +97,11 @@ class VariantOption {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id, // É bom enviar o ID se for uma atualização
-      'variant_id': variantId,
+      // ✅ CORREÇÃO: Usa um 'if' para incluir os campos apenas se não forem nulos.
+      if (id != null) 'id': id,
+      if (variantId != null) 'variant_id': variantId,
+
+
       'name_override': name_override,
       'description': description,
       'price_override': price_override,

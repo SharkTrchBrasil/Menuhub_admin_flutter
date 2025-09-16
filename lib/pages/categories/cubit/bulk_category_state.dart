@@ -5,6 +5,7 @@
 
 import '../../../core/enums/form_status.dart';
 import '../../../models/category.dart';
+import '../../../models/prodcut_category_links.dart';
 import '../../../models/product.dart';
 
 import 'package:equatable/equatable.dart';
@@ -15,6 +16,7 @@ class BulkAddToCategoryState extends Equatable {
   final Map<int, Map<String, dynamic>> priceUpdates;
   final FormStatus status;
   final String? errorMessage;
+  final List<ProductCategoryLink>? addResult;
 
   const BulkAddToCategoryState({
     required this.selectedProducts,
@@ -22,6 +24,7 @@ class BulkAddToCategoryState extends Equatable {
     required this.priceUpdates,
     this.status = FormStatus.initial,
     this.errorMessage,
+    this.addResult,
   });
 
   factory BulkAddToCategoryState.initial(List<Product> products) {
@@ -36,6 +39,7 @@ class BulkAddToCategoryState extends Equatable {
     Map<int, Map<String, dynamic>>? priceUpdates,
     FormStatus? status,
     String? errorMessage,
+    List<ProductCategoryLink>? addResult,
   }) {
     return BulkAddToCategoryState(
       selectedProducts: selectedProducts,
@@ -43,9 +47,10 @@ class BulkAddToCategoryState extends Equatable {
       priceUpdates: priceUpdates ?? this.priceUpdates,
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
+      addResult: addResult,
     );
   }
 
   @override
-  List<Object?> get props => [selectedProducts, targetCategory, priceUpdates, status, errorMessage];
+  List<Object?> get props => [selectedProducts, targetCategory, priceUpdates, status, errorMessage, addResult,];
 }

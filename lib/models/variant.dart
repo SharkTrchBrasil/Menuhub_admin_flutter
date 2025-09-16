@@ -86,18 +86,15 @@ class Variant {
     }
 
     return {
-      if (id != null) 'id': id,
+      if (id != null && id! > 0) 'id': id,
       'name': name,
       'type': typeToString(type),
-      // ✅ CORRIGIDO: A lista de 'options' foi REMOVIDA daqui.
-      // A API não permite enviar as opções ao criar o "molde" (Variant).
-      // Elas devem ser salvas depois, uma a uma.
+      'options': options.map((option) => option.toJson()).toList(),
+
     };
   }
 
-  // ARQUIVO: lib/models/variant.dart
 
-// ✅ SUBSTITUA SEU MÉTODO `toWizardJson` POR ESTE:
   Map<String, dynamic> toWizardJson() {
     return {
       'name': name,

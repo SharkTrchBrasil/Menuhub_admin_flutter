@@ -47,7 +47,7 @@ class TableHeader extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 1)),
         color: Colors.grey.shade50,
@@ -114,10 +114,10 @@ class TableHeader extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 12 : 16,
-        vertical: isMobile ? 8 : 12,
+        horizontal: isMobile ? 6 : 16,
+        vertical: isMobile ? 2 : 12,
       ),
-      color: Theme.of(context).primaryColor.withOpacity(0.08),
+      color: Colors.white,
       child: Row(
         children: [
           // Checkbox e contador

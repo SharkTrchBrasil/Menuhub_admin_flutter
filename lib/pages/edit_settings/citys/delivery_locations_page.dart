@@ -3,7 +3,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:totem_pro_admin/cubits/scaffold_ui_cubit.dart';
+
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/pages/edit_settings/citys/widgets/city_card..dart';
@@ -41,32 +41,13 @@ class _CityNeighborhoodPageState extends State<CityNeighborhoodPage> {
       }
     });
 
-    // ✅ PASSO 1: Informar ao AppShell qual AppBar e FAB usar
-    // Usamos addPostFrameCallback para garantir que o Cubit esteja disponível
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final uiCubit = context.read<ScaffoldUiCubit>();
-      uiCubit.setFab(
-        FloatingActionButton(
-          onPressed: _showAddCityDialog,
-          tooltip: 'Nova cidade'.tr(),
-          child: const Icon(Icons.add),
-        ),
-      );
-      // O AppBarCode já está sendo adicionado pelo AppShell no desktop.
-      // Para o mobile, podemos definir um aqui se quisermos um título específico.
-      uiCubit.setAppBar(AppBarCustom(title: 'Locais de Entrega'.tr()));
-    });
+
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    // ✅ Limpa a configuração da UI ao sair da página
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<ScaffoldUiCubit>().clearAll();
-      }
-    });
+
     super.dispose();
   }
 

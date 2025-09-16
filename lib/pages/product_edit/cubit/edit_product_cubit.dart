@@ -62,35 +62,24 @@ class EditProductCubit extends Cubit<EditProductState> {
   }
 
 
-  Future<void> saveProduct() async {
-    // A verificação de 'isDirty' agora é feita apenas na UI, o que está ótimo.
-    // Se o botão está habilitado, significa que há mudanças.
 
+
+  Future<void> saveProduct() async {
     emit(state.copyWith(status: FormStatus.loading));
+
 
     final result = await _productRepository.updateProduct(_storeId, state.editedProduct);
 
     result.fold(
           (error) {
         if (!isClosed) {
-          // Em caso de erro, apenas emitimos o erro. O estado continua 'sujo'
-          // para que o usuário possa tentar salvar novamente.
           emit(state.copyWith(status: FormStatus.error, errorMessage: error));
         }
       },
           (savedProduct) {
         if (!isClosed) {
-          // ✅ --- AQUI ESTÁ A MÁGICA ---
-
-          // 1. Emite o estado de SUCESSO. O BlocListener na UI vai pegar
-          //    este evento e mostrar o SnackBar verde.
+          // A lógica de sucesso já está correta, limpando o estado 'dirty'.
           emit(state.copyWith(status: FormStatus.success));
-
-          // 2. Emite um NOVO estado "limpo" logo em seguida.
-          //    Ele usa o produto recém-salvo (retornado pela API) como a nova
-          //    base. Agora, `initialProduct` e `editedProduct` serão iguais.
-          //    Isso fará com que `isDirty` se torne `false`, e o BlocBuilder
-          //    na UI vai reconstruir o botão no estado desabilitado.
           emit(EditProductState.fromProduct(savedProduct));
         }
       },
@@ -99,8 +88,6 @@ class EditProductCubit extends Cubit<EditProductState> {
 
 
 
-
-// Este método precisa do BuildContext para poder abrir o painel lateral
   Future<void> addNewComplementGroup(BuildContext context) async {
     final storesState = context.read<StoresManagerCubit>().state;
     if (storesState is! StoresManagerLoaded) return;
@@ -111,7 +98,7 @@ class EditProductCubit extends Cubit<EditProductState> {
         create: (_) => CreateComplementGroupCubit(
           storeId: _storeId,
           productId: state.originalProduct.id,
-          productRepository: _productRepository,
+          productRepository: _productRepository, // Renomeado de productRepository para _productRepository
           allStoreVariants: storesState.activeStore!.relations.variants ?? [],
           allStoreProducts: storesState.activeStore!.relations.products ?? [],
         ),
@@ -123,27 +110,12 @@ class EditProductCubit extends Cubit<EditProductState> {
     );
 
     if (newLink != null) {
-      // Se um novo link foi criado no painel, salvamos no banco
-      final result = await _productRepository.linkVariantToProduct(
-        storeId: _storeId,
-        productId: state.originalProduct.id!,
-        variantId: newLink.variant.id!,
-        linkData: newLink,
-      );
 
-      result.fold(
-            (error) {
-          // Mostra erro se falhar ao salvar no banco
-          emit(state.copyWith(status: FormStatus.error, errorMessage: error));
-        },
-            (savedLink) {
-          // Sucesso: Adiciona o novo link salvo ao estado local
-          final updatedLinks = List<ProductVariantLink>.from(state.editedProduct.variantLinks ?? [])..add(savedLink);
-          emit(state.copyWith(
-            editedProduct: state.editedProduct.copyWith(variantLinks: updatedLinks),
-          ));
-        },
-      );
+      final updatedLinks = List<ProductVariantLink>.from(state.editedProduct.variantLinks ?? [])..add(newLink);
+
+      emit(state.copyWith(
+        editedProduct: state.editedProduct.copyWith(variantLinks: updatedLinks),
+      ));
     }
   }
 

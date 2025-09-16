@@ -91,6 +91,12 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     );
   }
 
+
+  void toggleLinkAvailability(ProductCategoryLink linkToToggle) {
+    final updatedLink = linkToToggle.copyWith(isAvailable: !linkToToggle.isAvailable);
+    updateCategoryLink(updatedLink);
+  }
+
   void selectCatalogProduct(CatalogProduct catalogProduct) {
     final newProduct = state.productInCreation.copyWith(
       name: catalogProduct.name,
@@ -121,16 +127,30 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     emit(state.copyWith(productInCreation: updatedProduct));
   }
 
-  // ✅ 3. MÉTODO 'addCategoryLink' ATUALIZADO E SEGURO
   void addCategoryLink(ProductCategoryLink newLink) {
+
+    // ✅ PONTO DE CHECAGEM 4: O link que chegou do wizard tem o preço correto?
+    print('DEBUG 4: [WizardCubit] addCategoryLink recebeu um link com o preço: ${newLink.price}');
+
     if (state.categoryLinks.any((link) => link.category?.id == newLink.category?.id)) return;
+
     final updatedLinks = List<ProductCategoryLink>.from(state.categoryLinks)..add(newLink);
-    emit(state.copyWith(categoryLinks: updatedLinks));
+
+    // Agora, também atualiza o produto em criação com a nova lista
+    emit(state.copyWith(
+      categoryLinks: updatedLinks,
+      productInCreation: state.productInCreation.copyWith(categoryLinks: updatedLinks),
+    ));
   }
 
   void removeCategoryLink(ProductCategoryLink link) {
     final updatedLinks = List<ProductCategoryLink>.from(state.categoryLinks)..remove(link);
-    emit(state.copyWith(categoryLinks: updatedLinks));
+
+    // Atualiza ambos os lugares
+    emit(state.copyWith(
+      categoryLinks: updatedLinks,
+      productInCreation: state.productInCreation.copyWith(categoryLinks: updatedLinks),
+    ));
   }
 
   void updateCategoryLink(ProductCategoryLink updatedLink) {
@@ -138,9 +158,16 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     final index = currentLinks.indexWhere((link) => link.category?.id == updatedLink.category?.id);
     if (index != -1) {
       currentLinks[index] = updatedLink;
-      emit(state.copyWith(categoryLinks: currentLinks));
+
+      // Atualiza ambos os lugares
+      emit(state.copyWith(
+        categoryLinks: currentLinks,
+        productInCreation: state.productInCreation.copyWith(categoryLinks: currentLinks),
+      ));
     }
   }
+
+
 
   // --- MÉTODOS PARA ATRIBUTOS (COPIADOS DO EDIT CUBIT) ---
 

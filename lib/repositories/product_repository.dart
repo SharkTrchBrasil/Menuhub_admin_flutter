@@ -78,13 +78,18 @@ class ProductRepository {
     }
   }
 
-  Future<Either<void, Variant>> saveVariant(
-    int storeId,
+  // DENTRO DO SEU ProductRepository
 
-    Variant variant,
-  ) async {
+// ✅ CÓDIGO CORRIGIDO
+  Future<Either<void, Variant>> saveVariant(
+      int storeId,
+      Variant variant,
+      ) async {
     try {
-      if (variant.id != null) {
+      // ✅ CONDIÇÃO CORRIGIDA:
+      // Só faz PATCH se o ID não for nulo E for maior que 0.
+      if (variant.id != null && variant.id! > 0) {
+        // --- ATUALIZA UMA VARIANTE EXISTENTE ---
         final response = await _dio.patch(
           '/stores/$storeId/variants/${variant.id}',
           data: variant.toJson(),
@@ -92,6 +97,8 @@ class ProductRepository {
 
         return Right(Variant.fromJson(response.data));
       } else {
+        // --- CRIA UMA NOVA VARIANTE ---
+        // IDs nulos, negativos ou zero caem aqui para criar um novo registro.
         final response = await _dio.post(
           '/stores/$storeId/variants',
           data: variant.toJson(),
@@ -140,11 +147,11 @@ class ProductRepository {
 
 
 
-  // ✅ NOVA ROTA PARA ARQUIVAR (SOFT DELETE)
+
   Future<Either<void, void>>  archiveProduct(int storeId, int productId) async {
     try {
       // A rota do backend que criamos para arquivar
-      await _dio.patch('/admin/stores/$storeId/products/$productId/archive');
+      await _dio.patch('/stores/$storeId/products/$productId/archive');
       return const Right(null);
 
     } on DioException catch (e) {
@@ -313,15 +320,20 @@ class ProductRepository {
   }
 
 
-  Future<void> deleteProducts({
+
+
+// ✅ ADICIONE ESTE NOVO MÉTODO PARA ARQUIVAR
+  Future<void> archiveProducts({
     required int storeId,
     required List<int> productIds,
   }) async {
+    // A chamada agora aponta para o endpoint de arquivamento
     await _dio.post(
-      '/stores/$storeId/products/bulk-delete',
+      '/stores/$storeId/products/bulk-archive',
       data: {'product_ids': productIds},
     );
   }
+
 
 
 
@@ -443,17 +455,49 @@ class ProductRepository {
       return const Left("ID do produto é inválido para atualização.");
     }
     try {
-      final productJson = product.toUpdateJson();
+      // --- LÓGICA DE PRÉ-PROCESSAMENTO DOS GRUPOS DE COMPLEMENTOS ---
+
+      // 1. Cria uma cópia da lista de links para podermos modificá-la.
+      final processedLinks = List<ProductVariantLink>.from(product.variantLinks ?? []);
+
+      // 2. Itera sobre a lista de links para encontrar e criar os grupos novos.
+      for (var i = 0; i < processedLinks.length; i++) {
+        final link = processedLinks[i];
+
+        // Se o ID da variante for negativo, é um grupo novo que precisa ser criado.
+        if (link.variant.id != null && link.variant.id! < 0) {
+
+          // Chama o método que salva uma variante (ele lida com criação se o ID for nulo/inválido)
+          final result = await saveVariant(storeId, link.variant);
+
+          if (result.isRight) {
+            final savedVariant = result.right;
+            // Atualiza o link na nossa lista temporária com a variante que voltou do banco (agora com ID real)
+            processedLinks[i] = link.copyWith(variant: savedVariant);
+          } else {
+            // Se falhar ao criar uma das variantes, interrompe e retorna o erro.
+            return const Left("Falha ao criar um novo grupo de complemento durante o salvamento.");
+          }
+        }
+      }
+
+      // 3. Cria uma cópia final do produto com a lista de links já processada.
+      final productToSave = product.copyWith(variantLinks: processedLinks);
+
+      // --- FIM DA LÓGICA DE PRÉ-PROCESSAMENTO ---
+
+      // 4. Continua com a lógica original, mas usando o `productToSave`.
+      final productJson = productToSave.toUpdateJson();
       final formData = FormData.fromMap({
         'payload': json.encode(productJson),
       });
 
-      if (product.image?.file != null) {
-        final fileBytes = await product.image!.file!.readAsBytes();
+      if (productToSave.image?.file != null) {
+        final fileBytes = await productToSave.image!.file!.readAsBytes();
         formData.files.add(
           MapEntry(
             'image',
-            MultipartFile.fromBytes(fileBytes, filename: product.image!.file!.name),
+            MultipartFile.fromBytes(fileBytes, filename: productToSave.image!.file!.name),
           ),
         );
       }
@@ -472,7 +516,37 @@ class ProductRepository {
     }
   }
 
-  // ✅ NOVO MÉTODO PARA ATUALIZAR O PREÇO DE UM SABOR
+// Adicione este método em qualquer lugar dentro da classe ProductRepository
+
+  Future<Either<String, ProductVariantLink>> createAndLinkVariantToProduct({
+    required int storeId,
+    required int productId,
+    required ProductVariantLink linkData, // Contém os dados do novo grupo
+  }) async {
+    try {
+      // 1. Primeiro, cria o Variant no banco de dados
+      final variantResult = await saveVariant(storeId, linkData.variant);
+
+      if (variantResult.isLeft) {
+        return const Left('Falha ao criar o novo grupo.');
+      }
+      final savedVariant = variantResult.right;
+
+      // 2. Agora, com o ID real da variant, faz o link com o produto
+      final linkResult = await linkVariantToProduct(
+        storeId: storeId,
+        productId: productId,
+        variantId: savedVariant.id!,
+        linkData: linkData,
+      );
+
+      return linkResult; // Retorna o resultado da operação de link
+
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
+
   Future<Either<String, void>> updateFlavorPrice({
     required int storeId,
     required int flavorPriceId, // O ID do registro na tabela flavor_prices
@@ -547,26 +621,78 @@ class ProductRepository {
 
 
 
+
+
   Future<Either<String, void>> bulkUpdateProductCategory({
     required int storeId,
     required int targetCategoryId,
-    required List<Map<String, dynamic>> products, // ✅ Precisa enviar a lista de produtos
+    required List<Map<String, dynamic>> products,
   }) async {
     try {
+      // ❌ REMOVA A LINHA QUE CRIAVA O `productIds`
+      // final productIds = products.map((p) => p['product_id']).toList();
+
       await _dio.post(
-        '/stores/$storeId/products/bulk-update-category', // A rota de "mover"
+        '/stores/$storeId/products/bulk-update-category',
         data: {
           'target_category_id': targetCategoryId,
-          'products': products, // ✅ Enviando o payload completo
+          // ✅ VOLTE A ENVIAR A CHAVE 'products' COM A LISTA COMPLETA
+          'products': products,
         },
       );
       return const Right(null);
+
     } on DioException catch (e) {
-      return Left(e.response?.data['detail'] ?? 'Erro ao mover produtos.');
+      // ... seu tratamento de erro robusto continua aqui ...
+      String errorMessage = 'Erro ao mover produtos.';
+      if (e.response?.data is Map) {
+        final responseData = e.response!.data;
+        if (responseData['detail'] is List && (responseData['detail'] as List).isNotEmpty) {
+          final firstError = responseData['detail'][0];
+          if (firstError is Map) {
+            final field = firstError['loc']?.last ?? 'campo desconhecido';
+            final msg = firstError['msg'] ?? 'inválido';
+            errorMessage = 'Erro de validação: O campo "$field" está $msg.';
+          }
+        } else if (responseData['detail'] is String) {
+          errorMessage = responseData['detail'];
+        }
+      }
+      return Left(errorMessage);
+    } catch (e) {
+      return Left(e.toString());
     }
   }
 
 
+
+  Future<Either<String, void>> bulkAddOrUpdateLinks({
+    required int storeId,
+    required int targetCategoryId,
+    required List<Map<String, dynamic>> products,
+  }) async {
+    try {
+      // Chama a nova rota que criamos no backend
+      await _dio.post(
+        '/stores/$storeId/products/bulk-add-update-links',
+        data: {
+          'target_category_id': targetCategoryId,
+          'products': products,
+        },
+      );
+      return const Right(null); // Retorna sucesso
+
+    } on DioException catch (e) {
+      // Tratamento de erro robusto
+      String errorMessage = 'Erro ao adicionar produtos à categoria.';
+      if (e.response?.data is Map && e.response?.data['detail'] != null) {
+        errorMessage = e.response!.data['detail'];
+      }
+      return Left(errorMessage);
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
 
 
   Future<Either<String, void>> updateProductCategoryPrice({
@@ -592,11 +718,6 @@ class ProductRepository {
   }
 
 
-
-
-
-
-// ✅ NOVO MÉTODO PARA PAUSAR/ATIVAR UM VÍNCulo
   Future<Either<String, void>> toggleLinkAvailability({
     required int storeId,
     required int productId,
@@ -604,11 +725,11 @@ class ProductRepository {
     required bool isAvailable, // O NOVO status de disponibilidade
   }) async {
     try {
-      // Chama a rota PATCH que criamos no backend para o vínculo específico
+      // Chama a nova rota PATCH específica para disponibilidade
       await _dio.patch(
-        '/stores/$storeId/products/$productId/categories/$categoryId',
+        '/stores/$storeId/products/$productId/categories/$categoryId/availability',
         data: {
-          'is_available': isAvailable, // Envia apenas o campo que queremos alterar
+          'is_available': isAvailable,
         },
       );
       return const Right(null);

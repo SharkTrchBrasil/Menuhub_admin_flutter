@@ -2,6 +2,7 @@ import 'package:brasil_fields/brasil_fields.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ import '../../../core/enums/category_type.dart';
 import '../../../models/category.dart';
 import '../../../models/product.dart';
 import '../../../repositories/product_repository.dart';
+import '../cubit/products_cubit.dart';
 
 
 class ProductListItemDesktop extends StatefulWidget {
@@ -423,17 +425,38 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
               color: isAvailableInThisCategory ? Colors.green : Colors.orange
           ),
           tooltip: isAvailableInThisCategory ? 'Pausar item' : 'Ativar item',
-          onPressed: _toggleAvailabilityInCategory,
+          onPressed: (){
+            context.read<ProductsCubit>().toggleAvailabilityInCategory(
+              storeId: widget.storeId,
+              product: widget.product,
+              parentCategory: widget.parentCategory,
+            );
+          }
         ),
         PopupMenuButton<String>(
           icon: Icon(Icons.more_vert, color: textColor),
           onSelected: (value) {
             if (value == 'edit') {
+
+
+
               if (isCustomizable) {
-                context.push('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
+                context.pushNamed(
+                  'flavor-edit', // Nome da rota para editar sabores
+                  pathParameters: {'storeId': '${widget.storeId}', 'productId': '${widget.product.id}'},
+                  extra: widget.product,
+                );
               } else {
-                context.push('/stores/${widget.storeId}/products/${widget.product.id}', extra: widget.product);
+                context.pushNamed(
+                  'product-edit', // ✅ Nome da rota para editar produtos simples
+                  pathParameters: {'storeId': '${widget.storeId}', 'productId': '${widget.product.id}'},
+                  extra: widget.product,
+                );
               }
+
+
+
+
             } else if (value == 'delete') {
               _removeProductFromCategory();
             }

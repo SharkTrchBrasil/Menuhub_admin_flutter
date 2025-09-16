@@ -9,6 +9,8 @@ import 'package:totem_pro_admin/pages/categories/steps_bulk_category/step1.dart'
 import 'package:totem_pro_admin/pages/categories/steps_bulk_category/step2.dart';
 
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+import '../../core/enums/bulk_action_type.dart';
+import '../../core/enums/category_type.dart';
 import '../../repositories/product_repository.dart';
 import 'cubit/bulk_category_cubit.dart';
 import 'cubit/bulk_category_state.dart';
@@ -17,12 +19,14 @@ class BulkAddToCategoryWizard extends StatefulWidget {
   final int storeId;
   final List<Product> selectedProducts;
   final List<Category> allCategories;
+  final BulkActionType actionType;
 
   const BulkAddToCategoryWizard({
     super.key,
     required this.storeId,
     required this.selectedProducts,
     required this.allCategories,
+    required this.actionType,
   });
 
   @override
@@ -51,18 +55,50 @@ class _BulkAddToCategoryWizardState extends State<BulkAddToCategoryWizard> {
 
   @override
   Widget build(BuildContext context) {
+
+// ===================================================================
+    // ✅ LÓGICA DE FILTRO DEFINITIVA (Aplicada aqui)
+    // ===================================================================
+
+    // 1. Pega todas as categorias que podem ser selecionadas (regra de negócio)
+    List<Category> filteredCategories = widget.allCategories
+        .where((cat) => cat.type == CategoryType.GENERAL)
+        .toList();
+
+    // 2. Pega os IDs de TODAS as categorias às quais os produtos selecionados
+    //    JÁ estão vinculados (seja um produto novo em memória ou um existente).
+    final Set<int?> existingCategoryIds = widget.selectedProducts
+        .expand((product) => product.categoryLinks) // Junta todos os links
+        .map((link) => link.categoryId)           // Pega os IDs
+        .toSet();                                  // Cria um conjunto sem duplicatas
+
+    // 3. Remove da lista de seleção as categorias que já estão vinculadas.
+    filteredCategories.removeWhere((cat) => existingCategoryIds.contains(cat.id));
+
+    // ===================================================================
+
+
     return BlocProvider(
       create: (_) => BulkAddToCategoryCubit(
         productRepository: getIt<ProductRepository>(),
         storeId: widget.storeId,
         selectedProducts: widget.selectedProducts,
+        actionType: widget.actionType,
       ),
       child: BlocListener<BulkAddToCategoryCubit, BulkAddToCategoryState>(
         listener: (context, state) {
-          if (state.status == FormStatus.success) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Produtos atualizados com sucesso!"), backgroundColor: Colors.green));
-            context.pop(); // Fecha o side-panel
-          } else if (state.status == FormStatus.error) {
+          // ✅ LÓGICA ATUALIZADA DO LISTENER
+          // Se a ação for MOVER e der sucesso, fecha a tela
+          if (widget.actionType == BulkActionType.move && state.status == FormStatus.success) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Produtos movidos com sucesso!"), backgroundColor: Colors.green));
+            context.pop(true); // Retorna 'true' para indicar sucesso
+          }
+          // Se a ação for ADICIONAR e o resultado estiver pronto, fecha e retorna os dados
+          else if (widget.actionType == BulkActionType.add && state.addResult != null) {
+            context.pop(state.addResult); // Retorna a lista de links para a tela de edição
+          }
+          // Tratamento de erro (funciona para ambos os casos)
+          else if (state.status == FormStatus.error) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.errorMessage ?? "Ocorreu um erro."), backgroundColor: Colors.red));
           }
         },
@@ -88,7 +124,7 @@ class _BulkAddToCategoryWizardState extends State<BulkAddToCategoryWizard> {
               ),
             ],
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(100.0), // Altura do header do wizard
+              preferredSize: const Size.fromHeight(60.0), // Altura do header do wizard
               child: _buildWizardHeader(context),
             ),
           ),
@@ -99,7 +135,8 @@ class _BulkAddToCategoryWizardState extends State<BulkAddToCategoryWizard> {
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    Step1SelectCategory(allCategories: widget.allCategories),
+                    // ✅ PASSA A LISTA JÁ FILTRADA PARA O PASSO 1
+                    Step1SelectCategory(allCategories: filteredCategories),
                     const Step2SetPrices(),
                   ],
                 ),

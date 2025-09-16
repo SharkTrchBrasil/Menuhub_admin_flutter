@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/helpers/navigation.dart';
-import 'package:totem_pro_admin/cubits/scaffold_ui_cubit.dart';
+
 import 'package:totem_pro_admin/widgets/appbarcode.dart';
 import 'package:totem_pro_admin/widgets/drawercode.dart';
 
@@ -25,12 +25,9 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Provê o cubit de UI para que as páginas filhas possam usá-lo.
-    return BlocProvider(
-      create: (context) => ScaffoldUiCubit(),
-      child: ResponsiveBuilder(
-        mobileBuilder: (context, constraints) => _buildMobileLayout(context),
-        desktopBuilder: (context, constraints) => _buildDesktopLayout(context),
-      ),
+    return ResponsiveBuilder(
+      mobileBuilder: (context, constraints) => _buildMobileLayout(context),
+      desktopBuilder: (context, constraints) => _buildDesktopLayout(context),
     );
   }
 
@@ -68,38 +65,34 @@ class AppShell extends StatelessWidget {
     final navHelper = StoreNavigationHelper(storeId);
     final currentPath = GoRouterState.of(context).uri.toString();
 
-    return BlocBuilder<ScaffoldUiCubit, ScaffoldUiState>(
-      builder: (context, uiState) {
-        return Scaffold(
-          // ✅ CORREÇÃO: A AppBar padrão agora é visível e funcional
-          appBar: uiState.appBar ?? AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0.5, // Uma leve sombra para separar do conteúdo
-            title: Text(
-              navHelper.getTitleForPath(currentPath), // Título dinâmico
-              style: const TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            // Adiciona o botão para abrir o menu (drawer)
-            leading: Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu, color: Colors.black54),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
+    return Scaffold(
+      // ✅ CORREÇÃO: A AppBar padrão agora é visível e funcional
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5, // Uma leve sombra para separar do conteúdo
+        title: Text(
+          navHelper.getTitleForPath(currentPath), // Título dinâmico
+          style: const TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        // Adiciona o botão para abrir o menu (drawer)
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.black54),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
-          drawer: DrawerCode(storeId: storeId),
-          body: Column(
-            children: [
-              Expanded(child: navigationShell),
-              _buildConnectivityBanner(),
-            ],
-          ),
-          floatingActionButton: uiState.fab,
-          bottomNavigationBar: navHelper.shouldShowBottomBar(currentPath)
-              ? navHelper.buildBottomNavigationBar(context, currentPath, GlobalKey<ScaffoldState>())
-              : null,
-        );
-      },
+        ),
+      ),
+      drawer: DrawerCode(storeId: storeId),
+      body: Column(
+        children: [
+          Expanded(child: navigationShell),
+          _buildConnectivityBanner(),
+        ],
+      ),
+
+      bottomNavigationBar: navHelper.shouldShowBottomBar(currentPath)
+          ? navHelper.buildBottomNavigationBar(context, currentPath, GlobalKey<ScaffoldState>())
+          : null,
     );
   }
   // ✅ Widget do banner foi extraído para ser reutilizado

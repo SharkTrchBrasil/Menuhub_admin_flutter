@@ -567,15 +567,20 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     );
   }
 
-  Future<void> removeProducts(List<int> productIds) async {
+
+  Future<void> archiveProducts(List<int> productIds) async {
     if (state is! StoresManagerLoaded) return;
     final storeId = (state as StoresManagerLoaded).activeStoreId;
-    await _productRepository.deleteProducts(
+
+    // Chama a nova função do repositório
+    await _productRepository.archiveProducts(
       storeId: storeId,
       productIds: productIds,
     );
-  }
 
+    // Aqui você pode adicionar lógica para atualizar a UI, se necessário
+    // Por exemplo, recarregar a lista de produtos.
+  }
 
 
 

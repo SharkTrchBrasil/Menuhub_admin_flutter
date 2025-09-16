@@ -4,9 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/responsive_builder.dart';
 import '../cubit/create_complement_cubit.dart';
 import '../widgets/wizard_footer.dart';
-import '../widgets/wizard_header.dart';
 
-/// Widget para o Passo 2 da criação de um grupo de complementos.
+
 class Step2GroupDetails extends StatefulWidget {
   final GroupType groupType;
 
@@ -18,16 +17,22 @@ class Step2GroupDetails extends StatefulWidget {
 
 class _Step2GroupDetailsState extends State<Step2GroupDetails> {
   final _formKey = GlobalKey<FormState>();
+
+  // ✅ O TextEditingController ainda é útil para gerenciar o campo de texto
   late final TextEditingController _nameController;
 
-  bool _isRequired = false;
-  int _minQty = 0;
-  int _maxQty = 1;
+
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
+    // ✅ Inicializa o controller com o valor que JÁ ESTÁ no Cubit
+    _nameController = TextEditingController(
+      text: context
+          .read<CreateComplementGroupCubit>()
+          .state
+          .groupName,
+    );
   }
 
   @override
@@ -36,98 +41,85 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
     super.dispose();
   }
 
-  // Função para lidar com o clique no botão de continuar
   void _submit() {
     if (_formKey.currentState?.validate() ?? false) {
+      // ✅ A função de submit continua a mesma, mas agora os dados já estão salvos no Cubit.
+      // Esta chamada serve para avançar para o próximo passo do wizard.
+      final state = context
+          .read<CreateComplementGroupCubit>()
+          .state;
       context.read<CreateComplementGroupCubit>().setGroupDetails(
-        name: _nameController.text,
-        isRequired: _isRequired,
-        min: _minQty,
-        max: _maxQty,
+        name: state.groupName,
+        isRequired: state.isRequired,
+        min: state.minQty,
+        max: state.maxQty,
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
+    // ✅ Usamos `context.watch` para que a UI se reconstrua com as mudanças do Cubit
+    final cubit = context.watch<CreateComplementGroupCubit>();
+    final state = cubit.state;
 
-        WizardHeader(
-          title: "Criar novo grupo",
-          currentStep: 2,
-          totalSteps: 3,
-          onClose: () => Navigator.of(context).pop(),
+    return Scaffold(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24.0,
+
         ),
-
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24.0,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 14),
+              const Text(
+                "Agora, defina o grupo e suas informações principais",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 16),
+              if (widget.groupType == GroupType.specifications ||
+                  widget.groupType == GroupType.disposables)
+                _buildRecommendations(),
+              const SizedBox(height: 24),
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 24),
-                  const Text(
-                    "Agora, defina o grupo e suas informações principais",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  _buildFormLabel("Nome do grupo*"),
+                  TextFormField(
+                    controller: _nameController,
+                    // ✅ `onChanged` agora atualiza o Cubit em tempo real
+                    onChanged: (value) => cubit.groupNameChanged(value),
+                    decoration: const InputDecoration(
+                      hintText: "Ex: Ingredientes extras do lanche",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value
+                          .trim()
+                          .isEmpty) {
+                        return "O nome do grupo é obrigatório.";
+                      }
+                      return null;
+                    },
                   ),
-                  const SizedBox(height: 16),
-
-                  // --- Seção Condicional de Recomendações ---
-                  if (widget.groupType == GroupType.specifications ||
-                      widget.groupType == GroupType.disposables)
-                    _buildRecommendations(),
-
-                  const SizedBox(height: 24),
-                  // --- Campos do Formulário ---
-                  // CÓDIGO NOVO E CORRIGIDO
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildFormLabel("Nome do grupo*"), // Nosso novo label
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          // Trocamos labelText por hintText para dar uma dica dentro do campo
-                          hintText: "Ex: Ingredientes extras do lanche",
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return "O nome do grupo é obrigatório.";
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  _buildRulesSection(),
-
-                  const SizedBox(height: 24),
                 ],
               ),
-            ),
+              const SizedBox(height: 24),
+              _buildRulesSection(), // Este widget agora também lerá do Cubit
+              const SizedBox(height: 24),
+            ],
           ),
         ),
-
-        WizardFooter(
-            onBack: () => context.read<CreateComplementGroupCubit>().goBack(),
-            onContinue: _submit
-
-        ),
-
-
-      ],
+      ),
+      bottomNavigationBar: WizardFooter(
+        onBack: () => context.read<CreateComplementGroupCubit>().goBack(),
+        onContinue: _submit,
+      ),
     );
   }
-
 
   Widget _buildFormLabel(String text) {
     return Padding(
@@ -136,77 +128,91 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
         text,
         style: const TextStyle(
           fontSize: 14,
-          fontWeight: FontWeight.w600, // Um pouco mais de destaque
+          fontWeight: FontWeight.w600,
           color: Colors.black87,
         ),
       ),
     );
   }
 
-
-
-  // DENTRO DA CLASSE _Step2GroupDetailsState
-
   Widget _buildRulesSection() {
-    // WIDGETS PRINCIPAIS (código inalterado)
+    // ✅ Os valores agora são lidos DIRETAMENTE do Cubit via context.watch
+    final cubit = context.watch<CreateComplementGroupCubit>();
+    final state = cubit.state;
+
+    // As variáveis locais foram substituídas por `state.isRequired`, `state.minQty`, etc.
     final dropdown = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildFormLabel("Este grupo é obrigatório ou opcional?"),
-        // Nosso novo label
         DropdownButtonFormField<bool>(
-          value: _isRequired,
-          decoration: const InputDecoration(
-            // Removemos o labelText daqui para não duplicar
-            border: OutlineInputBorder(),
-          ),
+          value: state.isRequired, // Lendo do Cubit
+          decoration: const InputDecoration(border: OutlineInputBorder()),
           items: const [
             DropdownMenuItem(value: false, child: Text("Opcional")),
             DropdownMenuItem(value: true, child: Text("Obrigatório")),
           ],
           onChanged: (newSelection) {
             if (newSelection == null) return;
-            setState(() {
-              _isRequired = newSelection;
-              if (_isRequired) {
-                if (_minQty < 1) _minQty = 1;
-                if (_maxQty < 1) _maxQty = 1;
-              } else {
-                _minQty = 0;
-              }
-            });
+            // Lógica de sincronia
+            int newMinQty = state.minQty;
+            int newMaxQty = state.maxQty;
+            if (newSelection) { // se for obrigatório
+              if (newMinQty < 1) newMinQty = 1;
+              if (newMaxQty < 1) newMaxQty = 1;
+            } else { // se for opcional
+              newMinQty = 0;
+            }
+            // ✅ `onChanged` agora atualiza o Cubit
+            cubit.rulesChanged(
+                isRequired: newSelection, minQty: newMinQty, maxQty: newMaxQty);
           },
         ),
       ],
     );
 
+
+// Lógica para o stepper de "Quantidade Mínima"
     final minStepper = _buildQuantityStepper(
-      "Qtd. mínima", // 👈 Texto reescrito
-      _minQty,
-          (newValue) {
-        setState(() {
-          _minQty = newValue;
-          _isRequired = newValue > 0;
-          if (_maxQty < _minQty) {
-            _maxQty = _minQty;
-          }
-        });
-      },
+      label: "Qtd. mínima",
+      value: state.minQty,
+      // Botão de diminuir: só funciona se minQty > 0
+      onDecrement: state.minQty > 0
+          ? () {
+        final newMin = state.minQty - 1;
+        cubit.rulesChanged(
+          minQty: newMin,
+          isRequired: newMin > 0, // Sincroniza o "obrigatório"
+        );
+      }
+          : null, // Desabilita o botão
+      // Botão de aumentar: só funciona se minQty < maxQty
+      onIncrement: state.minQty < state.maxQty
+          ? () {
+        final newMin = state.minQty + 1;
+        cubit.rulesChanged(
+          minQty: newMin,
+          isRequired: newMin > 0, // Sincroniza o "obrigatório"
+        );
+      }
+          : null, // Desabilita o botão
     );
 
+    // Lógica para o stepper de "Quantidade Máxima"
     final maxStepper = _buildQuantityStepper(
-      "Qtd. máxima", // 👈 Texto reescrito
-      _maxQty,
-          (newValue) {
-        if (newValue >= _minQty) {
-          setState(() => _maxQty = newValue);
-        }
-      },
+      label: "Qtd. máxima",
+      value: state.maxQty,
+      // Botão de diminuir: só funciona se maxQty > minQty
+      onDecrement: state.maxQty > state.minQty
+          ? () => cubit.rulesChanged(maxQty: state.maxQty - 1)
+          : null, // Desabilita o botão
+      // Botão de aumentar: sempre funciona
+      onIncrement: () => cubit.rulesChanged(maxQty: state.maxQty + 1),
     );
 
-    // ✨ Decisão semântica e centralizada usando seu próprio helper
+
     if (ResponsiveBuilder.isDesktop(context)) {
-      // Em telas largas (desktop), usa uma Row com Expanded.
+      // ... layout desktop (sem alterações na lógica)
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -218,7 +224,7 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
         ],
       );
     } else {
-      // Em telas estreitas (mobile), usa uma Column SEM Expanded.
+      // ... layout mobile (sem alterações na lógica)
       return Column(
         children: [
           dropdown,
@@ -226,37 +232,23 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Flexible(child: minStepper),    SizedBox(width: 44,), Flexible(child: maxStepper),
+              Flexible(child: minStepper),
+              SizedBox(width: 44,),
+              Flexible(child: maxStepper),
             ],
           ),
-
-
         ],
       );
     }
   }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   Widget _buildRecommendations() {
     // Define quais recomendações mostrar com base no tipo
     final recommendations =
-        widget.groupType == GroupType.specifications
-            ? ["Ponto da carne", "Tamanho"]
-            : ["Deseja descartáveis?"];
+    widget.groupType == GroupType.specifications
+        ? ["Ponto da carne", "Tamanho"]
+        : ["Deseja descartáveis?"];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24.0),
@@ -272,74 +264,44 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
             spacing: 8.0,
             runSpacing: 8.0,
             children:
-                recommendations.map((rec) {
-                  return ActionChip(
-                    label: Text(rec),
-                    onPressed: () {
-                      setState(() {
-                        _nameController.text = rec;
-                      });
-                    },
-                  );
-                }).toList(),
+
+
+            recommendations.map((rec) {
+              return ActionChip(
+                label: Text(rec),
+
+                // ✅ CORREÇÃO APLICADA AQUI
+                onPressed: () {
+                  // 1. Atualiza o campo de texto para o usuário ver
+                  _nameController.text = rec;
+                  _nameController.selection = TextSelection.fromPosition(TextPosition(offset: _nameController.text.length));
+
+
+                  // 2. Notifica o Cubit sobre a mudança para que o estado seja salvo
+                  context.read<CreateComplementGroupCubit>().groupNameChanged(rec);
+                },
+              );
+            }).toList(),
+
+
+
+
           ),
         ],
       ),
     );
   }
 
-  // No seu arquivo Step2GroupDetails.dart
 
-  // ✅ SUBSTITUA O MÉTODO INTEIRO POR ESTE
-  Widget _buildRequiredOptionalSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // O label pode ser o do próprio campo
-        // const Text("Este grupo é obrigatório ou opcional?"),
-        // const SizedBox(height: 8),
+  // DENTRO DA CLASSE _Step2GroupDetailsState
 
-        // Usamos DropdownButtonFormField para ter a borda e o label
-        DropdownButtonFormField<bool>(
-          value: _isRequired,
-          // O label agora fica dentro da decoração do campo
-          decoration: const InputDecoration(
-            labelText: "Este grupo é obrigatório ou opcional?",
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-          ),
-          // As opções são os DropdownMenuItems
-          items: const [
-            DropdownMenuItem(value: false, child: Text("Opcional")),
-            DropdownMenuItem(value: true, child: Text("Obrigatório")),
-          ],
-          // O onChanged atualiza o estado local, a lógica é a mesma
-          onChanged: (newSelection) {
-            if (newSelection != null) {
-              setState(() {
-                _isRequired = newSelection;
-                // A mesma lógica para ajustar as quantidades
-                if (_isRequired && _minQty < 1) {
-                  _minQty = 1;
-                  if (_maxQty < 1) _maxQty = 1;
-                } else if (!_isRequired) {
-                  _minQty = 0;
-                }
-              });
-            }
-          },
-        ),
-      ],
-    );
-  }
-
-
-
-  Widget _buildQuantityStepper(
-    String label,
-    int value,
-    ValueChanged<int> onChanged,
-  ) {
+// ✅ VERSÃO REATORADA E SIMPLIFICADA
+  Widget _buildQuantityStepper({
+    required String label,
+    required int value,
+    required VoidCallback? onDecrement, // Callback para o botão "-"
+    required VoidCallback? onIncrement, // Callback para o botão "+"
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -353,19 +315,10 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // O botão fica desabilitado se o callback for nulo
               IconButton(
                 icon: const Icon(Icons.remove),
-                // ✅ Lógica de validação melhorada
-                onPressed: () {
-                  final newValue = value - 1;
-                  // Para o mínimo, não pode ser menor que 0
-                  // Para o máximo, não pode ser menor que o mínimo
-                  if (label == "Qtd. mínima" && newValue >= 0) {
-                    onChanged(newValue);
-                  } else if (label == "Qtd. máxima" && newValue >= _minQty) {
-                    onChanged(newValue);
-                  }
-                },
+                onPressed: onDecrement,
               ),
               Text(
                 value.toString(),
@@ -374,17 +327,10 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              // O botão fica desabilitado se o callback for nulo
               IconButton(
                 icon: const Icon(Icons.add),
-                onPressed: () {
-                  final newValue = value + 1;
-                  // Para o mínimo, não pode ser maior que o máximo
-                  if (label == "Qtd. mínima" && newValue <= _maxQty) {
-                    onChanged(newValue);
-                  } else if (label == "Qtd. máxima") {
-                    onChanged(newValue);
-                  }
-                },
+                onPressed: onIncrement,
               ),
             ],
           ),
@@ -393,51 +339,6 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
     );
   }
 
-  /// Constrói o cabeçalho do painel
-  Widget _buildPanelHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Criar novo grupo",
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                // Indicador de progresso
-                _buildStepIndicator(isActive: true),
-                _buildStepIndicator(isActive: true),
-                _buildStepIndicator(isActive: false),
-                const SizedBox(width: 8),
-                Text("Passo 2 de 3", overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey[600])),
-              ],
-            ),
-          ],
-        ),
-        IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          // O botão de fechar pode funcionar como "Voltar"
-          icon: const Icon(Icons.close),
-        ),
-      ],
-    );
-  }
 
-  /// Widget auxiliar para o indicador de passo (as barrinhas)
-  Widget _buildStepIndicator({required bool isActive}) {
-    return Container(
-      margin: const EdgeInsets.only(right: 4),
-      width: 32,
-      height: 4,
-      decoration: BoxDecoration(
-        color: isActive ? Theme.of(context).primaryColor : Colors.grey[300],
-        borderRadius: BorderRadius.circular(2),
-      ),
-    );
-  }
 }
+

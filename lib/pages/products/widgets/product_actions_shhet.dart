@@ -3,14 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/core/di.dart';
+
 import 'package:totem_pro_admin/core/enums/category_type.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/repositories/product_repository.dart';
-import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+
 
 import '../cubit/products_cubit.dart';
 
@@ -19,12 +18,15 @@ class ProductActionsSheet extends StatefulWidget {
   final Product product;
   final Category parentCategory;
   final String displayPrice; // ✅ Já é String
+  final ProductsCubit productsCubit;
 
   const ProductActionsSheet({
+    super.key,
     required this.storeId,
     required this.product,
     required this.parentCategory,
     required this.displayPrice,
+    required this.productsCubit,
   });
 
   @override
@@ -42,7 +44,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
   void initState() {
     super.initState();
 
-    // ✅ CORREÇÃO: displayPrice já é String formatada, usa diretamente
+
     _priceController = TextEditingController(text: widget.displayPrice);
 
     _stockController = TextEditingController(
@@ -71,7 +73,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
     if (!_stockFocusNode.hasFocus) _updateStock();
   }
 
-  // ✅ CORREÇÃO: Agora converte o texto formatado para centavos
+
   void _updatePrice() {
     final originalPriceText = widget.displayPrice;
     final newPriceText = _priceController.text;
@@ -81,7 +83,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
       try {
         final priceInCents = (UtilBrasilFields.converterMoedaParaDouble(newPriceText) * 100).toInt();
 
-        context.read<ProductsCubit>().updateProductPriceInCategory(
+        widget.productsCubit.updateProductPriceInCategory(
           storeId: widget.storeId,
           productId: widget.product.id!,
           categoryId: widget.parentCategory.id!,
@@ -107,7 +109,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
       });
     }
 
-    context.read<ProductsCubit>().updateStock(
+    widget.productsCubit.updateStock(
       storeId: widget.storeId,
       product: widget.product,
       newQuantity: parsedQuantity,
@@ -242,7 +244,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
                 ),
                 onTap: () {
                   Navigator.of(context).pop();
-                  context.read<ProductsCubit>().toggleAvailabilityInCategory(
+                  widget.productsCubit.toggleAvailabilityInCategory(
                     storeId: widget.storeId,
                     product: widget.product,
                     parentCategory: widget.parentCategory,
@@ -259,7 +261,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
                   final productIdStr = currentProduct.id.toString();
 
                   if (isCustomizable) {
-                    context.goNamed(
+                    context.pushNamed(
                       'flavor-edit',
                       pathParameters: {
                         'storeId': storeIdStr,
@@ -268,7 +270,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
                       extra: currentProduct,
                     );
                   } else {
-                    context.goNamed(
+                    context.pushNamed(
                       'product-edit',
                       pathParameters: {
                         'storeId': storeIdStr,
@@ -285,7 +287,7 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
                 title: const Text('Remover da categoria'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  context.read<ProductsCubit>().removeProductFromCategory(
+                  widget.productsCubit.removeProductFromCategory(
                     storeId: widget.storeId,
                     productId: widget.product.id!,
                     categoryId: widget.parentCategory.id!,

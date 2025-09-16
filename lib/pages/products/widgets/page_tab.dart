@@ -14,7 +14,7 @@ class PageTabBar extends StatelessWidget implements PreferredSizeWidget {
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    //  padding: const EdgeInsets.symmetric(horizontal: 2),
       child:  TabBar( // ✅ O TabBar vai encontrar o controller do DefaultTabController
         isScrollable: true,
         tabAlignment: TabAlignment.start,

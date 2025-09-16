@@ -16,6 +16,7 @@ class ProductCardDesktop extends StatefulWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final int storeId;
+  final VoidCallback onStatusToggle;
 
   const ProductCardDesktop({
     super.key,
@@ -23,6 +24,7 @@ class ProductCardDesktop extends StatefulWidget {
     required this.isSelected,
     required this.onTap,
     required this.storeId,
+    required this.onStatusToggle,
   });
 
   @override
@@ -66,7 +68,7 @@ class _ProductCardDesktopState extends State<ProductCardDesktop> {
             // Imagem do produto
             SizedBox(
               width: 100,
-              child: ProductImage(product: widget.product),
+              child: ProductImage(imageUrl: widget.product.image?.url,),
             ),
 
             // Informações do produto
@@ -104,7 +106,7 @@ class _ProductCardDesktopState extends State<ProductCardDesktop> {
                 storeId: widget.storeId,
                 isActive: isActive,
                 isCustomizable: isCustomizable,
-                onToggle: () => _toggleStatus(context),
+                onToggle: widget.onStatusToggle,
               ),
             ),
           ],
@@ -113,36 +115,9 @@ class _ProductCardDesktopState extends State<ProductCardDesktop> {
     );
   }
 
-  // ✅ MÉTODOS DE AÇÃO (iguais à versão mobile)
-  Future<void> _toggleStatus(BuildContext context) async {
-    final newStatus = widget.product.status == ProductStatus.ACTIVE
-        ? ProductStatus.INACTIVE
-        : ProductStatus.ACTIVE;
 
-    final updatedProduct = widget.product.copyWith(status: newStatus);
 
-    try {
-      await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
-    }
-  }
 
-  Future<void> _archiveProduct(BuildContext context) async {
-    final confirmed = await DialogService.showConfirmationDialog(
-      context,
-      title: 'Confirmar Arquivamento',
-      content: 'Tem certeza que deseja arquivar o produto "${widget.product.name}"? Ele será movido para a lixeira.',
-    );
-
-    if (confirmed == true && mounted) {
-      try {
-        await getIt<ProductRepository>().archiveProduct(widget.storeId, widget.product.id!);
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao arquivar: $e')));
-      }
-    }
-  }
 }
 
 class _ProductInfoDesktop extends StatelessWidget {

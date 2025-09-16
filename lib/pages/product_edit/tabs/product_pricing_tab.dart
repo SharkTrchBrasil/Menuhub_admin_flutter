@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:totem_pro_admin/models/prodcut_category_links.dart';
 import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart';
 
+import '../../../core/enums/bulk_action_type.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
+import '../../categories/BulkCategoryPage.dart';
 import '../../product-wizard/cubit/product_wizard_cubit.dart';
 import '../../product-wizard/cubit/product_wizard_state.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
@@ -34,9 +36,14 @@ class ProductPricingTab extends StatelessWidget {
 
     final newLink = await showResponsiveSidePanelGroup<ProductCategoryLink>(
       context,
-      panel: CategoryLinkWizard(
-        product: wizardCubit.state.productInCreation,
-        allCategories: allCategories,
+      panel: BulkAddToCategoryWizard(
+
+        storeId: storesState.activeStore!.core.id!,
+        // Passa o produto em criação dentro de uma lista
+        selectedProducts: [wizardCubit.state.productInCreation],
+        allCategories: allCategories, actionType: BulkActionType.add,
+
+
       ),
     );
 

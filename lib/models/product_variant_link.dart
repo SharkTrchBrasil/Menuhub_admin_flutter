@@ -63,6 +63,7 @@ class ProductVariantLink {
     );
   }
 
+  // ✅ MÉTODO `toJson` CORRIGIDO E UNIFICADO
   Map<String, dynamic> toJson() {
     String modeToString(UIDisplayMode mode) {
       switch (mode) {
@@ -77,30 +78,14 @@ class ProductVariantLink {
       'ui_display_mode': modeToString(uiDisplayMode),
       'min_selected_options': minSelectedOptions,
       'max_selected_options': maxSelectedOptions,
-      'max_total_quantity': maxTotalQuantity,
+     // 'max_total_quantity': maxTotalQuantity,
       'available': available,
+
+      // A lógica correta que estava no `toWizardJson` agora está aqui
+      'variant': variant.toJson(),
     };
   }
 
-  // ✅ ADICIONE ESTE MÉTODO COMPLETO
-  Map<String, dynamic> toWizardJson() {
-    // Verifica se a variante é nova (ID < 0) ou existente.
-    final bool isNewVariant = (variant.id ?? 0) < 0;
-
-    return {
-      // 1. Dados da própria regra (o "link")
-      'ui_display_mode': uiDisplayMode.toApiString(), // Usa o helper do enum
-      'min_selected_options': minSelectedOptions,
-      'max_selected_options': maxSelectedOptions,
-      'available': available,
-      // 2. ID da variante (seja ele positivo ou negativo)
-      'variant_id': variant.id,
-
-      // 3. Dados da nova variante (APENAS se for uma variante nova)
-      //    Se for uma variante existente, este campo será nulo.
-      'new_variant_data': isNewVariant ? variant.toWizardJson() : null,
-    };
-  }
 
 
 

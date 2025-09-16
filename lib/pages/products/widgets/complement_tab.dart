@@ -4,20 +4,20 @@ import 'package:totem_pro_admin/models/product.dart'; // Importe o modelo Produc
 import 'package:totem_pro_admin/models/variant.dart';
 
 
-class VariantsTabView extends StatefulWidget {
+class VariantsTab extends StatefulWidget {
   final List<Variant> variants;
   final int storeId;
 
-  const VariantsTabView({
+  const VariantsTab({
     super.key,
     required this.variants, required this.storeId,
   });
 
   @override
-  State<VariantsTabView> createState() => _VariantsTabViewState();
+  State<VariantsTab> createState() => _VariantsTabState();
 }
 
-class _VariantsTabViewState extends State<VariantsTabView> {
+class _VariantsTabState extends State<VariantsTab> {
   final _searchController = TextEditingController();
   String _searchText = '';
   final Set<int> _selectedVariantIds = {};

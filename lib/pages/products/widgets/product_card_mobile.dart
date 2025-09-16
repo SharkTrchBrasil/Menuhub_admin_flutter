@@ -16,6 +16,7 @@ class ProductCardMobile extends StatefulWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final int storeId;
+  final VoidCallback? onStatusChanged; // ✅ Callback para notificar mudanças
 
   const ProductCardMobile({
     super.key,
@@ -23,6 +24,7 @@ class ProductCardMobile extends StatefulWidget {
     required this.isSelected,
     required this.onTap,
     required this.storeId,
+    this.onStatusChanged,
   });
 
   @override
@@ -30,13 +32,14 @@ class ProductCardMobile extends StatefulWidget {
 }
 
 class _ProductCardMobileState extends State<ProductCardMobile> {
+  bool _isUpdating = false; // ✅ Estado para controlar loading
+
   @override
   Widget build(BuildContext context) {
-
-    // ✅ LÓGICA CENTRALIZADA AQUI
-    final bool isActive = widget.product.status == ProductStatus.ACTIVE;
+    final bool isProductActive = widget.product.status == ProductStatus.ACTIVE;
     final bool hasCategory = widget.product.categoryLinks.isNotEmpty;
-    final bool isCustomizable = hasCategory && widget.product.categoryLinks.first.category?.type == CategoryType.CUSTOMIZABLE;
+    final bool isCustomizable = hasCategory &&
+        widget.product.categoryLinks.first.category?.type == CategoryType.CUSTOMIZABLE;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8),
@@ -46,17 +49,14 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
           width: double.infinity,
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: isActive ? Colors.white :Color(0xFFFFF8EB),
+            color: isProductActive ? Colors.white : Color(0xFFFFF8EB),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: widget.isSelected
-                  ? Theme.of(context).primaryColor // Vermelho iFood
+                  ? Theme.of(context).primaryColor
                   : Colors.grey,
               width: widget.isSelected ? 0.5 : 0.5,
             ),
-
-
-
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,24 +66,23 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Imagem do produto - Container com altura fixa
+                    // Imagem do produto
                     Container(
                       width: 70,
                       height: 70,
-                      child: ProductImage(product: widget.product),
+                      child: ProductImage(imageUrl: widget.product.image?.url),
                     ),
-
                     const SizedBox(width: 12),
 
-                    // Informações do produto - Alinhada com a imagem
+                    // Informações do produto
                     Expanded(
                       child: Container(
-                        height: 70, // mesma altura da imagem
+                        height: 70,
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center, // centraliza verticalmente
+                          mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (!isActive)
+                            if (!isProductActive)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 4),
                                 child: Row(
@@ -147,12 +146,12 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                       ),
                     ),
 
-                    // Botão de opções - Alinhado com o topo
+                    // Botão de opções
                     SizedBox(
-                      height: 70, // mesma altura da imagem
+                      height: 70,
                       child: Align(
                         alignment: Alignment.topCenter,
-                        child: _buildMobileActions(context, isCustomizable, isActive),
+                        child: _buildMobileActions(context, isCustomizable, isProductActive),
                       ),
                     ),
                   ],
@@ -162,7 +161,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
               const SizedBox(height: 16),
 
               // Detalhes do produto
-              _buildProductDetails(context, isActive),
+              _buildProductDetails(context, isProductActive),
             ],
           ),
         ),
@@ -171,21 +170,15 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
   }
 
   Widget _buildProductDetails(BuildContext context, bool isActive) {
-    // ✅ LÓGICA PARA DETERMINAR O TEXTO DO ESTOQUE
-    final String stockText;
-    if (widget.product.controlStock) {
-      stockText = widget.product.stockQuantity.toString();
-    } else {
-      stockText = 'Ilimitado';
-    }
+    final String stockText = widget.product.controlStock
+        ? widget.product.stockQuantity.toString()
+        : 'Ilimitado';
 
-    // ✅ LÓGICA PARA DETERMINAR O TEXTO DAS CATEGORIAS
-    final int categoryCount = widget.product.categoryLinks.length;
-    final String categoryText = '$categoryCount ${categoryCount == 1 ? "categoria" : "categorias"}';
+    // ✅ MOSTRAR NOMES DAS CATEGORIAS EM VEZ DA QUANTIDADE
+    final String categoryText = _getCategoryNames();
 
     return Column(
       children: [
-        // Grid de informações - layout responsivo
         GridView.count(
           crossAxisCount: 4,
           shrinkWrap: true,
@@ -216,13 +209,14 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
               ),
             ),
 
-            // DISPONÍVEL EM
+            // DISPONÍVEL EM - ✅ AGORA MOSTRA OS NOMES
             _InfoItem(
               title: 'DISPONÍVEL EM',
               value: categoryText,
               valueStyle: const TextStyle(
-                fontSize: 13,
+                fontSize: 11, // ✅ Tamanho menor para caber mais texto
                 color: Colors.black87,
+                fontWeight: FontWeight.w500,
               ),
             ),
 
@@ -241,10 +235,10 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                 ),
                 const SizedBox(height: 2),
                 Expanded(
-                  child: _ActionButtons(
-                    product: widget.product,
-                    storeId: widget.storeId,
-                    isActive:isActive,
+                  child: _isUpdating
+                      ? const DotLoading(size: 15) // ✅ Loading durante atualização
+                      : _ActionButtons(
+                    isActive: isActive,
                     onToggle: () => _toggleStatus(context),
                   ),
                 ),
@@ -254,6 +248,33 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
         ),
       ],
     );
+  }
+
+  // ✅ MÉTODO PARA OBTER NOMES DAS CATEGORIAS
+  String _getCategoryNames() {
+    if (widget.product.categoryLinks.isEmpty) {
+      return 'Nenhuma';
+    }
+
+    // Pega até 2 categorias para não ficar muito longo
+    final categoryNames = widget.product.categoryLinks
+        .take(2)
+        .map((link) => link.category?.name ?? '')
+        .where((name) => name.isNotEmpty)
+        .toList();
+
+    if (categoryNames.isEmpty) {
+      return 'Nenhuma';
+    }
+
+    String result = categoryNames.join(', ');
+
+    // Se tiver mais categorias, adiciona "..."
+    if (widget.product.categoryLinks.length > 2) {
+      result += '...';
+    }
+
+    return result;
   }
 
   Widget _buildMobileActions(BuildContext context, bool isCustomizable, bool isActive) {
@@ -305,13 +326,15 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                   onTap: () {
                     Navigator.of(ctx).pop();
                     if (isCustomizable) {
-                      context.push(
-                        '/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor',
+                      context.pushNamed(
+                        'flavor-edit',
+                        pathParameters: {'storeId': '${widget.storeId}', 'productId': '${widget.product.id}'},
                         extra: widget.product,
                       );
                     } else {
-                      context.push(
-                        '/stores/${widget.storeId}/products/${widget.product.id}',
+                      context.pushNamed(
+                        'product-edit',
+                        pathParameters: {'storeId': '${widget.storeId}', 'productId': '${widget.product.id}'},
                         extra: widget.product,
                       );
                     }
@@ -356,20 +379,38 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
     );
   }
 
-
-  // ✅ MÉTODOS DE AÇÃO CORRIGIDOS E CENTRALIZADOS
+  // ✅ MÉTODO ATUALIZADO PARA TOGGLE STATUS
   Future<void> _toggleStatus(BuildContext context) async {
-    final newStatus = widget.product.status == ProductStatus.ACTIVE
-        ? ProductStatus.INACTIVE
-        : ProductStatus.ACTIVE;
-
-    final updatedProduct = widget.product.copyWith(status: newStatus);
+    setState(() {
+      _isUpdating = true;
+    });
 
     try {
+      final newStatus = widget.product.status == ProductStatus.ACTIVE
+          ? ProductStatus.INACTIVE
+          : ProductStatus.ACTIVE;
+
+      final updatedProduct = widget.product.copyWith(status: newStatus);
+
       await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
-      // O socket já atualiza a UI, o SnackBar é opcional
+
+      // ✅ Notifica o parent widget sobre a mudança
+      if (widget.onStatusChanged != null) {
+        widget.onStatusChanged!();
+      }
+
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro: $e'))
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+        });
+      }
     }
   }
 
@@ -389,9 +430,6 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
     }
   }
 }
-
-
-
 
 class _InfoItem extends StatelessWidget {
   final String title;
@@ -426,7 +464,7 @@ class _InfoItem extends StatelessWidget {
           value,
           style: valueStyle,
           textAlign: TextAlign.center,
-          maxLines: 1,
+          maxLines: 2, // ✅ Permite 2 linhas para os nomes das categorias
           overflow: TextOverflow.ellipsis,
         ),
       ],
@@ -440,13 +478,11 @@ class _ActionButtonItem extends StatelessWidget {
   final Color? color;
   final VoidCallback onTap;
 
-
   const _ActionButtonItem({
     required this.icon,
     required this.text,
     this.color,
     required this.onTap,
-
   });
 
   @override
@@ -473,14 +509,10 @@ class _ActionButtonItem extends StatelessWidget {
 }
 
 class _ActionButtons extends StatelessWidget {
-  final Product product;
-  final int storeId;
   final bool isActive;
-  final VoidCallback onToggle; // ✅ Parâmetro renomeado para clareza
+  final VoidCallback onToggle;
 
   const _ActionButtons({
-    required this.product,
-    required this.storeId,
     required this.isActive,
     required this.onToggle,
   });
@@ -495,7 +527,7 @@ class _ActionButtons extends StatelessWidget {
         size: 18,
         color: isActive ? Colors.orange : Colors.green,
       ),
-      onPressed: onToggle, // ✅ Usa o callback passado
+      onPressed: onToggle,
       tooltip: isActive ? 'Pausar produto' : 'Ativar produto',
     );
   }

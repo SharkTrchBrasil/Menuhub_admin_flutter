@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/repositories/category_repository.dart';
 
+import '../../../core/enums/product_status.dart';
 import '../../../models/product.dart';
 import '../../../repositories/product_repository.dart';
 
@@ -54,13 +55,6 @@ class ProductsCubit extends Cubit<ProductsState> {
     );
   }
 
-
-
-
-
-
-
-  // ✅ NOVOS MÉTODOS PARA AÇÕES DE PRODUTO
 
   Future<void> updateProductPriceInCategory({
     required int storeId,
@@ -136,6 +130,28 @@ class ProductsCubit extends Cubit<ProductsState> {
           (success) => emit(const ProductsActionSuccess("Produto removido da categoria.")),
     );
   }
+
+
+
+  Future<void> toggleProductStatus(int storeId, Product product) async {
+    emit(ProductsActionInProgress());
+
+    // Determina o novo status: se está ATIVO vira INATIVO, e vice-versa.
+    final newStatus = product.status == ProductStatus.ACTIVE
+        ? ProductStatus.INACTIVE
+        : ProductStatus.ACTIVE;
+
+    final updatedProduct = product.copyWith(status: newStatus);
+
+    final result = await _productRepository.updateProduct(storeId, updatedProduct);
+
+    result.fold(
+          (error) => emit(ProductsActionFailure(error)),
+          (success) => emit(const ProductsActionSuccess("Status do produto atualizado!")),
+    );
+  }
+
+
 }
 
 

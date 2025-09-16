@@ -11,7 +11,7 @@ import 'package:totem_pro_admin/services/dialog_service.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 
-import '../../cubits/scaffold_ui_cubit.dart';
+
 import '../../widgets/ds_primary_button.dart';
 import '../base/BasePage.dart';
 
@@ -26,39 +26,25 @@ class CouponsPage extends StatefulWidget {
 
 class _CouponsPageState extends State<CouponsPage> {
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
-  late final ScaffoldUiCubit _scaffoldUiCubit;
+
   @override
   void initState() {
     super.initState();
 
-    _scaffoldUiCubit = context.read<ScaffoldUiCubit>();
+
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _setupScaffoldUI();
+
       }
     });
   }
 
-  void _setupScaffoldUI() {
-    // Pega o cubit que controla a UI do Scaffold principal
-    final scaffoldCubit = context.read<ScaffoldUiCubit>();
-
-    // Define o AppBar e o FAB que devem aparecer APENAS NO MOBILE
-    scaffoldCubit.setAppBar(AppBar(title: const Text('Cupons')));
-    scaffoldCubit.setFab(
-      FloatingActionButton(
-        onPressed: () => _onAddOrEdit(),
-        tooltip: 'Novo cupom',
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
 
   @override
   void dispose() {
 
-    _scaffoldUiCubit.clearAll();
+
 
     super.dispose();
   }

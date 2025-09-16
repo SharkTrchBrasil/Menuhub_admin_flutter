@@ -17,15 +17,15 @@ import 'kit_component.dart';
 
 import 'package:equatable/equatable.dart';
 
-// ✅ 1. ADICIONE 'extends Equatable' AQUI
+
 class Product extends Equatable implements SelectableItem {
 
   final int? id;
   final String name;
-  final String? description; // ✅ Tornado nullable
+  final String? description;
   final ProductStatus status;
   final ImageModel? image;
-  final String? ean; // ✅ Tornado nullable
+  final String? ean;
   final int stockQuantity;
   final bool controlStock;
   final int minStock;
@@ -34,8 +34,8 @@ class Product extends Equatable implements SelectableItem {
   final int priority;
   final bool featured;
   final int storeId;
-  final int? servesUpTo; // ✅ Novo campo
-  final int? weight; // ✅ Novo campo (em gramas ou ml)
+  final int? servesUpTo;
+  final int? weight;
   final int soldCount;
   final List<ProductVariantLink>? variantLinks;
   final CashbackType cashbackType;
@@ -52,10 +52,10 @@ class Product extends Equatable implements SelectableItem {
   final Set<BeverageTag> beverageTags;
   final int? masterProductId;
   final List<FlavorPrice> prices;
-  final List<ProductDefaultOption>? defaultOptions; // ✅ Novo campo
-  final List<KitComponent>? components; // ✅ Novo campo
-  final List<ProductRating>? productRatings; // ✅ Novo campo
-  final String? fileKey; // ✅ Novo campo
+  final List<ProductDefaultOption>? defaultOptions;
+  final List<KitComponent>? components;
+  final List<ProductRating>? productRatings;
+  final String? fileKey;
 
  const Product({
     this.id,
@@ -262,7 +262,7 @@ class Product extends Equatable implements SelectableItem {
       'dietary_tags': dietaryTags.map((tag) => foodTagNames[tag]!).toList(),
       'beverage_tags': beverageTags.map((tag) => beverageTagNames[tag]!).toList(),
       'category_links': categoryLinks.map((link) => link.toJson()).toList(),
-      'variant_links': (variantLinks ?? []).map((link) => link.toWizardJson()).toList(),
+      'variant_links': (variantLinks ?? []).map((link) => link.toJson()).toList(),
     };
   }
 
@@ -316,7 +316,7 @@ class Product extends Equatable implements SelectableItem {
 
       // --- ✅ VÍNCULOS (O mais importante que faltava) ---
       'category_links': categoryLinks.map((link) => link.toJson()).toList(),
-      'variant_links': (variantLinks ?? []).map((link) => link.toWizardJson()).toList(),
+      'variant_links': (variantLinks ?? []).map((link) => link.toJson()).toList(),
 
       // --- ✅ Preços (para sabores de produtos customizáveis) ---
       'prices': prices.map((price) => price.toJson()).toList(),

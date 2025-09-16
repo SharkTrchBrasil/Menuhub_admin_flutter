@@ -5,6 +5,8 @@ import '../../../core/responsive_builder.dart';
 
 /// WIDGET: Cabeçalho da página (Título e descrição)
 class PageHeader extends StatelessWidget {
+  const PageHeader({super.key});
+
 
 
   @override
@@ -24,7 +26,7 @@ class PageHeader extends StatelessWidget {
             children: [
               const Text('Cardápio',
                   style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87)),
               Row(
@@ -39,11 +41,11 @@ class PageHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Defina quais os itens seus clientes podem pedir pelo iFood',
-            style: TextStyle(fontSize: 15, color: Colors.black54),
-          ),
+          // const SizedBox(height: 4),
+          // const Text(
+          //   'Defina quais os itens seus clientes podem pedir pelo iFood',
+          //   style: TextStyle(fontSize: 15, color: Colors.black54),
+          // ),
         ],
       ),
     );

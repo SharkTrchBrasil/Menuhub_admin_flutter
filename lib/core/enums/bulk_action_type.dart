@@ -1,0 +1,2 @@
+
+enum BulkActionType { add, move }

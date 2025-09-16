@@ -14,10 +14,10 @@ import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
 import '../../core/di.dart';
 import '../../core/responsive_builder.dart';
-import '../../cubits/scaffold_ui_cubit.dart';
+
 import '../../repositories/category_repository.dart';
 import '../../repositories/product_repository.dart';
-import '../../widgets/app_toasts.dart' as BotToast;
+
 import 'cubit/products_cubit.dart';
 
 
@@ -38,14 +38,7 @@ class CategoryProductPageState extends State<CategoryProductPage> {
     super.dispose();
   }
 
-  @override
-  void initState() {
-    super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ScaffoldUiCubit>().setAppBar(null);
-    });
-  }
 
 
   Future<bool> hasContent() async {
@@ -70,19 +63,26 @@ class CategoryProductPageState extends State<CategoryProductPage> {
   }
 
   void _navigateToCreateCategory() {
-    context.push('/stores/${widget.storeId}/categories/new');
+    context.pushNamed(
+      'category-new',
+      pathParameters: {'storeId': widget.storeId.toString()},
+    );
   }
 
-
   void _navigateToCreateProduct() {
-    context.push('/stores/${widget.storeId}/products/new');
+    // O nome da rota pode ser 'product-new' ou 'product-create',
+    // verifique o nome exato que você definiu no seu AppRouter.
+    context.pushNamed(
+      'product-create',
+      pathParameters: {'storeId': widget.storeId.toString()},
+    );
   }
 
 
   @override
   Widget build(BuildContext context) {
     final bool isMobile = ResponsiveBuilder.isMobile(context);
-    final double appBarHeight = isMobile ? 160.0 : 180.0;
+    final double appBarHeight = isMobile ? 40.0 : 80.0;
 
     // ✅ PASSO 1: FORNEÇA O CUBIT DE AÇÕES NO TOPO DA ÁRVORE DE WIDGETS DA TELA.
     return BlocProvider(
@@ -122,7 +122,12 @@ class CategoryProductPageState extends State<CategoryProductPage> {
                 );
               }
             },
+
+
             child: BlocBuilder<StoresManagerCubit, StoresManagerState>(
+
+
+
               builder: (context, state) {
                 if (state is! StoresManagerLoaded) {
                   return const Center(child: DotLoading());
@@ -162,26 +167,58 @@ class CategoryProductPageState extends State<CategoryProductPage> {
                   },
                   body: TabBarView(
                     children: [
-                      MenuContent(
+                      MenuContentTab(
                         allCategories: allCategories,
                         storeId: widget.storeId,
+                        allProducts: allProducts,
                       ),
-                      ProductListView(
+                      ProductListTab(
                         storeId: widget.storeId,
                         products: allProducts,
                         allCategories: allCategories,
                         onAddProduct: _navigateToCreateProduct,
                       ),
-                      VariantsTabView(
+                      VariantsTab(
                           variants: allVariants, storeId: widget.storeId),
                     ],
                   ),
                 );
               },
+
+
+
+
+
+
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+// ✅ NOVO DELEGATE APENAS PARA A TABBAR
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final PageTabBar tabBar;
+
+  const _SliverTabBarDelegate({required this.tabBar});
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor, // Garante um fundo sólido
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return tabBar != oldDelegate.tabBar;
   }
 }
