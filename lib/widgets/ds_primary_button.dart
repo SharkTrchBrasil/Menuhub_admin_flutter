@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../core/enums/connectivity_status.dart';
+import '../cubits/store_manager_cubit.dart';
+import '../cubits/store_manager_state.dart';
 
 // ✨ Widget para a animação de "3 pontos"
 class _ThreeDotsLoading extends StatefulWidget {
@@ -91,6 +96,7 @@ class DsButton extends StatelessWidget {
     this.loadingDotsColor,
     this.padding,
     this.minimumSize,
+    this.requiresConnection = true,
   }) : assert(label != null || child != null,
   'É necessário fornecer ou uma "label" ou um "child".');
 
@@ -108,6 +114,7 @@ class DsButton extends StatelessWidget {
   final Color? loadingDotsColor;
   final EdgeInsets? padding;
   final Size? minimumSize;
+  final bool requiresConnection;
 
   Color _getEffectiveBackgroundColor(Set<MaterialState> states, ColorScheme colorScheme) {
     if (states.contains(MaterialState.disabled)) {
@@ -154,80 +161,86 @@ class DsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    // ✅ 4. A LÓGICA PRINCIPAL AGORA É ENVOLVIDA PELO BLOCSELECTOR
+    return BlocSelector<StoresManagerCubit, StoresManagerState, bool>(
+      // O seletor retorna 'true' se estiver conectado.
+      selector: (state) {
+        // Se o botão não requer conexão, ele é sempre considerado "conectado" para fins de lógica.
+        if (!requiresConnection) return true;
 
-    final textStyle = const TextStyle(
-      fontSize: 15,
-      fontWeight: FontWeight.w600,
-    );
+        return state is StoresManagerLoaded &&
+            state.connectivityStatus == ConnectivityStatus.connected;
+      },
+      builder: (context, isConnected) {
+        final colorScheme = Theme.of(context).colorScheme;
+        final textStyle = const TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
 
-    final baseStyle = ButtonStyle(
-      padding: MaterialStateProperty.all<EdgeInsets>(
-        padding ?? const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      ),
-   // minimumSize: MaterialStateProperty.all(minimumSize ?? const Size(48, 35)),
-      maximumSize:MaterialStateProperty.all(minimumSize ??  Size(190, 42)),
-      alignment: Alignment.center,
-      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-        RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-      ),
-      elevation: MaterialStateProperty.all(0),
-      backgroundColor: MaterialStateProperty.resolveWith<Color?>(
-            (Set<MaterialState> states) => _getEffectiveBackgroundColor(states, colorScheme),
-      ),
-      foregroundColor: MaterialStateProperty.resolveWith<Color?>(
-            (Set<MaterialState> states) => _getEffectiveForegroundColor(states, colorScheme),
-      ),
-    );
+        // ✅ 5. DETERMINA O ESTADO FINAL DO onPresed
+        // O botão é desabilitado se (isLoading for true) OU (se ele requer conexão e não está conectado).
+        final bool isEffectivelyDisabled = isLoading || !isConnected;
+        final VoidCallback? finalOnPressed = isEffectivelyDisabled ? null : onPressed;
 
-    final buttonContent = child ??
-        _ResponsiveButtonContent(
-          icon: icon,
-          label: label!,
-          textStyle: textStyle.copyWith(
-            color: _getEffectiveForegroundColor({}, colorScheme),
+        final baseStyle = ButtonStyle(
+          // ... (o resto do seu `baseStyle` continua o mesmo)
+          padding: MaterialStateProperty.all<EdgeInsets>(
+            padding ?? const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          ),
+          maximumSize: MaterialStateProperty.all(minimumSize ?? const Size(190, 42)),
+          alignment: Alignment.center,
+          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          ),
+          elevation: MaterialStateProperty.all(0),
+          backgroundColor: MaterialStateProperty.resolveWith<Color?>(
+                (Set<MaterialState> states) => _getEffectiveBackgroundColor(states, colorScheme),
+          ),
+          foregroundColor: MaterialStateProperty.resolveWith<Color?>(
+                (Set<MaterialState> states) => _getEffectiveForegroundColor(states, colorScheme),
           ),
         );
 
-    final finalChild = isLoading
-        ? _ThreeDotsLoading(dotsColor: loadingDotsColor ?? _getEffectiveForegroundColor({}, colorScheme))
-        : buttonContent;
-
-    switch (style) {
-      case DsButtonStyle.secondary:
-        return OutlinedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: baseStyle.copyWith(
-            side: MaterialStateProperty.all(
-              BorderSide(
-                color: _getEffectiveBorderColor(colorScheme),
-                width: 1,
+        final buttonContent = child ??
+            _ResponsiveButtonContent(
+              icon: icon,
+              label: label!,
+              textStyle: textStyle.copyWith(
+                color: _getEffectiveForegroundColor({}, colorScheme),
               ),
-            ),
-          ),
-          child: finalChild,
-        );
+            );
 
-      case DsButtonStyle.custom:
-      case DsButtonStyle.primary:
-      default:
-        return ElevatedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: baseStyle.copyWith(
-            side: style == DsButtonStyle.custom
-                ? MaterialStateProperty.all(
-              BorderSide(
-                color: _getEffectiveBorderColor(colorScheme),
-                width: 1,
+        final finalChild = isLoading
+            ? _ThreeDotsLoading(dotsColor: loadingDotsColor ?? _getEffectiveForegroundColor({}, colorScheme))
+            : buttonContent;
+
+        switch (style) {
+          case DsButtonStyle.secondary:
+            return OutlinedButton(
+              onPressed: finalOnPressed, // ✅ Usa o onPressed final
+              style: baseStyle.copyWith(
+                side: MaterialStateProperty.all(
+                  BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 1),
+                ),
               ),
-            )
-                : null,
-          ),
-          child: finalChild,
-        );
-    }
+              child: finalChild,
+            );
+
+          case DsButtonStyle.custom:
+          case DsButtonStyle.primary:
+          default:
+            return ElevatedButton(
+              onPressed: finalOnPressed, // ✅ Usa o onPressed final
+              style: baseStyle.copyWith(
+                side: style == DsButtonStyle.custom
+                    ? MaterialStateProperty.all(
+                  BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 1),
+                )
+                    : null,
+              ),
+              child: finalChild,
+            );
+        }
+      },
+    );
   }
 }
 

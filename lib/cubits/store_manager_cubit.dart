@@ -102,12 +102,15 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _listenToActiveStoreData();
   }
 
-  // ✅ Novo método para lidar com a mudança de status
+
   void _onConnectivityChanged(ConnectivityStatus status) {
     if (state is StoresManagerLoaded) {
       final currentState = state as StoresManagerLoaded;
-      // Apenas atualiza o status, sem apagar os outros dados
-      emit(currentState.copyWith(connectivityStatus: status));
+      // ✅ CORREÇÃO: Adicione 'lastUpdate' para garantir que o estado seja sempre novo
+      emit(currentState.copyWith(
+        connectivityStatus: status,
+        lastUpdate: DateTime.now(),
+      ));
     }
   }
 
@@ -279,16 +282,27 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
+// DEPOIS (A SOLUÇÃO)
+
   void _onAdminStoresListReceived(List<StoreWithRole> stores) {
     if (isClosed) return;
 
     final currentState = state;
 
+
+    if (currentState is StoresManagerLoaded && stores.isEmpty) {
+      log(
+        "🔵 [CUBIT] Ignorando lista de lojas vazia recebida durante o estado 'Loaded'. Mantendo os dados atuais.",
+      );
+      return; // Não faz nada, mantém os dados existentes!
+    }
+
+    // A lógica original para o primeiro carregamento e para quando o usuário realmente não tem lojas
     if (currentState is StoresManagerInitial && stores.isEmpty) {
       log(
         "🔵 [CUBIT] Ignorando lista de lojas inicial vazia (seed do BehaviorSubject). Aguardando dados reais.",
       );
-      return; // Não faz nada, espera a próxima emissão
+      return;
     }
 
     if (stores.isEmpty) {
@@ -314,7 +328,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
         ),
       );
       _realtimeRepository.joinStoreRoom(firstStoreId);
-     
     }
   }
 
@@ -326,12 +339,10 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       // Cria uma cópia do mapa de notificações que acabamos de receber
       final filteredCounts = Map<int, int>.from(incomingNotificationCounts);
 
-      // ✨ ESTA É A LÓGICA CRÍTICA ✨
-      // Remove a contagem da loja que está ativa na tela.
-      // Assim, o toast só mostrará a soma das notificações de lojas INATIVAS.
+
       filteredCounts.remove(currentState.activeStoreId);
 
-      // Emite o novo estado com o mapa de notificações já filtrado
+
       emit(currentState.copyWith(notificationCounts: filteredCounts));
     }
   }
@@ -355,7 +366,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       );
       newNotificationCounts.remove(newStoreId);
 
-      // Apenas emitimos a mudança de ID. O listener de produtos vai reagir a isso.
       emit(
         currentState.copyWith(
           activeStoreId: newStoreId,

@@ -59,10 +59,14 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Usamos `context.watch` para que a UI se reconstrua com as mudanças do Cubit
+
     final cubit = context.watch<CreateComplementGroupCubit>();
     final state = cubit.state;
 
+
+    if (_nameController.text != state.groupName) {
+      _nameController.text = state.groupName;
+    }
     return Scaffold(
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
@@ -74,16 +78,20 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 14),
-              const Text(
+
+               Text(
+
                 "Agora, defina o grupo e suas informações principais",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                textAlign: TextAlign.justify,
+
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
               ),
+              const SizedBox(height: 20),
+              // ✅ A SEÇÃO DE RECOMENDAÇÕES AGORA É MOSTRADA PARA TODOS OS TIPOS
+              _buildRecommendations(),
+
+
               const SizedBox(height: 16),
-              if (widget.groupType == GroupType.specifications ||
-                  widget.groupType == GroupType.disposables)
-                _buildRecommendations(),
-              const SizedBox(height: 24),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -243,59 +251,7 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
   }
 
 
-  Widget _buildRecommendations() {
-    // Define quais recomendações mostrar com base no tipo
-    final recommendations =
-    widget.groupType == GroupType.specifications
-        ? ["Ponto da carne", "Tamanho"]
-        : ["Deseja descartáveis?"];
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Recomendações inteligentes",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8.0,
-            runSpacing: 8.0,
-            children:
-
-
-            recommendations.map((rec) {
-              return ActionChip(
-                label: Text(rec),
-
-                // ✅ CORREÇÃO APLICADA AQUI
-                onPressed: () {
-                  // 1. Atualiza o campo de texto para o usuário ver
-                  _nameController.text = rec;
-                  _nameController.selection = TextSelection.fromPosition(TextPosition(offset: _nameController.text.length));
-
-
-                  // 2. Notifica o Cubit sobre a mudança para que o estado seja salvo
-                  context.read<CreateComplementGroupCubit>().groupNameChanged(rec);
-                },
-              );
-            }).toList(),
-
-
-
-
-          ),
-        ],
-      ),
-    );
-  }
-
-
-  // DENTRO DA CLASSE _Step2GroupDetailsState
-
-// ✅ VERSÃO REATORADA E SIMPLIFICADA
   Widget _buildQuantityStepper({
     required String label,
     required int value,
@@ -340,5 +296,53 @@ class _Step2GroupDetailsState extends State<Step2GroupDetails> {
   }
 
 
+
+  Widget _buildRecommendations() {
+    final cubit = context.read<CreateComplementGroupCubit>();
+    final recommendations = cubit.getRecommendationsForGroupType(widget.groupType);
+
+    if (recommendations.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Recomendações inteligentes ",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+
+          // ✅ ALTERAÇÃO PRINCIPAL AQUI
+          // Usamos um SizedBox para dar uma altura fixa para a lista horizontal.
+          SizedBox(
+            height: 40, // Altura dos chips + padding
+            child: ListView.builder(
+              // ✅ Define a direção da rolagem como horizontal
+              scrollDirection: Axis.horizontal,
+              itemCount: recommendations.length,
+              itemBuilder: (context, index) {
+                final rec = recommendations[index];
+
+                // Adicionamos um Padding para dar espaçamento entre os chips
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ActionChip(
+                    label: Text(rec),
+                    onPressed: () {
+                      cubit.selectRecommendation(rec);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 

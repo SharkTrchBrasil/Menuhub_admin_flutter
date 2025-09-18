@@ -70,13 +70,14 @@ class _ComplementsTabState extends State<ComplementsTab> {
                   key: ValueKey(option.id ?? 'new-$index'),
                   // Chave única para itens novos e existentes
                   option: option,
-                  onRemove: () => _removeComplement(index),
+                 // onRemove: () => _removeComplement(index),
                   onUpdate: (updatedOption) {
                     // final updatedList = [...widget.options];
                     // updatedList[index] = updatedOption;
                     // widget.onOptionsChanged(updatedList);
 
                   }, index: option.id!,
+                  onRemove: (VariantOption optionToRemove) {  },
                 );
               },
               onReorder: (oldIndex, newIndex) {

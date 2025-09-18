@@ -150,13 +150,11 @@ class AppProductImageFormField extends StatelessWidget {
       ),
     );
   }
-
   Widget _buildImagePreviewHorizontal(BuildContext context, FormFieldState<ImageModel> state) {
     final imageModel = state.value!;
-    const double imagePreviewSize = 80.0; // Tamanho menor para a prévia na linha
+    const double imagePreviewSize = 80.0;
 
     return Container(
-
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
@@ -165,36 +163,41 @@ class AppProductImageFormField extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 1. Imagem à esquerda
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: _buildImage(imageModel),
+          // 1. Imagem à esquerda - ADDED CONSTRAINTS
+          SizedBox(
+            width: imagePreviewSize,
+            height: imagePreviewSize,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: _buildImage(imageModel),
+            ),
           ),
           const SizedBox(width: 16),
 
           // 2. Spacer para empurrar os botões para a direita
           const Spacer(),
 
-     if(enabled)
-          IconButton(
-            icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
-            tooltip: 'Alterar foto',
-            onPressed: enabled ? () => _pickAndCropImage(context, state) : null,
-          ),
+          if(enabled)
+            IconButton(
+              icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
+              tooltip: 'Alterar foto',
+              onPressed: enabled ? () => _pickAndCropImage(context, state) : null,
+            ),
 
           if(enabled)
-          IconButton(
-            icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
-            tooltip: 'Remover foto',
-            onPressed: enabled ? () {
-              state.didChange(null);
-              onChanged(null);
-            } : null,
-          ),
+            IconButton(
+              icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+              tooltip: 'Remover foto',
+              onPressed: enabled ? () {
+                state.didChange(null);
+                onChanged(null);
+              } : null,
+            ),
         ],
       ),
     );
   }
+
 
 
 
@@ -209,7 +212,7 @@ class AppProductImageFormField extends StatelessWidget {
 
 
   Widget _buildImage(ImageModel model) {
-    const double displaySize = 80.0;
+    // Remove the const double displaySize = 80.0; from here since we're controlling size from parent
 
     if (model.file != null) {
       if (kIsWeb) {
@@ -219,48 +222,41 @@ class AppProductImageFormField extends StatelessWidget {
             if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
               return Image.memory(
                 snapshot.data!,
-                width: displaySize,
-                height: displaySize,
-                fit: BoxFit.cover,
+                fit: BoxFit.cover, // Added fit to cover the available space
               );
             } else if (snapshot.hasError) {
-              return _buildErrorWidget(displaySize);
+              return _buildErrorWidget();
             }
-            return _buildLoadingWidget(displaySize);
+            return _buildLoadingWidget();
           },
         );
       } else {
         return Image.file(
           File(model.file!.path),
-          width: displaySize,
-          height: displaySize,
-          fit: BoxFit.cover,
+          fit: BoxFit.cover, // Added fit to cover the available space
         );
       }
     } else if (model.url != null && model.url!.isNotEmpty &&
         Uri.tryParse(model.url!)?.hasAbsolutePath == true) {
       return Image.network(
         model.url!,
-        width: displaySize,
-        height: displaySize,
-        fit: BoxFit.cover,
+        fit: BoxFit.cover, // Added fit to cover the available space
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
-          return _buildLoadingWidget(displaySize);
+          return _buildLoadingWidget();
         },
         errorBuilder: (context, error, stackTrace) {
-          return _buildErrorWidget(displaySize);
+          return _buildErrorWidget();
         },
       );
     }
 
-    return _buildPlaceholderWidget(displaySize);
+    return _buildPlaceholderWidget();
   }
 
-  Widget _buildLoadingWidget(double size) {
+// Update the helper methods to remove the size parameter since it's controlled by parent
+  Widget _buildLoadingWidget() {
     return Container(
-      width: size,
-      height: size,
       color: Colors.grey[200],
       child: const Center(
         child: CircularProgressIndicator(strokeWidth: 2),
@@ -268,28 +264,26 @@ class AppProductImageFormField extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorWidget(double size) {
+  Widget _buildErrorWidget() {
     return Container(
-      width: size,
-      height: size,
       color: Colors.red[50],
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min, // ✅ IMPORTANTE: Evita overflow
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 24, color: Colors.red), // ✅ Tamanho reduzido
+            const Icon(Icons.error_outline, size: 24, color: Colors.red),
             const SizedBox(height: 4),
             Text(
               'Erro',
               style: TextStyle(
                 color: Colors.red,
-                fontSize: 10, // ✅ Fonte menor
-                height: 1.0, // ✅ Altura de linha reduzida
+                fontSize: 10,
+                height: 1.0,
               ),
               textAlign: TextAlign.center,
-              maxLines: 1, // ✅ Máximo de linhas
-              overflow: TextOverflow.ellipsis, // ✅ Overflow controlado
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -297,34 +291,34 @@ class AppProductImageFormField extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholderWidget(double size) {
+  Widget _buildPlaceholderWidget() {
     return Container(
-      width: size,
-      height: size,
       color: Colors.grey[200],
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min, // ✅ IMPORTANTE: Evita overflow
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.photo_camera, size: 24, color: Colors.grey), // ✅ Tamanho reduzido
+            const Icon(Icons.photo_camera, size: 24, color: Colors.grey),
             const SizedBox(height: 4),
             Text(
               'Adicionar',
               style: TextStyle(
                 color: Colors.grey,
-                fontSize: 10, // ✅ Fonte menor
-                height: 1.0, // ✅ Altura de linha reduzida
+                fontSize: 10,
+                height: 1.0,
               ),
               textAlign: TextAlign.center,
-              maxLines: 1, // ✅ Máximo de linhas
-              overflow: TextOverflow.ellipsis, // ✅ Overflow controlado
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
     );
   }
+
+
 
 
 

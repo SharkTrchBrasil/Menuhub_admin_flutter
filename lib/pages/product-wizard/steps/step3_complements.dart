@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
 import 'package:totem_pro_admin/models/product_variant_link.dart';
 
 
 import '../../../../widgets/mobile_mockup.dart';
+import '../../../widgets/ds_primary_button.dart';
 import '../../product_edit/widgets/variant_link_card.dart';
 import '../../product_groups/helper/show_create_group_panel.dart';
 import '../cubit/product_wizard_cubit.dart';
@@ -59,32 +61,26 @@ class Step3Complements extends StatelessWidget {
   }
 
 
-// Dentro da classe _Step3ComplementsState
 
-// ✅ FUNÇÃO ATUALIZADA PARA CRIAR E EDITAR
   Future<void> _openPanel(BuildContext context, {ProductVariantLink? linkToEdit}) async {
     final cubit = context.read<ProductWizardCubit>();
     final bool isEditMode = linkToEdit != null;
 
-    // Usa o seu helper que já existe para mostrar o painel
     final resultLink = await showCreateGroupPanel(
       context,
       productId: cubit.state.productInCreation.id,
-      linkToEdit: linkToEdit, // ✅ Passa o link para o helper, se estiver editando
+      linkToEdit: linkToEdit,
     );
-
-    // Se o painel retornou um resultado (o usuário salvou)...
     if (resultLink != null && context.mounted) {
-      // ...chama o método correto no Cubit para atualizar o estado.
-      if (isEditMode) {
-        // Se estava editando, atualiza o link existente na lista
-        cubit.updateVariantLink(resultLink);
+       if (isEditMode) {
+         cubit.updateVariantLink(resultLink);
       } else {
-        // Se estava criando, adiciona o novo link à lista
         cubit.addVariantLink(resultLink);
       }
     }
   }
+
+
 
 
   Widget _buildEmptyState(BuildContext context) {
@@ -92,25 +88,22 @@ class Step3Complements extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const SizedBox(height: 48),
-        Image.asset('assets/images/complements.png', height: 150), // Adicione uma imagem legal
+        SvgPicture.asset('assets/icons/food.svg', height: 150), // Adicione uma imagem legal
         const SizedBox(height: 24),
         Text(
-          "Clientes amam personalizar!",
+          "Mais Opções para o Cliente, Mais Lucro para Você!",
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8),
-        Text(
-          "Crie grupos como 'Escolha sua bebida', 'Adicionais' ou 'Ponto da carne' para aumentar o valor do seu pedido.",
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-        ),
-        const SizedBox(height: 24),
-        ElevatedButton.icon(
-          onPressed: () => _openPanel(context),
-          icon: const Icon(Icons.add),
-          label: const Text("Adicionar Primeiro Grupo"),
-        ),
+        // const SizedBox(height: 8),
+        //
+        // const SizedBox(height: 24),
+        // DsButton(
+        //   onPressed: () => _openPanel(context),
+        //   style: DsButtonStyle.secondary,
+        //   icon: Icons.add,
+        //   label: "Adicionar Grupo",
+        // ),
       ],
     );
   }
@@ -119,17 +112,8 @@ class Step3Complements extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text("Grupos de Complementos", style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-            ElevatedButton.icon(
-              onPressed: () => _openPanel(context),
-              icon: const Icon(Icons.add),
-              label: const Text("Adicionar grupo"),
-            ),
-          ],
-        ),
+        _buildHeader(context),
+
         const SizedBox(height: 24),
         ReorderableListView.builder(
           shrinkWrap: true,
@@ -182,4 +166,84 @@ class Step3Complements extends StatelessWidget {
       ],
     );
   }
+
+  Widget _buildHeader(BuildContext context) {
+    // Verifica se é mobile baseado na largura da tela
+    final bool isMobile = MediaQuery.of(context).size.width < 768;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: isMobile
+          ? _buildMobileHeader(context)
+          : _buildDesktopHeader(context),
+    );
+  }
+
+  Widget _buildDesktopHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Título
+        Expanded(
+          child: Text(
+            "Grupos de Complementos: os clientes amam e você vende mais",
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF151515), // ifdl-text-color-primary
+
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+
+        const SizedBox(width: 16),
+
+        // Botão
+        _buildAddButton(context),
+      ],
+    );
+  }
+
+  Widget _buildMobileHeader(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Título
+        Text(
+          "Mais Opções para o Cliente, Mais Lucro para Você",
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+
+
+            fontSize: 20,
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+
+        const SizedBox(height: 24),
+
+        // Botão alinhado à direita
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: _buildAddButton(context)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddButton(BuildContext context) {
+    return DsButton(
+      style: DsButtonStyle.secondary,
+      onPressed: () => _openPanel(context),
+      label: 'Adicionar novo grupo',
+
+    );
+  }
+
 }

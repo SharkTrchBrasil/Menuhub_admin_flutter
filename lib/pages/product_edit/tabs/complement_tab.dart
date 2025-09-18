@@ -1,46 +1,133 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/product_variant_link.dart';
 import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart';
 import 'package:totem_pro_admin/pages/product_edit/widgets/variant_link_card.dart';
 
+import '../../../core/responsive_builder.dart';
+import '../../../cubits/store_manager_cubit.dart';
+import '../../../cubits/store_manager_state.dart';
+import '../../../models/variant_option.dart';
 import '../../../widgets/ds_primary_button.dart';
-
-// ✨ AGORA É UM STATELESSWIDGET
+import '../../product_groups/helper/side_panel_helper.dart';
+import '../../product_groups/widgets/add_option_panel.dart';
+import '../widgets/edit_option_form.dart';
 class ComplementGroupsTab extends StatelessWidget {
   const ComplementGroupsTab({super.key});
 
+  // ✅ 2. NOVA FUNÇÃO HELPER PARA A LÓGICA DE ADIÇÃO
+  Future<void> _addOption(BuildContext context, ProductVariantLink link) async {
+    final cubit = context.read<EditProductCubit>();
+    final storesState = context.read<StoresManagerCubit>().state;
+    if (storesState is! StoresManagerLoaded) return;
+
+    final allProducts = storesState.activeStore!.relations.products ?? [];
+    final allVariants = storesState.activeStore!.relations.variants ?? [];
+    final bool isMobile = MediaQuery.of(context).size.width < 768;
+
+    VariantOption? newOption;
+
+    if (isMobile) {
+      // --- FLUXO MOBILE: USA O BottomSheet com o formulário direto ---
+      newOption = await showModalBottomSheet<VariantOption>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: EditOptionForm(
+            // Passamos 'null' para indicar o modo de CRIAÇÃO
+
+            onConfirm: (createdOption) => Navigator.of(context).pop(createdOption),
+            onCancel: () => Navigator.of(context).pop(),
+            option: null,
+          ),
+        ),
+      );
+    } else {
+      // --- FLUXO DESKTOP: Mantém o Side Panel que você já tem ---
+      newOption = await showResponsiveSidePanelGroup<VariantOption>(
+        context,
+        panel: AddOptionPanel(
+          allProducts: allProducts,
+          allVariants: allVariants,
+        ),
+      );
+    }
+
+    // Se um novo complemento foi criado, adiciona ao estado do Cubit
+    if (newOption != null && context.mounted) {
+      cubit.addOptionToLink(link, newOption);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // O widget agora ouve o EditProductCubit
     return BlocBuilder<EditProductCubit, EditProductState>(
-      // buildWhen otimiza a reconstrução, opcional mas recomendado
-      buildWhen: (prev, current) => prev.editedProduct.variantLinks != current.editedProduct.variantLinks,
+      buildWhen: (prev, current) =>
+      prev.editedProduct.variantLinks != current.editedProduct.variantLinks,
       builder: (context, state) {
         final cubit = context.read<EditProductCubit>();
         final links = state.editedProduct.variantLinks ?? [];
 
-        // O conteúdo principal é um SingleChildScrollView para evitar overflow
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        if (links.isEmpty) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(14.0),
+            child: Column(
+              children: [
+                _buildHeader(context),
+                _buildEmptyState(context),
+              ],
+            ),
+          );
+        }
 
-              _buildHeader(context), // O cabeçalho com o botão de adicionar
-              const SizedBox(height: 24),
-              if (links.isEmpty)
-                _buildEmptyState(context)
-              else
-                _buildPopulatedState(context, cubit, links),
+        return Padding(
+          padding: const EdgeInsets.all(14.0),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: _buildHeader(context),
+              ),
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    final link = links[index];
+                    return VariantLinkCard(
+                      key: ValueKey(link.variant.id ?? link.variant.hashCode),
+                      link: link,
+                      onRemoveLink: () => cubit.removeVariantLink(link),
+                      onLinkRulesChanged: cubit.updateVariantLink,
+                      onToggleAvailability: () {
+                        final updatedLink = link.copyWith(available: !link.available);
+                        cubit.updateVariantLink(updatedLink);
+                      },
+                      onLinkNameChanged: (newName) =>
+                          cubit.updateVariantLinkName(link, newName),
+
+                      // ✅ 3. O CALLBACK AGORA CHAMA NOSSA NOVA FUNÇÃO HELPER
+                      onAddOption: () => _addOption(context, link),
+
+                      onOptionUpdated: (updatedOption) =>
+                          cubit.updateOptionInLink(link, updatedOption),
+                      onOptionRemoved: (optionToRemove) =>
+                          cubit.removeOptionFromLink(link, optionToRemove),
+                    );
+                  },
+                  childCount: links.length,
+                ),
+              ),
             ],
           ),
         );
       },
     );
   }
-
 
 
   Widget _buildHeader(BuildContext context) {
@@ -67,7 +154,7 @@ class ComplementGroupsTab extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: const Color(0xFF151515), // ifdl-text-color-primary
-              fontFamily: 'iFood RC Textos, Helvetica, Arial, sans-serif',
+
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -124,47 +211,6 @@ class ComplementGroupsTab extends StatelessWidget {
   }
 
 
-  Widget _buildPopulatedState(BuildContext context, EditProductCubit cubit, List<ProductVariantLink> links) {
-    return ReorderableListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: links.length,
-      itemBuilder: (context, index) {
-        final link = links[index];
-
-        return VariantLinkCard(
-          key: ValueKey(link.variant.id ?? index),
-          link: link,
-          onRemoveLink: () => cubit.removeVariantLink(link),
-          onLinkRulesChanged: (updatedLink) => cubit.updateVariantLink(updatedLink),
-          onToggleAvailability: () {
-            final updatedLink = link.copyWith(available: !link.available);
-            cubit.updateVariantLink(updatedLink);
-          },
-
-          // ✅ CONECTANDO OS NOVOS MÉTODOS
-          onLinkNameChanged: (newName) => cubit.updateVariantLinkName(link, newName),
-
-          // A ação de adicionar uma opção vai abrir um painel e depois chamar o cubit
-          onAddOption: () async {
-            // final newOption = await showAddOptionToGroupPanel(context);
-            // if (newOption != null) {
-            //   cubit.addOptionToLink(link, newOption);
-            // }
-          },
-
-          onOptionUpdated: (updatedOption) => cubit.updateOptionInLink(link, updatedOption),
-
-          onOptionRemoved: (optionToRemove) => cubit.removeOptionFromLink(link, optionToRemove),
-        );
-
-
-
-
-      },
-      onReorder: cubit.reorderVariantLinks,
-    );
-  }
 
   // Estado para quando não há complementos
   Widget _buildEmptyState(BuildContext context) {
@@ -173,20 +219,17 @@ class ComplementGroupsTab extends StatelessWidget {
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(Icons.add_circle_outline, size: 48, color: Colors.grey),
+            SvgPicture.asset('assets/icons/food.svg', height: 100), // Adicione uma imagem legal
             const SizedBox(height: 16),
             const Text(
               "Este produto ainda não possui grupos de complementos.",
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: Colors.black54),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => context.read<EditProductCubit>().addNewComplementGroup(context),
-              icon: const Icon(Icons.add),
-              label: const Text("Adicionar Primeiro Grupo"),
-            ),
+
+
           ],
         ),
       ),

@@ -151,29 +151,29 @@ class EditProductCubit extends Cubit<EditProductState> {
 
 
 
-// Altera o nome do grupo de complementos
+
   void updateVariantLinkName(ProductVariantLink linkToUpdate, String newName) {
     final updatedVariant = linkToUpdate.variant.copyWith(name: newName);
     final updatedLink = linkToUpdate.copyWith(variant: updatedVariant);
     updateVariantLink(updatedLink); // Reutiliza o método que já temos!
   }
 
-// Adiciona uma nova opção (complemento) a um grupo existente
   void addOptionToLink(ProductVariantLink parentLink, VariantOption newOption) {
-    // Cria uma nova lista de opções, adicionando a nova
+
     final updatedOptions = List<VariantOption>.from(parentLink.variant.options)..add(newOption);
-    // Cria uma cópia atualizada do link com a nova lista
+
     final updatedLink = parentLink.copyWith(
       variant: parentLink.variant.copyWith(options: updatedOptions),
     );
     updateVariantLink(updatedLink);
   }
 
-// Atualiza uma opção (complemento) dentro de um grupo
+
   void updateOptionInLink(ProductVariantLink parentLink, VariantOption updatedOption) {
     // Mapeia as opções existentes, substituindo apenas a que foi alterada
     final updatedOptions = parentLink.variant.options.map((option) {
-      return option.id == updatedOption.id ? updatedOption : option;
+      // ✅ CORREÇÃO: Compara pelo 'clientId', que é sempre único e estável.
+      return option.clientId == updatedOption.clientId ? updatedOption : option;
     }).toList();
 
     final updatedLink = parentLink.copyWith(
@@ -182,11 +182,14 @@ class EditProductCubit extends Cubit<EditProductState> {
     updateVariantLink(updatedLink);
   }
 
-// Remove uma opção (complemento) de um grupo
+
+
+
   void removeOptionFromLink(ProductVariantLink parentLink, VariantOption optionToRemove) {
     // Filtra a lista de opções, removendo a que foi marcada para exclusão
     final updatedOptions = parentLink.variant.options
-        .where((option) => option.id != optionToRemove.id)
+    // ✅ CORREÇÃO: Compara pelo 'clientId'.
+        .where((option) => option.clientId != optionToRemove.clientId)
         .toList();
 
     final updatedLink = parentLink.copyWith(
@@ -197,7 +200,7 @@ class EditProductCubit extends Cubit<EditProductState> {
 
 
 
-// ✅ --- LÓGICA PARA A ABA "DISPONIBILIDADE E OPÇÕES" ---
+
 
   void statusChanged(bool isActive) {
     // ✅ A lógica agora decide entre os status ACTIVE e INACTIVE
@@ -352,7 +355,21 @@ class EditProductCubit extends Cubit<EditProductState> {
   }
 
 
+  void eanChanged(String ean) {
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(ean: ean)));
+  }
 
+  void priorityChanged(String priority) {
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(priority: int.tryParse(priority) ?? 0)));
+  }
+
+  void minStockChanged(String value) {
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(minStock: int.tryParse(value) ?? 0)));
+  }
+
+  void maxStockChanged(String value) {
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(maxStock: int.tryParse(value) ?? 0)));
+  }
 
 
 

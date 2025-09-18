@@ -63,49 +63,47 @@ class _Step1SelectGroupState extends State<Step1SelectGroup> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding( // Adicionado SafeArea e Padding aqui
-          padding: const EdgeInsets.symmetric(horizontal: 24.0).copyWith(top: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Primeiro, selecione o grupo que deseja reutilizar",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      body: Padding( // Adicionado SafeArea e Padding aqui
+        padding: const EdgeInsets.symmetric(horizontal: 24.0).copyWith(top: 4.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Primeiro, selecione o grupo que deseja reutilizar",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 26),
+            TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: "Buscar grupos de complementos",
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  hintText: "Buscar grupos de complementos",
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                ),
+            ),
+            const SizedBox(height: 26),
+            Expanded(
+              child: Builder( // Usamos Builder para garantir que `state` seja o mais recente
+                builder: (context) {
+                  if (state.itemsAvailableToCopy.isEmpty) {
+                    return const Center(child: Text("Nenhum grupo para copiar."));
+                  }
+                  if (_filteredGroups.isEmpty) {
+                    return const Center(child: Text("Nenhum grupo encontrado."));
+                  }
+                  return ListView.builder(
+                    itemCount: _filteredGroups.length,
+                    itemBuilder: (ctx, index) {
+                      final variant = _filteredGroups[index];
+                      // Passamos o grupo selecionado do Cubit e o próprio Cubit
+                      return _buildGroupItem(context, variant, state.selectedVariantToCopy);
+                    },
+                  );
+                },
               ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: Builder( // Usamos Builder para garantir que `state` seja o mais recente
-                  builder: (context) {
-                    if (state.itemsAvailableToCopy.isEmpty) {
-                      return const Center(child: Text("Nenhum grupo para copiar."));
-                    }
-                    if (_filteredGroups.isEmpty) {
-                      return const Center(child: Text("Nenhum grupo encontrado."));
-                    }
-                    return ListView.builder(
-                      itemCount: _filteredGroups.length,
-                      itemBuilder: (ctx, index) {
-                        final variant = _filteredGroups[index];
-                        // Passamos o grupo selecionado do Cubit e o próprio Cubit
-                        return _buildGroupItem(context, variant, state.selectedVariantToCopy);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: WizardFooter(
@@ -122,16 +120,23 @@ class _Step1SelectGroupState extends State<Step1SelectGroup> {
     );
   }
 
+
+
   Widget _buildGroupItem(BuildContext context, Variant group, Variant? selectedGroupFromState) {
-    // ✅ A variável `isSelected` agora compara com o valor do estado do Cubit
+    // ✅ 1. Pegamos a instância do Cubit para usar nosso novo método
+    final cubit = context.read<CreateComplementGroupCubit>();
+    final productCount = cubit.getProductCountForVariant(group);
+
+    // ✅ 1. CHAMAMOS O NOVO MÉTODO QUE RETORNA A STRING COM OS NOMES
+    final productNamesString = cubit.getProductNamesForVariant(group);
+
     final bool isSelected = selectedGroupFromState == group;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: InkWell(
         onTap: () {
-          // ✅ `onTap` agora chama o método do Cubit para salvar a seleção
-          context.read<CreateComplementGroupCubit>().setSelectedGroupToCopy(group);
+          cubit.setSelectedGroupToCopy(group);
         },
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -148,11 +153,9 @@ class _Step1SelectGroupState extends State<Step1SelectGroup> {
             children: [
               Radio<Variant>(
                 value: group,
-                // ✅ `groupValue` agora vem do estado do Cubit
                 groupValue: selectedGroupFromState,
                 onChanged: (Variant? value) {
-                  // ✅ `onChanged` também chama o método do Cubit
-                  context.read<CreateComplementGroupCubit>().setSelectedGroupToCopy(value);
+                  cubit.setSelectedGroupToCopy(value);
                 },
               ),
               Expanded(
@@ -165,7 +168,8 @@ class _Step1SelectGroupState extends State<Step1SelectGroup> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      "Disponível em ${group.productLinks?.length ?? 0} produtos",
+                      // ✅ 2. AQUI ESTÁ A CORREÇÃO PRINCIPAL
+                      "Disponível em: $productNamesString",
                       style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                     ),
                   ],
@@ -177,4 +181,8 @@ class _Step1SelectGroupState extends State<Step1SelectGroup> {
       ),
     );
   }
+
+
+
+
 }

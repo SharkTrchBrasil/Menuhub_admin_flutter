@@ -43,6 +43,7 @@ import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
 import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
 
 import '../repositories/analytics_repository.dart';
+import '../services/connectivity_service.dart';
 
 
 final getIt = GetIt.instance;
@@ -65,6 +66,8 @@ Future<void> configureDependencies() async {
   // Singletons (compartilhados e vivem para sempre)
   getIt.registerSingleton(AuthRepository(getIt(), getIt()));
   getIt.registerSingleton(StoreRepository(getIt()));
+
+  getIt.registerLazySingleton<ConnectivityService>(() => ConnectivityService());
 
   getIt.registerLazySingleton<RealtimeRepository>(
         () => RealtimeRepository(),

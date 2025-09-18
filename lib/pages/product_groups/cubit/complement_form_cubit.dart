@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:brasil_fields/brasil_fields.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/di.dart';
@@ -93,7 +94,22 @@ class ComplementFormCubit extends Cubit<ComplementFormState> {
   final ProductRepository _productRepository = getIt<ProductRepository>();
   Timer? _debounce;
 
-  ComplementFormCubit() : super(ComplementFormState());
+
+  ComplementFormCubit({VariantOption? initialData}) : super(const ComplementFormState()) {
+    if (initialData != null) {
+      // Se recebermos dados, emitimos um estado inicial já preenchido
+      emit(state.copyWith(
+        name: initialData.name_override,
+        description: initialData.description,
+        price: UtilBrasilFields.obterReal((initialData.price_override ?? 0) / 100),
+        pdvCode: initialData.pos_code,
+        image: initialData.image,
+        trackInventory: initialData.track_inventory,
+        stockQuantity: initialData.stock_quantity.toString(),
+        // Adicione aqui outros campos que o formulário completo tem
+      ));
+    }
+  }
 
   void toggleProductType(bool isPrepared) {
     emit(state.copyWith(isPrepared: isPrepared));

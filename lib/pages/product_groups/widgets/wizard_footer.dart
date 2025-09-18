@@ -21,27 +21,28 @@ class WizardFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool hasBackButton = showBackButton && onBack != null;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14.0),
-      child: Row(
-        mainAxisAlignment: hasBackButton
-            ? MainAxisAlignment.spaceBetween
-            : MainAxisAlignment.end,
-        children: [
-          if (hasBackButton)
-            TextButton(
-              onPressed: onBack,
-              child: const Text("Voltar"),
+    // A mágica está aqui:
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0,),
+        child: Row(
+          mainAxisAlignment: hasBackButton
+              ? MainAxisAlignment.spaceBetween
+              : MainAxisAlignment.end,
+          children: [
+            if (hasBackButton)
+              TextButton(
+                onPressed: onBack,
+                child: const Text("Voltar"),
+              ),
+            if (hasBackButton) const SizedBox(width: 16),
+            DsButton(
+              onPressed: onContinue,
+              isLoading: isLoading,
+              label: continueLabel,
             ),
-
-          if (hasBackButton) const SizedBox(width: 16),
-
-          DsButton(
-            onPressed: onContinue,
-            isLoading: isLoading,
-            label: continueLabel,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

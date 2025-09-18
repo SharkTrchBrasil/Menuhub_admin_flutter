@@ -17,6 +17,7 @@ class AppTheme {
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       hoverColor: Colors.transparent,
+      dividerColor: Colors.transparent,
 
       colorScheme: ColorScheme.fromSeed(
         seedColor: dsTheme.primaryColor,
@@ -31,6 +32,37 @@ class AppTheme {
         error: Colors.deepOrange,
         brightness: isLight ? Brightness.light : Brightness.dark,
       ),
+
+
+      // ✅ 1. TEMA PARA TODOS OS DIALOGS
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.0), // Opcional: para manter as bordas arredondadas
+        ),
+      ),
+
+      // ✅ 2. TEMA PARA TODOS OS BOTTOM SHEETS
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white, // Cor para bottom sheets não-modais
+        modalBackgroundColor: Colors.white, // Cor para showModalBottomSheet
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(16.0),
+            topRight: Radius.circular(16.0),
+          ),
+        ),
+      ),
+
+      // ✅ 3. TEMA PARA O MENU DOS "3 PONTINHOS" (PopupMenuButton)
+      popupMenuTheme: PopupMenuThemeData(
+        color: Colors.white, // A cor de fundo do menu
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        elevation: 4, // Sombra do menu
+      ),
+
 
       appBarTheme: AppBarTheme(
         backgroundColor: dsTheme.cardColor,
@@ -70,15 +102,6 @@ class AppTheme {
         ),
       ),
 
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: Colors.white,
-        modalBackgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(16.0),
-          ),
-        ),
-      ),
 
       cardTheme: CardThemeData(
         color: dsTheme.cardColor,

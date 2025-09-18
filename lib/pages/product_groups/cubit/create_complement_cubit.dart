@@ -50,13 +50,27 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
       maxQty: existingLink.maxSelectedOptions,
     ));
   }
+
+
+
   void startFlow(bool isCopy) {
+    List<Variant> itemsToCopy = []; // Prepara uma lista vazia
+
+    if (isCopy) {
+
+      itemsToCopy = allStoreVariants
+          .where((variant) => getProductCountForVariant(variant) > 0)
+          .toList();
+    }
+
     emit(state.copyWith(
       isCopyFlow: isCopy,
       step: isCopy ? CreateComplementStep.copyGroup_SelectGroup : CreateComplementStep.selectType,
-      itemsAvailableToCopy: isCopy ? allStoreVariants : [],
+      // Passamos a lista já filtrada para o estado.
+      itemsAvailableToCopy: itemsToCopy,
     ));
   }
+
 
   void setSelectedGroupToCopy(Variant? group) {
     emit(state.copyWith(selectedVariantToCopy: group));
@@ -137,6 +151,24 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
   }
 
 
+  int getProductCountForVariant(Variant variant) {
+    // Se não tivermos a lista de produtos, retorna 0
+    if (allStoreProducts.isEmpty) {
+      return 0;
+    }
+
+    int count = 0;
+    // Itera sobre todos os produtos da loja
+    for (final product in allStoreProducts) {
+
+      if (product.variantLinks != null && product.variantLinks!.any((link) => link.variant.id == variant.id)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+
 
 
 
@@ -157,6 +189,7 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
     emit(state.copyWith(isRequired: isRequired, minQty: min, maxQty: max));
   }
 
+
   void setGroupDetails(
       {required String name, required bool isRequired, required int min, required int max}) {
     emit(state.copyWith(
@@ -165,6 +198,9 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
       minQty: min,
       maxQty: max,
       step: CreateComplementStep.addComplements,
+
+
+      complements: state.complements,
     ));
   }
 
@@ -182,15 +218,17 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
 
   // --- FLUXO DE CÓPIA ---
 
+
   void selectGroupToCopy(Variant variant) {
     emit(state.copyWith(
       selectedVariantToCopy: variant,
       step: CreateComplementStep.copyGroup_SetRules,
-      minQty: variant.productLinks?.firstOrNull?.minSelectedOptions ??
-          (variant.options.isNotEmpty ? 1 : 0),
-      maxQty: variant.productLinks?.firstOrNull?.maxSelectedOptions ?? 1,
-      isRequired: (variant.productLinks?.firstOrNull?.minSelectedOptions ?? 0) >
-          0,
+
+      // ✅ CORREÇÃO APLICADA AQUI:
+      minQty: 0,
+      isRequired: false,
+
+      maxQty: variant.options.isNotEmpty ? variant.options.length : 1,
     ));
   }
 
@@ -296,7 +334,41 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
     emit(state.copyWith(selectedToCopyIds: updatedIds));
   }
 
-// DENTRO DA CLASSE CreateComplementGroupCubit
+
+  String getProductNamesForVariant(Variant variant) {
+    // Se não tivermos a lista de produtos, retorna uma string padrão.
+    if (allStoreProducts.isEmpty) {
+      return "Não vinculado";
+    }
+
+    final List<String> productNames = [];
+    // Itera sobre todos os produtos da loja
+    for (final product in allStoreProducts) {
+      // Verifica se o produto usa o variant atual
+      if (product.variantLinks != null &&
+          product.variantLinks!.any((link) => link.variant.id == variant.id)) {
+        productNames.add(product.name);
+      }
+    }
+
+    // Se a lista de nomes estiver vazia, retorna uma mensagem.
+    if (productNames.isEmpty) {
+      return "Não vinculado a produtos";
+    }
+
+    // Lógica para não exibir uma lista gigante de nomes
+    const int maxNamesToShow = 2;
+    if (productNames.length > maxNamesToShow) {
+      final firstNames = productNames.take(maxNamesToShow).join(', ');
+      final remainingCount = productNames.length - maxNamesToShow;
+      return '$firstNames e mais $remainingCount';
+    } else {
+      // Se a lista for pequena, mostra todos os nomes separados por vírgula.
+      return productNames.join(', ');
+    }
+  }
+
+
 
   void addSelectedItemsToGroup() {
     final availableItems = state.itemsAvailableToCopy;
@@ -335,6 +407,24 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
     ));
   }
 
+  
+
+
+  // ✅ NOVO MÉTODO PARA ATUALIZAR UMA OPÇÃO EXISTENTE
+  void updateComplementOption(int index, VariantOption updatedOption) {
+    // Pega a lista atual de complementos do estado
+    final currentComplements = List<VariantOption>.from(state.complements);
+
+    // Verifica se o índice é válido para evitar erros
+    if (index >= 0 && index < currentComplements.length) {
+      // Substitui o complemento antigo pelo novo na posição correta
+      currentComplements[index] = updatedOption;
+      // Emite o novo estado com a lista atualizada
+      emit(state.copyWith(complements: currentComplements));
+    }
+  }
+
+
   // Helper para mapear o enum na direção oposta (pode ser útil)
   GroupType _mapVariantTypeToGroupType(VariantType vt) {
     switch (vt) {
@@ -358,4 +448,133 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
         return VariantType.DISPOSABLES;
     }
   }
+
+
+
+
+
+  final Map<String, List<String>> _recommendationTemplates = {
+    'Tamanho': ['Pequeno', 'Médio', 'Grande', 'Família'],
+    'Ponto da carne': ['Mal passado', 'Ao ponto', 'Bem passado', 'Selada apenas'],
+
+    // 🍴 DEScartáveis e utensílios
+    'Deseja descartáveis?': [
+      'Talheres',
+      'Canudos',
+      'Sachês (ketchup, mostarda...)',
+      'Guardanapos',
+      'Palitos de dente'
+    ],
+
+    // 🧀 ADICIONAIS E COMPLEMENTOS
+    'Adicionais': [
+      'Bacon',
+      'Cheddar',
+      'Ovo',
+      'Batata Palha',
+      'Queijo extra',
+      'Molho especial',
+      'Cebola caramelizada',
+      'Tomate seco'
+    ],
+
+    // 🌶️ MOLHOS E TEMPEROS
+    'Molhos': [
+      'Barbecue',
+      'Maionese temperada',
+      'Mostarda e mel',
+      'Picante',
+      'Tártaro',
+      'Sriracha',
+      'Molho branco'
+    ],
+
+    // 🥗 ACOMPANHAMENTOS
+    'Acompanhamentos': [
+      'Batata frita',
+      'Arroz',
+      'Feijão',
+      'Salada verde',
+      'Polenta frita',
+      'Farofa',
+      'Pure de batata'
+    ],
+
+    // 🥤 BEBIDAS
+    'Bebidas': [
+      'Refrigerante 300ml',
+      'Refrigerante 600ml',
+      'Suco natural',
+      'Água mineral',
+      'Cerveja',
+      'Energético'
+    ],
+
+    // 🍦 SOBREMESAS
+    'Sobremesas': [
+      'Brownie',
+      'Sorvete',
+      'Mousse de chocolate',
+      'Pudim',
+      'Torta doce'
+    ],
+
+    // 🥪 FORMA DE PREPARO
+    'Modo de preparo': [
+      'Sem cebola',
+      'Sem tomate',
+      'Pouco sal',
+      'Sem lactose',
+      'Vegetariano',
+      'Vegano',
+      'Sem glúten'
+    ],
+
+    // 📦 EMBALAGEM
+    'Embalagem': [
+      'Separar itens',
+      'Embalar para viagem',
+      'Prato descartável',
+      'Marmitex'
+    ]
+  };
+
+
+// ✅ NOVO MÉTODO PARA OBTER AS RECOMENDAÇÕES CORRETAS
+  List<String> getRecommendationsForGroupType(GroupType groupType) {
+    // Este mapa conecta o TIPO do grupo com as CHAVES do seu mapa de templates
+    const Map<GroupType, List<String>> mapping = {
+      GroupType.ingredients: ['Adicionais', 'Molhos', 'Acompanhamentos', 'Bebidas', 'Sobremesas'],
+      GroupType.specifications: ['Tamanho', 'Ponto da carne', 'Modo de preparo'],
+      GroupType.disposables: ['Deseja descartáveis?', 'Embalagem'],
+      GroupType.crossSell: [], // Cross-sell não tem templates pré-definidos
+    };
+
+    // Retorna a lista de chaves para o tipo de grupo solicitado
+    return mapping[groupType] ?? [];
+  }
+
+  void selectRecommendation(String recommendationKey) {
+    // Busca o template de opções correspondente à chave da recomendação
+    final optionsTemplate = _recommendationTemplates[recommendationKey];
+
+    List<VariantOption> prefilledComplements = [];
+    if (optionsTemplate != null) {
+      // Se encontrarmos um template, criamos os VariantOptions
+      prefilledComplements = optionsTemplate.map((name) => VariantOption(
+        name_override: name,
+        price_override: 0, // Preço inicial 0
+        available: true,
+      )).toList();
+    }
+
+    // Emite o novo estado com o nome do grupo e os complementos pré-preenchidos
+    emit(state.copyWith(
+      groupName: recommendationKey,
+      complements: prefilledComplements,
+    ));
+  }
+
+
+
 }

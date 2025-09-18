@@ -1,27 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:brasil_fields/brasil_fields.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/pages/product_edit/widgets/variant_callbacks.dart';
+import 'package:totem_pro_admin/pages/product_edit/widgets/variant_option_list.dart';
 
 import '../../../core/enums/variant_type.dart';
-
 import '../../../models/product_variant_link.dart';
-
-import 'package:flutter_bloc/flutter_bloc.dart';
-
-
 import 'package:totem_pro_admin/models/variant_option.dart';
 
-import 'package:brasil_fields/brasil_fields.dart';
-import 'package:flutter/services.dart';
 
-// ✅ --- INTERFACES DE CALLBACK ---
-// Para manter o código limpo, definimos os tipos de função que o widget vai usar para se comunicar com a tela pai.
-typedef OnLinkRulesChanged = void Function(ProductVariantLink updatedLink);
-typedef OnOptionUpdated = void Function(VariantOption updatedOption);
-typedef OnOptionRemoved = void Function(VariantOption optionToRemove);
-typedef OnOptionPausable = void Function(VariantOption option, bool isPausable);
-typedef OnToggleAvailability = void Function(); // ✅ NOVO TIPO DE CALLBACK
-
-// ✅ Defina o tipo do novo callback no topo do arquivo
-typedef OnLinkNameChanged = void Function(String newName);
 
 class VariantLinkCard extends StatefulWidget {
   final ProductVariantLink link;
@@ -30,8 +18,8 @@ class VariantLinkCard extends StatefulWidget {
   final OnOptionUpdated onOptionUpdated;
   final OnOptionRemoved onOptionRemoved;
   final OnLinkNameChanged onLinkNameChanged;
-  final OnToggleAvailability onToggleAvailability;
   final VoidCallback onAddOption;
+  final VoidCallback onToggleAvailability;
 
   const VariantLinkCard({
     super.key,
@@ -41,8 +29,8 @@ class VariantLinkCard extends StatefulWidget {
     required this.onOptionUpdated,
     required this.onOptionRemoved,
     required this.onLinkNameChanged,
+    required this.onAddOption,
     required this.onToggleAvailability,
-  required this.onAddOption,
   });
 
   @override
@@ -50,8 +38,7 @@ class VariantLinkCard extends StatefulWidget {
 }
 
 class _VariantLinkCardState extends State<VariantLinkCard> {
-  bool _isExpanded = false;
-  // ✅ 3. ADICIONE ESTADO PARA O NOME
+  // O estado agora só se preocupa com o nome e a expansão
   bool _isEditingName = false;
   late final TextEditingController _nameController;
   late final FocusNode _nameFocusNode;
@@ -60,69 +47,76 @@ class _VariantLinkCardState extends State<VariantLinkCard> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.link.variant.name);
-
-    // ✅ 2. INICIALIZE O FOCUSNODE E ADICIONE O LISTENER
     _nameFocusNode = FocusNode();
-    _nameFocusNode.addListener(_onNameFocusChange);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    // ✅ 3. FAÇA O DISPOSE DO FOCUSNODE E REMOVA O LISTENER
-    _nameFocusNode.removeListener(_onNameFocusChange);
     _nameFocusNode.dispose();
     super.dispose();
   }
 
-// ✅ NOVO MÉTODO PARA LIDAR COM A PERDA DE FOCO
-  void _onNameFocusChange() {
-    // Se o campo de texto NÃO tem mais o foco E ainda estamos no modo de edição...
-    if (!_nameFocusNode.hasFocus && _isEditingName) {
-      print('Campo de nome perdeu o foco, salvando...');
-      // ...chama o callback para salvar o novo nome...
-      widget.onLinkNameChanged(_nameController.text);
-      // ...e sai do modo de edição.
-      setState(() {
-        _isEditingName = false;
-      });
-    }
+  void _updateRules({int? min, int? max}) {
+    final newMin = min ?? widget.link.minSelectedOptions;
+    final newMax = max ?? widget.link.maxSelectedOptions;
+    if (newMax < newMin) return;
+    widget.onLinkRulesChanged(
+        widget.link.copyWith(minSelectedOptions: newMin, maxSelectedOptions: newMax));
   }
 
-  // Garante que o controller seja atualizado se o widget mudar
   @override
-  void didUpdateWidget(covariant VariantLinkCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.link.variant.name != oldWidget.link.variant.name) {
-      _nameController.text = widget.link.variant.name;
-    }
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 16),
+
+      child: ExpansionTile(
+        dense: true,
+        // O cabeçalho continua aqui
+        leading: _buildVariantTypeBadge(),
+        title:  _buildEditableTitle(),
+
+        subtitle: Text(
+          "Contém ${widget.link.variant.options.length} complemento(s)",
+          style: const TextStyle(color: Colors.grey, fontSize: 13),
+        ),
+
+        children: [
+
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: _buildRulesSection(),
+          ),
+
+          VariantOptionsList(
+            options: widget.link.variant.options,
+            onAddOption: widget.onAddOption,
+            onOptionUpdated: widget.onOptionUpdated,
+            onOptionRemoved: widget.onOptionRemoved,
+          )
+        ],
+      ),
+    );
   }
 
-  // Helper para formatar o nome do Enum
-  String _formatVariantType(VariantType type) {
-    switch(type) {
-      case VariantType.INGREDIENTS: return "Ingredientes";
-      case VariantType.SPECIFICATIONS: return "Especificações";
-      case VariantType.CROSS_SELL: return "Venda Cruzada";
-      default: return "Outro";
-    }
-  }
+
+
+
 
 
   Widget _buildEditableTitle() {
     if (_isEditingName) {
-      // --- MODO DE EDIÇÃO (SEM BOTÕES) ---
       return TextField(
         controller: _nameController,
-        focusNode: _nameFocusNode, // ✅ Conecta o FocusNode
+        focusNode: _nameFocusNode,
         autofocus: true,
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         decoration: const InputDecoration(
           isDense: true,
-          contentPadding: EdgeInsets.zero, // Remove padding extra
-          border: InputBorder.none,      // Deixa sem linha embaixo
+          contentPadding: EdgeInsets.zero,
+          border: InputBorder.none,
         ),
-        // Salva também quando o usuário pressiona "Enter"
         onSubmitted: (newValue) {
           widget.onLinkNameChanged(newValue);
           setState(() {
@@ -131,13 +125,10 @@ class _VariantLinkCardState extends State<VariantLinkCard> {
         },
       );
     } else {
-      // --- MODO DE VISUALIZAÇÃO ---
-      // Usamos um GestureDetector para tornar toda a área clicável
       return GestureDetector(
         onTap: () {
           setState(() {
             _isEditingName = true;
-            // Pede o foco para o TextField assim que ele for construído
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _nameFocusNode.requestFocus();
             });
@@ -145,164 +136,368 @@ class _VariantLinkCardState extends State<VariantLinkCard> {
         },
         child: Row(
           children: [
-            Text(
-              widget.link.variant.name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              overflow: TextOverflow.ellipsis,
+            Expanded(
+              child: Text(
+                widget.link.variant.name,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const SizedBox(width: 8),
-            const Icon(Icons.edit, size: 16, color: Colors.grey),
+
+            _buildTrailingActions()
           ],
         ),
       );
     }
   }
 
-  // Helper para atualizar as regras e notificar o cubit
-  void _updateRules({int? min, int? max}) {
-    final newMin = min ?? widget.link.minSelectedOptions;
-    final newMax = max ?? widget.link.maxSelectedOptions;
-
-    // Garante que max >= min
-    if (newMax < newMin) return;
-
-    final updatedLink = widget.link.copyWith(
-      minSelectedOptions: newMin,
-      maxSelectedOptions: newMax,
+  Widget _buildVariantTypeBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: _getColorForVariantType(widget.link.variant.type).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(
+        _getIconForVariantType(widget.link.variant.type),
+        color: _getColorForVariantType(widget.link.variant.type),
+        size: 20,
+      ),
     );
-    widget.onLinkRulesChanged(updatedLink);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Column(
+
+
+  Widget _buildTrailingActions() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: Icon(widget.link.available ? Icons.pause : Icons.play_arrow,
+              color: widget.link.available ? Colors.orange :Colors.green, size: 20),
+          onPressed: widget.onToggleAvailability,
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+          onPressed: (){
+    showRemoveGroupBottomSheet(
+    context,
+    onConfirm: () {
+    // Sua lógica para remover o grupo aqui
+    widget.onRemoveLink();
+    },
+    );
+    }
+
+
+        ),
+
+
+      ],
+    );
+  }
+
+  Widget _buildRulesSection() {
+    final isRequired = widget.link.minSelectedOptions > 0;
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- TAG DO TIPO DE GRUPO ---
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    // Use uma cor baseada no tipo do grupo para um visual mais rico
-                    color: _getColorForVariantType(widget.link.variant.type).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                          _getIconForVariantType(widget.link.variant.type),
-                          color: _getColorForVariantType(widget.link.variant.type),
-                          size: 14
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatVariantType(widget.link.variant.type),
-                        style: TextStyle(
-                            color: _getColorForVariantType(widget.link.variant.type),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12
-                        ),
-                      ),
-                    ],
+          const SizedBox(height: 16),
+          Text("Este grupo é obrigatório ou opcional?", style: const TextStyle(fontSize: 14,)),
+          const SizedBox(height: 4),
+          DropdownButtonFormField<bool>(
+            value: isRequired,
+            items: const [
+              DropdownMenuItem(
+                value: true,
+                child: Text(
+                  "Obrigatório",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF151515), // ifdl-text-color-primary
                   ),
                 ),
-              ],
+              ),
+              DropdownMenuItem(
+                value: false,
+                child: Text(
+                  "Opcional",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF151515), // ifdl-text-color-primary
+                  ),
+                ),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              _updateRules(min: value ? 1 : 0);
+            },
+            decoration: InputDecoration(
+
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8), // ifdl-border-radius-md
+                borderSide: const BorderSide(
+                  color: Color(0xFFEBEBEB), // ifdl-outline-color-default
+                  width: 1, // ifdl-border-width-hairline
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFFEBEBEB),
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF0083CC), // ifdl-outline-color-focus
+                  width: 2, // ifdl-border-width-thin
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              filled: true,
+              fillColor: Colors.white, // ifdl-neutral-background-color-primary
             ),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFF151515), // ifdl-text-color-primary
+            ),
+            dropdownColor: Colors.white, // ifdl-neutral-background-color-primary
+            icon: const Icon(
+              Icons.expand_more,
+              color: Color(0xFF666666), // ifdl-text-color-secondary
+              size: 24, // ifdl-icon-size-scale-md
+            ),
+            borderRadius: BorderRadius.circular(8), // ifdl-border-radius-md
+            menuMaxHeight: 200,
+            isExpanded: true,
           ),
-       //   const SizedBox(width: 16),
-
-
-          InkWell(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
-            child: _buildCollapsedHeader(),
-          ),
-
-          // Conteúdo que só aparece quando expandido
-          AnimatedCrossFade(
-            firstChild: const SizedBox.shrink(),
-            secondChild: _buildExpandedContent(),
-            crossFadeState: _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 300),
+          const SizedBox(height: 16),
+          // Steppers em coluna para mobile
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuantityStepper(
+                  "Mínimo",
+                  widget.link.minSelectedOptions,
+                      (newValue) => _updateRules(min: newValue),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildQuantityStepper(
+                  "Máximo",
+                  widget.link.maxSelectedOptions,
+                      (newValue) => _updateRules(max: newValue),
+                ),
+              ),
+            ],
           ),
         ],
-      ),
-    );
-  }
-
-
-
-// ✅ SUBSTITUA O MÉTODO INTEIRO POR ESTE
-  Widget _buildCollapsedHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      );
+    } else {
+      // Layout para desktop
+      return Row(
         children: [
-
-
-          // --- NOME E SUBTÍTULO (EXPANSÍVEL) ---
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildEditableTitle(),
-                const SizedBox(height: 4),
-                Text(
-                  "Contém ${widget.link.variant.options.length} complemento(s)",
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                ),
+            flex: 2,
+            child: DropdownButtonFormField<bool>(
+              value: isRequired,
+              items: const [
+                DropdownMenuItem(value: true, child: Text("Obrigatório")),
+                DropdownMenuItem(value: false, child: Text("Opcional")),
               ],
+              onChanged: (value) {
+                if (value == null) return;
+                _updateRules(min: value ? 1 : 0);
+              },
+              decoration: const InputDecoration(
+                labelText: "Este grupo é",
+                border: OutlineInputBorder(),
+              ),
             ),
           ),
           const SizedBox(width: 16),
+          Expanded(
+            child: _buildQuantityStepper(
+              "Qtd. Mínima",
+              widget.link.minSelectedOptions,
+                  (newValue) => _updateRules(min: newValue),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildQuantityStepper(
+              "Qtd. Máxima",
+              widget.link.maxSelectedOptions,
+                  (newValue) => _updateRules(max: newValue),
+            ),
+          ),
+        ],
+      );
+    }
+  }
 
-          // --- BOTÕES DE AÇÃO ---
-          Row(
-            mainAxisSize: MainAxisSize.min,
+  Widget _buildQuantityStepper(String label, int value, ValueChanged<int> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14,)),
+        const SizedBox(height: 4),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-
-              OutlinedButton.icon(
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text("Complementos"),
-                // ✅ AÇÃO CONECTADA: Chama a mesma função de edição que o lápis chamaria.
-                onPressed: widget.onAddOption,
-                style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    textStyle: const TextStyle(fontSize: 13)
+              IconButton(
+                icon: const Icon(Icons.remove, size: 20),
+                onPressed: () => onChanged(value - 1),
+              ),
+              Expanded(
+                child: Text(
+                  value.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
-              const SizedBox(width: 8),
-              // Ícones de ação para o GRUPO (pausar, remover)
               IconButton(
-                icon: Icon(widget.link.available ? Icons.pause : Icons.play_arrow, color: Colors.orange.shade700),
-                tooltip: "Pausar/Ativar grupo neste produto",
-                onPressed: widget.onToggleAvailability,
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                tooltip: "Remover grupo deste produto",
-                onPressed: widget.onRemoveLink,
+                icon: const Icon(Icons.add, size: 20),
+                onPressed: () => onChanged(value + 1),
               ),
             ],
-          )
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 
-// ✅ ADICIONE ESTES MÉTODOS HELPER DENTRO DA SUA CLASSE TAMBÉM
-// Eles ajudam a deixar o código do cabeçalho mais limpo e dinâmico
+
+
+  void showRemoveGroupBottomSheet(BuildContext context, {required VoidCallback onConfirm}) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(8),
+          topRight: Radius.circular(8),
+        ),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: const Text(
+                  "Remover grupo",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF151515), // ifdl-text-color-primary
+
+                  ),
+                ),
+              ),
+
+              // Body
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                child: const Text(
+                  "Tem certeza que deseja remover o grupo deste produto?",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF151515), // ifdl-text-color-primary
+
+                    height: 1.5,
+                  ),
+                ),
+              ),
+
+              // Footer - Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide.none,
+                        backgroundColor: const Color(0xFFF5F5F5), // ifdl-neutral-background-color-secondary
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        "Cancelar",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF151515), // ifdl-text-color-primary
+
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        onConfirm();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        "Confirmar",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white, // ifdl-color-neutral-100
+
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Espaço extra para evitar que o conteúdo fique muito próximo da borda inferior
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
 
   IconData _getIconForVariantType(VariantType type) {
     switch(type) {
@@ -323,167 +518,4 @@ class _VariantLinkCardState extends State<VariantLinkCard> {
   }
 
 
-
-  Widget _buildExpandedContent() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          // Seção de Regras (Min/Max)
-          _buildRulesSection(),
-       SizedBox(height: 16,),
-          // Tabela de Opções
-          _buildOptionsTable(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRulesSection() {
-    final isRequired = widget.link.minSelectedOptions > 0;
-
-    return Row(
-      children: [
-        // Dropdown Obrigatório/Opcional
-        Expanded(
-          flex: 1,
-          child: DropdownButtonFormField<bool>(
-            elevation: 0,
-            padding: EdgeInsetsGeometry.zero,
-            value: isRequired,
-            items: const [
-              DropdownMenuItem(value: true, child: Text("Obrigatório")),
-              DropdownMenuItem(value: false, child: Text("Opcional")),
-            ],
-            onChanged: (value) {
-              if (value == null) return;
-              // Se virar obrigatório, o mínimo é 1. Se virar opcional, o mínimo é 0.
-              _updateRules(min: value ? 1 : 0);
-            },
-            decoration: const InputDecoration(labelText: "Este grupo é", border: OutlineInputBorder()),
-          ),
-        ),
-        const SizedBox(width: 16),
-        // Stepper Mínimo
-        _buildQuantityStepper(
-           "Qtd. Mínima",
-          widget.link.minSelectedOptions,
-           (newValue) => _updateRules(min: newValue),
-        ),
-        const SizedBox(width: 16),
-        // Stepper Máximo
-        _buildQuantityStepper(
-           "Qtd. Máxima",
-           widget.link.maxSelectedOptions,
-           (newValue) => _updateRules(max: newValue),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuantityStepper(String label, int value, ValueChanged<int> onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        const SizedBox(height: 4),
-        Container(
-          width: 100,
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300)
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(icon: const Icon(Icons.remove, size: 20), onPressed: () => onChanged(value - 1)),
-              Text(value.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              IconButton(icon: const Icon(Icons.add, size: 20), onPressed: () => onChanged(value + 1)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-
-  Widget _buildOptionsTable() {
-    return Column(
-      children: [
-        // Cabeçalho da tabela
-        Row(
-          children: const [
-            SizedBox(width: 40), // Espaço para o drag handle
-            Expanded(flex: 3, child: Text("Complemento", style: TextStyle(color: Colors.grey, fontSize: 12))),
-            Expanded(flex: 2, child: Text("Preço", style: TextStyle(color: Colors.grey, fontSize: 12))),
-            SizedBox(width: 48), // Espaço para ações
-          ],
-        ),
-        const Divider(),
-        // Corpo da tabela
-        if (widget.link.variant.options.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24.0),
-            child: Text("Nenhum complemento adicionado a este grupo ainda."),
-          )
-        else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: widget.link.variant.options.length,
-            itemBuilder: (context, index) {
-              final option = widget.link.variant.options[index];
-              // Cada linha da tabela pode ser um widget separado para gerenciar a edição inline,
-              // ou podemos simplificar por enquanto.
-              return _buildOptionRow(option);
-            },
-            separatorBuilder: (_, __) => const Divider(height: 1),
-          ),
-      ],
-    );
-  }
-
-  // Widget para cada linha da tabela de opções
-  Widget _buildOptionRow(VariantOption option) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          const Icon(Icons.drag_indicator, color: Colors.grey),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 3,
-            child: Text(option.resolvedName, style: const TextStyle(fontWeight: FontWeight.w500)),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(UtilBrasilFields.obterReal(option.resolvedPrice / 100)),
-          ),
-          // Menu de Ações para a opção
-          SizedBox(
-            width: 48,
-            child: PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'edit') {
-                  // TODO: Abrir um dialog para editar os detalhes da OPÇÃO
-                } else if (value == 'remove') {
-                  widget.onOptionRemoved(option);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(value: 'edit', child: Text('Editar')),
-                const PopupMenuItem(value: 'remove', child: Text('Remover do Grupo')),
-              ],
-              icon: const Icon(Icons.more_vert, color: Colors.grey),
-            ),
-          )
-        ],
-      ),
-    );
-  }
 }
-
-
-
-

@@ -208,26 +208,31 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
 
 
 
-
-  // Em ProductWizardCubit
-
-// --- MÉTODOS PARA A ABA "GRUPO DE COMPLEMENTOS" ---
-
-// Remove um grupo de complementos (um link inteiro) do produto em memória
   void removeVariantLink(ProductVariantLink linkToRemove) {
     final updatedLinks = List<ProductVariantLink>.from(state.variantLinks)
       ..removeWhere((link) => link.variant.id == linkToRemove.variant.id);
-    updateProduct(state.productInCreation.copyWith(variantLinks: updatedLinks));
+
+    // CORREÇÃO: Emita o estado atualizando as duas propriedades
+    emit(state.copyWith(
+      variantLinks: updatedLinks,
+      productInCreation: state.productInCreation.copyWith(variantLinks: updatedLinks),
+    ));
   }
 
-// Atualiza um grupo de complementos (ex: regras de min/max)
+
+
+
   void updateVariantLink(ProductVariantLink updatedLink) {
     final updatedLinks = state.variantLinks.map((link) {
       return link.variant.id == updatedLink.variant.id ? updatedLink : link;
     }).toList();
-    updateProduct(state.productInCreation.copyWith(variantLinks: updatedLinks));
-  }
 
+    // CORREÇÃO: Emita o estado atualizando as duas propriedades
+    emit(state.copyWith(
+      variantLinks: updatedLinks,
+      productInCreation: state.productInCreation.copyWith(variantLinks: updatedLinks),
+    ));
+  }
 
 
 // Altera o nome do grupo de complementos
@@ -274,7 +279,8 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     updateVariantLink(updatedLink);
   }
 
-// Reordena a lista de grupos de complementos
+
+
   void reorderVariantLinks(int oldIndex, int newIndex) {
     if (newIndex > oldIndex) {
       newIndex -= 1;
@@ -282,19 +288,26 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     final updatedLinks = List<ProductVariantLink>.from(state.variantLinks);
     final item = updatedLinks.removeAt(oldIndex);
     updatedLinks.insert(newIndex, item);
-    updateProduct(state.productInCreation.copyWith(variantLinks: updatedLinks));
+
+    // CORREÇÃO: Emita o estado atualizando as duas propriedades
+    emit(state.copyWith(
+      variantLinks: updatedLinks,
+      productInCreation: state.productInCreation.copyWith(variantLinks: updatedLinks),
+    ));
   }
+
+
 
   void addVariantLink(ProductVariantLink newLink) {
-    // Garante que não vamos adicionar um grupo que já existe
     if (state.variantLinks.any((link) => link.variant.id == newLink.variant.id)) return;
-
     final updatedLinks = List<ProductVariantLink>.from(state.variantLinks)..add(newLink);
-    // Reutiliza o método 'updateProduct' que já temos para manter o código limpo
-    updateProduct(state.productInCreation.copyWith(variantLinks: updatedLinks));
+
+    // CORREÇÃO: Emita o estado atualizando as duas propriedades
+    emit(state.copyWith(
+      variantLinks: updatedLinks,
+      productInCreation: state.productInCreation.copyWith(variantLinks: updatedLinks),
+    ));
   }
-
-
 
 
 

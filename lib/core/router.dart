@@ -95,6 +95,7 @@ class AppRouter {
   final AuthCubit authCubit;
   final StoresManagerCubit storesManagerCubit;
 
+
   AppRouter({required this.authCubit, required this.storesManagerCubit});
 
   late final router = GoRouter(

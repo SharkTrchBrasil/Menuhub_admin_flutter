@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:either_dart/either.dart';
 import 'package:get_it/get_it.dart';
 import 'package:rxdart/rxdart.dart';
@@ -30,6 +31,7 @@ import '../models/supplier.dart';
 import '../models/totem_auth.dart';
 import '../models/totem_auth_and_stores.dart';
 import '../models/variant.dart';
+import '../services/connectivity_service.dart';
 import 'auth_repository.dart'; // Para ter acesso ao TotemAuth
 
 // ✅ ALTERAÇÃO: A classe helper agora contém todas as listas financeiras
@@ -91,6 +93,9 @@ class RealtimeRepository {
   Stream<FullMenuData> listenToFullMenu(int storeId) =>
       _fullMenuStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
 
+  // ✅ 3. ADICIONE O SERVIÇO DE CONECTIVIDADE
+  final ConnectivityService _connectivityService = GetIt.I<ConnectivityService>();
+  StreamSubscription? _deviceConnectivitySubscription;
 
 
 
@@ -137,6 +142,29 @@ class RealtimeRepository {
 
   RealtimeRepository() {
     log('[RealtimeRepository] Instância criada, aguardando inicialização...');
+    _listenToDeviceConnectivity();
+  }
+
+
+
+
+  void _listenToDeviceConnectivity() {
+    _deviceConnectivitySubscription = _connectivityService.onConnectivityChanged.listen((result) {
+      log('[Connectivity] Status da rede do dispositivo mudou para: $result');
+
+      if (result != ConnectivityResult.none) {
+        // Lógica para quando a internet VOLTA (já existente e correta)
+        if (_socket != null && !_socket!.connected) {
+          log('[Connectivity] A rede do dispositivo está ativa, mas o socket está desconectado. Forçando tentativa de reconexão...');
+          _socket!.connect();
+        }
+      } else {
+        // ✅ LÓGICA ADICIONADA: O que fazer quando a internet CAI
+        log('[Connectivity] A rede do dispositivo foi perdida. Atualizando status para desconectado.');
+        // Forçamos nosso status interno para 'desconectado' imediatamente.
+        _connectivityStatusController.add(ConnectivityStatus.disconnected);
+      }
+    });
   }
 
 
@@ -151,7 +179,7 @@ class RealtimeRepository {
     final options = IO.OptionBuilder()
         .setTransports(['websocket'])
         .disableAutoConnect()
-        .setReconnectionAttempts(5) // Limita as tentativas para evitar loops infinitos
+        .setReconnectionAttempts(10) // Limita as tentativas para evitar loops infinitos
         .setReconnectionDelay(2000)
         .setReconnectionDelayMax(10000)
         .setQuery({'admin_token': adminToken})
@@ -171,7 +199,8 @@ class RealtimeRepository {
     _socket!.onConnect((_) {
       if (_isDisposed) return;
       log('[Socket] ✅ Conectado com sucesso! ID: ${_socket!.id}');
-      _connectivityStatusController.add(ConnectivityStatus.connected);
+      // ✅ ALTERAÇÃO: Ao conectar, entramos no modo de SINCRONIZAÇÃO
+      _connectivityStatusController.add(ConnectivityStatus.synchronizing);
 
       if (_lastJoinedStoreId != null) {
         log('[Socket] Reconectado. Reentrando automaticamente na sala da loja $_lastJoinedStoreId...');
@@ -183,11 +212,19 @@ class RealtimeRepository {
       }
     });
 
+
     _socket!.onDisconnect((reason) {
       if (_isDisposed) return;
       log('[Socket] 🔌 Desconectado: $reason');
       _connectivityStatusController.add(ConnectivityStatus.disconnected);
+
+      // ✅ CORREÇÃO PRINCIPAL: Limpe o controle de salas ao desconectar
+      _joinedStores.clear();
+      _joiningInProgress.clear();
+      log('[Socket] Controle de salas limpo devido à desconexão.');
     });
+
+
 
     _socket!.on('reconnect_attempt', (_) {
       if (_isDisposed) return;
@@ -333,7 +370,7 @@ class RealtimeRepository {
       final allProducts = (data['products'] as List? ?? []).map((p) => Product.fromJson(p)).toList();
       final allCategories = (data['categories'] as List? ?? []).map((c) => Category.fromJson(c)).toList();
       final allVariants = (data['variants'] as List? ?? []).map((v) => Variant.fromJson(v)).toList();
-print(data);
+//print(data);
       // A RECONCILIAÇÃO QUE JÁ CONHECEMOS
       final productMap = {for (var p in allProducts) p.id: p};
       final reconciledCategories = <Category>[];
@@ -360,6 +397,8 @@ print(data);
       );
 
 
+      _connectivityStatusController.add(ConnectivityStatus.connected);
+      log('[Socket] Sincronização de dados completa. Status: Conectado.');
 
     } catch (e, st) {
       log('[Socket] ❌ Erro CRÍTICO em _handleProductsUpdated.', error: e, stackTrace: st);
@@ -712,6 +751,7 @@ print(data);
 
     _orderNotificationController.close();
     _newPrintJobsController.close();
+    _deviceConnectivitySubscription?.cancel();
     _socket?.dispose();
     log('[RealtimeRepository] Todos os streams e o socket foram fechados');
   }

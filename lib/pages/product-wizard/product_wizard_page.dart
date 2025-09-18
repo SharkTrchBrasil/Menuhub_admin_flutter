@@ -11,6 +11,7 @@ import '../../core/enums/product_type.dart';
 import '../../core/responsive_builder.dart';
 import '../../models/category.dart';
 import '../../models/prodcut_category_links.dart';
+import '../../widgets/ds_primary_button.dart';
 import 'cubit/product_wizard_cubit.dart';
 import 'cubit/product_wizard_state.dart';
 
@@ -260,7 +261,7 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
-            border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          //  border: Border(top: BorderSide(color: Colors.grey.shade200)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -277,12 +278,11 @@ class _ProductWizardPageState extends State<ProductWizardPage> {
               // Botão Continuar/Finalizar
 
 
-              ElevatedButton(
+              DsButton(
                 onPressed: (state.submissionStatus == FormStatus.loading || (state.currentStep == 2 && !state.isStep2Valid))
                     ? null
                     : () {
-                  // ✅ LÓGICA SIMPLIFICADA: Apenas manda o comando para o CUBIT.
-                  // Sem await, sem SnackBar, sem pop.
+
                   if (isLastStep) {
                     cubit.saveProduct();
                   } else {

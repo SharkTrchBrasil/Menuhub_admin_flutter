@@ -19,25 +19,6 @@ class UnifiedProductForm extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- Cabeçalho com título e botão de voltar (apenas para industrializado) ---
-        if (!isPrepared && state.selectedCatalogProduct != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: cubit.resetIndustrializedFlow,
-                  tooltip: "Voltar para busca",
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  "Produto selecionado",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
 
         // --- Nome do Produto ---
         _buildFormField(
@@ -48,6 +29,14 @@ class UnifiedProductForm extends StatelessWidget {
           readOnly: !isPrepared,
           validator: isPrepared
               ? (v) => (v == null || v.isEmpty) ? "Campo obrigatório" : null
+              : null,
+
+          suffixIcon: (!isPrepared && state.selectedCatalogProduct != null)
+              ? IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: cubit.resetIndustrializedFlow,
+            tooltip: "Remover seleção e buscar novamente",
+          )
               : null,
         ),
 
@@ -189,6 +178,7 @@ class UnifiedProductForm extends StatelessWidget {
     int maxLines = 1,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
+    Widget? suffixIcon, // ✅ 2. ADICIONA O PARÂMETRO 'suffixIcon'
   }) {
     return TextFormField(
       initialValue: initialValue,
@@ -201,6 +191,7 @@ class UnifiedProductForm extends StatelessWidget {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
+        suffixIcon: suffixIcon, // ✅ 2. USA O PARÂMETRO AQUI
       ),
       validator: validator,
       maxLines: maxLines,

@@ -8,13 +8,13 @@ import 'package:totem_pro_admin/models/variant.dart';
 import '../cubit/create_complement_cubit.dart';
 import '../widgets/wizard_footer.dart';
 
-// ✨ 1. Convertido para StatelessWidget
+
 class Step2SetRules extends StatelessWidget {
   const Step2SetRules({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // ✨ 2. Usamos `context.watch` para que a tela se reconstrua quando o estado do Cubit mudar
+
     final cubit = context.watch<CreateComplementGroupCubit>();
     final state = cubit.state;
     final selectedVariant = state.selectedVariantToCopy;
@@ -35,9 +35,9 @@ class Step2SetRules extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
-            ResponsiveBuilder.isDesktop(context)
-                ? _buildDesktopLayout(context, selectedVariant) // Passa o context
-                : _buildMobileLayout(context, selectedVariant), // Passa o context
+
+            const SizedBox(height: 24),
+            _buildRulesSection(context),
           ],
         ),
       ),
@@ -56,196 +56,175 @@ class Step2SetRules extends StatelessWidget {
     );
   }
 
-  // --- LAYOUTS RESPONSIVOS ---
 
-  Widget _buildDesktopLayout(BuildContext context, Variant variant) {
-    const headerStyle = TextStyle(color: Colors.black54, fontWeight: FontWeight.bold);
 
-    return Column(
+  Widget _buildRulesSection(BuildContext context) {
+    // ✅ Os valores agora são lidos DIRETAMENTE do Cubit via context.watch
+    final cubit = context.watch<CreateComplementGroupCubit>();
+    final state = cubit.state;
+
+    final dropdown = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              const Expanded(flex: 2, child: Text("Grupo de complementos", style: headerStyle)),
-              const SizedBox(width: 16),
-              const Expanded(flex: 2, child: Text("Obrigatoriedade", style: headerStyle)),
-              const SizedBox(width: 16),
-              Expanded(flex: 2, child: Text("Qtd. Mínima", textAlign: TextAlign.center, style: headerStyle)),
-              const SizedBox(width: 16),
-              Expanded(flex: 2, child: Text("Qtd. Máxima", textAlign: TextAlign.center, style: headerStyle)),
-            ],
-          ),
-        ),
-        const Divider(height: 1, thickness: 1),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(flex: 2, child: _buildGroupInfoCell(variant)),
-              const SizedBox(width: 16),
-              Expanded(flex: 2, child: _buildRequiredOptionalSelector(context)), // Passa o context
-              const SizedBox(width: 16),
-              Expanded(flex: 2, child: _buildQuantityStepper(context, isMin: true)), // Passa o context
-              const SizedBox(width: 16),
-              Expanded(flex: 2, child: _buildQuantityStepper(context, isMin: false)), // Passa o context
-            ],
-          ),
+        _buildFormLabel("Este grupo é obrigatório ou opcional?"),
+        DropdownButtonFormField<bool>(
+          value: state.isRequired, // Lendo do Cubit
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+          items: const [
+            DropdownMenuItem(value: false, child: Text("Opcional")),
+            DropdownMenuItem(value: true, child: Text("Obrigatório")),
+          ],
+          onChanged: (newSelection) {
+            if (newSelection == null) return;
+            // Lógica de sincronia
+            int newMinQty = state.minQty;
+            int newMaxQty = state.maxQty;
+            if (newSelection) { // se for obrigatório
+              if (newMinQty < 1) newMinQty = 1;
+              if (newMaxQty < 1) newMaxQty = 1;
+            } else { // se for opcional
+              newMinQty = 0;
+            }
+            // ✅ `onChanged` agora atualiza o Cubit
+            cubit.updateRulesForCopiedGroup(
+              isRequired: newSelection,
+              min: newMinQty,
+              max: newMaxQty,
+            );
+          },
         ),
       ],
     );
+
+    // Lógica para o stepper de "Quantidade Mínima"
+    final minStepper = _buildQuantityStepper(
+      label: "Qtd. mínima",
+      value: state.minQty,
+      // Botão de diminuir: só funciona se minQty > 0
+      onDecrement: state.minQty > 0
+          ? () {
+        final newMin = state.minQty - 1;
+        cubit.updateRulesForCopiedGroup(
+          min: newMin,
+          isRequired: newMin > 0, // Sincroniza o "obrigatório"
+          max: state.maxQty,
+        );
+      }
+          : null, // Desabilita o botão
+      // Botão de aumentar: só funciona se minQty < maxQty
+      onIncrement: state.minQty < state.maxQty
+          ? () {
+        final newMin = state.minQty + 1;
+        cubit.updateRulesForCopiedGroup(
+          min: newMin,
+          isRequired: newMin > 0, // Sincroniza o "obrigatório"
+          max: state.maxQty,
+        );
+      }
+          : null, // Desabilita o botão
+    );
+
+    // Lógica para o stepper de "Quantidade Máxima"
+    final maxStepper = _buildQuantityStepper(
+      label: "Qtd. máxima",
+      value: state.maxQty,
+      // Botão de diminuir: só funciona se maxQty > minQty
+      onDecrement: state.maxQty > state.minQty
+          ? () => cubit.updateRulesForCopiedGroup(
+        min: state.minQty,
+        max: state.maxQty - 1,
+        isRequired: state.isRequired,
+      )
+          : null, // Desabilita o botão
+      // Botão de aumentar: sempre funciona
+      onIncrement: () => cubit.updateRulesForCopiedGroup(
+        min: state.minQty,
+        max: state.maxQty + 1,
+        isRequired: state.isRequired,
+      ),
+    );
+
+    if (ResponsiveBuilder.isDesktop(context)) {
+      // Layout desktop
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(flex: 2, child: dropdown),
+          const SizedBox(width: 16),
+          Expanded(flex: 1, child: minStepper),
+          const SizedBox(width: 16),
+          Expanded(flex: 1, child: maxStepper),
+        ],
+      );
+    } else {
+      // Layout mobile
+      return Column(
+        children: [
+          dropdown,
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Flexible(child: minStepper),
+              const SizedBox(width: 44),
+              Flexible(child: maxStepper),
+            ],
+          ),
+        ],
+      );
+    }
   }
 
-  Widget _buildMobileLayout(BuildContext context, Variant variant) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            _buildGroupInfoCell(variant),
-            const Divider(height: 24),
-            _buildMobileRuleRow("Obrigatoriedade", _buildRequiredOptionalSelector(context)),
-            const SizedBox(height: 16),
-            _buildMobileRuleRow("Quantidade Mínima", _buildQuantityStepper(context, isMin: true)),
-            const SizedBox(height: 16),
-            _buildMobileRuleRow("Quantidade Máxima", _buildQuantityStepper(context, isMin: false)),
-          ],
-        ),
+  Widget _buildFormLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
     );
   }
 
-  // --- WIDGETS DE CÉLULAS E COMPONENTES ---
-
-  Widget _buildGroupInfoCell(Variant variant) {
+  Widget _buildQuantityStepper({
+    required String label,
+    required int value,
+    required VoidCallback? onDecrement, // Callback para o botão "-"
+    required VoidCallback? onIncrement, // Callback para o botão "+"
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(variant.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        if (variant.productLinks != null && variant.productLinks!.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            "Disponível em: ${variant.productLinks!.length} produtos",
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        Text(label, style: const TextStyle(fontSize: 14)),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
           ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildMobileRuleRow(String label, Widget control) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.black54)),
-        SizedBox(
-          width: 150,
-          child: control,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // O botão fica desabilitado se o callback for nulo
+              IconButton(
+                icon: const Icon(Icons.remove),
+                onPressed: onDecrement,
+              ),
+              Text(
+                value.toString(),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              // O botão fica desabilitado se o callback for nulo
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: onIncrement,
+              ),
+            ],
+          ),
         ),
       ],
-    );
-  }
-
-  // ✨ 3. Todos os widgets de formulário agora leem e escrevem DIRETAMENTE no Cubit
-  Widget _buildRequiredOptionalSelector(BuildContext context) {
-    final cubit = context.read<CreateComplementGroupCubit>();
-    final state = cubit.state;
-
-    return DropdownButtonFormField<bool>(
-      value: state.isRequired, // Lê do estado do Cubit
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        isDense: true,
-      ),
-      items: const [
-        DropdownMenuItem(value: false, child: Text("Opcional")),
-        DropdownMenuItem(value: true, child: Text("Obrigatório")),
-      ],
-      onChanged: (newSelection) {
-        if (newSelection == null) return;
-        bool newIsRequired = newSelection;
-        int newMinQty = state.minQty;
-        int newMaxQty = state.maxQty;
-
-        if (newIsRequired && newMinQty < 1) {
-          newMinQty = 1;
-          if (newMaxQty < 1) newMaxQty = 1;
-        }
-        if (!newIsRequired) {
-          newMinQty = 0;
-        }
-
-        // Escreve as novas regras no Cubit
-        cubit.updateRulesForCopiedGroup(isRequired: newIsRequired, min: newMinQty, max: newMaxQty);
-      },
-    );
-  }
-
-  Widget _buildQuantityStepper(BuildContext context, {required bool isMin}) {
-    final cubit = context.read<CreateComplementGroupCubit>();
-    final state = cubit.state;
-
-    int value = isMin ? state.minQty : state.maxQty;
-
-    return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade400),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.remove, size: 20),
-            onPressed: value > (isMin ? 0 : state.minQty)
-                ? () {
-              int newMin = state.minQty;
-              int newMax = state.maxQty;
-              bool newIsRequired = state.isRequired;
-
-              if (isMin) {
-                newMin--;
-                if (newMin == 0) newIsRequired = false;
-              } else {
-                newMax--;
-              }
-              cubit.updateRulesForCopiedGroup(isRequired: newIsRequired, min: newMin, max: newMax);
-            }
-                : null,
-          ),
-          Text(value.toString(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.add, size: 20),
-            onPressed: () {
-              int newMin = state.minQty;
-              int newMax = state.maxQty;
-              bool newIsRequired = state.isRequired;
-
-              if (isMin) {
-                if (value < state.maxQty) {
-                  newMin++;
-                  if (newMin > 0) newIsRequired = true;
-                }
-              } else {
-                newMax++;
-              }
-              cubit.updateRulesForCopiedGroup(isRequired: newIsRequired, min: newMin, max: newMax);
-            },
-          ),
-        ],
-      ),
     );
   }
 }

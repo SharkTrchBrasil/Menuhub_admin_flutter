@@ -1,29 +1,34 @@
+
+import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/models/product.dart';
+import 'package:uuid/uuid.dart'; // ✅ 1. IMPORTE O PACOTE UUID
 
-class VariantOption {
+class VariantOption extends Equatable {
+  // ✅ 2. ID ÚNICO GERADO PELO CLIENTE (APP)
+  // Este ID é usado para identificar o widget na tela de forma estável.
+  final String clientId;
+
   // --- Atributos que vêm da API ---
-  final int? id;
+  final int? id; // ID que vem do banco de dados
   final int? variantId;
-  // ✨ REMOVIDO: final String resolvedName;
-  // ✨ REMOVIDO: final int resolvedPrice;
   final String? imagePath;
   final bool isActuallyAvailable;
 
-  // --- Atributos que enviamos para a API ou usamos localmente ---
+  // --- Atributos que usamos localmente e enviamos para a API ---
   final String? name_override;
   final String? description;
   final int? price_override;
   final bool available;
   final String? pos_code;
   final int? linked_product_id;
-  final Product? linkedProduct; // Perfeito!
+  final Product? linkedProduct;
   final bool track_inventory;
   final int stock_quantity;
   final ImageModel? image;
 
-  // ✨ CONSTRUTOR CORRIGIDO ✨
   VariantOption({
+    String? clientId, // Permite passar um clientId se já existir (útil no copyWith)
     this.id,
     this.variantId,
     this.imagePath,
@@ -38,70 +43,52 @@ class VariantOption {
     this.track_inventory = false,
     this.stock_quantity = 0,
     this.image,
-  });
+  }) : clientId = clientId ?? const Uuid().v4(); // ✅ 3. GERA UM NOVO ID ÚNICO SE NENHUM FOR FORNECIDO
 
-  // ✨ SEU GETTER ESTÁ PERFEITO! ✨
+  // Getters (os seus já estavam perfeitos)
   String get resolvedName {
-    // Se há um nome customizado, ele tem prioridade.
     if (name_override != null && name_override!.isNotEmpty) {
       return name_override!;
     }
-    // Senão, se há um produto lincado, usamos o nome dele.
     if (linkedProduct != null) {
       return linkedProduct!.name;
     }
-    // Senão, usamos um nome padrão.
     return "Item sem nome";
   }
 
-  // ✨ CRIEI UM GETTER PARA O PREÇO, SEGUINDO A MESMA LÓGICA ✨
   int get resolvedPrice {
-    // Se há um preço customizado, ele tem prioridade.
     if (price_override != null) {
       return price_override!;
     }
-    // Senão, se há um produto lincado, usamos o preço dele.
     if (linkedProduct != null) {
-      return linkedProduct?.price ?? 0; // Supondo que seu 'Product' tem um campo 'price'
+      return linkedProduct?.price ?? 0;
     }
-    // Senão, o preço é 0.
     return 0;
   }
 
-  // O resto do seu código (fromJson, toJson, copyWith) continua praticamente igual,
-  // apenas removemos as referências aos campos que não existem mais.
-
+  // fromJson e toJson (os seus já estavam bons, apenas adaptados)
   factory VariantOption.fromJson(Map<String, dynamic> json) {
-    // Se a API retornar um `Product` aninhado, podemos construí-lo aqui também.
-    Product? linkedProductJson = json['linked_product'] != null
-        ? Product.fromJson(json['linked_product'])
-        : null;
-
     return VariantOption(
       id: json['id'],
       variantId: json['variant_id'],
-      imagePath: json['image_path'],
-      isActuallyAvailable: json['is_actually_available'] ?? true,
-      // Se 'name_override' for nulo no JSON, usamos o 'resolved_name' que a API manda.
       name_override: json['name_override'] ?? json['resolved_name'],
       description: json['description'],
       price_override: json['price_override'] ?? json['resolved_price'],
       available: json['available'] ?? true,
       pos_code: json['pos_code'],
       linked_product_id: json['linked_product_id'],
-      linkedProduct: linkedProductJson, // Preenche com o objeto construído do JSON
+      linkedProduct: json['linked_product'] != null ? Product.fromJson(json['linked_product']) : null,
       track_inventory: json['track_inventory'] ?? false,
       stock_quantity: json['stock_quantity'] ?? 0,
+      imagePath: json['image_path'],
+      isActuallyAvailable: json['is_actually_available'] ?? true,
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson() { /* ... (seu toJson está ok) ... */
     return {
-      // ✅ CORREÇÃO: Usa um 'if' para incluir os campos apenas se não forem nulos.
       if (id != null) 'id': id,
       if (variantId != null) 'variant_id': variantId,
-
-
       'name_override': name_override,
       'description': description,
       'price_override': price_override,
@@ -113,29 +100,27 @@ class VariantOption {
     };
   }
 
-
-  /// Método para criar uma cópia do objeto, útil para o BLoC/Cubit.
+  // ✅ 4. MÉTODO copyWith ATUALIZADO E COMPLETO
   VariantOption copyWith({
     int? id,
     int? variantId,
-    String? resolvedName,
-    int? resolvedPrice,
     String? imagePath,
     bool? isActuallyAvailable,
     String? name_override,
-    String? description, // ✅ Novo
+    String? description,
     int? price_override,
     bool? available,
     String? pos_code,
     int? linked_product_id,
-    bool? track_inventory, // ✅ Novo
-    int? stock_quantity, // ✅ Novo
-    ImageModel? image, // ✅ Novo
+    Product? linkedProduct, // Melhoria: adicionado
+    bool? track_inventory,
+    int? stock_quantity,
+    ImageModel? image,
   }) {
     return VariantOption(
+      clientId: clientId, // O mais importante: mantém o ID do cliente original
       id: id ?? this.id,
       variantId: variantId ?? this.variantId,
-
       imagePath: imagePath ?? this.imagePath,
       isActuallyAvailable: isActuallyAvailable ?? this.isActuallyAvailable,
       name_override: name_override ?? this.name_override,
@@ -144,11 +129,28 @@ class VariantOption {
       available: available ?? this.available,
       pos_code: pos_code ?? this.pos_code,
       linked_product_id: linked_product_id ?? this.linked_product_id,
+      linkedProduct: linkedProduct ?? this.linkedProduct, // Melhoria: adicionado
       track_inventory: track_inventory ?? this.track_inventory,
       stock_quantity: stock_quantity ?? this.stock_quantity,
       image: image ?? this.image,
     );
   }
+
+  // ✅ 5. ADICIONE O clientId À LISTA DE PROPS
+  @override
+  List<Object?> get props => [
+    clientId,
+    id,
+    variantId,
+    name_override,
+    description,
+    price_override,
+    available,
+    pos_code,
+    linked_product_id,
+    track_inventory,
+    stock_quantity,
+    image,
+    linkedProduct,
+  ];
 }
-
-

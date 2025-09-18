@@ -10,12 +10,16 @@ import 'prepared_form-view.dart';
 import 'product_type_dropbox.dart';
 
 class CreateComplementPanel extends StatelessWidget {
-  const CreateComplementPanel({super.key});
+  // ✅ 1. ADICIONE UMA PROPRIEDADE PARA RECEBER OS DADOS INICIAIS
+  final VariantOption? initialData;
+
+  const CreateComplementPanel({super.key, this.initialData});
+
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => ComplementFormCubit(),
+      create: (_) => ComplementFormCubit(initialData: initialData),
       child: BlocListener<ComplementFormCubit, ComplementFormState>(
         listener: (context, state) {
           if (state.createdOption != null) {

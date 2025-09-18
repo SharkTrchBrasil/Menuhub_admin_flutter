@@ -112,7 +112,9 @@ class _FlavorWizardPageState extends State<FlavorWizardPage> with SingleTickerPr
                 child: Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
+                      child: DsButton(
+                        style: DsButtonStyle.secondary,
+                        requiresConnection: false,
                         // Desabilita o botão de cancelar durante o carregamento
                         onPressed: isLoading ? null : () => context.pop(),
                         child: const Text('Cancelar'),
@@ -120,7 +122,7 @@ class _FlavorWizardPageState extends State<FlavorWizardPage> with SingleTickerPr
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: ElevatedButton(
+                      child: DsButton(
                         // ✅ O botão é desabilitado se o form for inválido OU se já estiver carregando
                         onPressed: isFormValid && !isLoading
                             ? () {
@@ -131,6 +133,7 @@ class _FlavorWizardPageState extends State<FlavorWizardPage> with SingleTickerPr
                           }
                         }
                             : null,
+
                         // ✅ O conteúdo do botão muda para um indicador de progresso
                         child: isLoading
                             ? const SizedBox(
