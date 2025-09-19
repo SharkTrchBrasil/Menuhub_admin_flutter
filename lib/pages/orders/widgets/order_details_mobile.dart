@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
+import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/store_header.dart';
 

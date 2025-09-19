@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
-import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
+import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
 import 'package:totem_pro_admin/services/print/print_manager.dart';
 
 import '../../../core/di.dart';

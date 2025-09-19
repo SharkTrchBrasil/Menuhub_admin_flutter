@@ -11,7 +11,7 @@ class ProductDetailsTab extends StatelessWidget {
     return BlocBuilder<EditProductCubit, EditProductState>(
       builder: (context, state) {
         final cubit = context.read<EditProductCubit>();
-
+        final product = state.editedProduct;
         // A aba agora só precisa construir o formulário e conectar os fios
         return Padding(
           padding: const EdgeInsets.all(14.0),
@@ -19,8 +19,9 @@ class ProductDetailsTab extends StatelessWidget {
             product: state.editedProduct,
             isImported: state.editedProduct.masterProductId != null,
             onNameChanged: cubit.nameChanged,
+
             onDescriptionChanged: cubit.descriptionChanged,
-            onImageChanged: cubit.imageChanged,
+
             onControlStockToggled: cubit.controlStockToggled,
             onStockQuantityChanged: cubit.stockQuantityChanged,
             onServesUpToChanged: cubit.servesUpToChanged,
@@ -28,6 +29,15 @@ class ProductDetailsTab extends StatelessWidget {
             onUnitChanged: cubit.unitChanged,
             onDietaryTagToggled: cubit.toggleDietaryTag,
             onBeverageTagToggled: cubit.toggleBeverageTag,
+
+            // Callback para o vídeo
+            videoUrl: product.videoUrl,
+            onVideoUrlChanged: cubit.videoUrlChanged, // Conecta ao novo método
+
+            // ✅ PARÂMETROS DA GALERIA UNIFICADA, IGUAL AO WIZARD
+            images: product.images,
+            onImagesChanged: cubit.imagesChanged, // Conecta ao novo método
+
           ),
         );
       },

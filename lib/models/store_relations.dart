@@ -15,9 +15,11 @@ import 'package:totem_pro_admin/models/store_payable.dart';
 import 'package:totem_pro_admin/models/store_receivable.dart';
 import 'package:totem_pro_admin/models/subscription_summary.dart';
 import 'package:totem_pro_admin/models/supplier.dart';
+import 'package:totem_pro_admin/models/table.dart';
 import 'package:totem_pro_admin/models/variant.dart';
 
 import 'category.dart';
+import 'command.dart';
 import 'coupon.dart';
 import 'customer_analytics_data.dart';
 import 'dashboard_data.dart';
@@ -52,6 +54,11 @@ class StoreRelations {
   final List<ReceivableCategory> receivableCategories;
 
 
+  // ✅ ADICIONE ESTAS DUAS NOVAS PROPRIEDADES
+  final List<Table> tables;
+  final List<Command> commands;
+
+
   StoreRelations({
     this.paymentMethodGroups = const [],
     this.hours = const [],
@@ -76,6 +83,8 @@ class StoreRelations {
     this.payableCategories = const [],
     this.receivables = const [],
     this.receivableCategories = const [],
+    this.tables = const [],
+    this.commands = const [],
   });
 
   factory StoreRelations.fromJson(Map<String, dynamic> json) {
@@ -163,6 +172,14 @@ class StoreRelations {
           .map((c) => ReceivableCategory.fromJson(c as Map<String, dynamic>))
           .toList(),
 
+      // ✅ ADICIONE A LÓGICA DE PARSE
+      tables: (json['tables'] as List<dynamic>? ?? [])
+          .map((t) => Table.fromJson(t as Map<String, dynamic>))
+          .toList(),
+      commands: (json['commands'] as List<dynamic>? ?? [])
+          .map((c) => Command.fromJson(c as Map<String, dynamic>))
+          .toList(),
+
 
     );
   }
@@ -192,6 +209,8 @@ class StoreRelations {
     List<PayableCategory>? payableCategories,
     List<StoreReceivable>? receivables,
     List<ReceivableCategory>? receivableCategories,
+    List<Table>? tables,
+    List<Command>? commands,
 
   }) {
     return StoreRelations(
@@ -217,6 +236,8 @@ class StoreRelations {
       payableCategories: payableCategories ?? this.payableCategories,
       receivables: receivables ?? this.receivables,
       receivableCategories: receivableCategories ?? this.receivableCategories,
+      tables: tables ?? this.tables,
+      commands: commands ?? this.commands,
     );
   }
 

@@ -32,7 +32,7 @@ class InventoryList extends StatelessWidget {
                   children: [
                     ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(product.image?.url ?? '', width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 50))),
+                        child: Image.network(product.images.first.url ?? '', width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 50))),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(

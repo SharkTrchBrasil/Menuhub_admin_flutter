@@ -68,7 +68,12 @@ class _ProductCardDesktopState extends State<ProductCardDesktop> {
             // Imagem do produto
             SizedBox(
               width: 100,
-              child: ProductImage(imageUrl: widget.product.image?.url,),
+              child: ProductImage(
+
+                imageUrl: (widget.product.images.isNotEmpty) ? widget.product.images.first.url : null,
+
+
+              ),
             ),
 
             // Informações do produto

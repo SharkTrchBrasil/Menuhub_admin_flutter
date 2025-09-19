@@ -11,6 +11,8 @@ import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
 import 'package:totem_pro_admin/pages/base/BasePage.dart';
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
+import 'package:totem_pro_admin/pages/orders/widgets/kanban_column.dart';
+import 'package:totem_pro_admin/pages/orders/widgets/orders_top_bar.dart';
 import 'package:totem_pro_admin/services/print/printer_settings.dart';
 import 'package:totem_pro_admin/pages/orders/store_settings.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/count_badge.dart';
@@ -31,8 +33,9 @@ import '../../services/subscription/subscription_service.dart';
 import '../../widgets/appbarcode.dart';
 import '../../widgets/select_store.dart';
 import '../../widgets/subscription_blocked_card.dart';
-import 'order_page_cubit.dart';
-import 'order_page_state.dart';
+import '../table/tables.dart';
+import 'cubit/order_page_cubit.dart';
+import 'cubit/order_page_state.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -202,176 +205,58 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
 
   Widget _buildMainContentPanel(BuildContext context, Store? activeStore) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, _selectedOrder == null ? 16 : 8, 16),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 16), // Padding ajustado
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Column(
-          children: [
-            Expanded(
-              child: BlocBuilder<OrderCubit, OrderState>(
-                builder: (context, orderState) {
-                  if (orderState is! OrdersLoaded) {
-                    return const Center(child: DotLoading());
-                  }
-                  final filteredOrders = _filterOrders(orderState.orders);
-
-                  if (filteredOrders.isEmpty) {
-                    return const EmptyOrdersView();
-                  }
-
-                  // A lógica do Kanban agora depende da chave da aba
-                  if (_selectedTabKey == 'delivery') {
-                    return _buildKanbanView(filteredOrders, activeStore);
-                  } else {
-                    return _buildOrdersDataTable(filteredOrders);
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
+        // ✅ AQUI ESTÁ A LÓGICA ATUALIZADA
+        child: _buildCurrentTabView(activeStore),
       ),
     );
   }
 
-  // ✅ WIDGET DA BARRA SUPERIOR TOTALMENTE REFEITO
+
+
+
   Widget _buildTopBar(BuildContext context, Store? activeStore) {
-    // A barra de topo agora reage às mudanças do estado da loja
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, storeState) {
-
-
-
         if (storeState is! StoresManagerLoaded) return const SizedBox.shrink();
 
-        final currentStore = storeState.stores[storeState.activeStoreId]?.store;
-        final options = currentStore?.relations.storeOperationConfig;
+        final options = storeState.activeStore?.relations.storeOperationConfig;
 
-        // 1. Construir a lista de abas disponíveis na ordem desejada
-        final List<Map<String, dynamic>> availableTabsConfig = [];
-        if (options?.deliveryEnabled ?? false) {
-          availableTabsConfig.add({'key': 'delivery', 'label': 'Delivery', 'icon': Icons.delivery_dining});
-        }
-        if (options?.pickupEnabled ?? false) {
-          availableTabsConfig.add({'key': 'balcao', 'label': 'Balcão', 'icon': Icons.storefront});
-        }
-        if (options?.tableEnabled ?? false) {
-          availableTabsConfig.add({'key': 'mesa', 'label': 'Mesas', 'icon': Icons.table_restaurant});
-        }
+        // 1. Lógica para determinar as abas disponíveis (agora vive na página)
+        final availableTabsKeys = <String>[];
+        if (options?.deliveryEnabled ?? false) availableTabsKeys.add('delivery');
+        if (options?.pickupEnabled ?? false) availableTabsKeys.add('balcao');
+        if (options?.tableEnabled ?? false) availableTabsKeys.add('mesa');
 
-        // 2. Garantir que uma aba válida esteja sempre selecionada
-        if (_selectedTabKey == null && availableTabsConfig.isNotEmpty) {
-          // Se nenhuma aba estiver selecionada, seleciona a primeira da lista
-          _selectedTabKey = availableTabsConfig.first['key'];
-        } else if (_selectedTabKey != null && !availableTabsConfig.any((tab) => tab['key'] == _selectedTabKey)) {
-          // Se a aba selecionada foi desativada, seleciona a primeira disponível
-          _selectedTabKey = availableTabsConfig.isNotEmpty ? availableTabsConfig.first['key'] : null;
-        }
+        // 2. Garante que uma aba válida esteja sempre selecionada
+        // Usamos um `Future` para evitar chamar `setState` durante o build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_selectedTabKey == null && availableTabsKeys.isNotEmpty) {
+            setState(() => _selectedTabKey = availableTabsKeys.first);
+          } else if (_selectedTabKey != null && !availableTabsKeys.contains(_selectedTabKey)) {
+            setState(() => _selectedTabKey = availableTabsKeys.isNotEmpty ? availableTabsKeys.first : null);
+          }
+        });
 
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          child: Row(
-            children: [
-              // 3. Renderizar as abas dinamicamente
-              ...availableTabsConfig.map((tabConfig) {
-                return OrderTypeTab(
-                  icon: tabConfig['icon'],
-                  label: tabConfig['label'],
-                  count: 0, // Adicionar lógica de contagem se necessário
-                  isSelected: _selectedTabKey == tabConfig['key'],
-                  onTap: () => setState(() {
-                    _selectedTabKey = tabConfig['key'];
-                  }),
-                );
-              }).toList(),
-
-              const Spacer(),
-
-              // Botões de Ação (Impressora, etc.)
-              if (activeStore != null) ...[
-
-                BlocBuilder<StoresManagerCubit, StoresManagerState>(
-                  builder: (context, state) {
-                    bool needsConfiguration = false;
-                    // O activeStoreId é necessário para o onPressed, então pegamos aqui
-                    int activeStoreId = -1;
-
-                    if (state is StoresManagerLoaded) {
-                      // Guarda o ID da loja ativa para usar no botão
-                      activeStoreId = state.activeStoreId;
-
-                      final settings = state.activeStore?.relations.storeOperationConfig;
-
-                      // Lógica que já corrigimos: precisa de config se AMBAS forem nulas.
-                      if (settings == null ||
-                          (settings.mainPrinterDestination == null &&
-                              settings.kitchenPrinterDestination == null)) {
-                        needsConfiguration = true;
-                      }
-                    }
-
-
-                    final iconButton = IconButton(
-                      icon: Icon(
-                        Icons.print_outlined,
-                        color: needsConfiguration ? Colors.amber : null,
-                      ),
-                      tooltip: 'Configurações de Impressão',
-                      onPressed: () {
-                        if (activeStoreId != -1) {
-                          showResponsiveSidePanel(
-                            context,
-                            PrinterSettingsSidePanel(storeId: activeStoreId),
-                          );
-                        }
-                      },
-                    );
-
-                    // ✅ PASSO 2: Decida qual widget final será renderizado.
-                    Widget finalIconWidget;
-                    if (needsConfiguration) {
-                      // Se precisar de configuração, ENVOLVE o botão com o AvatarGlow.
-                      finalIconWidget = AvatarGlow(
-                        animate: true, // Sempre true aqui, pois só entra neste if se precisar
-                        glowColor: Colors.amber, // Cor fixa também
-                        duration: const Duration(milliseconds: 2000),
-                        repeat: true,
-                        child: iconButton,
-                      );
-                    } else {
-                      // Se NÃO precisar, usa APENAS o IconButton.
-                      finalIconWidget = iconButton;
-                    }
-
-                    // ✅ PASSO 3: Envolve o resultado final com o AccessWrapper.
-                    return AccessWrapper(
-                      featureKey: 'auto_printing',
-                      child: finalIconWidget,
-                    );
-                  },
-                ),
-
-
-              ],
-              const SizedBox(width: 16),
-              ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[700], foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18)),
-                child: const Text('Novo pedido'),
-              ),
-            ],
-          ),
+        // 3. Retorna o novo widget otimizado
+        return OrdersTopBar(
+          selectedTabKey: _selectedTabKey,
+          onTabSelected: (newKey) {
+            setState(() {
+              _selectedTabKey = newKey;
+            });
+          },
         );
       },
     );
   }
 
-// NOVO: WIDGET DA TABELA DE DADOS
+
   Widget _buildOrdersDataTable(List<OrderDetails> orders) {
     return DataTable(
       columns: const [
@@ -402,84 +287,42 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
 
 
 
-  // Dentro da sua classe _OrdersPageState
+  Widget _buildCurrentTabView(Store? activeStore) {
+    switch (_selectedTabKey) {
+      case 'delivery':
+      // A view de Delivery usa o OrderCubit
+        return BlocBuilder<OrderCubit, OrderState>(
+          builder: (context, orderState) {
+            if (orderState is! OrdersLoaded) return const Center(child: DotLoading());
+            final filteredOrders = _filterOrders(orderState.orders);
+            if (filteredOrders.isEmpty) return const EmptyOrdersView();
+            return _buildKanbanView(filteredOrders, activeStore);
+          },
+        );
 
-// NOVO: WIDGET PARA UMA COLUNA DO KANBAN
-  Widget _buildKanbanColumn({
-    required String title,
-    required Color backgroundColor,
-    required List<OrderDetails> orders,
-    required Store? store,
-  }) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  Text(
-                    '${orders.length}',
-                    style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
+      case 'balcao':
+      // A view de Balcão também usa o OrderCubit
+        return BlocBuilder<OrderCubit, OrderState>(
+          builder: (context, orderState) {
+            if (orderState is! OrdersLoaded) return const Center(child: DotLoading());
+            final filteredOrders = _filterOrders(orderState.orders);
+            if (filteredOrders.isEmpty) return const EmptyOrdersView();
+            return _buildOrdersDataTable(filteredOrders);
+          },
+        );
 
-            Expanded(
-              child: ListView.builder(
-                itemCount: orders.length,
-                itemBuilder: (context, index) {
-                  final order = orders[index];
-                  // Reutilizando seu OrderListItem
-                  return OrderListItem(
-                    order: order,
-                    store: store,
+      case 'mesa':
+      // A view de Mesas usa o novo TablesCubit!
+        return const TablesGridView();
 
-                    onTap: () {
-                      // É AQUI que você chama a função
-                      showResponsiveSidePanel(
-                        context,
-                        OrderDetailsPanel(
-                          order: order, // Use o 'order' do item clicado
-                          store: store,
-                          // IMPORTANTE: O onClose agora deve fechar a rota do Navigator
-                          onClose: () => Navigator.of(context).pop(),
-                        ),
-                      );
-                    },
-
-                    // onTap: () {
-                    //   // Atualiza o estado para mostrar o painel de detalhes
-                    //   setState(() {
-                    //     _selectedOrder = order;
-                    //   });
-                    // },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+      default:
+      // Estado inicial ou quando nenhuma aba está selecionada
+        return const Center(child: DotLoading());
+    }
   }
 
-// NOVO: WIDGET PRINCIPAL DO KANBAN QUE MONTA AS COLUNAS
+
+
   Widget _buildKanbanView(List<OrderDetails> orders, Store? store) {
     // Mapeia os status para as colunas
     final analysisOrders = orders.where((o) => o.orderStatus == 'pending').toList();
@@ -492,31 +335,36 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Coluna 1: Em análise
-          _buildKanbanColumn(
-            title: 'Em análise',
-            backgroundColor: Color(0xFFfb6f2d),
-            orders: analysisOrders,
-            store: store,
+          Expanded(
+            child: KanbanColumn(
+              title: 'Em análise',
+              backgroundColor: Color(0xFFfb6f2d),
+              orders: analysisOrders,
+              store: store,
+            ),
           ),
           // Coluna 2: Em produção
-          _buildKanbanColumn(
-            title: 'Em produção',
-            backgroundColor: Color(0xFFfd9d30),
-            orders: productionOrders,
-            store: store,
+          Expanded(
+            child: KanbanColumn(
+              title: 'Em produção',
+              backgroundColor: Color(0xFFfd9d30),
+              orders: productionOrders,
+              store: store,
+            ),
           ),
           // Coluna 3: Prontos para entrega
-          _buildKanbanColumn(
-            title: 'Prontos para entrega',
-            backgroundColor: Color(0xFF269247),
-            orders: readyOrders,
-            store: store,
+          Expanded(
+            child: KanbanColumn(
+              title: 'Prontos para entrega',
+              backgroundColor: Color(0xFF269247),
+              orders: readyOrders,
+              store: store,
+            ),
           ),
         ],
       ),
     );
   }
-
 
 }
 

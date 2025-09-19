@@ -39,10 +39,11 @@ import 'package:totem_pro_admin/cubits/active_store_cubit.dart';
 import 'package:totem_pro_admin/cubits/auth_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart';
-import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
+import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
 import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
 
 import '../repositories/analytics_repository.dart';
+import '../repositories/table_repository.dart';
 import '../services/connectivity_service.dart';
 
 
@@ -71,6 +72,10 @@ Future<void> configureDependencies() async {
 
   getIt.registerLazySingleton<RealtimeRepository>(
         () => RealtimeRepository(),
+  );
+
+  getIt.registerLazySingleton<TableRepository>(
+        () => TableRepository(),
   );
 
 

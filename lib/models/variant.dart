@@ -8,7 +8,10 @@ class Variant {
   final String name;
   final VariantType type;
   final List<VariantOption> options;
-  final List<ProductVariantLink>? productLinks; //
+  final List<ProductVariantLink>? productLinks;
+  final bool available; // ✅ 1. PROPRIEDADE ADICIONADA
+
+  final List<ProductVariantLink>? linkedProductsRules;
 
   const Variant({
     this.id,
@@ -16,6 +19,8 @@ class Variant {
     required this.type,
     required this.options,
     this.productLinks,
+    this.available = true, // ✅ 2. PARÂMETRO ADICIONADO COM VALOR PADRÃO
+    this.linkedProductsRules,
   });
 
   Variant copyWith({
@@ -24,6 +29,8 @@ class Variant {
     VariantType? type,
     List<VariantOption>? options,
     List<ProductVariantLink>? productLinks,
+    bool? available, // ✅ 3. ATUALIZADO
+    List<ProductVariantLink>? linkedProductsRules,
   }) {
     return Variant(
       id: id ?? this.id,
@@ -31,12 +38,14 @@ class Variant {
       type: type ?? this.type,
       options: options ?? this.options,
       productLinks: productLinks ?? this.productLinks,
+      available: available ?? this.available, // ✅ 3. ATUALIZADO
+      linkedProductsRules: linkedProductsRules ?? this.linkedProductsRules, // ✅ Adicionado
     );
   }
 
   factory Variant.fromJson(Map<String, dynamic> json) {
-    // ✅ CORRIGIDO: Mapeamento da String da API para o Enum do App
     VariantType typeFromString(String? typeStr) {
+      // ... (sua lógica de mapeamento de tipo)
       switch (typeStr) {
         case "Ingredientes":
           return VariantType.INGREDIENTS;
@@ -44,7 +53,7 @@ class Variant {
           return VariantType.SPECIFICATIONS;
         case "Cross-sell":
           return VariantType.CROSS_SELL;
-        case "Descartáveis": // Adicionando o caso que faltava
+        case "Descartáveis":
           return VariantType.DISPOSABLES;
         default:
           return VariantType.UNKNOWN;
@@ -55,13 +64,10 @@ class Variant {
       id: json['id'],
       name: json['name'],
       type: typeFromString(json['type']),
-      // O campo 'options' geralmente vem em uma busca detalhada do Variant,
-      // então mantemos a leitura dele aqui.
+      available: json['is_available'] ?? true, // ✅ 4. LENDO DO JSON (com fallback)
       options: (json['options'] as List? ?? [])
           .map((optionJson) => VariantOption.fromJson(optionJson))
           .toList(),
-
-      // ✅ Lendo a nova lista do JSON
       productLinks: (json['product_links'] as List? ?? [])
           .map((linkJson) => ProductVariantLink.fromJson(linkJson))
           .toList(),
@@ -69,8 +75,8 @@ class Variant {
   }
 
   Map<String, dynamic> toJson() {
-    // ✅ CORRIGIDO: Mapeamento do Enum do App para a String da API
     String typeToString(VariantType type) {
+      // ... (sua lógica de mapeamento de tipo)
       switch (type) {
         case VariantType.INGREDIENTS:
           return "Ingredientes";
@@ -79,18 +85,57 @@ class Variant {
         case VariantType.CROSS_SELL:
           return "Cross-sell";
         case VariantType.DISPOSABLES:
-          return "Descartáveis"; // Adicionando o caso que faltava
+          return "Descartáveis";
         default:
           return "";
       }
     }
 
     return {
+
       if (id != null && id! > 0) 'id': id,
       'name': name,
       'type': typeToString(type),
+      // No backend, o campo é `is_available`
+      'is_available': available,
+
+      // Serializa a lista de opções da "Tab 1"
       'options': options.map((option) => option.toJson()).toList(),
 
+
+      if (linkedProductsRules != null)
+        'linked_products_rules': linkedProductsRules!
+            .map((link) => link.toJsonForRuleUpdate())
+            .toList(),
+    };
+  }
+
+
+
+  Map<String, dynamic> toJsonForLink() {
+    String typeToString(VariantType type) {
+      // ... (sua lógica de mapeamento de tipo)
+      switch (type) {
+        case VariantType.INGREDIENTS:
+          return "Ingredientes";
+        case VariantType.SPECIFICATIONS:
+          return "Especificações";
+        case VariantType.CROSS_SELL:
+          return "Cross-sell";
+        case VariantType.DISPOSABLES:
+          return "Descartáveis";
+        default:
+          return "";
+      }
+    }
+
+    return {
+      // A única diferença é esta linha:
+      'id': id,
+
+      'name': name,
+      'type': typeToString(type),
+      'options': options.map((option) => option.toJson()).toList(),
     };
   }
 
@@ -99,8 +144,7 @@ class Variant {
     return {
       'name': name,
       'type': type.toApiString(),
-
-      // Mapeia cada opção para um JSON sem o 'variant_id', como o backend espera
+      'is_available': available, // ✅ 6. ADICIONADO AQUI TAMBÉM
       'options': options.map((opt) {
         return {
           'name_override': opt.name_override,
@@ -115,5 +159,12 @@ class Variant {
       }).toList(),
     };
   }
-}
 
+
+
+
+
+
+
+
+}

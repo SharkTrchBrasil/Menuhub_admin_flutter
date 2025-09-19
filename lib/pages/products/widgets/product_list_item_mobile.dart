@@ -256,7 +256,15 @@ class _ProductListItemMobileState extends State<ProductListItemMobile> {
     }
   }
 
+// Em product_list_item_desktop.dart
+
   Widget _buildDefaultImage(bool isAvailable) {
+    // ✅ LÓGICA CORRIGIDA AQUI
+    // 1. Verifica se a lista de imagens não está vazia e pega a URL da primeira imagem.
+    final coverImageUrl = (widget.product.images.isNotEmpty)
+        ? widget.product.images.first.url
+        : null;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(8.0),
       child: ColorFiltered(
@@ -264,9 +272,10 @@ class _ProductListItemMobileState extends State<ProductListItemMobile> {
             isAvailable ? Colors.transparent : Colors.grey,
             BlendMode.saturation,
           ),
-          child: widget.product.image?.url != null
+          // 2. Usa a nova variável 'coverImageUrl' para decidir o que mostrar.
+          child: coverImageUrl != null
               ? CachedNetworkImage(
-            imageUrl: widget.product.image!.url!,
+            imageUrl: coverImageUrl, // Usa a URL da capa
             width: 60,
             height: 68,
             fit: BoxFit.cover,

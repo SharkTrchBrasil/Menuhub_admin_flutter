@@ -212,7 +212,10 @@ class _ComplementCopyListState extends State<ComplementCopyList> {
   /// Constrói o card de item customizado
   Widget _buildItemCard(BuildContext context, dynamic item, bool isSelected) {
     final cubit = context.read<CreateComplementGroupCubit>();
-    final imageUrl = (item is Product) ? item.image?.url : null;
+    final imageUrl = (item is Product && item.images.isNotEmpty)
+        ? item.images.first.url
+        : null;
+
     final isPrincipal = (item is Product);
 
     return InkWell(

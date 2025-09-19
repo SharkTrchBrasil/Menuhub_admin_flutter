@@ -12,7 +12,7 @@ import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
 import '../../../services/print/printer_settings.dart';
 import '../../../widgets/access_wrapper.dart';
-import '../order_page_state.dart';
+import '../cubit/order_page_state.dart';
 import '../store_settings.dart';
 import '../utils/order_helpers.dart';
 import 'count_badge.dart';
@@ -92,9 +92,9 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> with SingleTicker
     if (options?.pickupEnabled ?? false) {
       newTabs.add({'key': 'takeout', 'label': 'Balcão'});
     }
-    if (options?.tableEnabled ?? false) {
-      newTabs.add({'key': 'dine_in', 'label': 'Mesas'});
-    }
+    // if (options?.tableEnabled ?? false) {
+    //   newTabs.add({'key': 'dine_in', 'label': 'Mesas'});
+    // }
 
     if (!const ListEquality().equals(
         newTabs.map((e) => e['key']).toList(),

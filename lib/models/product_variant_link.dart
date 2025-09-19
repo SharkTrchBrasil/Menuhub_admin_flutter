@@ -1,5 +1,6 @@
+import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/variant.dart';
-import 'package:totem_pro_admin/models/variant_option.dart';
+
 
 import '../core/enums/ui_display_mode.dart'; // Importe o enum
 
@@ -10,6 +11,7 @@ class ProductVariantLink {
   final int? maxTotalQuantity;
   final Variant variant;
   final bool available;
+  final Product? product;
 
   ProductVariantLink({
     required this.uiDisplayMode,
@@ -18,12 +20,12 @@ class ProductVariantLink {
     this.maxTotalQuantity,
     required this.variant,
   this.available = true,
+    this.product,
   });
 
   bool get isRequired => minSelectedOptions > 0;
 
-  // ✅ MÉTODO copyWith ADICIONADO
-  /// Cria uma cópia deste objeto, substituindo os valores fornecidos.
+
   ProductVariantLink copyWith({
     UIDisplayMode? uiDisplayMode,
     int? minSelectedOptions,
@@ -63,7 +65,7 @@ class ProductVariantLink {
     );
   }
 
-  // ✅ MÉTODO `toJson` CORRIGIDO E UNIFICADO
+
   Map<String, dynamic> toJson() {
     String modeToString(UIDisplayMode mode) {
       switch (mode) {
@@ -82,11 +84,18 @@ class ProductVariantLink {
       'available': available,
 
       // A lógica correta que estava no `toWizardJson` agora está aqui
-      'variant': variant.toJson(),
+      'variant': variant.toJsonForLink(),
     };
   }
 
+  Map<String, dynamic> toJsonForRuleUpdate() {
 
-
+    return {
+      'product_id': product!.id, // Envia o ID do produto vinculado
+      'min_selected_options': minSelectedOptions,
+      'max_selected_options': maxSelectedOptions,
+      'available': available,
+    };
+  }
 
 }

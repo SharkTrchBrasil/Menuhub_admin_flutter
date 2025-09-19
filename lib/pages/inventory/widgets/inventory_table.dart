@@ -31,7 +31,7 @@ class InventoryTable extends StatelessWidget {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: Image.network(product.image?.url ?? '', width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported)),
+                      child: Image.network(product.images.first.url ?? '', width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported)),
                     ),
                     const SizedBox(width: 16),
                     Text(product.name),

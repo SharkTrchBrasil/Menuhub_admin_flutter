@@ -46,9 +46,15 @@ class EditProductCubit extends Cubit<EditProductState> {
     emit(state.copyWith(editedProduct: state.editedProduct.copyWith(description: description)));
   }
 
-  void imageChanged(ImageModel? image) {
-    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(image: image)));
+  // ✅ ADICIONE ESTES DOIS NOVOS MÉTODOS
+  void videoUrlChanged(String url) {
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(videoUrl: url)));
   }
+
+  void imagesChanged(List<ImageModel> newImages) {
+    emit(state.copyWith(editedProduct: state.editedProduct.copyWith(images: newImages)));
+  }
+
 
   // --- Métodos para a Aba "Categorias e Preços" ---
   void updatePriceInCategory(ProductCategoryLink linkToUpdate, int newPriceInCents) {
@@ -67,8 +73,31 @@ class EditProductCubit extends Cubit<EditProductState> {
   Future<void> saveProduct() async {
     emit(state.copyWith(status: FormStatus.loading));
 
+    // --- LÓGICA INTELIGENTE E ROBUSTA PARA DETECTAR IMAGENS DELETADAS ---
 
-    final result = await _productRepository.updateProduct(_storeId, state.editedProduct);
+    // 1. Pega os IDs das imagens que já existiam no servidor
+    final originalImageIds = state.originalProduct.images
+        .map((img) => img.id)
+        .whereType<int>() // Filtra apenas os que não são nulos
+        .toSet();
+
+    // 2. Pega os IDs das imagens que sobraram na tela de edição
+    final editedImageIds = state.editedProduct.images
+        .map((img) => img.id)
+        .whereType<int>() // Filtra apenas os que não são nulos
+        .toSet();
+
+    // 3. A diferença entre os dois conjuntos são os IDs das imagens que foram deletadas
+    final deletedImageIds = originalImageIds.difference(editedImageIds).toList();
+
+    debugPrint("IMAGENS A DELETAR (IDs): $deletedImageIds");
+
+    // 4. Chama o repositório com as informações corretas
+    final result = await _productRepository.updateProduct(
+      _storeId,
+      state.editedProduct,
+      deletedImageIds: deletedImageIds, // Passa a lista de IDs a serem deletados
+    );
 
     result.fold(
           (error) {
@@ -78,8 +107,10 @@ class EditProductCubit extends Cubit<EditProductState> {
       },
           (savedProduct) {
         if (!isClosed) {
-          // A lógica de sucesso já está correta, limpando o estado 'dirty'.
-          emit(state.copyWith(status: FormStatus.success));
+          // Sucesso!
+          BotToast.showText(text: "Produto salvo com sucesso!");
+          // Atualiza o estado para que 'original' e 'editado' sejam o mesmo produto salvo
+          // Isso "limpa" o estado de 'isDirty' e prepara para a próxima edição.
           emit(EditProductState.fromProduct(savedProduct));
         }
       },
@@ -87,6 +118,11 @@ class EditProductCubit extends Cubit<EditProductState> {
   }
 
 
+
+  // ✅ ADICIONE ESTE MÉTODO AQUI
+  void updateProduct(Product updatedProduct) {
+    emit(state.copyWith(editedProduct: updatedProduct));
+  }
 
   Future<void> addNewComplementGroup(BuildContext context) async {
     final storesState = context.read<StoresManagerCubit>().state;

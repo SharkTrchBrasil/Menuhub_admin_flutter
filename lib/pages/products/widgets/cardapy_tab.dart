@@ -108,11 +108,23 @@ class _MenuContentTabState extends State<MenuContentTab> {
 
                   final category = visibleCategories[index];
 
+                  // ✅ --- INÍCIO DA LÓGICA CORRIGIDA --- ✅
 
-                  final productsForCategory = category.productLinks
-                      .map((link) => link.product)
-                      .whereType<Product>()
+                  // 1. Pegamos os IDs de todos os produtos que pertencem a esta categoria
+                  final productIdsInCategory = category.productLinks
+                      .map((link) => link.productId)
+                      .toSet();
+
+                  // 2. Usamos a lista principal e atualizada 'widget.allProducts'
+                  //    para encontrar os produtos correspondentes. Esta é a fonte da verdade!
+                  final productsForCategory = widget.allProducts
+                      .where((product) => productIdsInCategory.contains(product.id))
                       .toList();
+
+                  // ✅ --- FIM DA LÓGICA CORRIGIDA --- ✅
+
+
+
 
 
                   // Filtra os produtos da categoria se houver busca

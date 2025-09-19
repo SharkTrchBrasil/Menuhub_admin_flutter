@@ -305,7 +305,7 @@ class _MobileProductPriceCardState extends State<_MobileProductPriceCard>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ProductImage(imageUrl: product.image?.url),
+        ProductImage(imageUrl: product.images.first.url),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

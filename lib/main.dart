@@ -13,14 +13,17 @@ import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/auth_cubit.dart';
 import 'package:totem_pro_admin/cubits/active_store_cubit.dart';
 import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart';
-import 'package:totem_pro_admin/pages/orders/order_page_cubit.dart';
+import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
 import 'package:totem_pro_admin/constdata/colorprovider.dart';
 import 'package:totem_pro_admin/core/chatbot_config_provider.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/menu_app_controller.dart';
 import 'package:totem_pro_admin/core/router.dart';
 import 'package:totem_pro_admin/core/theme/app_theme.dart';
+import 'package:totem_pro_admin/pages/table/cubits/tables_cubit.dart';
 import 'package:totem_pro_admin/repositories/chatbot_repository.dart';
+import 'package:totem_pro_admin/repositories/realtime_repository.dart';
+import 'package:totem_pro_admin/repositories/table_repository.dart';
 import 'package:totem_pro_admin/themes/ds_theme.dart';
 import 'package:totem_pro_admin/themes/ds_theme_switcher.dart';
 
@@ -65,6 +68,11 @@ class AppRoot extends StatelessWidget {
           BlocProvider(create: (context) => getIt<OrderCubit>()),
           BlocProvider(create: (context) => getIt<ActiveStoreCubit>()),
           BlocProvider(create: (context) => getIt<StoreSetupCubit>()),
+          BlocProvider(
+            create: (context) => TablesCubit(realtimeRepository: getIt<RealtimeRepository>()),),
+
+
+
         ],
         child: const MyApp(),
       ),

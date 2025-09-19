@@ -24,7 +24,7 @@ class Product extends Equatable implements SelectableItem {
   final String name;
   final String? description;
   final ProductStatus status;
-  final ImageModel? image;
+
   final String? ean;
   final int stockQuantity;
   final bool controlStock;
@@ -56,13 +56,18 @@ class Product extends Equatable implements SelectableItem {
   final List<KitComponent>? components;
   final List<ProductRating>? productRatings;
   final String? fileKey;
+  // ✅ 1. ADICIONE ESTES DOIS NOVOS CAMPOS
+  final String? videoUrl;
+
+  // ✅ ADICIONE APENAS ESTE
+  final List<ImageModel> images;
 
  const Product({
     this.id,
     this.name = '',
     this.description,
    this.status = ProductStatus.ACTIVE,
-    this.image,
+
     this.ean,
     this.stockQuantity = 0,
     this.controlStock = false,
@@ -94,6 +99,10 @@ class Product extends Equatable implements SelectableItem {
     this.components,
     this.productRatings,
     this.fileKey,
+   this.videoUrl,
+   this.images = const [],
+
+
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -104,9 +113,7 @@ class Product extends Equatable implements SelectableItem {
       name: json['name'] ?? '',
       description: json['description'],
       status: productStatusFromString(json['status']),
-      image: json['image_path'] != null
-          ? ImageModel(url: json['image_path'])
-          : null,
+
       ean: json['ean'],
       stockQuantity: json['stock_quantity'] ?? 0,
       controlStock: json['control_stock'] ?? false,
@@ -129,6 +136,11 @@ class Product extends Equatable implements SelectableItem {
       primaryCategoryId: json['primary_category_id'],
       hasMultiplePrices: json['has_multiple_prices'] ?? false,
 
+// ✅ CORREÇÃO CRÍTICA AQUI:
+      // O backend envia 'gallery_images', vamos mapeá-la para a nossa lista de ImageModel.
+      images: (json['gallery_images'] as List<dynamic>? ?? [])
+          .map((imgJson) => ImageModel.fromJson(imgJson))
+          .toList(),
 
       categoryLinks: (json['category_links'] as List<dynamic>? ?? [])
           .map((link) => ProductCategoryLink.fromJson(link))
@@ -172,7 +184,7 @@ class Product extends Equatable implements SelectableItem {
     String? name,
     String? description,
     ProductStatus? status,
-    ImageModel? image,
+
     String? ean,
     int? stockQuantity,
     bool? controlStock,
@@ -204,13 +216,19 @@ class Product extends Equatable implements SelectableItem {
     List<KitComponent>? components,
     List<ProductRating>? productRatings,
     String? fileKey,
+    String? videoUrl,
+
+    // ✅ ADICIONE ESTE
+    List<ImageModel>? images,
+
+
   }) {
     return Product(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
       status: status ?? this.status,
-      image: image ?? this.image,
+
       ean: ean ?? this.ean,
       stockQuantity: stockQuantity ?? this.stockQuantity,
       controlStock: controlStock ?? this.controlStock,
@@ -242,6 +260,8 @@ class Product extends Equatable implements SelectableItem {
       components: components ?? this.components,
       productRatings: productRatings ?? this.productRatings,
       fileKey: fileKey ?? this.fileKey,
+      videoUrl: videoUrl ?? this.videoUrl,
+      images: images ?? this.images,
     );
   }
 
@@ -263,6 +283,7 @@ class Product extends Equatable implements SelectableItem {
       'beverage_tags': beverageTags.map((tag) => beverageTagNames[tag]!).toList(),
       'category_links': categoryLinks.map((link) => link.toJson()).toList(),
       'variant_links': (variantLinks ?? []).map((link) => link.toJson()).toList(),
+
     };
   }
 
@@ -285,17 +306,34 @@ class Product extends Equatable implements SelectableItem {
   }
 
 
-  Map<String, dynamic> toUpdateJson() {
+
+
+  Map<String, dynamic> toUpdateJson({List<int>? deletedImageIds}) {
+    final galleryOrder = images
+    // Pega apenas imagens que já existem no servidor (têm ID)
+        .where((img) => img.id != null)
+        .toList()
+        .asMap()
+        .entries
+        .map((entry) {
+      int index = entry.key;
+      ImageModel img = entry.value;
+      // ✅ USA O ID DIRETAMENTE, MUITO MAIS SEGURO!
+      return {'id': img.id, 'order': index};
+    }).toList();
+
+
     return {
-      // --- Dados Básicos (Aba "Sobre o Produto") ---
+      // --- Dados Básicos ---
       'name': name,
       'description': description,
       'ean': ean,
+      'video_url': videoUrl, // ✅ Adicionado para garantir a atualização do vídeo
 
-      // --- Opções (Aba "Disponibilidade e Opções") ---
+      // --- Opções ---
       'status': status.name,
       'featured': featured,
-      'priority': priority, // ✅ Re-adicionado
+      'priority': priority,
 
       // --- Estoque ---
       'control_stock': controlStock,
@@ -314,14 +352,57 @@ class Product extends Equatable implements SelectableItem {
       'dietary_tags': dietaryTags.map((tag) => foodTagNames[tag]!).toList(),
       'beverage_tags': beverageTags.map((tag) => beverageTagNames[tag]!).toList(),
 
-      // --- ✅ VÍNCULOS (O mais importante que faltava) ---
+      // --- Vínculos ---
       'category_links': categoryLinks.map((link) => link.toJson()).toList(),
       'variant_links': (variantLinks ?? []).map((link) => link.toJson()).toList(),
-
-      // --- ✅ Preços (para sabores de produtos customizáveis) ---
       'prices': prices.map((price) => price.toJson()).toList(),
+
+      // --- ✅ INSTRUÇÕES PARA A GALERIA ---
+      'gallery_images_order': galleryOrder,
+      'gallery_images_to_delete': deletedImageIds ?? [], // Usa a lista recebida do Cubit
     };
   }
+
+
+
+
+  // Map<String, dynamic> toUpdateJson() {
+  //   return {
+  //     // --- Dados Básicos (Aba "Sobre o Produto") ---
+  //     'name': name,
+  //     'description': description,
+  //     'ean': ean,
+  //
+  //     // --- Opções (Aba "Disponibilidade e Opções") ---
+  //     'status': status.name,
+  //     'featured': featured,
+  //     'priority': priority, // ✅ Re-adicionado
+  //
+  //     // --- Estoque ---
+  //     'control_stock': controlStock,
+  //     'stock_quantity': stockQuantity,
+  //     'min_stock': minStock,
+  //     'max_stock': maxStock,
+  //
+  //     // --- Cashback ---
+  //     'cashback_type': cashbackType.name,
+  //     'cashback_value': cashbackValue,
+  //
+  //     // --- Atributos ---
+  //     'unit': unit,
+  //     'weight': weight,
+  //     'serves_up_to': servesUpTo,
+  //     'dietary_tags': dietaryTags.map((tag) => foodTagNames[tag]!).toList(),
+  //     'beverage_tags': beverageTags.map((tag) => beverageTagNames[tag]!).toList(),
+  //
+  //     // --- ✅ VÍNCULOS (O mais importante que faltava) ---
+  //     'category_links': categoryLinks.map((link) => link.toJson()).toList(),
+  //     'variant_links': (variantLinks ?? []).map((link) => link.toJson()).toList(),
+  //
+  //     // --- ✅ Preços (para sabores de produtos customizáveis) ---
+  //     'prices': prices.map((price) => price.toJson()).toList(),
+  //   };
+  // }
 
   // ✅ 2. ADICIONE A LISTA 'props' COMPLETA
   @override
@@ -330,7 +411,7 @@ class Product extends Equatable implements SelectableItem {
     name,
     description,
     status,
-    image,
+
     ean,
     stockQuantity,
     controlStock,
@@ -362,6 +443,8 @@ class Product extends Equatable implements SelectableItem {
     components,
     productRatings,
     fileKey,
+    videoUrl,
+    images,
   ];
 
   @override

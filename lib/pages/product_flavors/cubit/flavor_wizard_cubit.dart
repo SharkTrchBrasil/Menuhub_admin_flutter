@@ -40,6 +40,7 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
       }).toList();
 
       emit(FlavorWizardState(
+        originalProduct: product.copyWith(prices: prices),
         product: product.copyWith(prices: prices),
         parentCategory: parentCategory,
         isEditMode: true,
@@ -51,7 +52,10 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
         price: 0,
       )).toList();
 
+      final initialProduct = const Product().copyWith(prices: prices);
+
       emit(FlavorWizardState(
+          originalProduct: initialProduct,
         product: const Product().copyWith(prices: prices),
         parentCategory: parentCategory,
       ));
@@ -69,25 +73,58 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
     emit(state.copyWith(product: state.product.copyWith(prices: updatedPrices)));
   }
 
+  // ✅ SUBSTITUA SEU MÉTODO submitFlavor POR ESTE
   Future<void> submitFlavor() async {
     if (state.product.name.trim().isEmpty) return;
 
     emit(state.copyWith(status: FormStatus.loading));
-
-    // ✅ GARANTE QUE O OBJETO ENVIADO É O QUE ESTÁ NO ESTADO
     final productToSave = state.product;
 
-    final result = state.isEditMode
-        ? _productRepository.updateProduct(_storeId, productToSave)
-        : _productRepository.createFlavorProduct(
-      _storeId,
-      productToSave,
-      parentCategory: state.parentCategory,
-    );
+    final Future<Either<String, Product>> result;
+    if (state.isEditMode) {
+      // Lógica "inteligente" para encontrar imagens deletadas
+      final originalImageUrls = state.originalProduct.images.where((img) => img.url != null).map((img) => img.url).toSet();
+      final editedImageUrls = state.product.images.where((img) => img.url != null).map((img) => img.url).toSet();
+      final deletedImageUrls = originalImageUrls.difference(editedImageUrls);
+      final deletedImageIds = deletedImageUrls.map((url) {
+        try {
+          return int.tryParse(Uri.parse(url!).pathSegments.last.split('.').first);
+        } catch (e) { return null; }
+      }).whereType<int>().toList();
+
+      result = _productRepository.updateProduct(
+        _storeId,
+        productToSave,
+        deletedImageIds: deletedImageIds,
+      );
+    } else {
+      result = _productRepository.createFlavorProduct(
+        _storeId,
+        productToSave,
+        parentCategory: state.parentCategory,
+        images: productToSave.images, // Passa as imagens para a criação
+      );
+    }
 
     result.fold(
           (error) => emit(state.copyWith(status: FormStatus.error, errorMessage: error)),
-          (success) => emit(state.copyWith(status: FormStatus.success)),
+          (savedProduct) {
+        // Ao salvar com sucesso, atualiza o estado original e o de edição
+        emit(state.copyWith(
+            status: FormStatus.success,
+            product: savedProduct,
+            originalProduct: savedProduct
+        ));
+      },
     );
   }
 }
+
+
+
+
+
+
+
+
+

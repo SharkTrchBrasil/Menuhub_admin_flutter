@@ -180,12 +180,22 @@ class ProductRepository {
       // ✅ 3. Adiciona o arquivo da imagem, se existir
       if (option.image?.file != null) {
         final fileBytes = await option.image!.file!.readAsBytes();
+
+
+        final fileName = option.image?.file?.name != null
+            ? option.image?.file?.name ?? ''
+            : 'upload.jpg';
+
         formData.files.add(
           MapEntry(
-            'image', // Nome do campo esperado pelo backend
-            MultipartFile.fromBytes(fileBytes, filename: option.image!.file!.name),
+            'images',
+            MultipartFile.fromBytes(fileBytes, filename: fileName),
           ),
         );
+
+
+
+
       }
 
       // ✅ 4. Determina a URL e o método (POST para novo, PATCH para existente)
@@ -378,30 +388,41 @@ class ProductRepository {
   // MÉTODOS DE CRIAÇÃO (ATUALIZADOS)
   // ===================================================================
 
-  /// Cria um produto simples (ex: bebida, lanche).
-  /// Usa a rota `/simple-product`.
   Future<Either<String, Product>> createSimpleProduct(
       int storeId,
       Product product, {
-        ImageModel? image,
+  List<ImageModel>? images,
       }) async {
     try {
-      // Garanta que seu modelo Product tenha um método para gerar este JSON específico
       final productJson = product.toSimpleProductJson();
-
       final formData = FormData.fromMap({
         'payload': json.encode(productJson),
       });
 
-      if (image?.file != null) {
-        final fileBytes = await image!.file!.readAsBytes();
-        formData.files.add(
-          MapEntry('image', MultipartFile.fromBytes(fileBytes, filename: image.file!.name)),
-        );
+      // ✅ LÓGICA UNIFICADA DE UPLOAD
+      if (images != null && images.isNotEmpty) {
+        for (var imageModel in images) {
+          if (imageModel.file != null) {
+            final fileBytes = await imageModel.file!.readAsBytes();
+            // ✅ LÓGICA CORRIGIDA AQUI
+
+            final fileName = imageModel.file!.name.isNotEmpty
+                ? imageModel.file!.name
+                : 'upload.jpg';
+
+            formData.files.add(
+              MapEntry(
+                'images',
+                MultipartFile.fromBytes(fileBytes, filename: fileName),
+              ),
+            );
+
+          }
+        }
       }
 
       final response = await _dio.post(
-        '/stores/$storeId/products/simple-product', // ✅ ROTA CORRETA
+        '/stores/$storeId/products/simple-product',
         data: formData,
       );
 
@@ -414,23 +435,40 @@ class ProductRepository {
     }
   }
 
-
   /// Cria um "sabor" (produto para categoria customizável).
   /// Usa a rota `/flavor-product`.
   Future<Either<String, Product>> createFlavorProduct(
       int storeId,
       Product product, {
-        required Category parentCategory, // ✅ PARÂMETRO ADICIONADO AQUI
-        ImageModel? image,
+        required Category parentCategory,
+        // ✅ 1. ASSINATURA ATUALIZADA: Recebe uma lista de imagens
+        List<ImageModel>? images,
       }) async {
     try {
-      // ✅ AGORA PASSAMOS A CATEGORIA PARA O MÉTODO toJson
+      // A lógica do payload JSON continua a mesma
       final productJson = product.toFlavorProductJson(parentCategoryId: parentCategory.id!);
       final formData = FormData.fromMap({'payload': json.encode(productJson)});
 
-      if (image?.file != null) {
-        final fileBytes = await image!.file!.readAsBytes();
-        formData.files.add(MapEntry('image', MultipartFile.fromBytes(fileBytes, filename: image.file!.name)));
+
+
+      // ✅ 3. NOVA LÓGICA PARA A GALERIA DE IMAGENS
+      if (images != null && images.isNotEmpty) {
+        for (var imageModel in images) {
+          if (imageModel.file != null) {
+            final fileBytes = await imageModel.file!.readAsBytes();
+
+            final fileName = imageModel.file!.name.isNotEmpty
+                ? imageModel.file!.name
+                : 'upload.jpg';
+
+            formData.files.add(
+              MapEntry(
+                'images',
+                MultipartFile.fromBytes(fileBytes, filename: fileName),
+              ),
+            );
+          }
+        }
       }
 
       final response = await _dio.post('/stores/$storeId/products/flavor-product', data: formData);
@@ -443,71 +481,77 @@ class ProductRepository {
     }
   }
 
+
+
   // ===================================================================
   // MÉTODO DE ATUALIZAÇÃO (UNIFICADO E CORRETO)
   // ===================================================================
 
+
+
   Future<Either<String, Product>> updateProduct(
       int storeId,
-      Product product,
-      ) async {
+      Product product, {
+        // ✅ 1. ADICIONE O PARÂMETRO 'deletedImageIds' À ASSINATURA DA FUNÇÃO
+        required List<int> deletedImageIds,
+      }) async {
     if (product.id == null) {
       return const Left("ID do produto é inválido para atualização.");
     }
     try {
       // --- LÓGICA DE PRÉ-PROCESSAMENTO DOS GRUPOS DE COMPLEMENTOS ---
-
-      // 1. Cria uma cópia da lista de links para podermos modificá-la.
+      // (Sua lógica de variantLinks continua a mesma aqui, sem alterações)
       final processedLinks = List<ProductVariantLink>.from(product.variantLinks ?? []);
-
-      // 2. Itera sobre a lista de links para encontrar e criar os grupos novos.
       for (var i = 0; i < processedLinks.length; i++) {
         final link = processedLinks[i];
-
-        // Se o ID da variante for negativo, é um grupo novo que precisa ser criado.
         if (link.variant.id != null && link.variant.id! < 0) {
-
-          // Chama o método que salva uma variante (ele lida com criação se o ID for nulo/inválido)
           final result = await saveVariant(storeId, link.variant);
-
           if (result.isRight) {
-            final savedVariant = result.right;
-            // Atualiza o link na nossa lista temporária com a variante que voltou do banco (agora com ID real)
-            processedLinks[i] = link.copyWith(variant: savedVariant);
+            processedLinks[i] = link.copyWith(variant: result.right);
           } else {
-            // Se falhar ao criar uma das variantes, interrompe e retorna o erro.
             return const Left("Falha ao criar um novo grupo de complemento durante o salvamento.");
           }
         }
       }
-
-      // 3. Cria uma cópia final do produto com a lista de links já processada.
       final productToSave = product.copyWith(variantLinks: processedLinks);
 
-      // --- FIM DA LÓGICA DE PRÉ-PROCESSAMENTO ---
+      // --- MONTAGEM DO FORMDATA ---
 
-      // 4. Continua com a lógica original, mas usando o `productToSave`.
-      final productJson = productToSave.toUpdateJson();
+      // ✅ 2. PASSE A LISTA DE IDs DELETADOS PARA O MÉTODO toUpdateJson
+      final productJson = productToSave.toUpdateJson(deletedImageIds: deletedImageIds);
+
       final formData = FormData.fromMap({
         'payload': json.encode(productJson),
       });
 
-      if (productToSave.image?.file != null) {
-        final fileBytes = await productToSave.image!.file!.readAsBytes();
-        formData.files.add(
-          MapEntry(
-            'image',
-            MultipartFile.fromBytes(fileBytes, filename: productToSave.image!.file!.name),
-          ),
-        );
+      // Identifica e anexa apenas as NOVAS imagens para upload
+      final newImagesToUpload = productToSave.images.where((img) => img.file != null).toList();
+
+      if (newImagesToUpload.isNotEmpty) {
+        for (var imageModel in newImagesToUpload) {
+          final fileBytes = await imageModel.file!.readAsBytes();
+
+          final fileName = imageModel.file!.name.isNotEmpty
+              ? imageModel.file!.name
+              : 'upload.jpg';
+
+          formData.files.add(
+            MapEntry(
+              'images',
+              MultipartFile.fromBytes(fileBytes, filename: fileName),
+            ),
+          );
+        }
       }
 
+      // Envia a requisição
       final response = await _dio.patch(
         '/stores/$storeId/products/${product.id}',
         data: formData,
       );
 
       return Right(Product.fromJson(response.data));
+
     } on DioException catch (e) {
       final error = e.response?.data['detail'] ?? 'Erro ao atualizar o produto.';
       return Left(error);
@@ -515,6 +559,16 @@ class ProductRepository {
       return Left(e.toString());
     }
   }
+
+
+
+
+
+
+
+
+
+
 
 // Adicione este método em qualquer lugar dentro da classe ProductRepository
 
@@ -737,6 +791,77 @@ class ProductRepository {
       return Left(e.response?.data['detail'] ?? 'Erro ao atualizar status do produto na categoria.');
     }
   }
+
+
+
+
+
+
+
+// ===================================================================
+// MÉTODOS DE AÇÃO EM MASSA - CORRIGIDOS
+// ===================================================================
+
+  /// Ativa ou pausa TODOS OS VÍNCULOS de uma lista de grupos.
+// ✅ NOME ATUALIZADO para maior clareza (afeta os vínculos, não o grupo)
+  Future<Either<String, void>> updateLinksAvailability({
+    required int storeId,
+    required List<int> variantIds,
+    required bool isAvailable,
+  }) async {
+    try {
+      // A rota e o payload continuam os mesmos, pois o backend espera os IDs dos grupos
+      await _dio.post(
+        '/stores/$storeId/variants/bulk-update-status',
+        data: {
+          'variant_ids': variantIds,
+          'is_available': isAvailable,
+        },
+      );
+      return const Right(null); // Sucesso
+    } on DioException catch (e) {
+      final error = e.response?.data['detail'] ?? 'Erro ao atualizar status dos vínculos.';
+      return Left(error);
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
+
+  /// Desvincula (remove o link) de todos os produtos uma lista de grupos de complementos.
+// ✅ NOME ATUALIZADO para refletir a ação de desvincular
+  Future<Either<String, void>> unlinkVariants({
+    required int storeId,
+    required List<int> variantIds,
+  }) async {
+    try {
+      // ✅ ROTA ATUALIZADA de 'bulk-delete' para 'bulk-unlink'
+      await _dio.post(
+        '/stores/$storeId/variants/bulk-unlink',
+        data: {
+          'variant_ids': variantIds,
+        },
+      );
+      return const Right(null); // Sucesso
+    } on DioException catch (e) {
+      final error = e.response?.data['detail'] ?? 'Erro ao remover os vínculos dos grupos.';
+      return Left(error);
+    } catch (e) {
+      return Left(e.toString());
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 }

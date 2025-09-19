@@ -3,7 +3,8 @@ import 'package:totem_pro_admin/core/enums/beverage.dart';
 import 'package:totem_pro_admin/core/enums/foodtags.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/widgets/app_image_form_field.dart';
+
+import '../../../widgets/app_image_manager.dart';
 import 'product_attributes_section.dart';
 import 'stock_management_card.dart';
 
@@ -14,7 +15,7 @@ class ProductDetailsForm extends StatefulWidget {
   // Callbacks para todas as interações
   final ValueChanged<String> onNameChanged;
   final ValueChanged<String> onDescriptionChanged;
-  final ValueChanged<ImageModel?> onImageChanged;
+
   final ValueChanged<bool> onControlStockToggled;
   final ValueChanged<String> onStockQuantityChanged;
   final ValueChanged<FoodTag> onDietaryTagToggled;
@@ -23,13 +24,21 @@ class ProductDetailsForm extends StatefulWidget {
   final ValueChanged<String> onWeightChanged;
   final ValueChanged<String> onUnitChanged;
 
+  // ✅ ADICIONADO: Parâmetros para o campo de vídeo
+  final String? videoUrl;
+  final ValueChanged<String> onVideoUrlChanged;
+
+  // ✅ 1. PARÂMETROS DE IMAGEM SIMPLIFICADOS
+  final List<ImageModel> images;
+  final ValueChanged<List<ImageModel>> onImagesChanged;
+
   const ProductDetailsForm({
     super.key,
     required this.product,
     required this.isImported,
     required this.onNameChanged,
     required this.onDescriptionChanged,
-    required this.onImageChanged,
+
     required this.onControlStockToggled,
     required this.onStockQuantityChanged,
     required this.onDietaryTagToggled,
@@ -37,6 +46,10 @@ class ProductDetailsForm extends StatefulWidget {
     required this.onServesUpToChanged,
     required this.onWeightChanged,
     required this.onUnitChanged,
+    this.videoUrl,
+    required this.onVideoUrlChanged,
+    required this.images,
+    required this.onImagesChanged,
   });
 
   @override
@@ -135,13 +148,17 @@ class _ProductDetailsFormState extends State<ProductDetailsForm> {
           ),
           const SizedBox(height: 24),
 
-          AppProductImageFormField(
-            title: 'Imagem do produto',
-            initialValue: widget.product.image,
-            enabled: widget.isImported,
-            onChanged: widget.onImageChanged,
+
+
+          // ✅ 3. O GERENCIADOR DE IMAGENS UNIFICADO
+          AppImageManager(
+            title: 'Imagens do Produto',
+            images: widget.images,
+            onChanged: widget.onImagesChanged, // Usa o novo callback unificado
           ),
+
           const SizedBox(height: 24),
+
 
           StockManagementCard(
             isStockControlled: widget.product.controlStock,

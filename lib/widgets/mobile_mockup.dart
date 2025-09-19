@@ -77,7 +77,11 @@ final bool showVar;
             children: [
               // Imagem do produto no topo
               CachedNetworkImage(
-                imageUrl: product.image?.url ?? "https://img.freepik.com/vetores-premium/conjunto-de-desenhos-animados-de-fast-food-sem-costura_1639-39822.jpg",
+
+
+                imageUrl: product.images.first.url?? "https://img.freepik.com/vetores-premium/conjunto-de-desenhos-animados-de-fast-food-sem-costura_1639-39822.jpg",
+
+
                 height: imageHeight,
                 width: double.infinity,
                 fit: BoxFit.cover,

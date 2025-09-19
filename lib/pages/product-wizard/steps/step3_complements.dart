@@ -88,23 +88,38 @@ class Step3Complements extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const SizedBox(height: 48),
-        SvgPicture.asset('assets/icons/food.svg', height: 150), // Adicione uma imagem legal
-        const SizedBox(height: 24),
+        SvgPicture.asset('assets/icons/food.svg', height: 120), // Adicione uma imagem legal
+        const SizedBox(height: 34),
         Text(
           "Mais Opções para o Cliente, Mais Lucro para Você!",
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
-        // const SizedBox(height: 8),
-        //
-        // const SizedBox(height: 24),
-        // DsButton(
-        //   onPressed: () => _openPanel(context),
-        //   style: DsButtonStyle.secondary,
-        //   icon: Icons.add,
-        //   label: "Adicionar Grupo",
-        // ),
+
+
+        const SizedBox(height: 44),
+
+
+        // Botão alinhado à direita
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+        //  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: _buildAddButton(context)),
+          ],
+        ),
       ],
+    );
+  }
+
+
+  Widget _buildAddButton(BuildContext context) {
+    return DsButton(
+
+      style: DsButtonStyle.secondary,
+      onPressed: () => _openPanel(context),
+      label: 'Adicionar novo grupo',
+
     );
   }
 
@@ -237,13 +252,5 @@ class Step3Complements extends StatelessWidget {
     );
   }
 
-  Widget _buildAddButton(BuildContext context) {
-    return DsButton(
-      style: DsButtonStyle.secondary,
-      onPressed: () => _openPanel(context),
-      label: 'Adicionar novo grupo',
-
-    );
-  }
 
 }

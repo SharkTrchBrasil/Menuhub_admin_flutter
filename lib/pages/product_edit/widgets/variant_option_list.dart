@@ -42,17 +42,6 @@ class VariantOptionsList extends StatelessWidget {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
           const SizedBox(height: 16),
           if (options.isEmpty)
             const Padding(

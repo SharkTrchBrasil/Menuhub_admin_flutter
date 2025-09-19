@@ -1,6 +1,7 @@
 part of 'flavor_wizard_cubit.dart';
 
 class FlavorWizardState extends Equatable {
+  final Product originalProduct;
   final Product product;
   final Category parentCategory;
   final FormStatus status;
@@ -15,6 +16,7 @@ class FlavorWizardState extends Equatable {
 
 
   const FlavorWizardState({
+    required this.originalProduct,
     required this.product,
     required this.parentCategory,
     this.status = FormStatus.initial,
@@ -23,12 +25,17 @@ class FlavorWizardState extends Equatable {
 
   });
 
-  factory FlavorWizardState.initial() => FlavorWizardState(
-    product: Product(price: 0),
-    parentCategory: const Category(id: 0, name: '', type: CategoryType.CUSTOMIZABLE),
-  );
+  factory FlavorWizardState.initial() {
+    final initialProduct = Product(price: 0, images: const []);
+    return FlavorWizardState(
+      originalProduct: initialProduct, // ✅ INICIALIZE AQUI
+      product: initialProduct,
+      parentCategory: const Category(id: 0, name: '', type: CategoryType.CUSTOMIZABLE),
+    );
+  }
 
   FlavorWizardState copyWith({
+    Product? originalProduct,
     Product? product,
     Category? parentCategory,
     FormStatus? status,
@@ -37,6 +44,7 @@ class FlavorWizardState extends Equatable {
     Map<int, int>? pricesBySize,
   }) {
     return FlavorWizardState(
+      originalProduct: originalProduct ?? this.originalProduct,
       product: product ?? this.product,
       parentCategory: parentCategory ?? this.parentCategory,
       status: status ?? this.status,
@@ -47,5 +55,5 @@ class FlavorWizardState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [product, parentCategory, status, isEditMode, errorMessage];
+  List<Object?> get props => [originalProduct, product, parentCategory, status, isEditMode, errorMessage];
 }

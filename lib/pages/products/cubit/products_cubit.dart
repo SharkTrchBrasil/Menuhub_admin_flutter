@@ -88,7 +88,7 @@ class ProductsCubit extends Cubit<ProductsState> {
       stockQuantity: newQuantity,
       controlStock: newControlStatus,
     );
-    final result = await _productRepository.updateProduct(storeId, updatedProduct);
+    final result = await _productRepository.updateProduct(storeId, updatedProduct, deletedImageIds: []);
     result.fold(
           (error) => emit(ProductsActionFailure(error)),
           (success) => emit(const ProductsActionSuccess("Estoque atualizado!")),
@@ -143,7 +143,7 @@ class ProductsCubit extends Cubit<ProductsState> {
 
     final updatedProduct = product.copyWith(status: newStatus);
 
-    final result = await _productRepository.updateProduct(storeId, updatedProduct);
+    final result = await _productRepository.updateProduct(storeId, updatedProduct, deletedImageIds: []);
 
     result.fold(
           (error) => emit(ProductsActionFailure(error)),

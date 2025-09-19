@@ -12,6 +12,7 @@ import '../../../../core/enums/ui_display_mode.dart';
 import '../../../../core/enums/variant_type.dart';
 import '../../../core/enums/create_compement_step.dart';
 import '../../../core/enums/form_status.dart';
+import '../../../core/utils/variant_helper.dart';
 
 part 'create_complement_state.dart';
 
@@ -335,37 +336,12 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
   }
 
 
+// O método antigo é substituído por uma chamada simples à função utilitária
   String getProductNamesForVariant(Variant variant) {
-    // Se não tivermos a lista de produtos, retorna uma string padrão.
-    if (allStoreProducts.isEmpty) {
-      return "Não vinculado";
-    }
-
-    final List<String> productNames = [];
-    // Itera sobre todos os produtos da loja
-    for (final product in allStoreProducts) {
-      // Verifica se o produto usa o variant atual
-      if (product.variantLinks != null &&
-          product.variantLinks!.any((link) => link.variant.id == variant.id)) {
-        productNames.add(product.name);
-      }
-    }
-
-    // Se a lista de nomes estiver vazia, retorna uma mensagem.
-    if (productNames.isEmpty) {
-      return "Não vinculado a produtos";
-    }
-
-    // Lógica para não exibir uma lista gigante de nomes
-    const int maxNamesToShow = 2;
-    if (productNames.length > maxNamesToShow) {
-      final firstNames = productNames.take(maxNamesToShow).join(', ');
-      final remainingCount = productNames.length - maxNamesToShow;
-      return '$firstNames e mais $remainingCount';
-    } else {
-      // Se a lista for pequena, mostra todos os nomes separados por vírgula.
-      return productNames.join(', ');
-    }
+    return getVariantLinkedProductsPreview(
+      variant: variant,
+      allProducts: allStoreProducts, // Usa a lista de produtos que o Cubit já tem
+    );
   }
 
 

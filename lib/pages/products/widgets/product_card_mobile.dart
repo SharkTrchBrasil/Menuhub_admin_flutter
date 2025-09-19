@@ -70,7 +70,12 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                     Container(
                       width: 70,
                       height: 70,
-                      child: ProductImage(imageUrl: widget.product.image?.url),
+                      child: ProductImage(
+
+                        imageUrl: (widget.product.images.isNotEmpty) ? widget.product.images.first.url : null,
+
+
+                      ),
                     ),
                     const SizedBox(width: 12),
 
@@ -392,7 +397,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
 
       final updatedProduct = widget.product.copyWith(status: newStatus);
 
-      await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
+      await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct, deletedImageIds: []);
 
       // ✅ Notifica o parent widget sobre a mudança
       if (widget.onStatusChanged != null) {

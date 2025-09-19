@@ -9,11 +9,12 @@ import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-import 'package:totem_pro_admin/utils/sounds/sound_util.dart';
-import 'package:totem_pro_admin/pages/orders/order_page_state.dart';
 
-import '../../models/print_job.dart';
-import '../../services/print/print_manager.dart';
+import 'package:totem_pro_admin/pages/orders/cubit/order_page_state.dart';
+
+import '../../../core/utils/sounds/sound_util.dart';
+import '../../../models/print_job.dart';
+import '../../../services/print/print_manager.dart';
 
 class OrderCubit extends Cubit<OrderState> {
   final RealtimeRepository _realtimeRepository;

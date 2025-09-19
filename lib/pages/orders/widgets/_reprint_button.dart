@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
 
-import '../order_page_cubit.dart';
+import '../cubit/order_page_cubit.dart';
 
 class ReprintButton extends StatelessWidget {
   final OrderDetails order;

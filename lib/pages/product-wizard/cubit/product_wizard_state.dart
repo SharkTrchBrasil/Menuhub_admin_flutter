@@ -34,6 +34,7 @@ class ProductWizardState extends Equatable {
   final bool isEditMode;
   final int? editingProductId;
 
+  final List<int> deletedImageIds;
 
   const ProductWizardState({
     this.currentStep = 1,
@@ -50,12 +51,13 @@ class ProductWizardState extends Equatable {
     this.searchQuery = '',
     this.isEditMode = false, // ✅ Valor padrão
     this.editingProductId,
+    this.deletedImageIds = const [],
 
   });
 
   factory ProductWizardState.initial() {
     return ProductWizardState(
-      productInCreation: Product(status: ProductStatus.ACTIVE, image: ImageModel(), price: 0),
+      productInCreation: Product(status: ProductStatus.ACTIVE, images: const [], price: 0),
 
     );
   }
@@ -81,6 +83,7 @@ class ProductWizardState extends Equatable {
     String? searchQuery,
     bool? isEditMode,
     int? editingProductId,
+    List<int>? deletedImageIds,
 
   }) {
     return ProductWizardState(
@@ -98,6 +101,7 @@ class ProductWizardState extends Equatable {
       searchQuery: searchQuery ?? this.searchQuery,
       isEditMode: isEditMode ?? this.isEditMode,
       editingProductId: editingProductId ?? this.editingProductId,
+      deletedImageIds: deletedImageIds ?? this.deletedImageIds,
 
     );
   }
@@ -108,5 +112,6 @@ class ProductWizardState extends Equatable {
     searchResults, catalogProductSelected, isImported, variantLinks,
     submissionStatus, categoryLinks, errorMessage,searchQuery, isEditMode,
     editingProductId,
+    deletedImageIds,
   ];
 }

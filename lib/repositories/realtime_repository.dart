@@ -34,6 +34,10 @@ import '../models/variant.dart';
 import '../services/connectivity_service.dart';
 import 'auth_repository.dart'; // Para ter acesso ao TotemAuth
 
+import 'dart:convert'; // Para usar o JsonEncoder
+
+
+
 // ✅ ALTERAÇÃO: A classe helper agora contém todas as listas financeiras
 class FinancialsData {
   final List<StorePayable> payables;
@@ -328,17 +332,39 @@ class RealtimeRepository {
   }
 
 
+
+
   void _handleStoreDetailsUpdated(dynamic data) {
-    log('✅ Evento recebido: store_details_updated');
+    // ✅ PASSO 1: IMPRIMIR OS DADOS BRUTOS QUE CHEGAM DO BACKEND
+    print('--- 🕵️ PONTO DE DEBUG A: DADOS BRUTOS DO SOCKET (store_details_updated) ---');
+    var jsonEncoder = const JsonEncoder.withIndent('  '); // Formata o JSON
+    print(jsonEncoder.convert(data));
+    print('-------------------------------------------------------------------------');
+
     try {
-      // O payload agora contém 'store' e 'subscription'
+      // O resto do seu código continua aqui...
       final Map<String, dynamic> storeData = Map.from(data['store']);
       if (data['subscription'] != null) {
         storeData['subscription'] = data['subscription'];
       }
 
       final store = Store.fromJson(storeData);
-     // print(storeData);
+
+      // ✅ PASSO 2: IMPRIMIR OS DADOS APÓS SEREM CONVERTIDOS PELOS MODELS DO DART
+      print('--- 🕵️ PONTO DE DEBUG B: DADOS APÓS PARSE NO DART ---');
+      if (store.relations.coupons.isNotEmpty) {
+        print('✅ Sucesso! Encontrados ${store.relations.coupons.length} cupons no objeto Store.');
+        // Vamos inspecionar as regras do primeiro cupom da lista
+        final firstCoupon = store.relations.coupons.first;
+        print('🔎 O primeiro cupom (código: "${firstCoupon.code}") tem ${firstCoupon.rules.length} regras.');
+        if (firstCoupon.rules.isNotEmpty) {
+          print('  -> Detalhe da primeira regra: tipo=${firstCoupon.rules.first.ruleType}, valor=${firstCoupon.rules.first.value}');
+        }
+      } else {
+        print('❌ Problema? Nenhum cupom encontrado no objeto Store após o parse.');
+      }
+      print('-----------------------------------------------------------');
+
       _storeDetailsController.add(store);
 
     } catch (e, st) {

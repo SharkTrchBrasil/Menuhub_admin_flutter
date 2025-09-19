@@ -60,7 +60,7 @@ import '../pages/inventory/inventory_page.dart';
 
 import '../pages/not_found/error_505_Page.dart';
 
-import '../pages/orders/order_page_cubit.dart';
+import '../pages/orders/cubit/order_page_cubit.dart';
 import '../pages/orders/orders_page.dart';
 
 import '../pages/orders/widgets/order_details_mobile.dart';
@@ -75,6 +75,7 @@ import '../pages/totems/totems_page.dart';
 
 import '../pages/variants/edit_variants.dart';
 
+import '../pages/variants/variant_edit_screen_wrapper.dart';
 import '../pages/verify_code/verify_code_page.dart';
 import '../pages/welcome/settings_wizard_page.dart';
 import '../pages/welcome/welcome_page.dart';
@@ -88,7 +89,7 @@ import '../widgets/app_shell.dart';
 import 'enums/category_type.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey =
-    GlobalKey<NavigatorState>();
+GlobalKey<NavigatorState>();
 
 class AppRouter {
   // ✅ 1. Obtenha as instâncias dos Cubits aqui para usar no redirect
@@ -162,7 +163,8 @@ class AppRouter {
       return null;
     },
     errorPageBuilder:
-        (context, state) => MaterialPage(
+        (context, state) =>
+        MaterialPage(
           child: NotFoundPage(), // sua página 404
         ),
 
@@ -279,10 +281,11 @@ class AppRouter {
                     path: 'dashboard',
                     // <-- MUDANÇA 1: O caminho agora é /dashboard
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      child:
-                      DashboardPage(), // <-- MUDANÇA 2: Aponta para a DashboardPage
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          child:
+                          DashboardPage(), // <-- MUDANÇA 2: Aponta para a DashboardPage
+                        ),
                   ),
                 ],
               ),
@@ -293,10 +296,11 @@ class AppRouter {
                   GoRoute(
                     path: 'analytics',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      child:
-                      AnalyticsPage(), // <-- MUDANÇA 2: Aponta para a DashboardPage
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          child:
+                          AnalyticsPage(), // <-- MUDANÇA 2: Aponta para a DashboardPage
+                        ),
                   ),
                 ],
               ),
@@ -334,7 +338,8 @@ class AppRouter {
                   GoRoute(
                     path: 'sell',
                     builder:
-                        (_, __) => const Center(
+                        (_, __) =>
+                    const Center(
                       child: Text(
                         'Vender',
                         style: TextStyle(fontSize: 32),
@@ -350,7 +355,8 @@ class AppRouter {
                   GoRoute(
                     path: 'tables',
                     builder:
-                        (_, __) => const Center(
+                        (_, __) =>
+                    const Center(
                       child: Text(
                         'Mesas',
                         style: TextStyle(fontSize: 32),
@@ -365,35 +371,37 @@ class AppRouter {
                   GoRoute(
                     path: 'orders',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      child: BlocBuilder<
-                          StoresManagerCubit,
-                          StoresManagerState
-                      >(
-                        builder: (context, storesState) {
-                          if (storesState is StoresManagerLoaded) {
-                            return BlocProvider<OrderCubit>(
-                              create:
-                                  (context) => OrderCubit(
-                                realtimeRepository:
-                                getIt<RealtimeRepository>(),
-                                storesManagerCubit:
-                                context
-                                    .read<StoresManagerCubit>(),
-                                printManager: getIt<PrintManager>(),
-                              ),
-                              child: OrdersPage(),
-                            );
-                          }
+                        (_, state) =>
+                        NoTransitionPage(
+                          child: BlocBuilder<
+                              StoresManagerCubit,
+                              StoresManagerState
+                          >(
+                            builder: (context, storesState) {
+                              if (storesState is StoresManagerLoaded) {
+                                return BlocProvider<OrderCubit>(
+                                  create:
+                                      (context) =>
+                                      OrderCubit(
+                                        realtimeRepository:
+                                        getIt<RealtimeRepository>(),
+                                        storesManagerCubit:
+                                        context
+                                            .read<StoresManagerCubit>(),
+                                        printManager: getIt<PrintManager>(),
+                                      ),
+                                  child: OrdersPage(),
+                                );
+                              }
 
-                          return const Scaffold(
-                            body: Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                              return const Scaffold(
+                                body: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                     routes: [
                       GoRoute(
                         path: ':id',
@@ -440,12 +448,13 @@ class AppRouter {
                     path: 'products',
                     name: 'products',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: CategoryProductPage(
-                        storeId: state.storeId,
-                      ),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: CategoryProductPage(
+                            storeId: state.storeId,
+                          ),
+                        ),
 
                   ),
                 ],
@@ -504,10 +513,11 @@ class AppRouter {
                   GoRoute(
                     path: 'banners',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: BannersPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: BannersPage(storeId: state.storeId),
+                        ),
                     routes: [
                       // GoRoute(
                       //   path: 'new',
@@ -537,10 +547,11 @@ class AppRouter {
                   GoRoute(
                     path: 'payment-methods',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: PaymentMethodsPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: PaymentMethodsPage(storeId: state.storeId),
+                        ),
                     routes: [],
                   ),
                 ],
@@ -551,12 +562,13 @@ class AppRouter {
                   GoRoute(
                     path: 'platform-payment-methods',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: PlatformPaymentMethodsPage(
-                        storeId: state.storeId,
-                      ),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: PlatformPaymentMethodsPage(
+                            storeId: state.storeId,
+                          ),
+                        ),
                     routes: [],
                   ),
                 ],
@@ -566,10 +578,11 @@ class AppRouter {
                   GoRoute(
                     path: 'coupons',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: CouponsPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: CouponsPage(storeId: state.storeId),
+                        ),
                     routes: [
                       GoRoute(
                         path: 'new',
@@ -603,10 +616,11 @@ class AppRouter {
                   GoRoute(
                     path: 'totems',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: TotemsPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: TotemsPage(storeId: state.storeId),
+                        ),
                   ),
                 ],
               ),
@@ -616,10 +630,11 @@ class AppRouter {
                   GoRoute(
                     path: 'cash',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: CashPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: CashPage(storeId: state.storeId),
+                        ),
                   ),
                 ],
               ),
@@ -629,10 +644,11 @@ class AppRouter {
                   GoRoute(
                     path: 'accesses',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: AccessesPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: AccessesPage(storeId: state.storeId),
+                        ),
                   ),
                 ],
               ),
@@ -642,10 +658,11 @@ class AppRouter {
                   GoRoute(
                     path: 'chatbot',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: ChatBotConfigPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: ChatBotConfigPage(storeId: state.storeId),
+                        ),
                   ),
                 ],
               ),
@@ -656,10 +673,11 @@ class AppRouter {
                   GoRoute(
                     path: 'settings',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: StoreProfilePage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: StoreProfilePage(storeId: state.storeId),
+                        ),
                     routes: [
                       // === HORÁRIOS DE ATENDIMENTO ===
                       // Na sua configuração do GoRouter
@@ -715,24 +733,26 @@ class AppRouter {
                       GoRoute(
                         path: 'shipping',
                         pageBuilder:
-                            (_, state) => NoTransitionPage(
-                          key: UniqueKey(),
-                          child: OperationConfigurationPage(
-                            storeId: state.storeId,
-                          ),
-                        ),
+                            (_, state) =>
+                            NoTransitionPage(
+                              key: UniqueKey(),
+                              child: OperationConfigurationPage(
+                                storeId: state.storeId,
+                              ),
+                            ),
                       ),
 
                       // === LOCAIS DE ENTREGA ===
                       GoRoute(
                         path: 'locations',
                         pageBuilder:
-                            (_, state) => NoTransitionPage(
-                          key: UniqueKey(),
-                          child: CityNeighborhoodPage(
-                            storeId: state.storeId,
-                          ),
-                        ),
+                            (_, state) =>
+                            NoTransitionPage(
+                              key: UniqueKey(),
+                              child: CityNeighborhoodPage(
+                                storeId: state.storeId,
+                              ),
+                            ),
                       ),
                     ],
                   ),
@@ -745,12 +765,13 @@ class AppRouter {
                   GoRoute(
                     path: 'integrations',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: EditPaymentInfoSection(
-                        storeId: state.storeId,
-                      ),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: EditPaymentInfoSection(
+                            storeId: state.storeId,
+                          ),
+                        ),
                     routes: [
                       // === HORÁRIOS DE ATENDIMENTO ===
                       // GoRoute(
@@ -775,10 +796,11 @@ class AppRouter {
                   GoRoute(
                     path: 'more',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: MorePage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: MorePage(storeId: state.storeId),
+                        ),
                     // redirect:
                     //     (_, state) =>
                     //         RouteGuard.apply(state, [StoreOwnerGuard()]),
@@ -791,10 +813,11 @@ class AppRouter {
                   GoRoute(
                     path: 'reports',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: ReportsPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: ReportsPage(storeId: state.storeId),
+                        ),
                     // redirect:
                     //     (_, state) =>
                     //         RouteGuard.apply(state, [StoreOwnerGuard()]),
@@ -807,10 +830,11 @@ class AppRouter {
                   GoRoute(
                     path: 'inventory',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: InventoryPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: InventoryPage(storeId: state.storeId),
+                        ),
                     // redirect:
                     //     (_, state) =>
                     //         RouteGuard.apply(state, [StoreOwnerGuard()]),
@@ -823,10 +847,11 @@ class AppRouter {
                   GoRoute(
                     path: 'customers',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: CustomersPage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: CustomersPage(storeId: state.storeId),
+                        ),
                     // redirect:
                     //     (_, state) =>
                     //         RouteGuard.apply(state, [StoreOwnerGuard()]),
@@ -839,10 +864,11 @@ class AppRouter {
                   GoRoute(
                     path: 'payables',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: PayablePage(storeId: state.storeId),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: PayablePage(storeId: state.storeId),
+                        ),
                     // redirect:
                     //     (_, state) =>
                     //         RouteGuard.apply(state, [StoreOwnerGuard()]),
@@ -855,15 +881,16 @@ class AppRouter {
                   GoRoute(
                     path: 'plans',
                     pageBuilder:
-                        (_, state) => NoTransitionPage(
-                      key: UniqueKey(),
-                      child: EditSubscriptionPage(
-                        storeId:
-                        int.tryParse(
-                          state.pathParameters['storeId']!,
-                        )!,
-                      ),
-                    ),
+                        (_, state) =>
+                        NoTransitionPage(
+                          key: UniqueKey(),
+                          child: EditSubscriptionPage(
+                            storeId:
+                            int.tryParse(
+                              state.pathParameters['storeId']!,
+                            )!,
+                          ),
+                        ),
                     // redirect:
                     //     (_, state) =>
                     //         RouteGuard.apply(state, [StoreOwnerGuard()]),
@@ -949,29 +976,22 @@ class AppRouter {
           ),
 
 
-
           GoRoute(
             path: 'variants/:variantId',
-            name: 'variant-edit', // Nome que usamos na chamada da UI
+            name: 'variant-edit',
             pageBuilder: (context, state) {
-
-
+              // A lógica para pegar os dados continua a mesma
+              final storeId = int.parse(state.pathParameters['storeId']!);
               final variantId = int.parse(state.pathParameters['variantId']!);
               final storesManagerCubit = context.read<StoresManagerCubit>();
 
-              // Plano A: Tenta pegar o Variant do 'extra' para uma carga rápida.
               var variant = state.extra as Variant?;
-
-              // Plano B: Se o 'extra' for nulo (devido a um refresh, etc.),
-              // busca o Variant na nossa fonte da verdade: o StoresManagerCubit!
               variant ??= storesManagerCubit.getVariantById(variantId);
 
-              // --- Validação ---
-              // Se, mesmo após o Plano B, o Variant não for encontrado, mostra uma tela de erro.
               if (variant == null) {
                 return NoTransitionPage(
                   child: Scaffold(
-                    appBar: AppBar(title: Text("Erro")),
+                    appBar: AppBar(title: const Text("Erro")),
                     body: Center(
                       child: Text("Grupo de complemento com ID $variantId não encontrado!"),
                     ),
@@ -979,11 +999,15 @@ class AppRouter {
                 );
               }
 
-              // --- Construção da Página ---
-              // Se tudo deu certo, constrói a página com os dados corretos.
+              // ✅ A CORREÇÃO É AQUI:
+              // Em vez de chamar a tela diretamente, chamamos o Wrapper.
+              // O Wrapper vai criar o BlocProvider e o VariantEditCubit para a tela.
               return NoTransitionPage(
-                key: ValueKey('variant-${variant.id}'), // Chave para garantir a reconstrução
-                child: VariantEditScreen(variant: variant),
+                key: ValueKey('variant-${variant.id}'),
+                child: VariantEditScreenWrapper(
+                  storeId: storeId,
+                  variant: variant,
+                ),
               );
             },
           ),
@@ -1007,7 +1031,6 @@ class AppRouter {
               partialProduct ??= storesManagerCubit.getProductById(
                 productId,
               );
-
 
 
               // 1. Se, mesmo após o Plano B, o produto não for encontrado, mostra erro.
@@ -1074,9 +1097,10 @@ class AppRouter {
             path: 'categories/new', // CRIAÇÃO DE CATEGORIA
             name: 'category-new',
             builder:
-                (_, state) => CreateCategoryPage(
-              storeId: int.parse(state.pathParameters['storeId']!),
-            ),
+                (_, state) =>
+                CreateCategoryPage(
+                  storeId: int.parse(state.pathParameters['storeId']!),
+                ),
           ),
           GoRoute(
             path: 'categories/:categoryId',
@@ -1096,7 +1120,8 @@ class AppRouter {
                 category = state.extra as Category;
               } else if (state.extra is Map<String, dynamic>) {
                 // Caso 2: O tipo se perdeu e veio como um Map. Reconstruímos a partir do JSON.
-                category = Category.fromJson(state.extra as Map<String, dynamic>);
+                category =
+                    Category.fromJson(state.extra as Map<String, dynamic>);
               }
 
               // Passo 3: Plano B - se o 'extra' falhou ou era nulo, buscar no Cubit (continua igual)
@@ -1106,7 +1131,8 @@ class AppRouter {
               if (category == null) {
                 return Scaffold(
                   appBar: AppBar(title: const Text("Erro")),
-                  body: Center(child: Text("Categoria com ID $categoryId não encontrada!")),
+                  body: Center(child: Text(
+                      "Categoria com ID $categoryId não encontrada!")),
                 );
               }
 
@@ -1120,9 +1146,6 @@ class AppRouter {
 
         ],
       ),
-
-
-
 
 
     ],

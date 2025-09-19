@@ -1,18 +1,35 @@
-import 'package:equatable/equatable.dart'; // 1. (Opcional, mas recomendado) Adicione o pacote equatable no seu pubspec.yaml
-import 'package:image_picker/image_picker.dart';
 
-// 2. Faça a classe estender Equatable
+import 'package:image_picker/image_picker.dart';
+import 'package:equatable/equatable.dart';
+
+
 class ImageModel extends Equatable {
-  // 3. Adicione 'const' ao construtor
+  // ✅ ID da imagem que já existe no banco de dados.
+  // Será nulo para imagens novas, recém-selecionadas.
+  final int? id;
+
+  // URL da imagem vinda do servidor.
+  // Será nulo para imagens novas.
+  final String? url;
+
+  // Arquivo local da imagem (para novas imagens).
+  // Será nulo para imagens que já estão no servidor.
+  final XFile? file;
+
   const ImageModel({
+    this.id,
     this.url,
     this.file,
   });
 
-  final String? url;
-  final XFile? file;
+  // ✅ Construtor para criar a partir do JSON da API
+  factory ImageModel.fromJson(Map<String, dynamic> json) {
+    return ImageModel(
+      id: json['id'],
+      url: json['image_url'],
+    );
+  }
 
-  // 4. (Opcional) Implemente a props do Equatable
   @override
-  List<Object?> get props => [url, file];
+  List<Object?> get props => [id, url, file];
 }

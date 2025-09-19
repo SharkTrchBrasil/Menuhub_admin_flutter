@@ -10,7 +10,9 @@ import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 
 import '../core/enums/connectivity_status.dart';
+import '../core/utils/variant_helper.dart';
 import '../models/category.dart';
+import '../models/command.dart';
 import '../models/customer_analytics_data.dart';
 import '../models/dashboard_data.dart';
 import '../models/dashboard_insight.dart';
@@ -21,6 +23,7 @@ import '../models/product.dart';
 import '../models/product_analytics_data.dart';
 import '../models/store.dart';
 import '../models/store_relations.dart';
+import '../models/table.dart';
 import '../models/variant.dart';
 import '../repositories/payment_method_repository.dart';
 import '../repositories/product_repository.dart';
@@ -40,9 +43,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   StreamSubscription? _storeDetailsSubscription;
   StreamSubscription? _dashboardDataSubscription;
   StreamSubscription? _financialsSubscription;
-  StreamSubscription? _connectivitySubscription; // ✅ Nova inscrição
+  StreamSubscription? _connectivitySubscription;
   StreamSubscription? _fullMenuSubscription;
 
+
+  StreamSubscription? _tablesSubscription;
+  StreamSubscription? _commandsSubscription;
 
   StoresManagerCubit({
     required StoreRepository storeRepository,
@@ -121,6 +127,13 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _dashboardDataSubscription?.cancel();
     _financialsSubscription?.cancel();
     _fullMenuSubscription?.cancel();
+    // ✅ CANCELE AS NOVAS TAMBÉM
+    _tablesSubscription?.cancel();
+    _commandsSubscription?.cancel();
+
+
+
+
     // Cria um stream que emite o ID da loja ativa sempre que ele muda
     final activeStoreIdStream =
         stream
@@ -150,6 +163,17 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       return _realtimeRepository.listenToFullMenu(storeId);
     })
         .listen(_onFullMenuUpdated);
+
+
+
+    // ✅ ADICIONE OS LISTENERS PARA MESAS E COMANDAS
+    _tablesSubscription = activeStoreIdStream
+        .switchMap((storeId) => _realtimeRepository.listenToTables(storeId))
+        .listen(_onTablesUpdated);
+
+    _commandsSubscription = activeStoreIdStream
+        .switchMap((storeId) => _realtimeRepository.listenToCommands(storeId))
+        .listen(_onCommandsUpdated);
 
 
 
@@ -203,6 +227,23 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     log("✅ [CUBIT] Detalhes da loja atualizados via socket.");
   }
 
+
+
+  void _onTablesUpdated(List<Table> tables) {
+    _updateActiveStore((_, activeStore) {
+      final newRelations = activeStore.store.relations.copyWith(tables: tables);
+      return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
+    });
+    log("✅ [CUBIT] Estado das mesas atualizado via socket.");
+  }
+
+  void _onCommandsUpdated(List<Command> commands) {
+    _updateActiveStore((_, activeStore) {
+      final newRelations = activeStore.store.relations.copyWith(commands: commands);
+      return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
+    });
+    log("✅ [CUBIT] Estado das comandas atualizado via socket.");
+  }
 
 
 
@@ -592,7 +633,20 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     // Por exemplo, recarregar a lista de produtos.
   }
 
+  // O método que criamos antes agora também fica mais simples
+  String getPreviewForVariant(Variant variant) {
+    final currentState = state;
+    if (currentState is! StoresManagerLoaded) {
+      return 'Carregando...';
+    }
 
+    final allProducts = currentState.activeStore?.relations.products ?? [];
+
+    return getVariantLinkedProductsPreview(
+      variant: variant,
+      allProducts: allProducts, // Usa a lista de produtos do estado
+    );
+  }
 
   void _cancelSubscriptions() {
     _adminStoresListSubscription?.cancel();
@@ -601,7 +655,8 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _storeDetailsSubscription?.cancel();
     _dashboardDataSubscription?.cancel();
     _financialsSubscription?.cancel();
-
+    _tablesSubscription?.cancel();
+    _commandsSubscription?.cancel();
 
     _adminStoresListSubscription = null;
   }

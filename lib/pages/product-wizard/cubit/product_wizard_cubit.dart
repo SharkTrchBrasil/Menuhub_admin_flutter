@@ -28,11 +28,7 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
 
   ProductWizardCubit({required this.storeId}) : super(ProductWizardState.initial());
 
-  // ✅ 1. O MÉTODO startEditFlow(Category category) FOI REMOVIDO.
-  //    Ele pertencia ao CUBIT de Categorias.
 
-  // ✅ 2. O MÉTODO startEditFlow(Product product) FOI MANTIDO.
-  //    Ele é o correto para iniciar a edição de um PRODUTO.
   void startEditFlow(Product product) {
     emit(ProductWizardState(
       isEditMode: true,
@@ -41,7 +37,7 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
       categoryLinks: product.categoryLinks,
       variantLinks: product.variantLinks ?? [],
       productType: product.productType,
-      currentStep: 2, // Pula direto para a etapa de detalhes
+      currentStep: 2,
     ));
   }
 
@@ -58,6 +54,34 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
       searchStatus: SearchStatus.initial,
     ));
   }
+
+
+
+  // ✅ NOVO MÉTODO PARA LIDAR COM A REMOÇÃO DE IMAGENS
+  void removeImage(ImageModel imageToRemove) {
+    // Cria uma nova lista de imagens no produto em criação
+    final updatedImages = List<ImageModel>.from(state.productInCreation.images)
+      ..remove(imageToRemove);
+
+    // Cria uma nova lista de IDs a serem deletados
+    final updatedDeletedIds = List<int>.from(state.deletedImageIds);
+
+    // Se a imagem removida já existia no servidor (tinha um ID),
+    // adicionamos seu ID à lista de exclusão.
+    if (imageToRemove.id != null) {
+      updatedDeletedIds.add(imageToRemove.id!);
+    }
+
+    emit(state.copyWith(
+      productInCreation: state.productInCreation.copyWith(images: updatedImages),
+      deletedImageIds: updatedDeletedIds,
+    ));
+  }
+
+
+
+
+
 
   void nextStep() {
     final totalSteps = state.productType == ProductType.INDUSTRIALIZED ? 3 : 4;
@@ -98,11 +122,23 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
   }
 
   void selectCatalogProduct(CatalogProduct catalogProduct) {
+
+    // ✅ LÓGICA DE IMAGEM CORRIGIDA AQUI
+    List<ImageModel> initialImages = [];
+    if (catalogProduct.imagePath != null) {
+      // Se o produto do catálogo tem uma imagem, ela se torna a primeira (e única)
+      // imagem na nossa nova lista de imagens.
+      initialImages.add(ImageModel(url: catalogProduct.imagePath!.url));
+    }
+
+
+
+
     final newProduct = state.productInCreation.copyWith(
       name: catalogProduct.name,
       description: catalogProduct.description,
       ean: catalogProduct.ean,
-      image: catalogProduct.imagePath != null ? ImageModel(url: catalogProduct.imagePath!.url) : null,
+      images: initialImages,
       masterProductId: catalogProduct.id,
     );
     emit(state.copyWith(
@@ -313,7 +349,23 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
 
 
 
+  void onImagesChanged(List<ImageModel> newImageList) {
 
+    // Lógica para encontrar os deletados
+    final currentIds = newImageList.where((i) => i.id != null).map((i) => i.id!).toSet();
+    final originalIds = state.productInCreation.images.where((i) => i.id != null).map((i) => i.id!).toSet();
+    final deleted = originalIds.difference(currentIds).toList();
+
+
+    final updatedDeletedIds = List<int>.from(state.deletedImageIds);
+    updatedDeletedIds.addAll(deleted);
+
+
+    emit(state.copyWith(
+        productInCreation: state.productInCreation.copyWith(images: newImageList),
+        deletedImageIds: updatedDeletedIds.toSet().toList() // Evita duplicados
+    ));
+  }
 
 
 
@@ -331,26 +383,52 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
       variantLinks: state.variantLinks,
     );
 
+    // Para depuração:
+    print("🚀 [CUBIT] Salvando produto. Modo Edição: ${state.isEditMode}");
+    print("🖼️ [CUBIT] Imagens no estado: ${finalProduct.images.length}");
+    print("❌ [CUBIT] IDs de imagens para deletar: ${state.deletedImageIds}");
+
     final Future<Either<String, Product>> result;
     if (state.isEditMode) {
-      result = _productRepository.updateProduct(storeId, finalProduct);
+      result = _productRepository.updateProduct(
+        storeId,
+        finalProduct,
+        // ✅ PASSA A LISTA DE IDs PARA O REPOSITÓRIO
+        deletedImageIds: state.deletedImageIds,
+      );
     } else {
       result = _productRepository.createSimpleProduct(
         storeId,
         finalProduct,
-        image: state.productInCreation.image,
+        images: state.productInCreation.images,
       );
     }
 
-    result.fold(
+    (await result).fold(
           (error) => emit(state.copyWith(submissionStatus: FormStatus.error, errorMessage: error)),
-      // ✅ MELHORIA: Atualiza o estado com o produto final que veio do servidor
           (product) => emit(state.copyWith(
         submissionStatus: FormStatus.success,
         productInCreation: product,
       )),
     );
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   @override
   Future<void> close() {

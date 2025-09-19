@@ -145,7 +145,7 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
       stockQuantity: 0,
       controlStock: false,
     );
-    await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
+    await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct, deletedImageIds: []);
   }
 
   void _updateStock() async {
@@ -159,7 +159,7 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
           stockQuantity: parsedQuantity,
           controlStock: newControlStatus,
         );
-        await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct);
+        await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct, deletedImageIds: []);
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -470,7 +470,15 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
     );
   }
 
+// Em product_list_item_desktop.dart
+
   Widget _buildDefaultImage(bool isAvailable) {
+    // ✅ LÓGICA CORRIGIDA AQUI
+    // 1. Verifica se a lista de imagens não está vazia e pega a URL da primeira imagem.
+    final coverImageUrl = (widget.product.images.isNotEmpty)
+        ? widget.product.images.first.url
+        : null;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(8.0),
       child: ColorFiltered(
@@ -478,9 +486,10 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
             isAvailable ? Colors.transparent : Colors.grey,
             BlendMode.saturation,
           ),
-          child: widget.product.image?.url != null
+          // 2. Usa a nova variável 'coverImageUrl' para decidir o que mostrar.
+          child: coverImageUrl != null
               ? CachedNetworkImage(
-            imageUrl: widget.product.image!.url!,
+            imageUrl: coverImageUrl, // Usa a URL da capa
             width: 60,
             height: 68,
             fit: BoxFit.cover,

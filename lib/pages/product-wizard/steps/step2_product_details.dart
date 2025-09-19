@@ -10,12 +10,10 @@ import 'package:totem_pro_admin/widgets/mobile_mockup.dart'; // Importe seu mock
 import 'package:flutter/services.dart';
 
 import '../../../../core/enums/product_type.dart';
-import '../../../../models/image_model.dart';
-import '../../../../widgets/app_image_form_field.dart';
 
-import '../../product_edit/widgets/product_attributes_section.dart';
+
 import '../../product_edit/widgets/product_details_form.dart';
-import '../../product_edit/widgets/stock_management_card.dart';
+
 import '../cubit/product_wizard_cubit.dart';
 import '../cubit/product_wizard_state.dart';
 
@@ -199,20 +197,39 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
   // O seu método _buildProductFormFields agora fica assim:
   Widget _buildProductFormFields(BuildContext context, ProductWizardState state) {
     final cubit = context.read<ProductWizardCubit>();
+    final product = state.productInCreation;
 
-    return ProductDetailsForm(
-      product: state.productInCreation,
-      isImported: state.isImported,
-      onNameChanged: (name) => cubit.updateProduct(state.productInCreation.copyWith(name: name)),
-      onDescriptionChanged: (desc) => cubit.updateProduct(state.productInCreation.copyWith(description: desc)),
-      onImageChanged: (image) => cubit.updateProduct(state.productInCreation.copyWith(image: image)),
-      onControlStockToggled: cubit.controlStockToggled,
-      onStockQuantityChanged: cubit.stockQuantityChanged,
-      onServesUpToChanged: cubit.servesUpToChanged,
-      onWeightChanged: cubit.weightChanged,
-      onUnitChanged: cubit.unitChanged,
-      onDietaryTagToggled: cubit.toggleDietaryTag,
-      onBeverageTagToggled: cubit.toggleBeverageTag,
+    return Column(
+       // padding: EdgeInsets.zero,
+      children: [
+        // ✅ A CHAMADA PARA O FORMULÁRIO AGORA É MAIS LIMPA
+        ProductDetailsForm(
+          product: product,
+          isImported: state.isImported,
+          onNameChanged: (name) => cubit.updateProduct(product.copyWith(name: name)),
+          onDescriptionChanged: (desc) => cubit.updateProduct(product.copyWith(description: desc)),
+          onControlStockToggled: cubit.controlStockToggled,
+          onStockQuantityChanged: cubit.stockQuantityChanged,
+          onServesUpToChanged: cubit.servesUpToChanged,
+          onWeightChanged: cubit.weightChanged,
+          onUnitChanged: cubit.unitChanged,
+          onDietaryTagToggled: cubit.toggleDietaryTag,
+          onBeverageTagToggled: cubit.toggleBeverageTag,
+          videoUrl: product.videoUrl,
+          onVideoUrlChanged: (url) => cubit.updateProduct(product.copyWith(videoUrl: url)),
+
+          // Passa a lista e o callback unificados
+          images: product.images,
+          onImagesChanged: (newImages) => cubit.updateProduct(product.copyWith(images: newImages)),
+
+        ),
+
+
+
+      ],
     );
+
+
+
   }
 }
