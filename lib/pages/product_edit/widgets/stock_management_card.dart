@@ -50,7 +50,7 @@ class _StockManagementCardState extends State<StockManagementCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+   //   padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -84,7 +84,7 @@ class _StockManagementCardState extends State<StockManagementCard> {
           ElevatedButton(
             onPressed: () => widget.onToggleControl(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEB0033),
+              backgroundColor: Theme.of(context).primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: RoundedRectangleBorder(

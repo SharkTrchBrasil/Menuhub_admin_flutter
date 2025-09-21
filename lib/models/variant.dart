@@ -1,17 +1,27 @@
 import 'package:totem_pro_admin/models/product_variant_link.dart';
 import 'package:totem_pro_admin/models/variant_option.dart';
-
+import 'package:equatable/equatable.dart';
 import '../core/enums/variant_type.dart';
 
-class Variant {
+
+class Variant extends Equatable {
   final int? id;
   final String name;
   final VariantType type;
   final List<VariantOption> options;
   final List<ProductVariantLink>? productLinks;
-  final bool available; // ✅ 1. PROPRIEDADE ADICIONADA
-
+  final bool available;
   final List<ProductVariantLink>? linkedProductsRules;
+
+  // ✅ 3. ADICIONE O CONSTRUTOR EMPTY
+  const Variant.empty()
+      : id = 0, // ou null, dependendo da sua lógica de "novo item"
+        name = '',
+        type = VariantType.INGREDIENTS, // Um padrão seguro
+        options = const [],
+        productLinks = const [],
+        available = true,
+        linkedProductsRules = null;
 
   const Variant({
     this.id,
@@ -19,17 +29,18 @@ class Variant {
     required this.type,
     required this.options,
     this.productLinks,
-    this.available = true, // ✅ 2. PARÂMETRO ADICIONADO COM VALOR PADRÃO
+    this.available = true,
     this.linkedProductsRules,
   });
 
+  // O método copyWith continua o mesmo
   Variant copyWith({
     int? id,
     String? name,
     VariantType? type,
     List<VariantOption>? options,
     List<ProductVariantLink>? productLinks,
-    bool? available, // ✅ 3. ATUALIZADO
+    bool? available,
     List<ProductVariantLink>? linkedProductsRules,
   }) {
     return Variant(
@@ -38,10 +49,12 @@ class Variant {
       type: type ?? this.type,
       options: options ?? this.options,
       productLinks: productLinks ?? this.productLinks,
-      available: available ?? this.available, // ✅ 3. ATUALIZADO
-      linkedProductsRules: linkedProductsRules ?? this.linkedProductsRules, // ✅ Adicionado
+      available: available ?? this.available,
+      linkedProductsRules: linkedProductsRules ?? this.linkedProductsRules,
     );
   }
+
+
 
   factory Variant.fromJson(Map<String, dynamic> json) {
     VariantType typeFromString(String? typeStr) {
@@ -164,7 +177,16 @@ class Variant {
 
 
 
-
+  @override
+  List<Object?> get props => [
+    id,
+    name,
+    type,
+    options,
+    productLinks,
+    available,
+    linkedProductsRules,
+  ];
 
 
 }

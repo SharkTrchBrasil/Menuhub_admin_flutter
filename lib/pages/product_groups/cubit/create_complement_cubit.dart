@@ -385,8 +385,6 @@ class CreateComplementGroupCubit extends Cubit<CreateComplementGroupState> {
 
   
 
-
-  // ✅ NOVO MÉTODO PARA ATUALIZAR UMA OPÇÃO EXISTENTE
   void updateComplementOption(int index, VariantOption updatedOption) {
     // Pega a lista atual de complementos do estado
     final currentComplements = List<VariantOption>.from(state.complements);

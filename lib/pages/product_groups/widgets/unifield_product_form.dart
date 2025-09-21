@@ -55,11 +55,10 @@ class UnifiedProductForm extends StatelessWidget {
 
         // --- Imagem (apenas para preparado) ---
         if (isPrepared)
-          AppProductImageFormField(
-            title: 'Imagem',
+          AppImageFormField(
+            title: "Imagem do Complemento",
             initialValue: state.image,
             onChanged: cubit.imageChanged,
-            validator: (ImageModel) {  },
           ),
 
         if (isPrepared) const SizedBox(height: 16),

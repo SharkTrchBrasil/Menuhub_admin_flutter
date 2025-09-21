@@ -12,7 +12,7 @@ import '../core/enums/foodtags.dart';
 import '../core/enums/product_status.dart';
 import '../core/enums/product_type.dart';
 import '../widgets/app_selection_form_field.dart';
-import 'category.dart';
+
 import 'kit_component.dart';
 
 import 'package:equatable/equatable.dart';
@@ -56,13 +56,15 @@ class Product extends Equatable implements SelectableItem {
   final List<KitComponent>? components;
   final List<ProductRating>? productRatings;
   final String? fileKey;
-  // ✅ 1. ADICIONE ESTES DOIS NOVOS CAMPOS
+
   final String? videoUrl;
 
-  // ✅ ADICIONE APENAS ESTE
+
   final List<ImageModel> images;
 
- const Product({
+  final ImageModel? videoFile;
+
+  const Product({
     this.id,
     this.name = '',
     this.description,
@@ -101,12 +103,14 @@ class Product extends Equatable implements SelectableItem {
     this.fileKey,
    this.videoUrl,
    this.images = const [],
+    this.videoFile,
 
 
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
 
+    final String? videoUrl = json['video_url'];
 
     return Product(
       id: json['id'],
@@ -136,8 +140,7 @@ class Product extends Equatable implements SelectableItem {
       primaryCategoryId: json['primary_category_id'],
       hasMultiplePrices: json['has_multiple_prices'] ?? false,
 
-// ✅ CORREÇÃO CRÍTICA AQUI:
-      // O backend envia 'gallery_images', vamos mapeá-la para a nossa lista de ImageModel.
+
       images: (json['gallery_images'] as List<dynamic>? ?? [])
           .map((imgJson) => ImageModel.fromJson(imgJson))
           .toList(),
@@ -174,6 +177,12 @@ class Product extends Equatable implements SelectableItem {
           .whereType<BeverageTag>() // Filtra nulos
           .toSet(),
 
+      videoUrl: videoUrl,
+
+
+      videoFile: videoUrl != null ? ImageModel(url: videoUrl, isVideo: true) : null,
+
+
 
 
     );
@@ -184,7 +193,6 @@ class Product extends Equatable implements SelectableItem {
     String? name,
     String? description,
     ProductStatus? status,
-
     String? ean,
     int? stockQuantity,
     bool? controlStock,
@@ -217,18 +225,15 @@ class Product extends Equatable implements SelectableItem {
     List<ProductRating>? productRatings,
     String? fileKey,
     String? videoUrl,
-
-    // ✅ ADICIONE ESTE
     List<ImageModel>? images,
-
-
+    ImageModel? videoFile,
+    bool? removeVideo, // Usamos um flag para a intenção de remover
   }) {
     return Product(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
       status: status ?? this.status,
-
       ean: ean ?? this.ean,
       stockQuantity: stockQuantity ?? this.stockQuantity,
       controlStock: controlStock ?? this.controlStock,
@@ -260,10 +265,16 @@ class Product extends Equatable implements SelectableItem {
       components: components ?? this.components,
       productRatings: productRatings ?? this.productRatings,
       fileKey: fileKey ?? this.fileKey,
-      videoUrl: videoUrl ?? this.videoUrl,
       images: images ?? this.images,
+
+      // ✅ LÓGICA CORRIGIDA E FINAL
+      videoUrl: removeVideo == true ? null : videoUrl ?? this.videoUrl,
+      videoFile: removeVideo == true ? null : videoFile ?? this.videoFile,
     );
   }
+
+
+
 
 // ✅ toJson para o wizard de PRODUTOS SIMPLES, completo e corrigido
   Map<String, dynamic> toSimpleProductJson() {
@@ -283,6 +294,7 @@ class Product extends Equatable implements SelectableItem {
       'beverage_tags': beverageTags.map((tag) => beverageTagNames[tag]!).toList(),
       'category_links': categoryLinks.map((link) => link.toJson()).toList(),
       'variant_links': (variantLinks ?? []).map((link) => link.toJson()).toList(),
+      'video_url': videoUrl, // ✅ LINHA ADICIONADA AQUI
 
     };
   }
@@ -302,6 +314,7 @@ class Product extends Equatable implements SelectableItem {
       'beverage_tags': beverageTags.map((tag) => tag.name).toList(),
       'parent_category_id': parentCategoryId,
       'prices': prices.map((p) => p.toJson()).toList(),
+      'video_url': videoUrl, // ✅ LINHA ADICIONADA AQUI
     };
   }
 
@@ -328,7 +341,7 @@ class Product extends Equatable implements SelectableItem {
       'name': name,
       'description': description,
       'ean': ean,
-      'video_url': videoUrl, // ✅ Adicionado para garantir a atualização do vídeo
+      'video_url': videoUrl,
 
       // --- Opções ---
       'status': status.name,
@@ -445,6 +458,7 @@ class Product extends Equatable implements SelectableItem {
     fileKey,
     videoUrl,
     images,
+    videoFile
   ];
 
   @override

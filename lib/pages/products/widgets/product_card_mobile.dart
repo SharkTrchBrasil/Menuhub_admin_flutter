@@ -465,12 +465,14 @@ class _InfoItem extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: valueStyle,
-          textAlign: TextAlign.center,
-          maxLines: 2, // ✅ Permite 2 linhas para os nomes das categorias
-          overflow: TextOverflow.ellipsis,
+        Flexible(
+          child: Text(
+            value,
+            style: valueStyle,
+            textAlign: TextAlign.center,
+            maxLines: 2, // ✅ Permite 2 linhas para os nomes das categorias
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );

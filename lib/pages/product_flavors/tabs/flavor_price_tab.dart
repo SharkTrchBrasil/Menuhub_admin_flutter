@@ -1,55 +1,54 @@
+import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/product.dart';
 import 'package:totem_pro_admin/models/prodcut_category_links.dart';
-
 import '../../../core/enums/option_group_type.dart';
 import '../../../models/flavor_price.dart';
 import '../../../models/option_group.dart';
+import '../../product_groups/widgets/editable_complement_card.dart';
+import '../cubit/flavor_wizard_cubit.dart';
 
 class FlavorPriceTab extends StatelessWidget {
-  final Product product;
-  final Category parentCategory;
-  final ValueChanged<Product> onUpdate;
 
-  const FlavorPriceTab({super.key, required this.product, required this.parentCategory, required this.onUpdate});
+
+  const FlavorPriceTab({
+    super.key,
+
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Dentro de FlavorPriceTab -> build()
-    final sizeGroup = parentCategory.optionGroups.firstWhere(
-          (g) => g.groupType == OptionGroupType.size, // ✅ CORREÇÃO: Procuramos pelo TIPO, não pelo NOME.
-      orElse: () => const OptionGroup(name: 'Tamanho', items: [], minSelection: 0, maxSelection: 0),
-    );
-    return ListView.separated(
-      padding: const EdgeInsets.all(24),
-      itemCount: sizeGroup.items.length,
-      separatorBuilder: (_, __) => const Divider(height: 32),
-      itemBuilder: (context, index) {
-        // Dentro do itemBuilder do ListView
-        final sizeOption = sizeGroup.items[index];
+    // ✅ O WIDGET AGORA LÊ DIRETAMENTE DO CUBIT
+    return BlocBuilder<FlavorWizardCubit, FlavorWizardState>(
+      buildWhen: (p, c) => p.product.prices != c.product.prices || p.parentCategory != c.parentCategory,
+      builder: (context, state) {
+        final cubit = context.read<FlavorWizardCubit>();
 
-
-        // ✅ LÓGICA CORRIGIDA: Encontra o FlavorPrice correspondente ao tamanho
-        final flavorPrice = product.prices.firstWhere(
-              (p) => p.sizeOptionId == sizeOption.id,
-          // Fallback para o caso de algo dar errado (não deve acontecer com a lógica do Cubit)
-          orElse: () => FlavorPrice(sizeOptionId: sizeOption.id!, price: 0),
+        final sizeGroup = state.parentCategory.optionGroups.firstWhere(
+              (g) => g.groupType == OptionGroupType.size,
+          orElse: () => const OptionGroup(name: 'Tamanho', items: []),
         );
 
+        return ListView.separated(
+          padding: const EdgeInsets.all(16.0),
+          itemCount: sizeGroup.items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 16),
+          itemBuilder: (context, index) {
+            final sizeOption = sizeGroup.items[index];
+            final flavorPrice = state.product.prices.firstWhere(
+                  (p) => p.sizeOptionId == sizeOption.id,
+              orElse: () => FlavorPrice(sizeOptionId: sizeOption.id!, price: 0),
+            );
 
-
-
-
-        return _PriceRow(
-          sizeName: sizeOption.name,
-          flavorPrice: flavorPrice,
-          // O onUpdate agora passa o FlavorPrice atualizado
-          onUpdate: (updatedPrice) {
-            final updatedPrices = product.prices.map(
-                    (p) => p.sizeOptionId == updatedPrice.sizeOptionId ? updatedPrice : p
-            ).toList();
-            onUpdate(product.copyWith(prices: updatedPrices));
+            return _PriceCard(
+              sizeName: sizeOption.name,
+              flavorPrice: flavorPrice,
+              // ✅ O onUpdate AGORA CHAMA O MÉTODO ESPECÍFICO DO CUBIT
+              onUpdate: cubit.updateFlavorPrice,
+            );
           },
         );
       },
@@ -57,48 +56,192 @@ class FlavorPriceTab extends StatelessWidget {
   }
 }
 
-// Widget auxiliar para cada linha de preço
-class _PriceRow extends StatelessWidget {
+class _PriceCard extends StatefulWidget {
   final String sizeName;
   final FlavorPrice flavorPrice;
   final ValueChanged<FlavorPrice> onUpdate;
 
-  const _PriceRow({required this.sizeName, required this.flavorPrice, required this.onUpdate});
+  const _PriceCard({
+    required this.sizeName,
+    required this.flavorPrice,
+    required this.onUpdate,
+  });
+
+  @override
+  State<_PriceCard> createState() => _PriceCardState();
+}
+
+class _PriceCardState extends State<_PriceCard> {
+  late TextEditingController _priceController;
+  late TextEditingController _posCodeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _priceController = TextEditingController(
+      text: (widget.flavorPrice.price / 100).toStringAsFixed(2),
+    );
+    _posCodeController = TextEditingController(
+      text: widget.flavorPrice.posCode ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    _posCodeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colorScheme.outline.withOpacity(0.2), width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(sizeName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const Spacer(),
-            SizedBox(
-              width: 120,
-              child: TextFormField(
-                initialValue: (flavorPrice.price / 100).toStringAsFixed(2),
-                decoration: const InputDecoration(labelText: 'Preço', prefixText: 'R\$ '),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) {
-                  final doubleValue = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
-                  onUpdate(flavorPrice.copyWith(price: (doubleValue * 100).round()));
-                },
-              ),
+            // Header da linha
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.sizeName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                // Switch de disponibilidade
+                Row(
+                  children: [
+                    Text(
+                      widget.flavorPrice.isAvailable
+                          ? 'Disponível'
+                          : 'Indisponível',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color:
+                            widget.flavorPrice.isAvailable
+                                ? Colors.green
+                                : Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: widget.flavorPrice.isAvailable,
+                      onChanged: (value) {
+                        widget.onUpdate(
+                          widget.flavorPrice.copyWith(isAvailable: value),
+                        );
+                      },
+
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            // TODO: Adicionar o Switch de status aqui
-            Switch(value: flavorPrice.isAvailable, onChanged: (val){
-              onUpdate(flavorPrice.copyWith(isAvailable: val));
-            }),
+
+            const SizedBox(height: 16),
+
+            // Campos de entrada
+            Row(
+              children: [
+                // Campo de preço
+                Expanded(
+                  flex: 1,
+                  child: TextFormField(
+                    controller: _priceController,
+                    decoration: InputDecoration(
+                      labelText: 'Preço',
+
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      CentavosInputFormatter(),
+                    ],
+                    onChanged: (value) {
+                      // ✅ CORREÇÃO APLICADA AQUI
+                      // Se o campo estiver vazio, considera o preço como 0.
+                      final priceInCents =
+                          value.isEmpty
+                              ? 0
+                              : (UtilBrasilFields.converterMoedaParaDouble(
+                                        value,
+                                      ) *
+                                      100)
+                                  .toInt();
+
+                      widget.onUpdate(
+                        widget.flavorPrice.copyWith(price: priceInCents),
+                      );
+                    },
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Campo de código PDV
+                Expanded(
+                  flex: 1,
+                  child: TextFormField(
+                    controller: _posCodeController,
+                    decoration: InputDecoration(
+                      labelText: 'Cód. PDV',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
+                    onChanged:
+                        (value) => widget.onUpdate(
+                          widget.flavorPrice.copyWith(posCode: value),
+                        ),
+                  ),
+                ),
+              ],
+            ),
+
+            // Indicador visual de status
+            if (!widget.flavorPrice.isAvailable)
+              Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Este tamanho não está disponível para venda',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
-        const SizedBox(height: 8),
-        TextFormField(
-          initialValue: flavorPrice.posCode,
-          decoration: const InputDecoration(labelText: 'Cód. PDV'),
-          onChanged: (value) => onUpdate(flavorPrice.copyWith(posCode: value)),
-        ),
-      ],
+      ),
     );
   }
 }

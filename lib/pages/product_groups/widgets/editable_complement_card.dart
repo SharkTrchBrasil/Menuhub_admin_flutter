@@ -76,6 +76,11 @@ class _EditableComplementCardState extends State<EditableComplementCard> {
 
   @override
   Widget build(BuildContext context) {
+
+    // Pega a referência do cubit que gerencia a lista de complementos
+    final listManagerCubit = context.read<CreateComplementGroupCubit>();
+
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
@@ -91,29 +96,33 @@ class _EditableComplementCardState extends State<EditableComplementCard> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Container da imagem (98x78px como no layout)
-              Container(
-                width: 98,
+
+              // ✅ --- INÍCIO DA INTEGRAÇÃO CORRIGIDA --- ✅
+
+              // 1. Usamos o AppImageFormField diretamente aqui
+              SizedBox(
+                width: 98, // Define um tamanho fixo para o seletor
                 height: 78,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: widget.complement.image != null
-                    ? ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Image.network(
-                    widget.complement.image?.url ?? "",
-                    fit: BoxFit.cover,
-                  ),
-                )
-                    : IconButton(
-                  icon: const Icon(Icons.camera_alt, color: Color(0xFF666666)),
-                  onPressed: () {
-                    // Lógica para alterar imagem
+                child: AppImageFormField(
+                  // 2. Removemos o título para um visual mais limpo
+                  title: "",
+                  initialValue: widget.complement.image,
+                  // 3. O onChanged agora atualiza o complemento na lista
+                  onChanged: (newImage) {
+                    final updatedComplement = widget.complement.copyWith(
+                      image: newImage ?? const ImageModel(),
+                    );
+                    // 4. Chama o método do cubit da lista para atualizar este item específico
+                    listManagerCubit.updateComplementOption(
+                      widget.index,
+                      updatedComplement,
+                    );
                   },
                 ),
               ),
+
+              // ✅ --- FIM DA INTEGRAÇÃO CORRIGIDA --- ✅
+
               const SizedBox(width: 16),
 
               // Nome do produto
@@ -239,25 +248,3 @@ class _EditableComplementCardState extends State<EditableComplementCard> {
   }
 }
 
-class CentavosInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    if (newValue.text.isEmpty) {
-      return newValue.copyWith(text: '');
-    }
-
-    final numericValue = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-
-    if (numericValue.isNotEmpty) {
-      final value = int.parse(numericValue);
-      final formattedValue = UtilBrasilFields.obterReal(value / 100);
-      return TextEditingValue(
-        text: formattedValue,
-        selection: TextSelection.collapsed(offset: formattedValue.length),
-      );
-    }
-
-    return newValue;
-  }
-}

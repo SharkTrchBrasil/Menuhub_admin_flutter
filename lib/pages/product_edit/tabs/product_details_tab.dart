@@ -15,6 +15,7 @@ class ProductDetailsTab extends StatelessWidget {
         // A aba agora só precisa construir o formulário e conectar os fios
         return Padding(
           padding: const EdgeInsets.all(14.0),
+
           child: ProductDetailsForm(
             product: state.editedProduct,
             isImported: state.editedProduct.masterProductId != null,
@@ -32,11 +33,14 @@ class ProductDetailsTab extends StatelessWidget {
 
             // Callback para o vídeo
             videoUrl: product.videoUrl,
-            onVideoUrlChanged: cubit.videoUrlChanged, // Conecta ao novo método
+            onVideoUrlChanged: cubit.videoUrlChanged,
 
-            // ✅ PARÂMETROS DA GALERIA UNIFICADA, IGUAL AO WIZARD
+            videoFile: product.videoFile,
+
+
             images: product.images,
-            onImagesChanged: cubit.imagesChanged, // Conecta ao novo método
+            onImagesChanged: cubit.imagesChanged,
+            onVideoChanged: cubit.videoChanged,
 
           ),
         );

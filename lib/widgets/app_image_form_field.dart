@@ -1,331 +1,241 @@
-
-
+// lib/widgets/app_image_form_field.dart
 
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/widgets/app_crop_dialog.dart';
 
+class AppImageFormField extends StatefulWidget {
+  final String title;
+  final ImageModel? initialValue;
+  final ValueChanged<ImageModel?> onChanged;
 
-
-class AppProductImageFormField extends StatelessWidget {
-  const AppProductImageFormField({
+  const AppImageFormField({
     super.key,
     required this.title,
     this.initialValue,
     required this.onChanged,
-    this.validator,
-    this.enabled = true,
   });
 
-  final String title;
-  final ImageModel? initialValue;
-  final String? Function(ImageModel?)? validator;
-  final Function(ImageModel?) onChanged;
-  final bool enabled;
+  @override
+  State<AppImageFormField> createState() => _AppImageFormFieldState();
+}
 
-  // ✅ Lógica de seleção de imagem extraída para uma função reutilizável
-  Future<void> _pickAndCropImage(BuildContext context, FormFieldState<ImageModel> state) async {
-    const double idealProductImageSize = 1200.0;
+class _AppImageFormFieldState extends State<AppImageFormField> {
+  ImageModel? _currentImage;
 
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: idealProductImageSize,
-      maxHeight: idealProductImageSize,
-      imageQuality: 85,
-    );
-    if (picked == null || !context.mounted) return;
+  @override
+  void initState() {
+    super.initState();
+    _currentImage = widget.initialValue;
+  }
 
-    final cropResult = await showDialog<Uint8List>(
-      context: context,
-      builder: (_) => AppCropDialog(image: picked, aspectRatio: 1.0),
-    );
+  Future<void> _pickAndCropImage() async {
+    try {
+      final picked = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1200,
+          imageQuality: 85
+      );
+      if (picked == null || !mounted) return;
 
-    if (cropResult == null) return;
+      final cropResult = await showDialog<Uint8List>(
+        context: context,
+        builder: (_) => AppCropDialog(image: picked, aspectRatio: 1.0),
+      );
+      if (cropResult == null) return;
 
-    ImageModel model;
-    if (kIsWeb) {
-      model = ImageModel(file: XFile.fromData(cropResult, name: picked.name));
-    } else {
-      final tempFile = await _saveTempFile(cropResult, 'product_image_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      if (tempFile == null) return;
-      model = ImageModel(file: tempFile);
+      final tempFile = XFile.fromData(
+        cropResult,
+        name: 'cropped_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        mimeType: 'image/jpeg',
+      );
+
+      final newImage = ImageModel(file: tempFile);
+      setState(() => _currentImage = newImage);
+      widget.onChanged(newImage);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao selecionar imagem: ${e.toString()}')),
+        );
+      }
     }
+  }
 
-    // Atualiza o estado do formulário e chama o callback
-    state.didChange(model);
-    onChanged(model);
+  void _removeImage() {
+    setState(() => _currentImage = null);
+    widget.onChanged(null);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FormField<ImageModel>(
-      initialValue: initialValue,
-      validator: validator,
-      builder: (state) {
-        final double displaySize = MediaQuery.of(context).size.width.clamp(200.0, 300.0);
-
-        return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 8),
-
-        // ✅ LÓGICA CORRIGIDA:
-        // Verifica se há uma imagem (seja URL ou arquivo local)
-        if (state.value?.file != null || (state.value?.url != null && state.value!.url!.isNotEmpty))
-        // Se tiver, mostra a pré-visualização horizontal
-        _buildImagePreviewHorizontal(context, state)
-        else
-        // Se não tiver, mostra o seletor horizontal
-        _buildImagePickerHorizontal(context, state),
-
-        if (state.hasError)
-        Padding(
-        padding: const EdgeInsets.only(left: 12, top: 6),
-        child: Text(
-        state.errorText!,
-        style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+        SizedBox(
+          width: 100,
+          height: 100,
+          child: _currentImage == null ||
+              (_currentImage!.file == null &&
+                  (_currentImage!.url == null || _currentImage!.url!.isEmpty))
+              ? _buildAddButton()
+              : _buildImageThumbnail(),
         ),
-        ),
-        ]);
-      },
+      ],
     );
   }
 
-  // --- Widgets de Construção ---
-  /// ✅ WIDGET ATUALIZADO para o placeholder HORIZONTAL
-  Widget _buildImagePickerHorizontal(BuildContext context, FormFieldState<ImageModel> state) {
-    const double imagePreviewSize = 80.0;
-
-    return InkWell(
-      onTap: enabled ? () => _pickAndCropImage(context, state) : null,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 1. Placeholder da imagem à esquerda
-            Container(
-              width: imagePreviewSize,
-              height: imagePreviewSize,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.add_a_photo_outlined, size: 40, color: Colors.grey[600]),
-            ),
-            const SizedBox(width: 16),
-
-            // 2. Textos de instrução à direita
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Adicionar Imagem',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[800]),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Recomendado: 1200x1200px',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ],
+  Widget _buildAddButton() {
+    const double size = 100.0;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: InkWell(
+        onTap: _pickAndCropImage,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+          ),
+          child: const Icon(Icons.add_a_photo_outlined, size: 40, color: Colors.grey),
         ),
       ),
     );
   }
-  Widget _buildImagePreviewHorizontal(BuildContext context, FormFieldState<ImageModel> state) {
-    final imageModel = state.value!;
-    const double imagePreviewSize = 80.0;
 
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300)
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+  Widget _buildImageThumbnail() {
+    const double size = 100.0;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          // 1. Imagem à esquerda - ADDED CONSTRAINTS
-          SizedBox(
-            width: imagePreviewSize,
-            height: imagePreviewSize,
+          Positioned.fill(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: _buildImage(imageModel),
+              child: _buildImageWidget(_currentImage!),
             ),
           ),
-          const SizedBox(width: 16),
-
-          // 2. Spacer para empurrar os botões para a direita
-          const Spacer(),
-
-          if(enabled)
-            IconButton(
-              icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
-              tooltip: 'Alterar foto',
-              onPressed: enabled ? () => _pickAndCropImage(context, state) : null,
+          Positioned(
+            top: 4,
+            right: 4,
+            child: InkWell(
+              onTap: _removeImage,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                child: const Icon(Icons.close, color: Colors.white, size: 16),
+              ),
             ),
-
-          if(enabled)
-            IconButton(
-              icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
-              tooltip: 'Remover foto',
-              onPressed: enabled ? () {
-                state.didChange(null);
-                onChanged(null);
-              } : null,
-            ),
+          ),
         ],
       ),
     );
   }
 
-
-
-
-
-  Future<XFile?> _saveTempFile(Uint8List data, String filename) async {
-    if (kIsWeb) return null;
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$filename');
-    await file.writeAsBytes(data);
-    return XFile(file.path);
-  }
-
-
-  Widget _buildImage(ImageModel model) {
-    // Remove the const double displaySize = 80.0; from here since we're controlling size from parent
-
-    if (model.file != null) {
+  Widget _buildImageWidget(ImageModel image) {
+    // ✅ CORREÇÃO PRINCIPAL: Verificar se o XFile contém dados em memória
+    if (image.file != null) {
+      // Se for web, usar Image.network com dados base64
       if (kIsWeb) {
         return FutureBuilder<Uint8List>(
-          future: model.file!.readAsBytes(),
+          future: image.file!.readAsBytes(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+            if (snapshot.hasData) {
               return Image.memory(
                 snapshot.data!,
-                fit: BoxFit.cover, // Added fit to cover the available space
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
               );
-            } else if (snapshot.hasError) {
-              return _buildErrorWidget();
             }
-            return _buildLoadingWidget();
+            return _buildLoadingPlaceholder();
           },
         );
       } else {
-        return Image.file(
-          File(model.file!.path),
-          fit: BoxFit.cover, // Added fit to cover the available space
-        );
+        // Para mobile/desktop, verificar se é um arquivo temporário em memória
+        try {
+          // Tenta ler como arquivo primeiro
+          if (File(image.file!.path).existsSync()) {
+            return Image.file(
+              File(image.file!.path),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
+            );
+          } else {
+            // Se o caminho não existe, pode ser um arquivo em memória
+            return FutureBuilder<Uint8List>(
+              future: image.file!.readAsBytes(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Image.memory(
+                    snapshot.data!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
+                  );
+                }
+                return _buildLoadingPlaceholder();
+              },
+            );
+          }
+        } catch (e) {
+          // Fallback: tentar ler como bytes
+          return FutureBuilder<Uint8List>(
+            future: image.file!.readAsBytes(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return Image.memory(
+                  snapshot.data!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
+                );
+              }
+              return _buildLoadingPlaceholder();
+            },
+          );
+        }
       }
-    } else if (model.url != null && model.url!.isNotEmpty &&
-        Uri.tryParse(model.url!)?.hasAbsolutePath == true) {
+    }
+
+    // 2. Se não houver arquivo local, tenta a URL da internet
+    if (image.url != null && image.url!.isNotEmpty) {
       return Image.network(
-        model.url!,
-        fit: BoxFit.cover, // Added fit to cover the available space
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return _buildLoadingWidget();
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return _buildErrorWidget();
+        image.url!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return _buildLoadingPlaceholder();
         },
       );
     }
 
-    return _buildPlaceholderWidget();
+    // 3. Fallback: placeholder de erro/vazio
+    return _buildErrorPlaceholder();
   }
 
-// Update the helper methods to remove the size parameter since it's controlled by parent
-  Widget _buildLoadingWidget() {
+  // ✅ Widgets auxiliares para estados de carregamento e erro
+  Widget _buildLoadingPlaceholder() {
     return Container(
-      color: Colors.grey[200],
+      color: Colors.grey.shade200,
       child: const Center(
         child: CircularProgressIndicator(strokeWidth: 2),
       ),
     );
   }
 
-  Widget _buildErrorWidget() {
+  Widget _buildErrorPlaceholder() {
     return Container(
-      color: Colors.red[50],
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 24, color: Colors.red),
-            const SizedBox(height: 4),
-            Text(
-              'Erro',
-              style: TextStyle(
-                color: Colors.red,
-                fontSize: 10,
-                height: 1.0,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
+      color: Colors.grey.shade200,
+      child: const Icon(Icons.broken_image, color: Colors.grey),
     );
   }
-
-  Widget _buildPlaceholderWidget() {
-    return Container(
-      color: Colors.grey[200],
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.photo_camera, size: 24, color: Colors.grey),
-            const SizedBox(height: 4),
-            Text(
-              'Adicionar',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 10,
-                height: 1.0,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-
-
-
-
 }
-
-
-
-
-

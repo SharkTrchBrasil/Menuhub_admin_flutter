@@ -246,28 +246,7 @@ class _VariantOptionTileState extends State<VariantOptionTile> {
           )
               : _buildPlaceholderImage(),
         ),
-        Positioned(
-          bottom: 0,
-          right: 0,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.7),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(4),
-                bottomRight: Radius.circular(6),
-              ),
-            ),
-            child: const Text(
-              'Alterar',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
+
       ],
     );
   }

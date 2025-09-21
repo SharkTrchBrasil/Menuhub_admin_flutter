@@ -27,6 +27,36 @@ class VariantOption extends Equatable {
   final int stock_quantity;
   final ImageModel? image;
 
+
+  // ✅ CONSTRUTOR EMPTY ADICIONADO AQUI
+  const VariantOption.empty()
+      : clientId = '', // O ID do cliente será gerado no construtor principal se for nulo
+        id = null,
+        variantId = null,
+        imagePath = null,
+        isActuallyAvailable = true,
+        name_override = '',
+        description = '',
+        price_override = 0,
+        available = true,
+        pos_code = null,
+        linked_product_id = null,
+        linkedProduct = null,
+        track_inventory = false,
+        stock_quantity = 0,
+        image = null;
+
+
+
+
+
+
+
+
+
+
+
+
   VariantOption({
     String? clientId, // Permite passar um clientId se já existir (útil no copyWith)
     this.id,

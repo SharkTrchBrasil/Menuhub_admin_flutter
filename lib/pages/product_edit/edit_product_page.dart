@@ -59,20 +59,38 @@ class _EditProductView extends StatelessWidget {
         }
       },
       builder: (context, state) {
-        // O builder agora pode ser mais simples.
-        // Não precisamos mais de um `BlocListener` aninhado aqui.
+
+        // ✅ 1. DETERMINAMOS SE O PRODUTO É IMPORTADO
+        final isImported = state.editedProduct.masterProductId != null;
+
+
         return ResponsiveBuilder(
-          mobileBuilder: (ctx, constraints) => _buildMobileLayout(ctx),
-          desktopBuilder: (ctx, constraints) => _buildDesktopLayout(ctx),
+          mobileBuilder: (ctx, constraints) => _buildMobileLayout(ctx, isImported),
+          desktopBuilder: (ctx, constraints) => _buildDesktopLayout(ctx, isImported),
         );
       },
     );
   }
 
-  // ✅ NOVO LAYOUT PARA MOBILE: Simples, com AppBar padrão e TabBar
-  Widget _buildMobileLayout(BuildContext context) {
+
+  Widget _buildMobileLayout(BuildContext context,  bool isImported) {
+
+    final List<Widget> tabs = [
+      const Tab(text: 'Sobre o produto'),
+      if (!isImported) const Tab(text: 'Grupo de complementos'), // SÓ ADICIONA SE NÃO FOR IMPORTADO
+      const Tab(text: 'Disponivel em'),
+      const Tab(text: 'Cashback'),
+    ];
+
+    final List<Widget> tabViews = [
+      const ProductDetailsTab(),
+      if (!isImported) const ComplementGroupsTab(), // SÓ ADICIONA SE NÃO FOR IMPORTADO
+      const ProductPricingTab(),
+      const ProductCashbackTab(),
+    ];
+
     return DefaultTabController(
-      length: 4,
+      length: tabs.length,
       child: Scaffold(
         appBar: AppBar(
           // ✅ ADICIONE ESTE BLOCO DE CÓDIGO
@@ -91,24 +109,14 @@ class _EditProductView extends StatelessWidget {
             ),
           ),
           // A TabBar agora fica na parte de baixo da AppBar
-          bottom: const TabBar(
+          bottom:  TabBar(
             tabAlignment: TabAlignment.start,
             isScrollable: true,
-            tabs: [
-              Tab(text: 'Sobre o produto'),
-              Tab(text: 'Grupo de complementos'),
-              Tab(text: 'Disponivel em'),
-              Tab(text: 'Cashback'),
-            ],
+            tabs:tabs,
           ),
         ),
-        body: const TabBarView(
-          children: [
-            ProductDetailsTab(),
-            ComplementGroupsTab(),
-            ProductPricingTab(),
-            ProductCashbackTab(),
-          ],
+        body:  TabBarView(
+          children: tabViews,
         ),
         // O BottomBar é o mesmo para ambos os layouts
         bottomNavigationBar: _buildBottomBar(),
@@ -116,16 +124,16 @@ class _EditProductView extends StatelessWidget {
     );
   }
 
-  // ✅ LAYOUT PARA DESKTOP: Mantém a estrutura que você criou
-  Widget _buildDesktopLayout(BuildContext context) {
+
+  Widget _buildDesktopLayout(BuildContext context,  bool isImported) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      body: _EditProductViewDesktop(), // Extraído para um widget separado para limpeza
+      body: _EditProductViewDesktop(isImported: isImported), // Extraído para um widget separado para limpeza
       bottomNavigationBar: _buildBottomBar(),
     );
   }
 
-  // O rodapé é compartilhado
+
   Widget _buildBottomBar() {
     return BlocBuilder<EditProductCubit, EditProductState>(
       builder: (context, state) {
@@ -159,10 +167,10 @@ class _EditProductView extends StatelessWidget {
   }
 }
 
-// Widget auxiliar para o conteúdo do Desktop, para manter o código organizado
-class _EditProductViewDesktop extends StatefulWidget {
-  const _EditProductViewDesktop();
 
+class _EditProductViewDesktop extends StatefulWidget {
+  const _EditProductViewDesktop({required this.isImported});
+  final bool isImported;
   @override
   State<_EditProductViewDesktop> createState() => _EditProductViewDesktopState();
 }
@@ -172,6 +180,18 @@ class _EditProductViewDesktopState extends State<_EditProductViewDesktop> {
 
   @override
   Widget build(BuildContext context) {
+
+    // ✅ A MESMA LÓGICA DE LISTAS DINÂMICAS É APLICADA AQUI
+    final List<Widget> tabViews = [
+      const ProductDetailsTab(),
+      if (!widget.isImported) const ComplementGroupsTab(),
+      const ProductPricingTab(),
+      const ProductCashbackTab(),
+    ];
+
+
+
+
     return Column(
       children: [
         // O Header customizado
@@ -190,9 +210,9 @@ class _EditProductViewDesktopState extends State<_EditProductViewDesktop> {
           child: Row(
             children: [
               _buildTab("Sobre o produto", 0),
-              _buildTab("Grupo de complementos", 1),
-              _buildTab("Disponibilidade", 2),
-              _buildTab("Cashback", 3),
+              if (!widget.isImported) _buildTab("Grupo de complementos", 1),
+              _buildTab("Disponibilidade", widget.isImported ? 1 : 2), // O índice muda
+              _buildTab("Cashback", widget.isImported ? 2 : 3),
             ],
           ),
         ),
@@ -202,12 +222,7 @@ class _EditProductViewDesktopState extends State<_EditProductViewDesktop> {
             color: Colors.white,
             child: IndexedStack(
               index: _currentTab,
-              children: const [
-                ProductDetailsTab(),
-                ComplementGroupsTab(),
-                ProductPricingTab(),
-                ProductCashbackTab(),
-              ],
+              children:  tabViews,
             ),
           ),
         ),

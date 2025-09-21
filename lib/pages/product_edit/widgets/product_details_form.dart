@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/enums/beverage.dart';
 import 'package:totem_pro_admin/core/enums/foodtags.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/models/product.dart';
 
 import '../../../widgets/app_image_manager.dart';
+import '../../product-wizard/cubit/product_wizard_cubit.dart';
 import 'product_attributes_section.dart';
 import 'stock_management_card.dart';
 
 class ProductDetailsForm extends StatefulWidget {
   final Product product;
   final bool isImported;
+  final bool isForFlavor;
 
   // Callbacks para todas as interações
   final ValueChanged<String> onNameChanged;
@@ -32,6 +35,11 @@ class ProductDetailsForm extends StatefulWidget {
   final List<ImageModel> images;
   final ValueChanged<List<ImageModel>> onImagesChanged;
 
+  // ✅ 1. ADICIONE OS NOVOS PARÂMETROS PARA O VÍDEO
+  final ImageModel? videoFile;
+  final ValueChanged<ImageModel?> onVideoChanged;
+
+
   const ProductDetailsForm({
     super.key,
     required this.product,
@@ -50,6 +58,9 @@ class ProductDetailsForm extends StatefulWidget {
     required this.onVideoUrlChanged,
     required this.images,
     required this.onImagesChanged,
+    this.videoFile,
+    required this.onVideoChanged,
+    this.isForFlavor = false,
   });
 
   @override
@@ -112,6 +123,8 @@ class _ProductDetailsFormState extends State<ProductDetailsForm> {
 
   @override
   Widget build(BuildContext context) {
+
+
     return SingleChildScrollView(
      // padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -150,16 +163,24 @@ class _ProductDetailsFormState extends State<ProductDetailsForm> {
 
 
 
-          // ✅ 3. O GERENCIADOR DE IMAGENS UNIFICADO
+
+
           AppImageManager(
-            title: 'Imagens do Produto',
+            imageTitle: 'Imagens do Produto',
+            // ✅ 4. USE OS DADOS PASSADOS PELO CONSTRUTOR DO WIDGET
             images: widget.images,
-            onChanged: widget.onImagesChanged, // Usa o novo callback unificado
+            onImagesChanged: widget.onImagesChanged,
+            imageLimit: 5,
+            isImported: widget.isImported,
+            videoTitle: 'Vídeo',
+            // ✅ 4. USE OS DADOS E CALLBACKS PASSADOS PELO CONSTRUTOR
+            video: widget.videoFile,
+            onVideoChanged: widget.onVideoChanged,
           ),
 
           const SizedBox(height: 24),
 
-
+        if (!widget.isForFlavor) ...[
           StockManagementCard(
             isStockControlled: widget.product.controlStock,
             stockQuantity: widget.product.stockQuantity,
@@ -178,6 +199,7 @@ class _ProductDetailsFormState extends State<ProductDetailsForm> {
             onDietaryTagToggled: widget.onDietaryTagToggled,
             onBeverageTagToggled: widget.onBeverageTagToggled,
           ),
+            ]
         ],
       ),
     );

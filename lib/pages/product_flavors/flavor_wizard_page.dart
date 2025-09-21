@@ -75,13 +75,15 @@ class _FlavorWizardPageState extends State<FlavorWizardPage> with SingleTickerPr
             return Scaffold(
               appBar: AppBar(
                 // O AppBar agora é simples, apenas com título e botão de voltar.
-                title: Text(state.isEditMode ? "Editar Sabor" : "Novo Sabor"),
+                title: Text(state.isEditMode ? state.product.name.toUpperCase() : "Novo Sabor", style: TextStyle(fontWeight: FontWeight.w600),),
               ),
               body: Column(
                 children: [
                   // 1. A TabBar fica aqui, no topo do corpo da tela.
                   TabBar(
                     controller: _tabController,
+                    tabAlignment: TabAlignment.start,
+                    isScrollable: true,
 
                     tabs: const [
                       Tab(text: 'Detalhes'),
@@ -94,13 +96,11 @@ class _FlavorWizardPageState extends State<FlavorWizardPage> with SingleTickerPr
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        FlavorDetailsTab(product: state.product, onUpdate: cubit.updateProduct),
+                        FlavorDetailsTab(),
                         FlavorPriceTab(
-                          product: state.product,
-                          parentCategory: state.parentCategory,
-                          onUpdate: cubit.updateProduct,
+
                         ),
-                        FlavorClassificationTab(product: state.product, onUpdate: cubit.updateProduct),
+                        FlavorClassificationTab(),
                       ],
                     ),
                   ),
@@ -123,27 +123,31 @@ class _FlavorWizardPageState extends State<FlavorWizardPage> with SingleTickerPr
                     const SizedBox(width: 16),
                     Expanded(
                       child: DsButton(
-                        // ✅ O botão é desabilitado se o form for inválido OU se já estiver carregando
                         onPressed: isFormValid && !isLoading
                             ? () {
-                          if (isLastTab) {
+                          // ✅ --- INÍCIO DA LÓGICA CORRIGIDA --- ✅
+                          if (state.isEditMode) {
+                            // Se estiver no modo de edição, o botão SEMPRE salva.
                             cubit.submitFlavor();
                           } else {
-                            _tabController.animateTo(_tabController.index + 1);
+                            // Se estiver no modo de criação, ele avança ou salva.
+                            if (isLastTab) {
+                              cubit.submitFlavor();
+                            } else {
+                              _tabController.animateTo(_tabController.index + 1);
+                            }
                           }
+                          // ✅ --- FIM DA LÓGICA CORRIGIDA --- ✅
                         }
                             : null,
-
-                        // ✅ O conteúdo do botão muda para um indicador de progresso
                         child: isLoading
-                            ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                            : Text(isLastTab
-                            ? (state.isEditMode ? 'Salvar Alterações' : 'Criar Sabor')
-                            : 'Continuar'),
+                            ? const SizedBox(/* ... CircularProgressIndicator ... */)
+                            : Text(
+                          // ✅ O texto do botão agora é mais inteligente
+                          state.isEditMode
+                              ? 'Salvar Alterações'
+                              : (isLastTab ? 'Criar Sabor' : 'Continuar'),
+                        ),
                       ),
                     ),
                   ],

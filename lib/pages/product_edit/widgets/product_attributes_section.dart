@@ -51,7 +51,7 @@ class ProductAttributesSection extends StatelessWidget {
           "Informações que ajudam a vender mais e organizar seu cardápio.",
           style: TextStyle(fontSize: 12),
         ),
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

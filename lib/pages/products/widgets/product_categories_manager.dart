@@ -332,7 +332,7 @@ class _CategoryLinkItemState extends State<_CategoryLinkItem> {
       controller: _priceController,
       decoration: InputDecoration(
         labelText: 'Preço',
-        prefixText: 'R\$ ',
+
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12),
         // ✅ 2. ÍCONE DE PROMOÇÃO ATIVA A LÓGICA

@@ -13,6 +13,27 @@ class ProductVariantLink {
   final bool available;
   final Product? product;
 
+
+  // ✅ CONSTRUTOR EMPTY ADICIONADO AQUI
+  const ProductVariantLink.empty()
+      : uiDisplayMode = UIDisplayMode.SINGLE,
+        minSelectedOptions = 0,
+        maxSelectedOptions = 1,
+        maxTotalQuantity = null,
+        variant = const Variant.empty(), // Depende de um construtor .empty() na classe Variant
+        available = false,
+        product = null;
+
+
+
+
+
+
+
+
+
+
+
   ProductVariantLink({
     required this.uiDisplayMode,
     required this.minSelectedOptions,

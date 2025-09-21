@@ -1,28 +1,19 @@
-
 import 'package:image_picker/image_picker.dart';
 import 'package:equatable/equatable.dart';
 
-
 class ImageModel extends Equatable {
-  // ✅ ID da imagem que já existe no banco de dados.
-  // Será nulo para imagens novas, recém-selecionadas.
   final int? id;
-
-  // URL da imagem vinda do servidor.
-  // Será nulo para imagens novas.
   final String? url;
-
-  // Arquivo local da imagem (para novas imagens).
-  // Será nulo para imagens que já estão no servidor.
   final XFile? file;
+  final bool isVideo;
 
   const ImageModel({
     this.id,
     this.url,
     this.file,
+    this.isVideo = false,
   });
 
-  // ✅ Construtor para criar a partir do JSON da API
   factory ImageModel.fromJson(Map<String, dynamic> json) {
     return ImageModel(
       id: json['id'],
@@ -31,5 +22,5 @@ class ImageModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, url, file];
+  List<Object?> get props => [id, url, file, isVideo]; // ✅ CORREÇÃO: isVideo adicionado aqui
 }

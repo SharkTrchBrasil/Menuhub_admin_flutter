@@ -6,9 +6,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart';
 
+import 'ds_primary_button.dart';
+
 class AppCropDialog extends StatefulWidget {
-  const AppCropDialog(
-      {super.key, required this.image, required this.aspectRatio});
+  const AppCropDialog({
+    super.key,
+    required this.image,
+    required this.aspectRatio,
+  });
 
   final XFile image;
   final double aspectRatio;
@@ -19,6 +24,13 @@ class AppCropDialog extends StatefulWidget {
 
 class _AppCropDialogState extends State<AppCropDialog> {
   final CropController controller = CropController();
+  bool _isCropping = false;
+
+  @override
+  void dispose() {
+    // CropController doesn't have a dispose method, so we just call super.dispose()
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +39,7 @@ class _AppCropDialogState extends State<AppCropDialog> {
     final double dialogHeight = size.height * 0.7;
 
     return Dialog(
-      insetPadding: const EdgeInsets.all(16), // margem ao redor do diálogo
+      insetPadding: const EdgeInsets.all(16),
       child: SizedBox(
         width: dialogWidth,
         height: dialogHeight,
@@ -48,10 +60,18 @@ class _AppCropDialogState extends State<AppCropDialog> {
                     image: snapshot.data!,
                     aspectRatio: widget.aspectRatio,
                     onCropped: (CropResult cropped) {
+                      // Check if widget is still mounted before calling context.pop()
+                      if (!mounted) return;
+
+                      setState(() {
+                        _isCropping = false;
+                      });
+
                       if (cropped is CropFailure) {
                         showError('Não foi possível cortar a imagem.');
                       } else {
-                        context.pop((cropped as CropSuccess).croppedImage);
+                        // Use Navigator.of(context) instead of context.pop() for better safety
+                        Navigator.of(context).pop((cropped as CropSuccess).croppedImage);
                       }
                     },
                   ),
@@ -60,9 +80,16 @@ class _AppCropDialogState extends State<AppCropDialog> {
                   padding: const EdgeInsets.all(16),
                   child: Align(
                     alignment: Alignment.centerRight,
-                    child: AppPrimaryButton(
+                    child: _isCropping
+                        ? const CircularProgressIndicator()
+                        : DsButton(
                       label: 'Salvar',
-                      onPressed: () => controller.crop(),
+                      onPressed: () {
+                        setState(() {
+                          _isCropping = true;
+                        });
+                        controller.crop();
+                      },
                     ),
                   ),
                 ),
@@ -73,5 +100,4 @@ class _AppCropDialogState extends State<AppCropDialog> {
       ),
     );
   }
-
 }

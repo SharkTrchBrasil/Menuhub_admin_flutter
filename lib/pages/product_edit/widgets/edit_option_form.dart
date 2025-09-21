@@ -127,11 +127,36 @@ class _EditOptionFormState extends State<EditOptionForm> {
             ],
           ),
 
-          const SizedBox(height: 24),
 
-          // --- Formulário ---
-          // ✅ 3. O formulário agora inclui todos os campos
-          _buildNameField(),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Expanded(
+                child:
+
+                Padding(
+                  padding: const EdgeInsets.only(top: 48.0),
+                  child: _buildNameField(),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Campo de imagem no estilo iFood
+              AppImageFormField(
+                title: "",
+                initialValue: _image,
+                onChanged: (newImage) {
+                  // Quando a imagem é alterada no widget filho,
+                  // atualizamos o estado local deste formulário.
+                  setState(() {
+                    _image = newImage;
+                  });
+                },
+              ),
+            ],
+          ),
+
           const SizedBox(height: 24),
           _buildDescriptionField(),
           const SizedBox(height: 24),

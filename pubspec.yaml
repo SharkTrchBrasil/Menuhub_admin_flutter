@@ -84,7 +84,7 @@ dependencies:
   flutter_boardview_kanban: ^1.0.1
   #modal_side_sheet:
   connectivity_plus:
-
+  video_player: ^2.8.2
 
 
 

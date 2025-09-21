@@ -56,6 +56,23 @@ class EditProductCubit extends Cubit<EditProductState> {
   }
 
 
+
+  void videoChanged(ImageModel? newVideo) {
+    if (newVideo == null) {
+      // Se o novo vídeo for nulo, significa que o usuário removeu.
+      // Usamos o flag 'removeVideo: true' para limpar ambos os campos.
+      emit(state.copyWith(
+        editedProduct: state.editedProduct.copyWith(removeVideo: true),
+      ));
+    } else {
+      // Se for um novo vídeo, apenas atualizamos o videoFile.
+      emit(state.copyWith(
+        editedProduct: state.editedProduct.copyWith(videoFile: newVideo),
+      ));
+    }
+  }
+
+
   // --- Métodos para a Aba "Categorias e Preços" ---
   void updatePriceInCategory(ProductCategoryLink linkToUpdate, int newPriceInCents) {
     final updatedLinks = state.editedProduct.categoryLinks.map((link) {
@@ -68,35 +85,23 @@ class EditProductCubit extends Cubit<EditProductState> {
   }
 
 
-
-
   Future<void> saveProduct() async {
     emit(state.copyWith(status: FormStatus.loading));
 
-    // --- LÓGICA INTELIGENTE E ROBUSTA PARA DETECTAR IMAGENS DELETADAS ---
 
-    // 1. Pega os IDs das imagens que já existiam no servidor
-    final originalImageIds = state.originalProduct.images
-        .map((img) => img.id)
-        .whereType<int>() // Filtra apenas os que não são nulos
-        .toSet();
+    final productWithLocalFiles = state.editedProduct;
 
-    // 2. Pega os IDs das imagens que sobraram na tela de edição
-    final editedImageIds = state.editedProduct.images
-        .map((img) => img.id)
-        .whereType<int>() // Filtra apenas os que não são nulos
-        .toSet();
-
-    // 3. A diferença entre os dois conjuntos são os IDs das imagens que foram deletadas
+    // A lógica para detectar imagens da galeria deletadas continua a mesma
+    final originalImageIds = state.originalProduct.images.map((img) => img.id).whereType<int>().toSet();
+    final editedImageIds = productWithLocalFiles.images.map((img) => img.id).whereType<int>().toSet();
     final deletedImageIds = originalImageIds.difference(editedImageIds).toList();
+    debugPrint("IMAGENS DA GALERIA A DELETAR (IDs): $deletedImageIds");
 
-    debugPrint("IMAGENS A DELETAR (IDs): $deletedImageIds");
-
-    // 4. Chama o repositório com as informações corretas
+    // --- ETAPA 1: Salvar a Estrutura Principal ---
     final result = await _productRepository.updateProduct(
       _storeId,
       state.editedProduct,
-      deletedImageIds: deletedImageIds, // Passa a lista de IDs a serem deletados
+      deletedImageIds: deletedImageIds,
     );
 
     result.fold(
@@ -106,17 +111,120 @@ class EditProductCubit extends Cubit<EditProductState> {
         }
       },
           (savedProduct) {
+        // --- SUCESSO NA ETAPA 1! ---
         if (!isClosed) {
-          // Sucesso!
           BotToast.showText(text: "Produto salvo com sucesso!");
-          // Atualiza o estado para que 'original' e 'editado' sejam o mesmo produto salvo
-          // Isso "limpa" o estado de 'isDirty' e prepara para a próxima edição.
+          // Atualiza o estado imediatamente para dar feedback ao usuário
           emit(EditProductState.fromProduct(savedProduct));
+
+          // --- ETAPA 2: Adicionar os Detalhes (Imagens dos Complementos) ---
+          // Dispara os uploads em segundo plano (fire and forget)
+          _uploadComplementImages(
+            originalProduct: productWithLocalFiles,
+            savedProduct: savedProduct,
+          );
         }
       },
     );
   }
 
+  // ✅ NOVO MÉTODO AUXILIAR PARA A ETAPA 2 (idêntico ao do WizardCubit)
+  void _uploadComplementImages({
+    required Product originalProduct,
+    required Product savedProduct,
+  }) async {
+    // Itera sobre os grupos de complementos que o usuário montou na tela
+    for (final originalLink in originalProduct.variantLinks ?? []) {
+      // Encontra o grupo correspondente que foi salvo e agora tem um ID real
+      final savedLink = savedProduct.variantLinks?.firstWhere(
+            (sl) => sl.variant.id == originalLink.variant.id, // Compara por ID
+        orElse: () => const ProductVariantLink.empty(),
+      );
+
+      // ✅ CORREÇÃO APLICADA AQUI
+      if (savedLink != null && savedLink.variant.id != null) {
+        // Itera sobre as opções dentro do grupo original
+        for (final originalOption in originalLink.variant.options) {
+          // Se a opção tinha um arquivo de imagem local para ser enviado
+          if (originalOption.image?.file != null) {
+            // Encontra a opção correspondente que foi salva
+            final savedOption = savedLink.variant.options.firstWhere(
+                  (so) => so.clientId == originalOption.clientId, // Compara pelo clientId
+              orElse: () => const VariantOption.empty(),
+            );
+            if (savedOption.id != null) {
+              // ✅ 2. AGUARDE O RESULTADO DO UPLOAD
+              final result = await _productRepository.saveVariantOption(
+                _storeId,
+                savedLink.variant.id!,
+                savedOption.copyWith(image: originalOption.image),
+              );
+
+              // ✅ 3. SE O UPLOAD FUNCIONOU, ATUALIZE O ESTADO NOVAMENTE
+              if (result.isRight) {
+                final updatedOptionWithImage = result.right;
+                // Chama o método que já temos para atualizar a opção no estado
+                updateOptionInLink(savedLink, updatedOptionWithImage);
+              }
+            }
+
+
+          }
+        }
+      }
+    }
+  }
+
+
+
+
+  // Future<void> saveProduct() async {
+  //   emit(state.copyWith(status: FormStatus.loading));
+  //
+  //   // --- LÓGICA INTELIGENTE E ROBUSTA PARA DETECTAR IMAGENS DELETADAS ---
+  //
+  //   // 1. Pega os IDs das imagens que já existiam no servidor
+  //   final originalImageIds = state.originalProduct.images
+  //       .map((img) => img.id)
+  //       .whereType<int>() // Filtra apenas os que não são nulos
+  //       .toSet();
+  //
+  //   // 2. Pega os IDs das imagens que sobraram na tela de edição
+  //   final editedImageIds = state.editedProduct.images
+  //       .map((img) => img.id)
+  //       .whereType<int>() // Filtra apenas os que não são nulos
+  //       .toSet();
+  //
+  //   // 3. A diferença entre os dois conjuntos são os IDs das imagens que foram deletadas
+  //   final deletedImageIds = originalImageIds.difference(editedImageIds).toList();
+  //
+  //   debugPrint("IMAGENS A DELETAR (IDs): $deletedImageIds");
+  //
+  //   // 4. Chama o repositório com as informações corretas
+  //   final result = await _productRepository.updateProduct(
+  //     _storeId,
+  //     state.editedProduct,
+  //     deletedImageIds: deletedImageIds, // Passa a lista de IDs a serem deletados
+  //   );
+  //
+  //   result.fold(
+  //         (error) {
+  //       if (!isClosed) {
+  //         emit(state.copyWith(status: FormStatus.error, errorMessage: error));
+  //       }
+  //     },
+  //         (savedProduct) {
+  //       if (!isClosed) {
+  //         // Sucesso!
+  //         BotToast.showText(text: "Produto salvo com sucesso!");
+  //         // Atualiza o estado para que 'original' e 'editado' sejam o mesmo produto salvo
+  //         // Isso "limpa" o estado de 'isDirty' e prepara para a próxima edição.
+  //         emit(EditProductState.fromProduct(savedProduct));
+  //       }
+  //     },
+  //   );
+  // }
+  //
 
 
   // ✅ ADICIONE ESTE MÉTODO AQUI
@@ -206,18 +314,30 @@ class EditProductCubit extends Cubit<EditProductState> {
 
 
   void updateOptionInLink(ProductVariantLink parentLink, VariantOption updatedOption) {
-    // Mapeia as opções existentes, substituindo apenas a que foi alterada
-    final updatedOptions = parentLink.variant.options.map((option) {
-      // ✅ CORREÇÃO: Compara pelo 'clientId', que é sempre único e estável.
-      return option.clientId == updatedOption.clientId ? updatedOption : option;
+    // 1. Mapeia a lista de links para encontrar o link pai que está sendo alterado.
+    final updatedLinks = state.editedProduct.variantLinks?.map((link) {
+      // Se não for o link que queremos, retorna ele sem mudanças.
+      if (link.variant.id != parentLink.variant.id) {
+        return link;
+      }
+
+      // Se for o link correto, atualizamos sua lista de opções.
+      final updatedOptions = link.variant.options.map((option) {
+        // Comparamos pelo clientId, que é um ID único e estável gerado no app.
+        // Se for a opção que alteramos, usamos a versão atualizada.
+        // Se não, mantemos a original.
+        return option.clientId == updatedOption.clientId ? updatedOption : option;
+      }).toList();
+
+      // Retorna uma nova versão do link com as opções atualizadas.
+      return link.copyWith(variant: link.variant.copyWith(options: updatedOptions));
     }).toList();
 
-    final updatedLink = parentLink.copyWith(
-      variant: parentLink.variant.copyWith(options: updatedOptions),
-    );
-    updateVariantLink(updatedLink);
+    // 2. Emite um novo estado com a lista de links atualizada.
+    emit(state.copyWith(
+      editedProduct: state.editedProduct.copyWith(variantLinks: updatedLinks),
+    ));
   }
-
 
 
 

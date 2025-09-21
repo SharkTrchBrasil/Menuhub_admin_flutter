@@ -202,7 +202,7 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
     return Column(
        // padding: EdgeInsets.zero,
       children: [
-        // ✅ A CHAMADA PARA O FORMULÁRIO AGORA É MAIS LIMPA
+
         ProductDetailsForm(
           product: product,
           isImported: state.isImported,
@@ -218,9 +218,13 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
           videoUrl: product.videoUrl,
           onVideoUrlChanged: (url) => cubit.updateProduct(product.copyWith(videoUrl: url)),
 
-          // Passa a lista e o callback unificados
+
           images: product.images,
-          onImagesChanged: (newImages) => cubit.updateProduct(product.copyWith(images: newImages)),
+
+          onImagesChanged: (newImages) => cubit.onImagesChanged(newImages),
+
+
+          onVideoChanged: cubit.videoChanged,
 
         ),
 

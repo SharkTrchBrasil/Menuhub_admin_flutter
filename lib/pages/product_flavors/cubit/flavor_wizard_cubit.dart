@@ -8,7 +8,9 @@ import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/models/option_group.dart';
 import 'package:totem_pro_admin/models/product.dart';
 import '../../../core/enums/category_type.dart';
+import '../../../core/enums/foodtags.dart';
 import '../../../core/enums/option_group_type.dart';
+import '../../../models/image_model.dart';
 
 part 'flavor_wizard_state.dart';
 
@@ -19,7 +21,8 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
   FlavorWizardCubit({
     required ProductRepository productRepository,
     required int storeId,
-  })  : _productRepository = productRepository,
+  })
+      : _productRepository = productRepository,
         _storeId = storeId,
         super(FlavorWizardState.initial());
 
@@ -27,7 +30,12 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
     // Busca o grupo de tamanho pelo TIPO, não pelo nome (mais robusto)
     final sizeGroup = parentCategory.optionGroups.firstWhere(
           (g) => g.groupType == OptionGroupType.size,
-      orElse: () => const OptionGroup(name: 'Tamanho', items: [], minSelection: 1, maxSelection: 1, groupType: OptionGroupType.size),
+      orElse: () =>
+      const OptionGroup(name: 'Tamanho',
+          items: [],
+          minSelection: 1,
+          maxSelection: 1,
+          groupType: OptionGroupType.size),
     );
 
     List<FlavorPrice> prices;
@@ -36,7 +44,8 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
       final priceMap = {for (var p in product.prices) p.sizeOptionId: p};
       prices = sizeGroup.items.map((sizeOption) {
         final existingPrice = priceMap[sizeOption.id];
-        return existingPrice ?? FlavorPrice(sizeOptionId: sizeOption.id!, price: 0);
+        return existingPrice ??
+            FlavorPrice(sizeOptionId: sizeOption.id!, price: 0);
       }).toList();
 
       emit(FlavorWizardState(
@@ -45,25 +54,44 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
         parentCategory: parentCategory,
         isEditMode: true,
       ));
-
     } else { // --- MODO DE CRIAÇÃO ---
-      prices = sizeGroup.items.map((sizeOption) => FlavorPrice(
-        sizeOptionId: sizeOption.id!,
-        price: 0,
-      )).toList();
+      prices = sizeGroup.items.map((sizeOption) =>
+          FlavorPrice(
+            sizeOptionId: sizeOption.id!,
+            price: 0,
+          )).toList();
 
       final initialProduct = const Product().copyWith(prices: prices);
 
       emit(FlavorWizardState(
-          originalProduct: initialProduct,
+        originalProduct: initialProduct,
         product: const Product().copyWith(prices: prices),
         parentCategory: parentCategory,
       ));
     }
   }
 
-  void updateProduct(Product updatedProduct) {
-    emit(state.copyWith(product: updatedProduct));
+
+
+  void nameChanged(String name) {
+    emit(state.copyWith(product: state.product.copyWith(name: name)));
+  }
+
+  void descriptionChanged(String description) {
+    emit(state.copyWith(product: state.product.copyWith(description: description)));
+  }
+
+  void imagesChanged(List<ImageModel> newImages) {
+    emit(state.copyWith(product: state.product.copyWith(images: newImages)));
+  }
+
+  void videoChanged(ImageModel? newVideo) {
+    if (newVideo == null) {
+      // Usa o flag 'removeVideo: true' para limpar ambos os campos de vídeo
+      emit(state.copyWith(product: state.product.copyWith(removeVideo: true)));
+    } else {
+      emit(state.copyWith(product: state.product.copyWith(videoFile: newVideo)));
+    }
   }
 
   void updateFlavorPrice(FlavorPrice updatedPrice) {
@@ -73,24 +101,25 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
     emit(state.copyWith(product: state.product.copyWith(prices: updatedPrices)));
   }
 
-  // ✅ SUBSTITUA SEU MÉTODO submitFlavor POR ESTE
+  void toggleDietaryTag(FoodTag tag) {
+    final newTags = Set<FoodTag>.from(state.product.dietaryTags);
+    newTags.contains(tag) ? newTags.remove(tag) : newTags.add(tag);
+    emit(state.copyWith(product: state.product.copyWith(dietaryTags: newTags)));
+  }
+
+  // --- LÓGICA DE SALVAR (JÁ ESTAVA CORRETA, MAS AGORA É SUPORTADA PELOS MÉTODOS ACIMA) ---
+
   Future<void> submitFlavor() async {
     if (state.product.name.trim().isEmpty) return;
-
     emit(state.copyWith(status: FormStatus.loading));
-    final productToSave = state.product;
 
+    final productToSave = state.product;
     final Future<Either<String, Product>> result;
+
     if (state.isEditMode) {
-      // Lógica "inteligente" para encontrar imagens deletadas
-      final originalImageUrls = state.originalProduct.images.where((img) => img.url != null).map((img) => img.url).toSet();
-      final editedImageUrls = state.product.images.where((img) => img.url != null).map((img) => img.url).toSet();
-      final deletedImageUrls = originalImageUrls.difference(editedImageUrls);
-      final deletedImageIds = deletedImageUrls.map((url) {
-        try {
-          return int.tryParse(Uri.parse(url!).pathSegments.last.split('.').first);
-        } catch (e) { return null; }
-      }).whereType<int>().toList();
+      final originalImageIds = state.originalProduct.images.map((img) => img.id).whereType<int>().toSet();
+      final editedImageIds = productToSave.images.map((img) => img.id).whereType<int>().toSet();
+      final deletedImageIds = originalImageIds.difference(editedImageIds).toList();
 
       result = _productRepository.updateProduct(
         _storeId,
@@ -102,29 +131,22 @@ class FlavorWizardCubit extends Cubit<FlavorWizardState> {
         _storeId,
         productToSave,
         parentCategory: state.parentCategory,
-        images: productToSave.images, // Passa as imagens para a criação
+        images: productToSave.images,
+        videoFile: productToSave.videoFile,
       );
     }
 
     result.fold(
           (error) => emit(state.copyWith(status: FormStatus.error, errorMessage: error)),
           (savedProduct) {
-        // Ao salvar com sucesso, atualiza o estado original e o de edição
         emit(state.copyWith(
-            status: FormStatus.success,
-            product: savedProduct,
-            originalProduct: savedProduct
+          status: FormStatus.success,
+          product: savedProduct,
+          originalProduct: savedProduct, // Sincroniza o estado original
         ));
       },
     );
   }
 }
-
-
-
-
-
-
-
 
 

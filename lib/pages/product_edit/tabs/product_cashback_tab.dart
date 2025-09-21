@@ -15,15 +15,7 @@ class ProductCashbackTab extends StatelessWidget {
     return BlocBuilder<EditProductCubit, EditProductState>(
       builder: (context, state) {
         final cubit = context.read<EditProductCubit>();
-        final product = state.editedProduct;
-        final isImported = product.masterProductId != null;
 
-        // Se o produto for importado, as regras de cashback não podem ser editadas.
-        if (isImported) {
-          return const Center(
-            child: Text("Regras de cashback não podem ser editadas para produtos importados."),
-          );
-        }
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),

@@ -78,7 +78,20 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
     ));
   }
 
-
+  void videoChanged(ImageModel? newVideo) {
+    if (newVideo == null) {
+      // Se o novo vídeo for nulo, significa que o usuário removeu.
+      // Usamos o flag 'removeVideo: true' para limpar ambos os campos.
+      emit(state.copyWith(
+        productInCreation: state.productInCreation.copyWith(removeVideo: true),
+      ));
+    } else {
+      // Se for um novo vídeo, apenas atualizamos o videoFile.
+      emit(state.copyWith(
+        productInCreation: state.productInCreation.copyWith(videoFile: newVideo),
+      ));
+    }
+  }
 
 
 
@@ -375,44 +388,151 @@ class ProductWizardCubit extends Cubit<ProductWizardState> {
 
   // --- AÇÃO FINAL DE SALVAR ---
 
+
+
+
+
+
+
+
+
   Future<void> saveProduct() async {
     emit(state.copyWith(submissionStatus: FormStatus.loading));
 
-    final finalProduct = state.productInCreation.copyWith(
+    final productWithLocalFiles = state.productInCreation.copyWith(
       categoryLinks: state.categoryLinks,
       variantLinks: state.variantLinks,
     );
 
-    // Para depuração:
-    print("🚀 [CUBIT] Salvando produto. Modo Edição: ${state.isEditMode}");
-    print("🖼️ [CUBIT] Imagens no estado: ${finalProduct.images.length}");
-    print("❌ [CUBIT] IDs de imagens para deletar: ${state.deletedImageIds}");
-
     final Future<Either<String, Product>> result;
+
     if (state.isEditMode) {
+      // A lógica de edição já está correta, lidando com IDs de imagens deletadas.
+      // Não precisamos mexer aqui.
       result = _productRepository.updateProduct(
         storeId,
-        finalProduct,
-        // ✅ PASSA A LISTA DE IDs PARA O REPOSITÓRIO
+        productWithLocalFiles,
         deletedImageIds: state.deletedImageIds,
+
       );
     } else {
+
       result = _productRepository.createSimpleProduct(
         storeId,
-        finalProduct,
-        images: state.productInCreation.images,
+        productWithLocalFiles,
+        images: productWithLocalFiles.images,
+
       );
     }
 
+    // Processa o resultado da ETAPA 1
     (await result).fold(
-          (error) => emit(state.copyWith(submissionStatus: FormStatus.error, errorMessage: error)),
-          (product) => emit(state.copyWith(
-        submissionStatus: FormStatus.success,
-        productInCreation: product,
-      )),
+          (error) {
+        // Se a Etapa 1 falhar, mostramos o erro e paramos.
+        emit(state.copyWith(submissionStatus: FormStatus.error, errorMessage: error));
+      },
+          (savedProduct) {
+
+        emit(state.copyWith(
+          submissionStatus: FormStatus.success,
+          productInCreation: savedProduct,
+        ));
+
+        _uploadComplementImages(
+          originalProduct: productWithLocalFiles,
+          savedProduct: savedProduct,
+        );
+      },
     );
   }
 
+// ✅ NOVO MÉTODO AUXILIAR PARA A ETAPA 2
+  void _uploadComplementImages({
+    required Product originalProduct,
+    required Product savedProduct,
+  }) {
+    // Itera sobre os grupos de complementos que o usuário montou na tela
+    for (final originalLink in originalProduct.variantLinks ?? []) {
+      // Encontra o grupo correspondente que foi salvo e agora tem um ID real
+      final savedLink = savedProduct.variantLinks?.firstWhere(
+            (sl) => sl.variant.name == originalLink.variant.name,
+        orElse: () => ProductVariantLink.empty(),
+      );
+
+      if (savedLink != null && savedLink.variant.id != null) {
+        // Itera sobre as opções dentro do grupo original
+        for (final originalOption in originalLink.variant.options) {
+          // Se a opção tinha um arquivo de imagem local para ser enviado
+          if (originalOption.image?.file != null) {
+            // Encontra a opção correspondente que foi salva e agora tem um ID
+            final savedOption = savedLink.variant.options.firstWhere(
+                  (so) => so.resolvedName == originalOption.resolvedName,
+              orElse: () =>  VariantOption.empty(),
+            );
+
+            if (savedOption != null && savedOption.id != null) {
+              print('Disparando upload para a opção: ${savedOption
+                  .resolvedName} (ID: ${savedOption.id})');
+              _productRepository.saveVariantOption(
+                storeId,
+                savedLink.variant.id!,
+                savedOption.copyWith(image: originalOption.image),
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // Future<void> saveProduct() async {
+  //   emit(state.copyWith(submissionStatus: FormStatus.loading));
+  //
+  //   final finalProduct = state.productInCreation.copyWith(
+  //     categoryLinks: state.categoryLinks,
+  //     variantLinks: state.variantLinks,
+  //   );
+  //
+  //
+  //
+  //   final Future<Either<String, Product>> result;
+  //   if (state.isEditMode) {
+  //     result = _productRepository.updateProduct(
+  //       storeId,
+  //       finalProduct,
+  //       // ✅ PASSA A LISTA DE IDs PARA O REPOSITÓRIO
+  //       deletedImageIds: state.deletedImageIds,
+  //     );
+  //   } else {
+  //     result = _productRepository.createSimpleProduct(
+  //       storeId,
+  //       finalProduct,
+  //       images: state.productInCreation.images,
+  //     );
+  //   }
+  //
+  //   (await result).fold(
+  //         (error) => emit(state.copyWith(submissionStatus: FormStatus.error, errorMessage: error)),
+  //         (product) => emit(state.copyWith(
+  //       submissionStatus: FormStatus.success,
+  //       productInCreation: product,
+  //     )),
+  //   );
+  // }
+  //
 
 
 

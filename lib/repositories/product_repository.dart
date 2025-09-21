@@ -435,14 +435,14 @@ class ProductRepository {
     }
   }
 
-  /// Cria um "sabor" (produto para categoria customizável).
-  /// Usa a rota `/flavor-product`.
+
   Future<Either<String, Product>> createFlavorProduct(
       int storeId,
       Product product, {
         required Category parentCategory,
-        // ✅ 1. ASSINATURA ATUALIZADA: Recebe uma lista de imagens
+
         List<ImageModel>? images,
+        ImageModel? videoFile,
       }) async {
     try {
       // A lógica do payload JSON continua a mesma
@@ -469,6 +469,21 @@ class ProductRepository {
             );
           }
         }
+      }
+
+      // ✅ ADICIONE A LÓGICA PARA ANEXAR O VÍDEO
+      if (videoFile?.file != null) {
+        final videoBytes = await videoFile!.file!.readAsBytes();
+        final videoFileName = videoFile.file!.name.isNotEmpty
+            ? videoFile.file!.name
+            : 'upload.mp4';
+
+        formData.files.add(
+          MapEntry(
+            'video',
+            MultipartFile.fromBytes(videoBytes, filename: videoFileName),
+          ),
+        );
       }
 
       final response = await _dio.post('/stores/$storeId/products/flavor-product', data: formData);
@@ -543,6 +558,22 @@ class ProductRepository {
           );
         }
       }
+
+      // ✅ LÓGICA PARA ANEXAR O VÍDEO
+      if (product.videoFile?.file != null) {
+        final videoBytes = await product.videoFile!.file!.readAsBytes();
+        final videoFileName = product.videoFile!.file!.name.isNotEmpty
+            ? product.videoFile!.file!.name
+            : 'upload.mp4';
+
+        formData.files.add(
+          MapEntry(
+            'video', // O nome do campo que o backend espera
+            MultipartFile.fromBytes(videoBytes, filename: videoFileName),
+          ),
+        );
+      }
+
 
       // Envia a requisição
       final response = await _dio.patch(
