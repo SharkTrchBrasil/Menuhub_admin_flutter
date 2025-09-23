@@ -1,17 +1,21 @@
 // lib/pages/orders/widgets/kanban_column.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/helpers/sidepanel.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/order_details_desktop.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/order_list_item.dart';
 
+import '../../../cubits/store_manager_cubit.dart';
+
 class KanbanColumn extends StatelessWidget {
   final String title;
   final Color backgroundColor;
   final List<OrderDetails> orders;
   final Store? store;
+  final Set<int> stuckOrderIds;
 
   const KanbanColumn({
     Key? key,
@@ -19,6 +23,7 @@ class KanbanColumn extends StatelessWidget {
     required this.backgroundColor,
     required this.orders,
     required this.store,
+    this.stuckOrderIds = const {},
   }) : super(key: key);
 
   @override
@@ -58,10 +63,20 @@ class KanbanColumn extends StatelessWidget {
               itemCount: orders.length,
               itemBuilder: (context, index) {
                 final order = orders[index];
+
+                // ✅ 5. PARA CADA ITEM, VERIFIQUE SE SEU ID ESTÁ NA LISTA DE ALERTAS
+                final bool isStuck = stuckOrderIds.contains(order.id);
+
+
+
                 return OrderListItem(
                   order: order,
+                  isStuck: isStuck,
                   store: store,
                   onTap: () {
+                    if (isStuck) {
+                      context.read<StoresManagerCubit>().clearStuckOrderAlert(order.id);
+                    }
                     showResponsiveSidePanel(
                       context,
                       OrderDetailsPanel(

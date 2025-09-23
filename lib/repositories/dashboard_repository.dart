@@ -28,7 +28,7 @@ class DashboardRepository {
       // ALTERADO: A chamada `_dio.get` agora inclui os `queryParameters`.
       // O nome do endpoint deve ser exatamente igual ao que você definiu na sua API FastAPI.
       final response = await _dio.get(
-        '/admin/stores/$storeId/dashboard/', // Verifique se o endpoint é '/dashboard' ou '/dashboard-summary'
+        '/stores/$storeId/dashboard/', // Verifique se o endpoint é '/dashboard' ou '/dashboard-summary'
         queryParameters: queryParams,
       );
 

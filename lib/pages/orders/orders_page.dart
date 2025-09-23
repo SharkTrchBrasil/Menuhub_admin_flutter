@@ -329,6 +329,13 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     final productionOrders = orders.where((o) => o.orderStatus == 'preparing').toList();
     final readyOrders = orders.where((o) => ['ready', 'on_route'].contains(o.orderStatus)).toList();
 
+
+    return BlocBuilder<StoresManagerCubit, StoresManagerState>(
+        builder: (context, storeState) {
+      // Pega o Set de IDs do estado
+      final stuckOrderIds = storeState is StoresManagerLoaded ? storeState.stuckOrderIds : <int>{};
+
+
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
       child: Row(
@@ -341,6 +348,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               backgroundColor: Color(0xFFfb6f2d),
               orders: analysisOrders,
               store: store,
+              stuckOrderIds: stuckOrderIds,
             ),
           ),
           // Coluna 2: Em produção
@@ -364,7 +372,22 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         ],
       ),
     );
+
+
+        },
+    );
   }
+
+
+
+
+
+
+
+
+
+
+
 
 }
 

@@ -15,7 +15,7 @@ import 'package:totem_pro_admin/cubits/active_store_cubit.dart';
 import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart';
 import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
 import 'package:totem_pro_admin/constdata/colorprovider.dart';
-import 'package:totem_pro_admin/core/chatbot_config_provider.dart';
+
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/menu_app_controller.dart';
 import 'package:totem_pro_admin/core/router.dart';
@@ -57,9 +57,7 @@ class AppRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DrawerControllerProvider()),
         ChangeNotifierProvider(create: (_) => ColorNotifire()),
         ChangeNotifierProvider(create: (_) => DsThemeSwitcher()),
-        ChangeNotifierProvider(
-          create: (_) => ChatBotConfigController(getIt<ChatBotConfigRepository>()),
-        ),
+
       ],
       child: MultiBlocProvider(
         providers: [

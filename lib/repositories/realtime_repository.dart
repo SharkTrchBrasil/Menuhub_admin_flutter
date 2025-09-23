@@ -25,6 +25,7 @@ import '../models/print_job.dart';
 import '../models/prodcut_category_links.dart';
 import '../models/receivable_category.dart';
 import '../models/store.dart';
+import '../models/store_chatbot_config.dart';
 import '../models/store_payable.dart';
 import '../models/store_receivable.dart';
 import '../models/supplier.dart';
@@ -81,29 +82,45 @@ class RealtimeRepository {
   final _dashboardDataController = BehaviorSubject<Map<String, dynamic>?>();
   final _payablesDashboardController = BehaviorSubject<PayablesDashboardMetrics?>();
 
-  // ✅ 1. TRANSFORME OS CONTROLLERS GLOBAIS EM MAPAS "POR LOJA"
+
+
   final _variantsStreams = <int, BehaviorSubject<List<Variant>>>{};
   final _categoriesStreams = <int, BehaviorSubject<List<Category>>>{};
 
-
   final _financialsController = BehaviorSubject<FinancialsData?>();
-
 
   final _connectivityStatusController = BehaviorSubject<ConnectivityStatus>();
 
-  // ✅ 1. CRIE UM NOVO CONTROLLER E STREAM PARA O MENU COMPLETO
+  final ConnectivityService _connectivityService = GetIt.I<ConnectivityService>();
+
   final _fullMenuStreams = <int, BehaviorSubject<FullMenuData>>{};
+
+  final _chatbotConfigController = BehaviorSubject<StoreChatbotConfig?>();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   Stream<FullMenuData> listenToFullMenu(int storeId) =>
       _fullMenuStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
-
-  // ✅ 3. ADICIONE O SERVIÇO DE CONECTIVIDADE
-  final ConnectivityService _connectivityService = GetIt.I<ConnectivityService>();
+  Stream<StoreChatbotConfig?> get onChatbotConfigUpdated => _chatbotConfigController.stream;
   StreamSubscription? _deviceConnectivitySubscription;
-
-
-
-
   Stream<bool> get isConnectedStream => _connectionStatusController.stream;
   Stream<Map<int, int>> get onStoreNotification => _storeNotificationController.stream;
   Stream<OrderNotification> get onOrderNotification => _orderNotificationController.stream;
@@ -129,7 +146,10 @@ class RealtimeRepository {
   Stream<List<Variant>> listenToVariants(int storeId) =>
       _variantsStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])).stream;
 
+  final _stuckOrderAlertController = StreamController<Map<String, dynamic>>.broadcast();
 
+// 2. Crie um getter público para o stream
+  Stream<Map<String, dynamic>> get onStuckOrderAlert => _stuckOrderAlertController.stream;
 
   /// Reivindica um trabalho de impressão específico pelo seu ID.
   Future<Either<String, Map<String, dynamic>>> claimSpecificPrintJob(int jobId) {
@@ -256,6 +276,8 @@ class RealtimeRepository {
     _socket!.on('new_order_notification', _handleNewOrderNotification);
 
 
+    // ✅ 3. ADICIONE O LISTENER PARA O NOVO EVENTO DEDICADO
+    _socket!.on('chatbot_config_updated', _handleChatbotConfigUpdated);
 
 
     _socket!.on('admin_stores_list', (data) {
@@ -267,7 +289,13 @@ class RealtimeRepository {
       }
     });
 
-
+    // ADICIONE ESTE NOVO LISTENER
+    _socket!.on('stuck_order_alert', (data) {
+      log('🚨 Evento recebido: stuck_order_alert com dados: $data');
+      if (data is Map<String, dynamic>) {
+        _stuckOrderAlertController.add(data);
+      }
+    });
 
     _socket!.on('store_details_updated', _handleStoreDetailsUpdated);
     _socket!.on('dashboard_data_updated', _handleDashboardDataUpdated);
@@ -284,7 +312,22 @@ class RealtimeRepository {
 
 
   }
-// ✅ NOVO: Lógica centralizada para tratar falhas de autenticação
+
+
+
+
+  void _handleChatbotConfigUpdated(dynamic data) {
+    // ✅ PONTO DE PROVA A
+    log("🕵️‍♂️ PONTO A: DADO BRUTO RECEBIDO DO SOCKET:\n$data");
+    try {
+      final config = StoreChatbotConfig.fromJson(data as Map<String, dynamic>);
+      _chatbotConfigController.add(config);
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em chatbot_config_updated', error: e, stackTrace: st);
+    }
+  }
+
+
   Future<void> _handleConnectionAuthError() async {
     // Se já estamos tratando uma reconexão, não faz nada.
     if (_authRepository.isRefreshingToken) return;
@@ -763,7 +806,7 @@ class RealtimeRepository {
     _ordersStreams.values.forEach((s) => s.close());
     _tablesStreams.values.forEach((s) => s.close());
     _commandsStreams.values.forEach((s) => s.close());
-
+    _chatbotConfigController.close();
     _payablesDashboardController.close();
     _activeStoreController.close();
     _productsStreams.clear();
@@ -774,7 +817,7 @@ class RealtimeRepository {
     _adminStoresListController.close();
     _storeNotificationController.close();
     _connectionStatusController.close();
-
+    _stuckOrderAlertController.close();
     _orderNotificationController.close();
     _newPrintJobsController.close();
     _deviceConnectivitySubscription?.cancel();

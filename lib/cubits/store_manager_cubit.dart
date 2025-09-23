@@ -22,6 +22,7 @@ import '../models/peak_hours.dart';
 import '../models/product.dart';
 import '../models/product_analytics_data.dart';
 import '../models/store.dart';
+import '../models/store_chatbot_config.dart';
 import '../models/store_relations.dart';
 import '../models/table.dart';
 import '../models/variant.dart';
@@ -49,6 +50,11 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
   StreamSubscription? _tablesSubscription;
   StreamSubscription? _commandsSubscription;
+// 1. Adicione uma nova StreamSubscription no topo da classe
+  StreamSubscription? _stuckOrderAlertSubscription;
+
+
+
 
   StoresManagerCubit({
     required StoreRepository storeRepository,
@@ -103,8 +109,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _connectivitySubscription = _realtimeRepository.onConnectivityChanged
         .listen(_onConnectivityChanged);
 
-    // ✅ CORREÇÃO PRINCIPAL: Todos os listeners que dependem da loja ativa
-    // agora são controlados por este único stream.
+
+    _stuckOrderAlertSubscription = _realtimeRepository.onStuckOrderAlert.listen(
+      _onStuckOrderAlertReceived,
+    );
+
+
     _listenToActiveStoreData();
   }
 
@@ -127,9 +137,10 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _dashboardDataSubscription?.cancel();
     _financialsSubscription?.cancel();
     _fullMenuSubscription?.cancel();
-    // ✅ CANCELE AS NOVAS TAMBÉM
+
     _tablesSubscription?.cancel();
     _commandsSubscription?.cancel();
+
 
 
 
@@ -156,7 +167,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-    // ✅ CORREÇÃO: UMA ÚNICA INSCRIÇÃO PARA O MENU INTEIRO
+
     _fullMenuSubscription = activeStoreIdStream
         .switchMap((storeId) {
       log("🔄 [CUBIT] Trocando inscrição do MENU COMPLETO para a loja ID: $storeId");
@@ -166,7 +177,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-    // ✅ ADICIONE OS LISTENERS PARA MESAS E COMANDAS
+
     _tablesSubscription = activeStoreIdStream
         .switchMap((storeId) => _realtimeRepository.listenToTables(storeId))
         .listen(_onTablesUpdated);
@@ -194,38 +205,64 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     log("✅ [CUBIT] Dados financeiros atualizados via socket.");
   }
 
+// 3. Crie o método que vai lidar com o recebimento do alerta
+  void _onStuckOrderAlertReceived(Map<String, dynamic> alertData) {
+    if (isClosed) return;
+    final currentState = state;
+    if (currentState is! StoresManagerLoaded) return;
+
+    final int? orderId = alertData['order_id'];
+    if (orderId == null) return;
+
+    // Adiciona o ID do pedido ao conjunto de alertas
+    final newStuckOrderIds = Set<int>.from(currentState.stuckOrderIds)..add(orderId);
+
+    emit(currentState.copyWith(stuckOrderIds: newStuckOrderIds));
+    log('Cubit State atualizado com novo pedido preso: $orderId');
+  }
 
 
+  void clearStuckOrderAlert(int orderId) {
+    if (isClosed) return;
+    final currentState = state;
+    if (currentState is! StoresManagerLoaded) return;
+
+    final newStuckOrderIds = Set<int>.from(currentState.stuckOrderIds)..remove(orderId);
+
+    emit(currentState.copyWith(stuckOrderIds: newStuckOrderIds));
+    log('Alerta para o pedido $orderId foi limpo do estado.');
+  }
 
 
-
-
+// store_manager_cubit.dart - Garantir que chatbotConfig seja copiado
   void _onStoreDetailsUpdated(Store? updatedStoreDetails) {
     if (updatedStoreDetails == null) return;
+
     _updateActiveStore((_, activeStore) {
-      final preservedRelations = activeStore.store.relations;
-      final newStore = updatedStoreDetails.copyWith(
-        relations: updatedStoreDetails.relations.copyWith(
-          // Preserva as relações que não vêm neste evento
-          dashboardData: preservedRelations.dashboardData,
-          productAnalytics: preservedRelations.productAnalytics,
-          customerAnalytics: preservedRelations.customerAnalytics,
-          insights: preservedRelations.insights,
-          peakHours: preservedRelations.peakHours,
-          products: preservedRelations.products,
-          categories: preservedRelations.categories,
-          variants: preservedRelations.variants,
-          payables: preservedRelations.payables,
-          suppliers: preservedRelations.suppliers,
-          payableCategories: preservedRelations.payableCategories,
-          receivables: preservedRelations.receivables,
-          receivableCategories: preservedRelations.receivableCategories,
+      final currentStore = activeStore.store;
+      final newStore = currentStore.copyWith(
+        core: updatedStoreDetails.core,
+        address: updatedStoreDetails.address,
+        operation: updatedStoreDetails.operation,
+        marketing: updatedStoreDetails.marketing,
+        media: updatedStoreDetails.media,
+        relations: currentStore.relations.copyWith(
+          paymentMethodGroups: updatedStoreDetails.relations.paymentMethodGroups,
+          coupons: updatedStoreDetails.relations.coupons,
+          scheduledPauses: updatedStoreDetails.relations.scheduledPauses,
+          hours: updatedStoreDetails.relations.hours,
+          storeOperationConfig: updatedStoreDetails.relations.storeOperationConfig,
+          chatbotMessages: updatedStoreDetails.relations.chatbotMessages,
+          // ✅ CORREÇÃO: Incluir chatbotConfig
+          chatbotConfig: updatedStoreDetails.relations.chatbotConfig,
         ),
       );
       return activeStore.copyWith(store: newStore);
     });
-    log("✅ [CUBIT] Detalhes da loja atualizados via socket.");
   }
+
+
+
 
 
 
@@ -244,6 +281,21 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     });
     log("✅ [CUBIT] Estado das comandas atualizado via socket.");
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -648,6 +700,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     );
   }
 
+
+
+
+
+
+
   void _cancelSubscriptions() {
     _adminStoresListSubscription?.cancel();
     _notificationSubscription?.cancel();
@@ -657,8 +715,9 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _financialsSubscription?.cancel();
     _tablesSubscription?.cancel();
     _commandsSubscription?.cancel();
-
+    _stuckOrderAlertSubscription?.cancel();
     _adminStoresListSubscription = null;
+
   }
 
   // ✅ ATUALIZE O MÉTODO resetState

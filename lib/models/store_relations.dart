@@ -7,6 +7,8 @@ import 'package:totem_pro_admin/models/product_analytics_data.dart';
 import 'package:totem_pro_admin/models/rating_summary.dart';
 import 'package:totem_pro_admin/models/receivable_category.dart';
 import 'package:totem_pro_admin/models/scheduled_pause.dart';
+import 'package:totem_pro_admin/models/store_chatbot_config.dart';
+import 'package:totem_pro_admin/models/store_chatbot_message.dart';
 import 'package:totem_pro_admin/models/store_city.dart';
 import 'package:totem_pro_admin/models/store_hour.dart';
 import 'package:totem_pro_admin/models/store_neig.dart';
@@ -58,6 +60,9 @@ class StoreRelations {
   final List<Table> tables;
   final List<Command> commands;
 
+  // ✅ ADIÇÃO: Nova propriedade para as mensagens do chatbot
+  final List<StoreChatbotMessage> chatbotMessages;
+  final StoreChatbotConfig? chatbotConfig;
 
   StoreRelations({
     this.paymentMethodGroups = const [],
@@ -85,6 +90,8 @@ class StoreRelations {
     this.receivableCategories = const [],
     this.tables = const [],
     this.commands = const [],
+    this.chatbotMessages = const [],
+    this.chatbotConfig,
   });
 
   factory StoreRelations.fromJson(Map<String, dynamic> json) {
@@ -179,7 +186,13 @@ class StoreRelations {
       commands: (json['commands'] as List<dynamic>? ?? [])
           .map((c) => Command.fromJson(c as Map<String, dynamic>))
           .toList(),
-
+      // ✅ ADIÇÃO: Lógica para converter o JSON da nova lista
+      chatbotMessages: (json['chatbot_messages'] as List<dynamic>? ?? [])
+          .map((e) => StoreChatbotMessage.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      chatbotConfig: json['chatbot_config'] != null
+          ? StoreChatbotConfig.fromJson(json['chatbot_config'])
+          : null,
 
     );
   }
@@ -211,6 +224,8 @@ class StoreRelations {
     List<ReceivableCategory>? receivableCategories,
     List<Table>? tables,
     List<Command>? commands,
+    List<StoreChatbotMessage>? chatbotMessages,
+    StoreChatbotConfig? chatbotConfig,
 
   }) {
     return StoreRelations(
@@ -238,6 +253,8 @@ class StoreRelations {
       receivableCategories: receivableCategories ?? this.receivableCategories,
       tables: tables ?? this.tables,
       commands: commands ?? this.commands,
+      chatbotMessages: chatbotMessages ?? this.chatbotMessages,
+      chatbotConfig: chatbotConfig ?? this.chatbotConfig
     );
   }
 

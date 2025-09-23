@@ -87,7 +87,7 @@ Future<void> configureDependencies() async {
   getIt.registerFactory(() => PaymentMethodRepository(getIt()));
   getIt.registerFactory(() => SegmentRepository(getIt()));
   getIt.registerFactory(() => UserRepository(getIt()));
-  getIt.registerFactory(() => ChatBotConfigRepository(getIt()));
+  getIt.registerFactory(() => ChatbotRepository(getIt()));
   getIt.registerFactory(() => DashboardRepository(getIt()));
   getIt.registerFactory(() => StoreOperationConfigRepository(getIt()));
   getIt.registerFactory(() => BannerRepository(getIt()));

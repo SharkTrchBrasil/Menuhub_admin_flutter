@@ -38,7 +38,9 @@ import '../pages/analytics/analytics_page.dart';
 import '../pages/banners/banners_page.dart';
 
 import '../pages/categories/create_category_page.dart';
-import '../pages/chatbot/qrcode.dart';
+
+import '../pages/chatbot/chatbot_page.dart';
+import '../pages/chatbot/cubit/chatbot_cubit.dart';
 import '../pages/coupons/coupons_page.dart';
 
 import '../pages/customers/customers_page.dart';
@@ -80,6 +82,7 @@ import '../pages/verify_code/verify_code_page.dart';
 import '../pages/welcome/settings_wizard_page.dart';
 import '../pages/welcome/welcome_page.dart';
 import '../repositories/analytics_repository.dart';
+import '../repositories/chatbot_repository.dart';
 import '../repositories/realtime_repository.dart';
 
 import '../cubits/auth_cubit.dart';
@@ -655,15 +658,36 @@ class AppRouter {
 
               StatefulShellBranch(
                 routes: [
+
                   GoRoute(
                     path: 'chatbot',
-                    pageBuilder:
-                        (_, state) =>
-                        NoTransitionPage(
-                          key: UniqueKey(),
-                          child: ChatBotConfigPage(storeId: state.storeId),
+                    pageBuilder: (context, state) {
+                      final storeId = state.pathParameters['storeId']!;
+                      final storesCubit = context.read<StoresManagerCubit>();
+                      final activeStore = (storesCubit.state as StoresManagerLoaded).activeStore;
+                      final initialConfig = activeStore?.relations.chatbotConfig;
+                      final initialMessages = activeStore?.relations.chatbotMessages ?? [];
+
+                      return NoTransitionPage(
+                        key: UniqueKey(),
+                        child: BlocProvider<ChatbotCubit>(
+                          create: (context) => ChatbotCubit(
+                            storeId: int.parse(storeId),
+                            chatbotRepository: getIt<ChatbotRepository>(),
+                            realtimeRepository: getIt<RealtimeRepository>(),
+                            storesManagerCubit: storesCubit,
+
+                          )..initialize(initialConfig, initialMessages),
+
+                          child: ChatbotPage(storeId: int.parse(storeId)),
                         ),
+                      );
+                    },
                   ),
+
+
+
+
                 ],
               ),
 

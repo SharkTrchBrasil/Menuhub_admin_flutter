@@ -39,6 +39,9 @@ class StoresManagerLoaded extends StoresManagerState {
   final DateTime lastUpdate;
   final List<Holiday>? holidays;
   final ConnectivityStatus connectivityStatus;
+  final Set<int> stuckOrderIds;
+
+
 
   const StoresManagerLoaded({
     required this.stores,
@@ -49,6 +52,8 @@ class StoresManagerLoaded extends StoresManagerState {
     required this.lastUpdate,
     this.holidays,
     this.connectivityStatus = ConnectivityStatus.connected,
+    this.stuckOrderIds = const {},
+
   });
 
   @override
@@ -70,6 +75,8 @@ class StoresManagerLoaded extends StoresManagerState {
     DateTime? lastUpdate,
     List<Holiday>? holidays,
     ConnectivityStatus? connectivityStatus,
+    Set<int>? stuckOrderIds,
+
   }) {
     return StoresManagerLoaded(
       stores: stores ?? this.stores,
@@ -80,6 +87,8 @@ class StoresManagerLoaded extends StoresManagerState {
       lastUpdate: lastUpdate ?? this.lastUpdate,
       holidays: holidays ?? this.holidays,
       connectivityStatus: connectivityStatus ?? this.connectivityStatus,
+      stuckOrderIds: stuckOrderIds ?? this.stuckOrderIds,
+
     );
   }
 
@@ -90,10 +99,10 @@ class StoresManagerLoaded extends StoresManagerState {
     consolidatedStores,
     subscriptionWarning,
     notificationCounts,
-    lastUpdate,
     holidays,
     lastUpdate,
     connectivityStatus,
+
   ];
 }
 
