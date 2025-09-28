@@ -70,7 +70,7 @@ dependencies:
   flutter_dotenv: ^5.1.0
   flutter_staggered_grid_view:
   lottie:
-  audioplayers: ^6.5.0
+
   printing: 
   pdf:
   share_plus:
@@ -85,10 +85,16 @@ dependencies:
   #modal_side_sheet:
   connectivity_plus:
   video_player: ^2.8.2
+  flutter_local_notifications: ^19.4.2
+  syncfusion_flutter_pdfviewer:
+  flutter_sound:
+  audioplayers: ^6.5.1        # <-- ADICIONE (OU GARANTA QUE ESTEJA AQUI)
+  waveform_recorder: ^1.1.0
+  emoji_picker_flutter:
 
 
-
-
+  url_launcher:
+  pdfx: ^2.9.2
     # meu import
   flutter_svg: ^2.0.16
   easy_localization: ^3.0.7+1

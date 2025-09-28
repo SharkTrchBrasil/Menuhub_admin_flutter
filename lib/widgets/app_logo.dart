@@ -26,7 +26,7 @@ class _AppLogoState extends State<AppLogo> {
     return Row(
       children: [
 
-        SvgPicture.asset("assets/images/logo.png",color:widget.textColor ?? Colors.blue,width: widget.size,height: 20),
+        SvgPicture.asset("assets/images/logo.png",width: widget.size,height: 20),
       ],
     );
   }

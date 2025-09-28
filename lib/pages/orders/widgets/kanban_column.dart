@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/helpers/sidepanel.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
-import 'package:totem_pro_admin/pages/orders/widgets/order_details_desktop.dart';
+import 'package:totem_pro_admin/pages/orders/details/order_details_desktop.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/order_list_item.dart';
 
 import '../../../cubits/store_manager_cubit.dart';

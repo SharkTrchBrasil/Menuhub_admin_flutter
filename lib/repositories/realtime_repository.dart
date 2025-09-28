@@ -17,6 +17,8 @@ import 'package:totem_pro_admin/services/auth_service.dart';
 
 import '../core/enums/connectivity_status.dart';
 import '../models/category.dart';
+import '../models/chatbot_conversation.dart';
+import '../models/chatbot_message.dart';
 import '../models/full_menu_data.dart';
 import '../models/order_notification.dart';
 import '../models/payable_category.dart';
@@ -81,7 +83,7 @@ class RealtimeRepository {
   final _storeDetailsController = BehaviorSubject<Store?>();
   final _dashboardDataController = BehaviorSubject<Map<String, dynamic>?>();
   final _payablesDashboardController = BehaviorSubject<PayablesDashboardMetrics?>();
-
+  final _newChatMessageController = StreamController<ChatbotMessage>.broadcast(); // ✅ Adicione esta linha
 
 
   final _variantsStreams = <int, BehaviorSubject<List<Variant>>>{};
@@ -98,6 +100,9 @@ class RealtimeRepository {
   final _chatbotConfigController = BehaviorSubject<StoreChatbotConfig?>();
 
 
+  final _stuckOrderAlertController = StreamController<Map<String, dynamic>>.broadcast();
+
+  final _conversationsListController = BehaviorSubject<List<ChatbotConversation>>.seeded([]);
 
 
 
@@ -135,21 +140,28 @@ class RealtimeRepository {
   Stream<List<Table>> listenToTables(int storeId) => _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
   Stream<List<Command>> listenToCommands(int storeId) => _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
   Stream<PayablesDashboardMetrics?> get onPayablesDashboardUpdated => _payablesDashboardController.stream;
-
   Stream<FinancialsData?> get onFinancialsUpdated => _financialsController.stream;
   Stream<ConnectivityStatus> get onConnectivityChanged => _connectivityStatusController.stream;
-
-
   Stream<List<Category>> listenToCategories(int storeId) =>
       _categoriesStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])).stream;
-
   Stream<List<Variant>> listenToVariants(int storeId) =>
       _variantsStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])).stream;
-
-  final _stuckOrderAlertController = StreamController<Map<String, dynamic>>.broadcast();
-
-// 2. Crie um getter público para o stream
   Stream<Map<String, dynamic>> get onStuckOrderAlert => _stuckOrderAlertController.stream;
+  Stream<ChatbotMessage> get onNewChatMessage => _newChatMessageController.stream; // ✅ Adicione este getter
+
+  Stream<List<ChatbotConversation>> get onConversationsListUpdated => _conversationsListController.stream;
+
+
+
+
+
+
+
+
+
+
+
+
 
   /// Reivindica um trabalho de impressão específico pelo seu ID.
   Future<Either<String, Map<String, dynamic>>> claimSpecificPrintJob(int jobId) {
@@ -216,6 +228,7 @@ class RealtimeRepository {
   }
 
   void _registerSocketListeners() {
+
     if (_socket == null) return;
 
     _socket!.clearListeners(); // Garante que não haja listeners duplicados
@@ -309,10 +322,33 @@ class RealtimeRepository {
 
     _socket!.on('financials_updated', _handleFinancialsUpdated);
 
-
-
+    _socket!.on('new_chat_message', _handleNewChatMessage);
+    _socket!.on('conversations_initial', _handleConversationsInitial);
   }
 
+
+  void _handleNewChatMessage(dynamic data) {
+    log('✅ Evento recebido: new_chat_message');
+    try {
+      final message = ChatbotMessage.fromJson(data as Map<String, dynamic>);
+      _newChatMessageController.add(message);
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em _handleNewChatMessage', error: e, stackTrace: st);
+    }
+  }
+
+  // 4. Adicione a nova função handler
+  void _handleConversationsInitial(dynamic data) {
+    log('✅ Evento recebido: conversations_initial');
+    try {
+      final conversations = (data as List)
+          .map((c) => ChatbotConversation.fromJson(c as Map<String, dynamic>))
+          .toList();
+      _conversationsListController.add(conversations);
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em _handleConversationsInitial', error: e, stackTrace: st);
+    }
+  }
 
 
 
@@ -688,11 +724,14 @@ class RealtimeRepository {
 
 
 
+// Assumindo que este código está no seu RealtimeRepository
+
   Future<Either<String, Map<String, dynamic>>> updateStoreSettings({
     required int storeId,
-    bool? isDeliveryActive,
-    bool? isTakeoutActive,
-    bool? isTableServiceActive,
+    // Para consistência, vamos usar os mesmos nomes que definimos no Cubit
+    bool? deliveryEnabled,      // <-- Parâmetro renomeado
+    bool? pickupEnabled,        // <-- Parâmetro renomeado
+    bool? tableEnabled,         // <-- Parâmetro renomeado
     bool? isStoreOpen,
     bool? autoAcceptOrders,
     bool? autoPrintOrders,
@@ -702,18 +741,31 @@ class RealtimeRepository {
   }) {
     final data = <String, dynamic>{
       'store_id': storeId,
-      if (isDeliveryActive != null) 'is_delivery_active': isDeliveryActive,
-      if (isTakeoutActive != null) 'is_takeout_active': isTakeoutActive,
-      if (isTableServiceActive != null) 'is_table_service_active': isTableServiceActive,
+      // Agora, usamos os nomes de campo que o backend Python espera
+      if (deliveryEnabled != null) 'delivery_enabled': deliveryEnabled, // <-- Chave corrigida
+      if (pickupEnabled != null) 'pickup_enabled': pickupEnabled,       // <-- Chave corrigida
+      if (tableEnabled != null) 'table_enabled': tableEnabled,         // <-- Chave corrigida
       if (isStoreOpen != null) 'is_store_open': isStoreOpen,
       if (autoAcceptOrders != null) 'auto_accept_orders': autoAcceptOrders,
       if (autoPrintOrders != null) 'auto_print_orders': autoPrintOrders,
+
+      // Para campos de texto, é melhor enviar nulo se eles forem nulos,
+      // para que o backend possa limpá-los se necessário.
       'main_printer_destination': mainPrinterDestination,
       'kitchen_printer_destination': kitchenPrinterDestination,
       'bar_printer_destination': barPrinterDestination,
     };
 
-    return _emitWithAck('update_store_settings', data);
+    // Remove chaves com valores nulos, exceto para os destinos de impressora que queremos poder limpar.
+    data.removeWhere((key, value) {
+      // Mantém as chaves da impressora mesmo que o valor seja nulo.
+      if (key.contains('_printer_destination')) return false;
+      // Remove outras chaves se o valor for nulo.
+      return value == null;
+    });
+
+
+    return _emitWithAck('update_operation_config', data); // <-- O nome do evento também deve ser verificado
   }
 
 

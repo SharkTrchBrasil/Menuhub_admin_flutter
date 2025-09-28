@@ -10,7 +10,7 @@ import '../../../widgets/fixed_header.dart';
 import '../orders_page.dart';
 
 
-class DesktopOrderView extends StatelessWidget {
+class DesktopOrderView extends StatefulWidget {
   final List<OrderDetails> orders;
   final Widget Function(int statusIndex) buildStatusHeader;
   final List<OrderDetails> Function(List<OrderDetails> orders, int statusIndex) getOrdersByStatusIndex;
@@ -29,6 +29,11 @@ class DesktopOrderView extends StatelessWidget {
   });
 
   @override
+  State<DesktopOrderView> createState() => _DesktopOrderViewState();
+}
+
+class _DesktopOrderViewState extends State<DesktopOrderView> {
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -46,7 +51,7 @@ class DesktopOrderView extends StatelessWidget {
                       width: 20,
                       color: Colors.red,
                     ),
-                    onPressed: onRemovePressed,
+                    onPressed: widget.onRemovePressed,
                     tooltip: 'Retirar',
                   ),
                   const SizedBox(width: 10),
@@ -57,7 +62,7 @@ class DesktopOrderView extends StatelessWidget {
                       width: 20,
                       color: Colors.green,
                     ),
-                    onPressed: onAddPressed,
+                    onPressed: widget.onAddPressed,
                     tooltip: 'Adicionar',
                   ),
                   IconButton(
@@ -87,11 +92,11 @@ class DesktopOrderView extends StatelessWidget {
 
           Row(
             children: [
-              Expanded(child: buildStatusHeader(0)),
+              Expanded(child: widget.buildStatusHeader(0)),
               const SizedBox(width: 16),
-              Expanded(child: buildStatusHeader(1)),
+              Expanded(child: widget.buildStatusHeader(1)),
               const SizedBox(width: 16),
-              Expanded(child: buildStatusHeader(2)),
+              Expanded(child: widget.buildStatusHeader(2)),
             ],
           ),
           const SizedBox(height: 16),
@@ -102,15 +107,15 @@ class DesktopOrderView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: buildStatusColumn(getOrdersByStatusIndex(orders, 0), 0),
+                    child: widget.buildStatusColumn(widget.getOrdersByStatusIndex(widget.orders, 0), 0),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: buildStatusColumn(getOrdersByStatusIndex(orders, 1), 1),
+                    child: widget.buildStatusColumn(widget.getOrdersByStatusIndex(widget.orders, 1), 1),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: buildStatusColumn(getOrdersByStatusIndex(orders, 2), 2),
+                    child: widget.buildStatusColumn(widget.getOrdersByStatusIndex(widget.orders, 2), 2),
                   ),
                 ],
               ),

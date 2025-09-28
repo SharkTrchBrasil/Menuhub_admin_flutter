@@ -12,6 +12,8 @@ import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import '../core/enums/connectivity_status.dart';
 import '../core/utils/variant_helper.dart';
 import '../models/category.dart';
+import '../models/chatbot_conversation.dart';
+import '../models/chatbot_message.dart';
 import '../models/command.dart';
 import '../models/customer_analytics_data.dart';
 import '../models/dashboard_data.dart';
@@ -52,7 +54,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   StreamSubscription? _commandsSubscription;
 // 1. Adicione uma nova StreamSubscription no topo da classe
   StreamSubscription? _stuckOrderAlertSubscription;
-
+  StreamSubscription? _conversationsSubscription;
 
 
 
@@ -115,8 +117,97 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     );
 
 
+
+    _conversationsSubscription = _realtimeRepository.onConversationsListUpdated.listen(_onConversationsListUpdated); // ✅ Adicione esta linha
+    // Ouvir novas mensagens para atualizar a lista em tempo real
+    _realtimeRepository.onNewChatMessage.listen(_onNewChatMessageReceived); // ✅ Adicione esta linha
+    //
+
+
+
+
     _listenToActiveStoreData();
   }
+
+
+  /// Zera o contador de mensagens não lidas para um chat específico no estado local.
+  void clearUnreadCount(String chatId) {
+    if (isClosed) return;
+    final currentState = state;
+    // Garante que só vamos agir se o estado estiver carregado
+    if (currentState is! StoresManagerLoaded) return;
+
+    // Pega a lista atual de conversas
+    final conversations = List<ChatbotConversation>.from(currentState.conversations);
+
+    // Encontra o índice da conversa que precisa ser atualizada
+    final index = conversations.indexWhere((c) => c.chatId == chatId);
+
+    // Se encontrou a conversa e ela tem mensagens não lidas...
+    if (index != -1 && conversations[index].unreadCount > 0) {
+      // 1. Cria uma cópia da conversa com o contador zerado
+      final updatedConversation = conversations[index].copyWith(unreadCount: 0);
+      // 2. Substitui a conversa antiga pela nova na lista
+      conversations[index] = updatedConversation;
+      // 3. Emite o novo estado com a lista atualizada
+      emit(currentState.copyWith(conversations: conversations));
+      log("✅ [CUBIT] Contador de não lidas zerado localmente para o chat: $chatId");
+    }
+  }
+
+
+
+  // ✅ Adicione estes dois novos métodos
+  void _onConversationsListUpdated(List<ChatbotConversation> conversations) {
+    if (isClosed) return;
+    final currentState = state;
+    if (currentState is StoresManagerLoaded) {
+      emit(currentState.copyWith(conversations: conversations));
+      log("✅ [CUBIT] Carga inicial de conversas recebida.");
+    }
+  }
+
+  void _onNewChatMessageReceived(ChatbotMessage newMessage) {
+    if (isClosed) return;
+    final currentState = state;
+    if (currentState is StoresManagerLoaded) {
+      final conversations = List<ChatbotConversation>.from(currentState.conversations);
+      final index = conversations.indexWhere((c) => c.chatId == newMessage.chatId);
+      // para incluí-lo. Vamos usar o nome que vem na mensagem se ele existir.
+      final customerName = newMessage.customerName ?? 'Novo Contato';
+
+      if (index != -1) {
+        final existing = conversations[index];
+        conversations[index] = existing.copyWith(
+          // ✅ CORREÇÃO: Usa o nome do cliente que pode ter vindo na mensagem
+          // e só mantém o nome antigo se o novo for nulo.
+          customerName: customerName != 'Novo Contato' ? customerName : existing.customerName,
+          lastMessagePreview: newMessage.textContent ?? '(Mídia)',
+          lastMessageTimestamp: newMessage.timestamp,
+          unreadCount: newMessage.isFromMe ? existing.unreadCount : existing.unreadCount + 1,
+        );
+        conversations.insert(0, conversations.removeAt(index));
+      } else {
+        // Adiciona uma nova conversa no topo
+        conversations.insert(0, ChatbotConversation(
+          chatId: newMessage.chatId,
+          storeId: newMessage.storeId,
+          customerName: newMessage.customerName, // O nome virá em um evento futuro
+          lastMessagePreview: newMessage.textContent ?? '(Mídia)',
+          lastMessageTimestamp: newMessage.timestamp,
+          unreadCount: 1,
+        ));
+      }
+      emit(currentState.copyWith(conversations: conversations));
+    }
+  }
+
+
+
+
+
+
+
 
 
   void _onConnectivityChanged(ConnectivityStatus status) {
@@ -469,28 +560,27 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   }
 
   Future<void> updateStoreSettings(
-    int storeId, {
-    bool? isDeliveryActive,
-    bool? isTakeoutActive,
-    bool? isTableServiceActive,
-    bool? isStoreOpen,
-    bool? autoAcceptOrders,
-    bool? autoPrintOrders,
-    // ✅ NOVOS CAMPOS
-    String? mainPrinterDestination,
-    String? kitchenPrinterDestination,
-    String? barPrinterDestination,
-  }) async {
+      int storeId, {
+        bool? deliveryEnabled,
+        bool? pickupEnabled,
+        bool? tableEnabled,
+        bool? isStoreOpen,
+        bool? autoAcceptOrders,
+        bool? autoPrintOrders,
+        String? mainPrinterDestination,
+        String? kitchenPrinterDestination,
+        String? barPrinterDestination,
+      }) async {
     try {
       final result = await _realtimeRepository.updateStoreSettings(
         storeId: storeId,
-        isDeliveryActive: isDeliveryActive,
-        isTakeoutActive: isTakeoutActive,
-        isTableServiceActive: isTableServiceActive,
+
+        deliveryEnabled:    deliveryEnabled,  // <-- Parâmetro renomeado
+        pickupEnabled:  pickupEnabled,     // <-- Parâmetro renomeado
+        tableEnabled:tableEnabled,
         isStoreOpen: isStoreOpen,
         autoAcceptOrders: autoAcceptOrders,
         autoPrintOrders: autoPrintOrders,
-        // ✅ NOVOS CAMPOS
         mainPrinterDestination: mainPrinterDestination,
         kitchenPrinterDestination: kitchenPrinterDestination,
         barPrinterDestination: barPrinterDestination,

@@ -53,6 +53,7 @@ import '../pages/edit_settings/hours/hours_store_page.dart';
 import '../pages/edit_settings/general/store_profile_page.dart';
 
 import '../pages/edit_settings/payment_methods/payment_methods_page.dart';
+import '../pages/hub/hub_page.dart';
 import '../pages/perfomance/cubit/performance_cubit.dart';
 import '../pages/perfomance/perfomance_page.dart';
 import '../pages/plans/plans_page.dart';
@@ -65,7 +66,7 @@ import '../pages/not_found/error_505_Page.dart';
 import '../pages/orders/cubit/order_page_cubit.dart';
 import '../pages/orders/orders_page.dart';
 
-import '../pages/orders/widgets/order_details_mobile.dart';
+import '../pages/orders/details/order_details_mobile.dart';
 import '../pages/payables/payables_page.dart';
 import '../pages/platform_payment_methods/gateway-payment.dart';
 import '../pages/product-wizard/product_wizard_page.dart';
@@ -87,6 +88,7 @@ import '../repositories/realtime_repository.dart';
 
 import '../cubits/auth_cubit.dart';
 
+import '../services/preference_service.dart';
 import '../services/print/print_manager.dart';
 import '../widgets/app_shell.dart';
 import 'enums/category_type.dart';
@@ -109,13 +111,13 @@ class AppRouter {
     redirectLimit: 10,
     observers: [BotToastNavigatorObserver()],
 
-    // ✅ 2. O refreshListenable continua perfeito
+
     refreshListenable: Listenable.merge([
       GoRouterRefreshStream(authCubit.stream),
       GoRouterRefreshStream(storesManagerCubit.stream),
     ]),
 
-    redirect: (BuildContext context, GoRouterState state) {
+    redirect: (BuildContext context, GoRouterState state) async {
       final location = state.uri.toString();
       final authState = authCubit.state;
       final storesState = storesManagerCubit.state;
@@ -124,41 +126,43 @@ class AppRouter {
       final authRoutes = ['/sign-in', '/sign-up', '/verify-email'];
       final isGoingToAuthRoute = authRoutes.any((r) => location.startsWith(r));
 
-      // --- Regra 1: Autenticação pendente ---
-      // Se ainda não sabemos se o usuário está logado, ele DEVE ficar na splash.
+      final preferenceService = getIt<PreferenceService>();
+
+
       if (authState is AuthInitial || authState is AuthLoading) {
         return location == splashRoute ? null : splashRoute;
       }
 
-      // --- Regra 2: Deslogado ---
-      // Se sabemos que ele está deslogado, ele só pode ir para as rotas de auth.
+
       if (authState is AuthUnauthenticated) {
         return isGoingToAuthRoute ? null : '/sign-in';
       }
 
-      // --- Regra 3: Logado, mas dados pendentes ---
-      // A partir daqui, sabemos que `authState is AuthAuthenticated`.
 
-      // ✅ A MÁGICA ESTÁ AQUI:
-      // Se os dados da loja ainda estão no estado inicial ou carregando...
       if (storesState is StoresManagerInitial ||
           storesState is StoresManagerLoading) {
         // ...mantemos o usuário na splash page! Não pulamos para a loading-data.
         return location == splashRoute ? null : splashRoute;
       }
 
-      // --- A partir daqui, sabemos que o usuário está logado E os dados da loja foram processados. ---
 
       // Se o resultado foi "sem lojas"...
       if (storesState is StoresManagerEmpty) {
         return '/stores/new';
       }
 
-      // Se o resultado foi "lojas carregadas"...
+      // --- ✅ NOVA REGRA 5: Logado, com lojas carregadas ---
       if (storesState is StoresManagerLoaded) {
-        // E o usuário ainda está na splash, finalmente o mandamos para o dashboard.
+        // Se o usuário está na splash, é hora de decidir para onde mandá-lo
         if (location == splashRoute) {
-          return '/stores/${storesState.activeStoreId}/dashboard';
+          final shouldSkipHub = await preferenceService.getSkipHubPreference();
+          final lastRoute = await preferenceService.getLastAccessedRoute();
+
+          if (shouldSkipHub && lastRoute != null) {
+            return lastRoute; // Vai direto para a última tela acessada
+          } else {
+            return '/hub'; // Vai para a nova tela de escolha
+          }
         }
       }
 
@@ -182,6 +186,17 @@ class AppRouter {
           return const SplashPage();
         },
       ),
+
+
+      GoRoute(
+        path: '/hub',
+        builder: (context, state) => const HubPage(),
+      ),
+
+
+
+
+
 
       GoRoute(
         path: '/sign-in',
@@ -228,12 +243,11 @@ class AppRouter {
 
       GoRoute(
         path: '/stores/:storeId',
-        // ✅ ADICIONE ESTE REDIRECT INTELIGENTE
+
         redirect: (context, state) {
           final storeId = state.pathParameters['storeId'];
 
-          // Verifica se a URL acessada é EXATAMENTE a rota pai.
-          // Ex: A URL é "/stores/5", mas não "/stores/5/products".
+
           final isGoingToBaseStorePath = state.uri.path == '/stores/$storeId';
 
           // Se for a rota pai, redireciona para o dashboard como padrão.
@@ -369,80 +383,7 @@ class AppRouter {
                 ],
               ),
 
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: 'orders',
-                    pageBuilder:
-                        (_, state) =>
-                        NoTransitionPage(
-                          child: BlocBuilder<
-                              StoresManagerCubit,
-                              StoresManagerState
-                          >(
-                            builder: (context, storesState) {
-                              if (storesState is StoresManagerLoaded) {
-                                return BlocProvider<OrderCubit>(
-                                  create:
-                                      (context) =>
-                                      OrderCubit(
-                                        realtimeRepository:
-                                        getIt<RealtimeRepository>(),
-                                        storesManagerCubit:
-                                        context
-                                            .read<StoresManagerCubit>(),
-                                        printManager: getIt<PrintManager>(),
-                                      ),
-                                  child: OrdersPage(),
-                                );
-                              }
 
-                              return const Scaffold(
-                                body: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                    routes: [
-                      GoRoute(
-                        path: ':id',
-                        // Supondo que a rota pai seja '/stores/:storeId'
-                        name: 'order-details',
-                        builder: (context, state) {
-                          // 1. Tenta pegar o 'extra' como um mapa.
-                          final extra =
-                          state.extra as Map<String, dynamic>?;
-
-                          // 2. Extrai os objetos do mapa.
-                          final OrderDetails? order = extra?['order'];
-                          final Store? store = extra?['store'];
-
-                          // 3. Verifica se os dados foram recebidos.
-                          if (order != null && store != null) {
-                            // 4. Constrói a página com os dados completos.
-                            return OrderDetailsPageMobile(
-                              order: order,
-                              store: store,
-                            );
-                          }
-
-                          // Fallback: Se a página for acessada sem os dados (ex: link direto),
-                          // mostra uma tela de erro ou de carregamento.
-                          return const Scaffold(
-                            body: Center(
-                              child: Text(
-                                "Erro: Não foi possível carregar os dados do pedido.",
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
 
               // PRODUTOS
               StatefulShellBranch(
@@ -1167,6 +1108,82 @@ class AppRouter {
               );
             },
           ),
+
+
+          GoRoute(
+                path: 'orders',
+                pageBuilder:
+                    (_, state) =>
+                    NoTransitionPage(
+                      child: BlocBuilder<
+                          StoresManagerCubit,
+                          StoresManagerState
+                      >(
+                        builder: (context, storesState) {
+                          if (storesState is StoresManagerLoaded) {
+                            return BlocProvider<OrderCubit>(
+                              create:
+                                  (context) =>
+                                  OrderCubit(
+                                    realtimeRepository:
+                                    getIt<RealtimeRepository>(),
+                                    storesManagerCubit:
+                                    context
+                                        .read<StoresManagerCubit>(),
+                                    printManager: getIt<PrintManager>(),
+                                  ),
+                              child: OrdersPage(),
+                            );
+                          }
+
+                          return const Scaffold(
+                            body: Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    // Supondo que a rota pai seja '/stores/:storeId'
+                    name: 'order-details',
+                    builder: (context, state) {
+                      // 1. Tenta pegar o 'extra' como um mapa.
+                      final extra =
+                      state.extra as Map<String, dynamic>?;
+
+                      // 2. Extrai os objetos do mapa.
+                      final OrderDetails? order = extra?['order'];
+                      final Store? store = extra?['store'];
+
+                      // 3. Verifica se os dados foram recebidos.
+                      if (order != null && store != null) {
+                        // 4. Constrói a página com os dados completos.
+                        return OrderDetailsPageMobile(
+                          order: order,
+                          store: store,
+                        );
+                      }
+
+                      // Fallback: Se a página for acessada sem os dados (ex: link direto),
+                      // mostra uma tela de erro ou de carregamento.
+                      return const Scaffold(
+                        body: Center(
+                          child: Text(
+                            "Erro: Não foi possível carregar os dados do pedido.",
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+
+
+
 
         ],
       ),

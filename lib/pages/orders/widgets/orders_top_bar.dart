@@ -10,6 +10,7 @@ import 'package:totem_pro_admin/services/print/printer_settings.dart';
 import 'package:totem_pro_admin/widgets/access_wrapper.dart';
 
 import '../../../core/helpers/sidepanel.dart';
+import '../../chatpanel/widgets/chat_central_panel.dart';
 import '../../table/widgets/create_table_dialog.dart';
 
 class OrdersTopBar extends StatelessWidget {
@@ -91,9 +92,7 @@ class OrdersTopBar extends StatelessWidget {
             builder: (ctx) => const CreateTableDialog(),
           );
         } else {
-          // Ação para as outras abas (Delivery, Balcão)
-          // TODO: Implementar a ação de "Novo Pedido"
-          print('Botão "Novo Pedido" clicado!');
+          ChatCentralPanel();
         }
       },
       style: ElevatedButton.styleFrom(

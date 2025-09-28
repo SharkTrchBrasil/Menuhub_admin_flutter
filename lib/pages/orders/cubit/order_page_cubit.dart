@@ -12,8 +12,10 @@ import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 
 import 'package:totem_pro_admin/pages/orders/cubit/order_page_state.dart';
 
+import '../../../core/utils/platform_utils.dart';
 import '../../../core/utils/sounds/sound_util.dart';
 import '../../../models/print_job.dart';
+import '../../../services/notification_service.dart';
 import '../../../services/print/print_manager.dart';
 
 class OrderCubit extends Cubit<OrderState> {
@@ -112,25 +114,41 @@ class OrderCubit extends Cubit<OrderState> {
       onError: (error) => emit(OrdersError("Erro ao carregar pedidos: $error")),
     );
   }
-
+// Sua função no Cubit
   Future<void> _onOrdersReceived(List<OrderDetails> newOrders, int storeId) async {
-    // ✅ 2. A verificação de impressão pendente é a primeira coisa a se fazer
-    // Isso garante que tanto a carga inicial quanto as atualizações sejam verificadas.
-   await _checkForPendingPrints(newOrders);
 
-    // Lógica para tocar som de novo pedido
+    await _checkForPendingPrints(newOrders);
+
+    final hasPendingOrders = newOrders.any((order) => order.orderStatus == 'pending');
+
+    if (hasPendingOrders) {
+      // Esta chamada agora funcionará, ativando o som contínuo.
+      SoundAlertUtil.startLoopingSound();
+    } else {
+      // Esta chamada interromperá o som contínuo quando não houver mais pendentes.
+      SoundAlertUtil.stopLoopingSound();
+    }
+
     final oldOrderIds = _ordersCache.map((o) => o.id).toSet();
     for (final order in newOrders) {
       if (order.orderStatus == 'pending' && !oldOrderIds.contains(order.id)) {
         _lastNotifiedOrderId = order.id.toString();
+
+        // Esta chamada tocará o som de notificação uma vez para o novo pedido.
         SoundAlertUtil.playNewOrderSound();
+
         print('[SOM] Pedido novo: #${order.id}');
+
+        if (isMobileDevice) {
+          NotificationService().showNewOrderNotification(order.publicId, order.customerName ?? 'Cliente');
+        }
       }
     }
 
     _ordersCache = newOrders;
     _emitFilteredOrders(storeId);
   }
+
 
 
 
@@ -263,6 +281,7 @@ class OrderCubit extends Cubit<OrderState> {
   @override
   Future<void> close() {
     _storesManagerSubscription?.cancel();
+    SoundAlertUtil.stopLoopingSound();
     _ordersSubscription?.cancel();
     _connectionSubscription?.cancel();
     return super.close();

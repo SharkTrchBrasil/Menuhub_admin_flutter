@@ -69,6 +69,8 @@ class AppTheme {
         foregroundColor: dsTheme.onCardColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0.5,
+
+
       ),
 
       // TEMA DA TABBAR ADICIONADO AQUI

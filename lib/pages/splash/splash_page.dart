@@ -1,5 +1,6 @@
 // ARQUIVO: lib/pages/splash/splash_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 
 import '../../widgets/app_logo.dart';
 import '../../widgets/dot_loading.dart';
@@ -12,15 +13,7 @@ class SplashPage extends StatelessWidget {
     // Apenas exibe a UI de splash. O GoRouter cuida do resto.
     return  Scaffold(
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AppLogo(size: 80),
-            SizedBox(height: 32),
-            // Pode manter um CircularProgressIndicator aqui se quiser
-            DotLoading(),
-          ],
-        ),
+        child:  SvgPicture.asset("assets/images/logo.png",),
       ),
     );
   }

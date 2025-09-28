@@ -11,7 +11,7 @@ import '../../../models/store.dart';
 import '../../../services/print/printing_service.dart';
 import '../../../widgets/order_printing_actions_widget.dart';
 import '../utils/order_helpers.dart';
-import 'order_status_button.dart';
+import '../widgets/order_status_button.dart';
 
 // O nome foi alterado para refletir sua nova função como painel
 class OrderDetailsPanel extends StatelessWidget {

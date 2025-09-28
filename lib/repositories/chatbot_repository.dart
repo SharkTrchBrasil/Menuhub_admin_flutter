@@ -1,5 +1,7 @@
 // lib/repositories/chatbot_repository.dart
 
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -69,4 +71,8 @@ class ChatbotRepository {
       return Left(Failure('Ocorreu um erro inesperado ao salvar a mensagem.'));
     }
   }
+
+
+
+
 }

@@ -2,8 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-// ✅ 1. Importe o novo cubit e estado
-
 import 'package:totem_pro_admin/pages/chatbot/widgets/connected.dart';
 import 'package:totem_pro_admin/pages/chatbot/widgets/dialog_coffirmation.dart';
 import 'package:totem_pro_admin/pages/chatbot/widgets/not_connect.dart';
@@ -18,11 +16,8 @@ class ChatbotPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 2. Ouve o ChatbotCubit
     return BlocListener<ChatbotCubit, ChatbotState>(
-      // ✅ 3. A condição fica mais simples e robusta
       listenWhen: (previous, current) {
-        // Mostra o diálogo quando o estado muda de "não conectado" para "conectado"
         return previous is! ChatbotConnected && current is ChatbotConnected;
       },
       listener: (context, state) {
@@ -31,20 +26,25 @@ class ChatbotPage extends StatelessWidget {
           builder: (_) => const WhatsAppConfirmationDialog(),
         );
       },
-      // ✅ 4. Constrói a UI com base no estado do ChatbotCubit
       child: BlocBuilder<ChatbotCubit, ChatbotState>(
         builder: (context, state) {
-          // ✅ 5. A lógica de decisão é baseada no TIPO do estado, não em strings
+          // --- LÓGICA CORRIGIDA AQUI ---
+
+          // 1. Se estiver conectado, mostra a tela principal.
           if (state is ChatbotConnected) {
-            return ChatbotConnectedScreen(storeId: storeId);
+            return ChatbotConnectedScreen(storeId: storeId); //
           }
 
-          if (state is ChatbotInitial || state is ChatbotLoading) {
-            return const Center(child: DotLoading());
+          // 2. Se for o estado inicial absoluto, mostra um loading central.
+          //    Isso acontece apenas uma vez, antes do primeiro estado real ser emitido.
+          if (state is ChatbotInitial) {
+            return const Center(child: DotLoading()); //
           }
 
-          // Para os estados ChatbotDisconnected, ChatbotAwaitingQr, ChatbotError
-          return ChatbotEmpty(storeId: storeId);
+          // 3. PARA TODOS OS OUTROS ESTADOS (Loading/Pending, AwaitingQr, Disconnected, Error)
+          //    nós delegamos a responsabilidade para a tela ChatbotEmpty,
+          //    que é mais inteligente.
+          return ChatbotEmpty(storeId: storeId); //
         },
       ),
     );

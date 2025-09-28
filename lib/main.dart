@@ -12,6 +12,7 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/auth_cubit.dart';
 import 'package:totem_pro_admin/cubits/active_store_cubit.dart';
+import 'package:totem_pro_admin/pages/chatpanel/widgets/chat_pop/chat_popup_manager.dart';
 import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart';
 import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
 import 'package:totem_pro_admin/constdata/colorprovider.dart';
@@ -24,8 +25,12 @@ import 'package:totem_pro_admin/pages/table/cubits/tables_cubit.dart';
 import 'package:totem_pro_admin/repositories/chatbot_repository.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
 import 'package:totem_pro_admin/repositories/table_repository.dart';
+import 'package:totem_pro_admin/services/notification_service.dart';
 import 'package:totem_pro_admin/themes/ds_theme.dart';
 import 'package:totem_pro_admin/themes/ds_theme_switcher.dart';
+
+import 'core/utils/platform_utils.dart';
+import 'core/utils/sounds/sound_util.dart';
 
 // Removemos os imports de conectividade que não são mais necessários aqui
 
@@ -34,7 +39,11 @@ void main() async {
   await dotenv.load(fileName: 'assets/env');
   await configureDependencies();
   await EasyLocalization.ensureInitialized();
-
+  await SoundAlertUtil.initialize();
+  // ✅ 2. Execute a inicialização APENAS se for um dispositivo móvel
+  if (isMobileDevice) {
+    await NotificationService().initialize();
+  }
   runApp(
     EasyLocalization(
       supportedLocales: const [
@@ -78,7 +87,7 @@ class AppRoot extends StatelessWidget {
   }
 }
 
-// ✅ O MyApp volta a ser um StatelessWidget simples
+// No arquivo main.dart - ATUALIZAR a classe MyApp
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -87,7 +96,7 @@ class MyApp extends StatelessWidget {
     final themeSwitcher = Provider.of<DsThemeSwitcher>(context);
 
     return MaterialApp.router(
-      title: 'PDVix - Admin',
+      title: 'Parceiros',
       scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
       debugShowCheckedModeBanner: false,
       theme: AppTheme.fromDsTheme(themeSwitcher.theme),
@@ -106,7 +115,11 @@ class MyApp extends StatelessWidget {
       supportedLocales: context.supportedLocales,
       localizationsDelegates: context.localizationDelegates,
       routerConfig: getIt<GoRouter>(),
-      builder: BotToastInit(),
+      builder: (context, child) {
+        return ChatPopupManager(
+          child: BotToastInit()(context, child),
+        );
+      },
     );
   }
 }

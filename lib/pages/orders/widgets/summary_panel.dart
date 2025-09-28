@@ -14,7 +14,7 @@ import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import 'package:universal_html/js.dart';
 
 import '../../../ConstData/typography.dart';
-import 'order_details_desktop.dart';
+import '../details/order_details_desktop.dart';
 
 class SummaryPanel extends StatelessWidget {
   final OrderDetails? selectedOrder;

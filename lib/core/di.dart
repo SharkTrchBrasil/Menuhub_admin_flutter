@@ -43,8 +43,10 @@ import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
 import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
 
 import '../repositories/analytics_repository.dart';
+import '../repositories/chat_repository.dart';
 import '../repositories/table_repository.dart';
 import '../services/connectivity_service.dart';
+import '../services/preference_service.dart';
 
 
 final getIt = GetIt.instance;
@@ -69,6 +71,7 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton(StoreRepository(getIt()));
 
   getIt.registerLazySingleton<ConnectivityService>(() => ConnectivityService());
+  getIt.registerLazySingleton(() => PreferenceService());
 
   getIt.registerLazySingleton<RealtimeRepository>(
         () => RealtimeRepository(),
@@ -78,7 +81,9 @@ Future<void> configureDependencies() async {
         () => TableRepository(),
   );
 
-
+  getIt.registerLazySingleton<ChatRepository>(
+        () => ChatRepository(getIt()),
+  );
   // Factories (criados toda vez que são pedidos)
   getIt.registerFactory(() => CategoryRepository(getIt()));
   getIt.registerFactory(() => ProductRepository(getIt()));

@@ -5,6 +5,7 @@ import 'package:totem_pro_admin/models/store.dart';
 import 'package:totem_pro_admin/models/store_with_role.dart';
 
 import '../core/enums/connectivity_status.dart';
+import '../models/chatbot_conversation.dart';
 import '../models/dashboard_data.dart';
 import '../models/holiday.dart';
 
@@ -40,6 +41,7 @@ class StoresManagerLoaded extends StoresManagerState {
   final List<Holiday>? holidays;
   final ConnectivityStatus connectivityStatus;
   final Set<int> stuckOrderIds;
+  final List<ChatbotConversation> conversations;
 
 
 
@@ -53,6 +55,7 @@ class StoresManagerLoaded extends StoresManagerState {
     this.holidays,
     this.connectivityStatus = ConnectivityStatus.connected,
     this.stuckOrderIds = const {},
+    this.conversations = const [],
 
   });
 
@@ -76,6 +79,7 @@ class StoresManagerLoaded extends StoresManagerState {
     List<Holiday>? holidays,
     ConnectivityStatus? connectivityStatus,
     Set<int>? stuckOrderIds,
+    List<ChatbotConversation>? conversations,
 
   }) {
     return StoresManagerLoaded(
@@ -88,6 +92,7 @@ class StoresManagerLoaded extends StoresManagerState {
       holidays: holidays ?? this.holidays,
       connectivityStatus: connectivityStatus ?? this.connectivityStatus,
       stuckOrderIds: stuckOrderIds ?? this.stuckOrderIds,
+      conversations: conversations ?? this.conversations,
 
     );
   }
@@ -102,6 +107,7 @@ class StoresManagerLoaded extends StoresManagerState {
     holidays,
     lastUpdate,
     connectivityStatus,
+    conversations,
 
   ];
 }

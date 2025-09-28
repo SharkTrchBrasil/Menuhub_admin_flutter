@@ -25,6 +25,7 @@ const Map<String, String> internalStatusToDisplayName = {
   'on_route': 'Em Rota',
   'delivered': 'Concluído',
   'canceled': 'Cancelado',
+  'finalized': 'Finalizado'
 };
 
 const Map<String, Color> statusColors = {

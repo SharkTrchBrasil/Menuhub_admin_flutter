@@ -3,36 +3,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:totem_pro_admin/constdata/colorprovider.dart';
+
 
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store.dart';
 import 'package:totem_pro_admin/pages/base/BasePage.dart';
-import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
+
 import 'package:totem_pro_admin/pages/orders/widgets/kanban_column.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/orders_top_bar.dart';
-import 'package:totem_pro_admin/services/print/printer_settings.dart';
-import 'package:totem_pro_admin/pages/orders/store_settings.dart';
-import 'package:totem_pro_admin/pages/orders/widgets/count_badge.dart';
-import 'package:totem_pro_admin/pages/orders/widgets/desktoptoolbar.dart';
+
 import 'package:totem_pro_admin/pages/orders/widgets/empty_order_view.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/mobile_order_layout.dart';
-import 'package:totem_pro_admin/pages/orders/widgets/order_details_desktop.dart';
-import 'package:totem_pro_admin/pages/orders/widgets/order_type_tab.dart';
-import 'package:totem_pro_admin/pages/orders/widgets/store_header.dart';
-import 'package:totem_pro_admin/pages/orders/widgets/summary_panel.dart';
-import 'package:totem_pro_admin/pages/orders/widgets/order_list_item.dart';
-import 'package:totem_pro_admin/widgets/access_wrapper.dart';
-import 'package:totem_pro_admin/widgets/dot_loading.dart';
-import 'package:totem_pro_admin/widgets/mobileappbar.dart';
+import 'package:totem_pro_admin/pages/orders/widgets/responsive_order_view.dart' hide OrderViewMode;
 
-import '../../core/helpers/sidepanel.dart';
-import '../../services/subscription/subscription_service.dart';
-import '../../widgets/appbarcode.dart';
-import '../../widgets/select_store.dart';
+import 'package:totem_pro_admin/widgets/dot_loading.dart';
+
+
+
+import '../../core/enums/order_view.dart';
 import '../../widgets/subscription_blocked_card.dart';
+import '../chatpanel/widgets/chat_central_panel.dart';
 import '../table/tables.dart';
 import 'cubit/order_page_cubit.dart';
 import 'cubit/order_page_state.dart';
@@ -48,6 +40,11 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   OrderDetails? _selectedOrderDetails;
+
+  bool _isChatPanelVisible = false;
+
+  // ✅ 1. CRIE A CHAVE
+  final GlobalKey<ResponsiveOrderViewState> _orderViewKey = GlobalKey<ResponsiveOrderViewState>();
 
   // ✅ ESTADO DE FILTRO ATUALIZADO PARA SER MAIS ROBUSTO
   String? _selectedTabKey; // Ex: 'delivery', 'balcao', 'mesa'
@@ -162,7 +159,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
             return BasePage(
            //   desktopAppBar: appber(store: activeStore,),
               mobileBuilder: (context) => MobileOrderLayout(
-                searchController: _searchController,
+               // searchController: _searchController,
                 onOpenOrderDetailsPage: (ctx, order) {
                   context.go(
                     '/stores/${activeStore?.core.id}/orders/${order.id}',
@@ -171,7 +168,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
                 },
                 store: activeStore,
                 orderState: orderState,
-                displayOrders: displayOrders, // Sua lista de pedidos filtrada
+              //  displayOrders: displayOrders, // Sua lista de pedidos filtrada
               ),
               desktopBuilder: (context) => _buildDesktopLayout(context, activeStore, warningMessage),
             );
@@ -182,22 +179,47 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   }
 
   Widget _buildDesktopLayout(BuildContext context, Store? activeStore, String? warningMessage) {
+
+
+
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: Column(
+      body: Stack(
         children: [
-          if (warningMessage != null) SubscriptionBlockedCard(message: warningMessage),
-          _buildTopBar(context, activeStore),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildMainContentPanel(context, activeStore),
+          Column(
+            children: [
+              if (warningMessage != null) SubscriptionBlockedCard(message: warningMessage),
+              _buildTopBar(context, activeStore),
+
+              IconButton(
+                icon: Icon(Icons.chat),
+                tooltip: 'Central de Atendimento',
+                onPressed: () => setState(() => _isChatPanelVisible = !_isChatPanelVisible),
+              ),
+
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildMainContentPanel(context, activeStore),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+
+          // O Painel Flutuante
+          if (_isChatPanelVisible)
+            Positioned(
+              top: 60,
+              right: 20,
+              child: ChatCentralPanel(),
+            ),
+
+
         ],
       ),
     );
@@ -205,17 +227,42 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
 
   Widget _buildMainContentPanel(BuildContext context, Store? activeStore) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 16), // Padding ajustado
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
         ),
-        // ✅ AQUI ESTÁ A LÓGICA ATUALIZADA
-        child: _buildCurrentTabView(activeStore),
+        // A lógica de `switch` foi substituída por este BlocBuilder
+        child: BlocBuilder<OrderCubit, OrderState>(
+          builder: (context, orderState) {
+            if (orderState is! OrdersLoaded) return const Center(child: DotLoading());
+
+            // Filtra os pedidos baseado na aba principal selecionada (Delivery, Balcão, etc.)
+            final filteredOrders = _filterOrders(orderState.orders);
+
+            if (filteredOrders.isEmpty) return const EmptyOrdersView();
+
+            // ✅ USA O NOVO WIDGET AQUI!
+            return ResponsiveOrderView(
+              key: _orderViewKey, // Passa a chave
+              orders: filteredOrders,
+              store: activeStore,
+              initialViewMode: OrderViewMode.list, // Desktop começa com Kanban
+              onOrderTap: (order) {
+                // Sua lógica para selecionar um pedido
+                _onOrderSelected(order);
+
+                // Se quiser abrir um painel de detalhes, a lógica viria aqui
+              },
+            );
+          },
+        ),
       ),
     );
   }
+
+
 
 
 
