@@ -1,5 +1,5 @@
 
-import 'package:totem_pro_admin/models/plans.dart';
+import 'package:totem_pro_admin/models/plans/plans.dart';
 
 class AvailablePlan {
   final Plans plan;

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/services.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
+import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
 import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart';
 
 import '../../../core/enums/bulk_action_type.dart';

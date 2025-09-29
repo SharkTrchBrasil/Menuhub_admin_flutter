@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/models/page_status.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/pages/create_store/cubit/store_setup-state.dart';
 import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart';
 import 'package:totem_pro_admin/pages/create_store/widgets/address_step.dart';

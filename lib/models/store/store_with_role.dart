@@ -1,4 +1,4 @@
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 
 enum StoreAccessRole {
   owner('Proprietário', false), // Geralmente não atribuível via UI

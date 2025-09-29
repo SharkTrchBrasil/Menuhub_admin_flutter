@@ -12,7 +12,8 @@ import '../../../core/app_edit_controller.dart';
 import '../../../core/di.dart';
 import '../../../core/helpers/mask.dart';
 
-import '../../../models/store_payable.dart'; // Seu modelo de conta a pagar
+// Seu modelo de conta a pagar
+import '../../../models/store/store_payable.dart';
 import '../../../repositories/store_repository.dart'; // Seu repositório de dados
 import '../../../widgets/app_text_field.dart'; // Seu widget de campo de texto
 import '../../../widgets/base_dialog.dart'; // Seu widget de diálogo base

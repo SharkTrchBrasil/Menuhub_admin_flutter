@@ -3,7 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/product.dart';
+
+import '../../models/products/product.dart';
 import '../enums/cashback_type.dart';
 import '../enums/inventory_stock.dart';
 
@@ -109,5 +110,16 @@ extension ProductStatusExtension on Product {
       return ProductStockStatus.lowStock;
     }
     return ProductStockStatus.inStock;
+  }
+
+
+
+}
+
+
+extension CurrencyFormatExtension on num {
+  String toCurrency({String locale = 'pt_BR', String symbol = 'R\$'}) {
+    final format = NumberFormat.currency(locale: locale, symbol: symbol);
+    return format.format(this);
   }
 }

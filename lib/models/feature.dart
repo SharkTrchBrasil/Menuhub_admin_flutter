@@ -28,6 +28,18 @@ class Feature {
     );
   }
 
+  /// Converte o objeto Feature para um mapa JSON.
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'feature_key': featureKey,
+      'name': name,
+      'description': description,
+      'is_addon': isAddon,
+      'addon_price': addonPrice,
+    };
+  }
+
   Feature copyWith({
     int? id,
     String? featureKey,

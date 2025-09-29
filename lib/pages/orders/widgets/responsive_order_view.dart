@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/order_list_item.dart';
 import '../../../core/enums/order_view.dart';
 import 'package:collection/collection.dart';

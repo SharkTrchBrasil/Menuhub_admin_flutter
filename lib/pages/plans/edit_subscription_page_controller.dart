@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 // Seus imports
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-import 'package:totem_pro_admin/models/available_plan.dart';
+import 'package:totem_pro_admin/models/plans/available_plan.dart';
 
 
 

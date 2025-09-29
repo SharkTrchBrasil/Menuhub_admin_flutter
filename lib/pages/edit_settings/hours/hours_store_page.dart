@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
-import 'package:totem_pro_admin/models/store_hour.dart';
+
 import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/add_pause_dialog.dart';
 import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/add_shift_dialog.dart';
 import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/edit_shift_dialog.dart';
@@ -17,6 +17,7 @@ import 'package:totem_pro_admin/core/di.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/holiday.dart';
 import '../../../models/scheduled_pause.dart';
+import '../../../models/store/store_hour.dart';
 import '../../../widgets/app_toasts.dart' as AppToasts;
 import 'widgets/action_and_summary_panel.dart';
 

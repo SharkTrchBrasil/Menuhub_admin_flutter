@@ -1,6 +1,6 @@
 
-import 'address.dart';
-import 'billing_customer.dart';
+import '../address.dart';
+import '../billing_customer.dart';
 import 'tokenized_card.dart';
 
 class CreateSubscriptionPayload {

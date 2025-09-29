@@ -5,8 +5,10 @@ import 'package:brasil_fields/brasil_fields.dart';
 import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
+
+import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
+
+import '../../../models/products/product.dart';
 
 part 'category_link_state.dart';
 

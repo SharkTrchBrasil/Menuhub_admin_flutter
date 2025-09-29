@@ -4,13 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/pages/categories/steps_bulk_category/step1.dart';
 import 'package:totem_pro_admin/pages/categories/steps_bulk_category/step2.dart';
 
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import '../../core/enums/bulk_action_type.dart';
 import '../../core/enums/category_type.dart';
+import '../../models/products/product.dart';
 import '../../repositories/product_repository.dart';
 import 'cubit/bulk_category_cubit.dart';
 import 'cubit/bulk_category_state.dart';

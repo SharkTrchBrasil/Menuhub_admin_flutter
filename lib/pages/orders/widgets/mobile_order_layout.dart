@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/responsive_order_view.dart';
 
 import '../../../core/enums/order_view.dart';

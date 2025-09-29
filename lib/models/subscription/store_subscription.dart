@@ -1,7 +1,9 @@
 // lib/models/store_subscription.dart
 
-import 'package:totem_pro_admin/models/plans.dart';
-import 'package:totem_pro_admin/models/plans_addon.dart';
+import 'package:totem_pro_admin/models/plans/plans.dart';
+
+
+import '../plans/plans_addon.dart';
 
 class StoreSubscription {
   final int id;

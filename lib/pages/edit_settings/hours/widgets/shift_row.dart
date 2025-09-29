@@ -1,7 +1,9 @@
 // lib/pages/opening_hours/widgets/shift_row.dart
 
 import 'package:flutter/material.dart';
-import 'package:totem_pro_admin/models/store_hour.dart';
+
+import '../../../../models/store/store_hour.dart';
+
 
 // O widget TimeInput (sem alterações)
 class TimeInput extends StatelessWidget {

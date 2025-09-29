@@ -1,14 +1,15 @@
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
+import 'package:totem_pro_admin/models/chatbot_conversation.dart'; // ✅ ADICIONE ESTA IMPORT
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/pages/base/BasePage.dart';
 
 import 'package:totem_pro_admin/pages/orders/widgets/kanban_column.dart';
@@ -20,11 +21,16 @@ import 'package:totem_pro_admin/pages/orders/widgets/responsive_order_view.dart'
 
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
-
-
 import '../../core/enums/order_view.dart';
+import '../../core/helpers/sidepanel.dart';
+import '../../services/chat_visibility_service.dart';
 import '../../widgets/subscription_blocked_card.dart';
 import '../chatpanel/widgets/chat_central_panel.dart';
+
+import '../chatpanel/widgets/chat_pop/chat_heads_manager.dart';
+import '../chatpanel/widgets/chat_pop/chat_popup_manager.dart';
+
+import '../product_groups/helper/side_panel_helper.dart';
 import '../table/tables.dart';
 import 'cubit/order_page_cubit.dart';
 import 'cubit/order_page_state.dart';
@@ -53,6 +59,9 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
 
   int _currentTabIndex = 0;
 
+  // ✅ 2. LISTA DE CONVERSAS ATIVAS PARA CHAT HEADS
+  final List<ChatbotConversation> _activeConversations = [];
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +73,9 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       _syncActiveStoreWithRoute();
     });
   }
+
+
+
 
   void _syncActiveStoreWithRoute() {
     final storeIdString = GoRouterState.of(context).pathParameters['storeId'];
@@ -92,6 +104,15 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     });
   }
 
+  // ✅ 3. FUNÇÃO PARA ABRIR CHAT A PARTIR DE UM CHAT HEAD
+  void _onChatHeadTapped(ChatbotConversation conversation) {
+    ChatPopupManager.of(context)?.openChat(
+      storeId: conversation.storeId,
+      chatId: conversation.chatId,
+      customerName: conversation.customerName ?? 'Cliente',
+    );
+  }
+
   List<OrderDetails> _getDisplayOrders(List<OrderDetails> allOrders) {
     final tabFiltered = _currentTabIndex == 0
         ? allOrders.where((o) => o.scheduledFor == null).toList()
@@ -110,6 +131,7 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    GetIt.I<ChatVisibilityService>().setPanelVisibility(false);
     super.dispose();
   }
 
@@ -136,10 +158,28 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     return orders;
   }
 
+
+// Esta é a função que constrói o painel
+  void showChatCentralPanel(BuildContext context) {
+    // 1. INFORMA O SERVIÇO QUE O PAINEL ESTÁ ABRINDO
+    GetIt.I<ChatVisibilityService>().setPanelVisibility(true);
+
+    showResponsiveSidePanelGroup(
+      context,
+      panel: const ChatCentralPanel(),
+    ).whenComplete(() {
+      // 2. QUANDO O PAINEL É FECHADO (pelo usuário), INFORMA O SERVIÇO
+      GetIt.I<ChatVisibilityService>().setPanelVisibility(false);
+    });
+  }
+
+
+
+
+
+
   @override
   Widget build(BuildContext context) {
-
-
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, storeState) {
         if (storeState is! StoresManagerLoaded) {
@@ -156,21 +196,23 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               displayOrders = _getDisplayOrders(orderState.orders);
             }
 
-            return BasePage(
-           //   desktopAppBar: appber(store: activeStore,),
-              mobileBuilder: (context) => MobileOrderLayout(
-               // searchController: _searchController,
-                onOpenOrderDetailsPage: (ctx, order) {
-                  context.go(
-                    '/stores/${activeStore?.core.id}/orders/${order.id}',
-                    extra: {'order': order, 'store': activeStore},
-                  );
-                },
-                store: activeStore,
-                orderState: orderState,
-              //  displayOrders: displayOrders, // Sua lista de pedidos filtrada
+            // ✅ 4. ENVOLVA TUDO COM O CHAT HEADS MANAGER
+            return ChatHeadsManager(
+              activeConversations: _activeConversations,
+              onChatHeadTapped: _onChatHeadTapped,
+              child: BasePage(
+                mobileBuilder: (context) => MobileOrderLayout(
+                  onOpenOrderDetailsPage: (ctx, order) {
+                    context.go(
+                      '/stores/${activeStore?.core.id}/orders/${order.id}',
+                      extra: {'order': order, 'store': activeStore},
+                    );
+                  },
+                  store: activeStore,
+                  orderState: orderState,
+                ),
+                desktopBuilder: (context) => _buildDesktopLayout(context, activeStore, warningMessage),
               ),
-              desktopBuilder: (context) => _buildDesktopLayout(context, activeStore, warningMessage),
             );
           },
         );
@@ -179,10 +221,6 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
   }
 
   Widget _buildDesktopLayout(BuildContext context, Store? activeStore, String? warningMessage) {
-
-
-
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: Stack(
@@ -192,12 +230,17 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               if (warningMessage != null) SubscriptionBlockedCard(message: warningMessage),
               _buildTopBar(context, activeStore),
 
+              // ✅ 5. BOTÃO DE CHAT ATUALIZADO
               IconButton(
-                icon: Icon(Icons.chat),
+                icon: const Icon(Icons.chat),
                 tooltip: 'Central de Atendimento',
-                onPressed: () => setState(() => _isChatPanelVisible = !_isChatPanelVisible),
-              ),
+                onPressed: () {
 
+                  showChatCentralPanel(context);
+
+
+                },
+              ),
               Expanded(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,14 +253,6 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
               ),
             ],
           ),
-
-          // O Painel Flutuante
-          if (_isChatPanelVisible)
-            Positioned(
-              top: 60,
-              right: 20,
-              child: ChatCentralPanel(),
-            ),
 
 
         ],
@@ -262,11 +297,6 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
     );
   }
 
-
-
-
-
-
   Widget _buildTopBar(BuildContext context, Store? activeStore) {
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, storeState) {
@@ -302,6 +332,22 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
       },
     );
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   Widget _buildOrdersDataTable(List<OrderDetails> orders) {
@@ -424,9 +470,6 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
         },
     );
   }
-
-
-
 
 
 

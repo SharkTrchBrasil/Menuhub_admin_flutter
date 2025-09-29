@@ -4,13 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/pages/product_flavors/cubit/flavor_wizard_cubit.dart';
 import 'package:totem_pro_admin/pages/product_flavors/tabs/classification_tab.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 
 // Importe suas abas
 
+import '../../models/products/product.dart';
 import '../../widgets/ds_primary_button.dart';
 import 'tabs/flavor_details_tab.dart';
 import 'tabs/flavor_price_tab.dart';

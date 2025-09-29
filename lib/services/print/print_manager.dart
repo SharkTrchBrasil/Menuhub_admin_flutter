@@ -1,6 +1,6 @@
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/print_job.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/services/print/printer_mapping_service.dart';
 import 'package:totem_pro_admin/services/print/print_layout_service.dart';
 

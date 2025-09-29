@@ -1,6 +1,8 @@
 // lib/models/store_chatbot_message.dart
 
-import 'chatbot_message_template.dart';
+
+
+import '../chatbot_message_template.dart';
 
 class StoreChatbotMessage {
   final String templateKey;

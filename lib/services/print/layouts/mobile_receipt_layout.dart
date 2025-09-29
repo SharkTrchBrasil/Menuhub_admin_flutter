@@ -4,7 +4,7 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 
 class EscposReceiptLayout {
   static Future<List<int>> build(

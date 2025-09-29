@@ -2,8 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/models/product_variant_link.dart';
+
 import 'package:totem_pro_admin/models/variant.dart';
 import 'package:totem_pro_admin/models/variant_option.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
@@ -13,6 +12,8 @@ import '../../../../core/enums/variant_type.dart';
 import '../../../core/enums/create_compement_step.dart';
 import '../../../core/enums/form_status.dart';
 import '../../../core/utils/variant_helper.dart';
+import '../../../models/products/product.dart';
+import '../../../models/products/product_variant_link.dart';
 
 part 'create_complement_state.dart';
 

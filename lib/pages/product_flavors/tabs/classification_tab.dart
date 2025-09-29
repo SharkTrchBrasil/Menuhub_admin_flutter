@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/enums/foodtags.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 
 import '../cubit/flavor_wizard_cubit.dart';
 

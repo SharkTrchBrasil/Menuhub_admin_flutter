@@ -1,8 +1,8 @@
 // Em: lib/cubits/store_manager_state.dart
 
 import 'package:equatable/equatable.dart';
-import 'package:totem_pro_admin/models/store.dart';
-import 'package:totem_pro_admin/models/store_with_role.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
+import 'package:totem_pro_admin/models/store/store_with_role.dart';
 
 import '../core/enums/connectivity_status.dart';
 import '../models/chatbot_conversation.dart';

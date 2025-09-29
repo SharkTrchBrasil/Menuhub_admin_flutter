@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/models/variant.dart';
 
+import '../../../models/products/product.dart';
 import '../cubit/create_complement_cubit.dart';
 
 

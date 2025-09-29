@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/order_details.dart';
 import '../../../models/order_product.dart';
-import '../../../models/store.dart';
+import '../../../models/store/store.dart';
 import '../../../services/print/printing_service.dart';
 import '../../../widgets/order_printing_actions_widget.dart';
 import '../utils/order_helpers.dart';

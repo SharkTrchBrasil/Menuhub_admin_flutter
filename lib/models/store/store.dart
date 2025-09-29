@@ -1,11 +1,11 @@
 import 'package:dio/dio.dart';
+import 'package:totem_pro_admin/models/store/store_address.dart';
+import 'package:totem_pro_admin/models/store/store_core.dart';
+import 'package:totem_pro_admin/models/store/store_marketing.dart';
+import 'package:totem_pro_admin/models/store/store_media.dart';
+import 'package:totem_pro_admin/models/store/store_operation.dart';
+import 'package:totem_pro_admin/models/store/store_relations.dart';
 
-import 'store_core.dart';
-import 'store_address.dart';
-import 'store_operation.dart';
-import 'store_marketing.dart';
-import 'store_media.dart';
-import 'store_relations.dart';
 
 class Store {
   final StoreCore core;

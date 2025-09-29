@@ -27,10 +27,12 @@ import '../cubits/store_manager_state.dart';
 import '../models/category.dart';
 import '../models/coupon.dart';
 import '../models/order_details.dart';
-import '../models/product.dart';
-import '../models/store.dart';
-import '../models/store_hour.dart';
 
+import '../models/products/product.dart';
+import '../models/store/store.dart';
+
+
+import '../models/store/store_hour.dart';
 import '../models/variant.dart';
 import '../pages/accesses/accesses_page.dart';
 
@@ -43,7 +45,7 @@ import '../pages/chatbot/chatbot_page.dart';
 import '../pages/chatbot/cubit/chatbot_cubit.dart';
 import '../pages/coupons/coupons_page.dart';
 
-import '../pages/customers/customers_page.dart';
+
 
 import '../pages/dashboard/dashboard.dart';
 import '../pages/edit_coupon/edit_coupon_page.dart';
@@ -807,22 +809,7 @@ class AppRouter {
                 ],
               ),
 
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: 'customers',
-                    pageBuilder:
-                        (_, state) =>
-                        NoTransitionPage(
-                          key: UniqueKey(),
-                          child: CustomersPage(storeId: state.storeId),
-                        ),
-                    // redirect:
-                    //     (_, state) =>
-                    //         RouteGuard.apply(state, [StoreOwnerGuard()]),
-                  ),
-                ],
-              ),
+
 
               StatefulShellBranch(
                 routes: [

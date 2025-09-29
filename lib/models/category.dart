@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:recase/recase.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/models/option_group.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
+import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
 import 'package:totem_pro_admin/widgets/app_selection_form_field.dart';
 
 

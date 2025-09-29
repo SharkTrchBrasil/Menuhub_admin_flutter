@@ -3,7 +3,8 @@ import 'package:collection/collection.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
-import '../../../models/store_chatbot_message.dart';
+
+import '../../../models/store/store_chatbot_message.dart';
 import '../../../widgets/ds_primary_button.dart';
 import '../cubit/chatbot_cubit.dart';
 import '../cubit/chatbot_state.dart';

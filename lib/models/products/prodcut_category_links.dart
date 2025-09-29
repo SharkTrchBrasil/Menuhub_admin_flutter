@@ -1,5 +1,5 @@
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/products/product.dart';
 import 'package:equatable/equatable.dart';
 
 class ProductCategoryLink extends Equatable {

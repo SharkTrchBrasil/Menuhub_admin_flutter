@@ -10,7 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../models/order_details.dart';
 import '../../../models/order_product.dart';
-import '../../../models/store.dart';
+import '../../../models/store/store.dart';
 
 class PdfLayoutUtils {
 

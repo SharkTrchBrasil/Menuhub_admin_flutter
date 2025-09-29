@@ -8,9 +8,10 @@ import 'package:totem_pro_admin/core/enums/category_type.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
 
 
+
+import '../../../models/products/product.dart';
 import '../cubit/products_cubit.dart';
 
 class ProductActionsSheet extends StatefulWidget {

@@ -5,7 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../../core/enums/variant_edit_status.dart';
-import '../../../models/product_variant_link.dart';
+
+import '../../../models/products/product_variant_link.dart';
 import '../../../models/variant.dart';
 import '../../../models/variant_option.dart';
 import '../../../repositories/product_repository.dart';

@@ -2,7 +2,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../../../models/store_with_role.dart';
+import '../../../models/store/store_with_role.dart';
 
 class StoreFilterSection extends StatelessWidget {
   final List<StoreWithRole> stores;

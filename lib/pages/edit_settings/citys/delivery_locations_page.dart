@@ -14,8 +14,9 @@ import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import '../../../core/di.dart';
-import '../../../models/store_city.dart';
-import '../../../models/store_neig.dart';
+
+import '../../../models/store/store_city.dart';
+import '../../../models/store/store_neig.dart';
 import '../../../repositories/store_repository.dart';
 import '../../../services/dialog_service.dart';
 import '../../../widgets/mobileappbar.dart';

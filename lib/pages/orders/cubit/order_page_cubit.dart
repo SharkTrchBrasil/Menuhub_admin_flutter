@@ -3,7 +3,7 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';

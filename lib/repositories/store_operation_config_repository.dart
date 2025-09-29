@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:totem_pro_admin/models/store_operation_config.dart';
+
+
+import '../models/store/store_operation_config.dart';
 
 
 

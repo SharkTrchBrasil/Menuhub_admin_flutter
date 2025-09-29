@@ -8,9 +8,10 @@ import 'package:totem_pro_admin/pages/product_groups/helper/side_panel_helper.da
 import '../../../../core/di.dart';
 import '../../../../cubits/store_manager_cubit.dart';
 import '../../../../cubits/store_manager_state.dart';
-import '../../../../models/product_variant_link.dart';
+
 import '../../../../models/variant_option.dart';
 import '../../../../repositories/product_repository.dart';
+import '../../../models/products/product_variant_link.dart';
 import '../cubit/create_complement_cubit.dart';
 import '../steps/step3_add_complements.dart';
 import '../widgets/add_option_flow.dart';

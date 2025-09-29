@@ -9,7 +9,7 @@ import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'layouts/layout_utils.dart'; // Seu gerador de PDF, verifique o caminho
 import 'layouts/mobile_kitchen_layout.dart'; // Verifique o caminho
 import 'layouts/mobile_receipt_layout.dart'; // Verifique o caminho

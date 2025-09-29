@@ -1,4 +1,4 @@
-import 'package:totem_pro_admin/models/store_with_role.dart';
+import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/models/user.dart';
 
 class StoreAccess {

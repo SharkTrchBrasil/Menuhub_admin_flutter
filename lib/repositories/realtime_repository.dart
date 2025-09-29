@@ -10,8 +10,8 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 // Adapte os imports para os caminhos corretos do seu projeto
 import 'package:totem_pro_admin/models/command.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/models/store_with_role.dart';
+
+import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/models/table.dart';
 import 'package:totem_pro_admin/services/auth_service.dart';
 
@@ -19,17 +19,19 @@ import '../core/enums/connectivity_status.dart';
 import '../models/category.dart';
 import '../models/chatbot_conversation.dart';
 import '../models/chatbot_message.dart';
-import '../models/full_menu_data.dart';
+import '../models/products/full_menu_data.dart';
 import '../models/order_notification.dart';
 import '../models/payable_category.dart';
 import '../models/payables_dashboard.dart';
 import '../models/print_job.dart';
-import '../models/prodcut_category_links.dart';
+import '../models/products/prodcut_category_links.dart';
+import '../models/products/product.dart';
 import '../models/receivable_category.dart';
-import '../models/store.dart';
-import '../models/store_chatbot_config.dart';
-import '../models/store_payable.dart';
-import '../models/store_receivable.dart';
+import '../models/store/store.dart';
+import '../models/store/store_chatbot_config.dart';
+import '../models/store/store_payable.dart';
+import '../models/store/store_receivable.dart';
+
 import '../models/supplier.dart';
 import '../models/totem_auth.dart';
 import '../models/totem_auth_and_stores.dart';

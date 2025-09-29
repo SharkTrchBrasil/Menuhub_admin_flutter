@@ -5,10 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
+
+import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
 
 
+import '../../../models/products/product.dart';
 import '../../../widgets/ds_primary_button.dart';
 import '../cubit/category_link_cubit.dart';
 

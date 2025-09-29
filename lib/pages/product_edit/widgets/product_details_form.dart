@@ -3,8 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/enums/beverage.dart';
 import 'package:totem_pro_admin/core/enums/foodtags.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
-import 'package:totem_pro_admin/models/product.dart';
 
+
+import '../../../models/products/product.dart';
 import '../../../widgets/app_image_manager.dart';
 import '../../product-wizard/cubit/product_wizard_cubit.dart';
 import 'product_attributes_section.dart';

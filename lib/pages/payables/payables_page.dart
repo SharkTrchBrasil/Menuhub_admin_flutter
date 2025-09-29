@@ -9,11 +9,13 @@ import 'package:totem_pro_admin/pages/payables/widgets/supplier_view.dart';
 
 
 import '../../core/responsive_builder.dart';
-import '../../models/store_receivable.dart';
+
 import '../../cubits/store_manager_cubit.dart';
 import '../../cubits/store_manager_state.dart';
-import '../../models/store_payable.dart';
 
+
+import '../../models/store/store_payable.dart';
+import '../../models/store/store_receivable.dart';
 import '../../repositories/store_repository.dart';
 import '../../services/dialog_service.dart';
 import '../../widgets/app_primary_button.dart';

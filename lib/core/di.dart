@@ -45,6 +45,7 @@ import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
 import '../repositories/analytics_repository.dart';
 import '../repositories/chat_repository.dart';
 import '../repositories/table_repository.dart';
+import '../services/chat_visibility_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/preference_service.dart';
 
@@ -72,7 +73,7 @@ Future<void> configureDependencies() async {
 
   getIt.registerLazySingleton<ConnectivityService>(() => ConnectivityService());
   getIt.registerLazySingleton(() => PreferenceService());
-
+  getIt.registerLazySingleton(() => ChatVisibilityService());
   getIt.registerLazySingleton<RealtimeRepository>(
         () => RealtimeRepository(),
   );

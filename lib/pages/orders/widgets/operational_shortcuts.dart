@@ -3,14 +3,15 @@
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:totem_pro_admin/models/store.dart';
-import 'package:totem_pro_admin/models/store_operation_config.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
+
 import 'package:totem_pro_admin/repositories/store_operation_config_repository.dart';
 import 'package:totem_pro_admin/widgets/app_counter_form_field.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart' as AppToasts;
 import '../../../core/di.dart';
+import '../../../models/store/store_operation_config.dart';
 
 // ===================================================================
 // WIDGET PRINCIPAL: A BARRA DE ATALHOS (Sem alterações)

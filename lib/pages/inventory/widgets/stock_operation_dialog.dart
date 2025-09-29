@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 
 
 import '../../../core/enums/inventory_stock.dart';
-import '../../../models/product.dart';
+
+import '../../../models/products/product.dart';
 
 
 

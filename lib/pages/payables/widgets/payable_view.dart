@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:totem_pro_admin/models/store_payable.dart';
+
 import 'package:totem_pro_admin/pages/payables/widgets/payable_card.dart';
+
+import '../../../models/store/store_payable.dart';
 
 // Enum para controlar o estado do filtro
 enum PayableFilterStatus { all, pending, paid, overdue }

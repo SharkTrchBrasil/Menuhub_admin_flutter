@@ -1,7 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/products/product.dart';
+
 
 class BannerModel {
   const BannerModel({

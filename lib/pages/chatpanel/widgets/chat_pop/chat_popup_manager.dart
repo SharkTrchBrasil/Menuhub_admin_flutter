@@ -3,12 +3,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:totem_pro_admin/models/chatbot_conversation.dart';
 import 'package:totem_pro_admin/models/chatbot_message.dart';
 import 'package:totem_pro_admin/pages/chatpanel/chat_panel_screen.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
 
 import '../../../../core/di.dart';
+import '../../../../services/chat_visibility_service.dart';
 import 'chat_popup_widget.dart';
 
 class ChatPopupManager extends StatefulWidget {
@@ -31,46 +33,75 @@ class _ChatPopupManagerState extends State<ChatPopupManager> {
   final double _minimizedHeight = 64;
   StreamSubscription? _newMessageSubscription;
 
+  // ✅ 2. Obtenha a instância do serviço
+  final _visibilityService = getIt<ChatVisibilityService>();
+
+
   @override
   void initState() {
     super.initState();
     _listenForNewMessages();
+    _visibilityService.isCentralPanelVisible.addListener(
+        _onCentralPanelVisibilityChanged);
   }
 
   void _listenForNewMessages() {
-    // Ouve novas mensagens em tempo real
-    _newMessageSubscription = getIt<RealtimeRepository>().onNewChatMessage.listen((message) {
-      // Abre popup automaticamente para novas mensagens
-      _openChatForNewMessage(message);
-    });
+    _newMessageSubscription =
+        getIt<RealtimeRepository>().onNewChatMessage.listen((message) {
+          // A lógica anterior que verifica se a central está aberta continua válida
+          if (_visibilityService.isCentralPanelVisible.value) {
+            return;
+          }
+          _openChatForNewMessage(message);
+        });
   }
 
-  void _openChatForNewMessage(ChatbotMessage message) {
-    // Verifica se o chat já está aberto
-    final existingIndex = _activePopups.indexWhere((popup) => popup.chatId == message.chatId);
+  void _onCentralPanelVisibilityChanged() {
+    // Se o painel central se tornou visível, feche todos os popups.
+    if (_visibilityService.isCentralPanelVisible.value) {
+      _closeAllPopups();
+    }
+  }
 
-    if (existingIndex >= 0) {
-      // Se já existe, apenas atualiza e traz para frente
+  // ✅ 4. Crie a função para fechar todos os popups
+  void _closeAllPopups() {
+    // Verifica se há popups para evitar reconstruções desnecessárias
+    if (_activePopups.isNotEmpty) {
       setState(() {
-        final existing = _activePopups.removeAt(existingIndex);
-        _activePopups.add(existing.copyWith(
-          hasUnreadMessage: true,
-          isMinimized: false,
-        ));
-      });
-    } else {
-      // Cria novo popup para a conversa
-      setState(() {
-        _activePopups.add(ChatPopup(
-          storeId: message.storeId,
-          chatId: message.chatId,
-          customerName: message.customerName ?? 'Cliente',
-          isMinimized: false,
-          hasUnreadMessage: true,
-        ));
+        _activePopups.clear();
       });
     }
   }
+
+
+
+
+
+
+  void _openChatForNewMessage(ChatbotMessage message) {
+    final existingIndex = _activePopups.indexWhere((popup) => popup.chatId == message.chatId);
+
+    if (existingIndex >= 0) {
+      // Chat já existe - traz para frente
+      _bringToFront(message.chatId);
+    } else {
+      // Novo chat
+      setState(() {
+        final newPopup = ChatPopup(
+          storeId: message.storeId,
+          chatId: message.chatId,
+          customerName: message.customerName ?? 'Cliente',
+          isMinimized: !_canExpandMorePopups, // ✅ Se não tem espaço, já cria minimizado
+          hasUnreadMessage: true,
+        );
+
+        _activePopups.add(newPopup);
+      });
+    }
+  }
+
+
+
 
   void openChat({
     required int storeId,
@@ -80,25 +111,34 @@ class _ChatPopupManagerState extends State<ChatPopupManager> {
     final existingIndex = _activePopups.indexWhere((popup) => popup.chatId == chatId);
 
     if (existingIndex >= 0) {
-      setState(() {
-        final existing = _activePopups.removeAt(existingIndex);
-        _activePopups.add(existing.copyWith(
-          isMinimized: false,
-          hasUnreadMessage: false, // Marca como lida ao abrir
-        ));
-      });
+      // Chat existe - traz para frente
+      _bringToFront(chatId);
     } else {
+      // Novo chat
       setState(() {
         _activePopups.add(ChatPopup(
           storeId: storeId,
           chatId: chatId,
           customerName: customerName,
-          isMinimized: false,
+          isMinimized: !_canExpandMorePopups, // ✅ Se não tem espaço, já cria minimizado
           hasUnreadMessage: false,
         ));
       });
     }
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   void _minimizeChat(String chatId) {
     setState(() {
@@ -115,52 +155,133 @@ class _ChatPopupManagerState extends State<ChatPopupManager> {
     });
   }
 
+
+  List<ChatPopup> get _expandedPopups =>
+      _activePopups
+          .where((popup) => !popup.isMinimized)
+          .toList();
+
+  List<ChatPopup> get _minimizedPopups =>
+      _activePopups
+          .where((popup) => popup.isMinimized)
+          .toList();
+
+  bool get _canExpandMorePopups => _expandedPopups.length < 2;
+
   void _bringToFront(String chatId) {
     setState(() {
       final index = _activePopups.indexWhere((popup) => popup.chatId == chatId);
       if (index >= 0) {
         final popup = _activePopups.removeAt(index);
-        _activePopups.add(popup.copyWith(hasUnreadMessage: false));
+
+        if (_canExpandMorePopups) {
+          // Se ainda tem espaço para expandir, apenas expande
+          _activePopups.add(popup.copyWith(
+            hasUnreadMessage: false,
+            isMinimized: false,
+          ));
+        } else {
+          // Se já tem 2 expandidos, troca com o mais antigo
+          final oldestExpanded = _expandedPopups.first;
+          final oldestIndex = _activePopups.indexWhere((p) =>
+          p.chatId == oldestExpanded.chatId);
+
+          if (oldestIndex >= 0) {
+            // Minimiza o mais antigo
+            _activePopups[oldestIndex] =
+                oldestExpanded.copyWith(isMinimized: true);
+            // Expande o novo
+            _activePopups.add(popup.copyWith(
+              hasUnreadMessage: false,
+              isMinimized: false,
+            ));
+          }
+        }
       }
     });
   }
 
+
+
+
   @override
   void dispose() {
     _newMessageSubscription?.cancel();
+    _visibilityService.isCentralPanelVisible.removeListener(
+        _onCentralPanelVisibilityChanged);
     super.dispose();
   }
 
+
   @override
   Widget build(BuildContext context) {
+    final expandedPopups = _expandedPopups;
+    final minimizedPopups = _minimizedPopups;
+
     return Stack(
       children: [
         widget.child,
-        // Popups de chat no canto inferior direito
-        if (_activePopups.isNotEmpty) ...[
+
+        // ✅ POPUPS EXPANDIDOS (máximo 2) - ORGANIZAÇÃO HORIZONTAL
+        if (expandedPopups.isNotEmpty) ...[
           Positioned(
             bottom: 0,
             right: 0,
             child: Container(
-              width: _popupWidth,
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                maxHeight: MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.8,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
+              child: Wrap(
+                direction: Axis.horizontal,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 8,
                 children: [
-                  for (int i = 0; i < _activePopups.length; i++)
+                  for (int i = 0; i < expandedPopups.length; i++)
                     ChatPopupWidget(
-                      key: ValueKey(_activePopups[i].chatId),
-                      popup: _activePopups[i],
+                      key: ValueKey(expandedPopups[i].chatId),
+                      popup: expandedPopups[i],
                       width: _popupWidth,
                       expandedHeight: _popupHeight,
                       minimizedHeight: _minimizedHeight,
                       onMinimize: _minimizeChat,
                       onClose: _closeChat,
                       onTap: _bringToFront,
-                      isTopmost: i == _activePopups.length - 1,
+                      isTopmost: i == expandedPopups.length - 1,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
+        // ✅ POPUPS MINIMIZADOS (bolinhas) - ORGANIZAÇÃO VERTICAL
+        if (minimizedPopups.isNotEmpty) ...[
+          Positioned(
+            bottom: expandedPopups.isNotEmpty ? _popupHeight + 16 : 0,
+            right: 8,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.6,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (int i = 0; i < minimizedPopups.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: _MinimizedChatHead(
+                        popup: minimizedPopups[i],
+                        onTap: _bringToFront,
+                        onClose: _closeChat,
+                      ),
                     ),
                 ],
               ),
@@ -170,6 +291,7 @@ class _ChatPopupManagerState extends State<ChatPopupManager> {
       ],
     );
   }
+
 }
 
 @immutable
@@ -198,6 +320,117 @@ class ChatPopup {
       customerName: customerName,
       isMinimized: isMinimized ?? this.isMinimized,
       hasUnreadMessage: hasUnreadMessage ?? this.hasUnreadMessage,
+    );
+  }
+}
+
+
+
+class _MinimizedChatHead extends StatefulWidget {
+  final ChatPopup popup;
+  final Function(String) onTap;
+  final Function(String) onClose;
+
+  const _MinimizedChatHead({
+    required this.popup,
+    required this.onTap,
+    required this.onClose,
+  });
+
+  @override
+  State<_MinimizedChatHead> createState() => _MinimizedChatHeadState();
+}
+
+class _MinimizedChatHeadState extends State<_MinimizedChatHead> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: () => widget.onTap(widget.popup.chatId),
+        child: Stack(
+          children: [
+            // Bolinha do chat minimizado
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(
+                  color: widget.popup.hasUnreadMessage ? Colors.red : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  // Avatar
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Theme.of(context).primaryColor,
+                    child: Text(
+                      widget.popup.customerName[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+
+                  // Badge de mensagens não lidas
+                  if (widget.popup.hasUnreadMessage)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // Botão de fechar (aparece no hover)
+            if (_isHovered)
+              Positioned(
+                top: -5,
+                right: -5,
+                child: GestureDetector(
+                  onTap: () => widget.onClose(widget.popup.chatId),
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 12,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

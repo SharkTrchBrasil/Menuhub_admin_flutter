@@ -1,5 +1,5 @@
 import 'package:totem_pro_admin/models/auth_tokens.dart'; // ✅ Importe o modelo correto
-import 'package:totem_pro_admin/models/store_with_role.dart';
+import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/models/user.dart';
 
 class TotemAuthAndStores {

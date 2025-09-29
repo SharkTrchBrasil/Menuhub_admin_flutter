@@ -1,5 +1,4 @@
 // lib/features/chat/widgets/chat_input_field.dart
-
 import 'dart:io';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/foundation.dart' as foundation;
@@ -26,20 +25,45 @@ class _ChatInputFieldState extends State<ChatInputField> {
 
   bool _canSend = false;
   bool _emojiShowing = false;
+  double _textFieldHeight = 48.0;
+  final double _minTextFieldHeight = 48.0;
+  final double _maxTextFieldHeight = 120.0;
 
   @override
   void initState() {
     super.initState();
     _textController.addListener(() {
-      if (mounted) setState(() => _canSend = _textController.text.trim().isNotEmpty);
+      if (mounted) {
+        setState(() {
+          _canSend = _textController.text.trim().isNotEmpty;
+          _updateTextFieldHeight();
+        });
+      }
     });
 
-    // Listener para esconder o emoji picker quando o teclado aparecer
     _focusNode.addListener(() {
       if (_focusNode.hasFocus && _emojiShowing) {
         setState(() => _emojiShowing = false);
       }
     });
+  }
+
+  void _updateTextFieldHeight() {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: _textController.text,
+        style: const TextStyle(fontSize: 16, height: 1.2),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 5,
+    )..layout(maxWidth: MediaQuery.of(context).size.width * 0.5 - 32); // Ajuste na largura máxima
+
+    final desiredHeight = textPainter.size.height + 24;
+    final newHeight = desiredHeight.clamp(_minTextFieldHeight, _maxTextFieldHeight);
+
+    if (newHeight != _textFieldHeight) {
+      setState(() => _textFieldHeight = newHeight);
+    }
   }
 
   @override
@@ -50,11 +74,9 @@ class _ChatInputFieldState extends State<ChatInputField> {
     super.dispose();
   }
 
-  /// Alterna a visibilidade do seletor de emoji, garantindo que o teclado
-  /// seja escondido antes de mostrá-lo.
   void _toggleEmojiPicker() {
     if (!_emojiShowing) {
-      FocusScope.of(context).unfocus(); // Esconde o teclado
+      FocusScope.of(context).unfocus();
     }
     setState(() => _emojiShowing = !_emojiShowing);
   }
@@ -63,6 +85,10 @@ class _ChatInputFieldState extends State<ChatInputField> {
     if (_canSend) {
       context.read<ChatPanelCubit>().sendMessage(_textController.text.trim());
       _textController.clear();
+      setState(() => _textFieldHeight = _minTextFieldHeight);
+
+      // Mantém o foco no campo de texto após enviar
+      _focusNode.requestFocus();
     }
   }
 
@@ -104,6 +130,7 @@ class _ChatInputFieldState extends State<ChatInputField> {
         caption: _textController.text.trim(),
       );
       _textController.clear();
+      setState(() => _textFieldHeight = _minTextFieldHeight);
     }
   }
 
@@ -116,97 +143,111 @@ class _ChatInputFieldState extends State<ChatInputField> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _waveController,
-      builder: (context, _) {
-        final isRecording = _waveController.isRecording;
-        return Column(
-          children: [
-            // --- Barra de Input Principal ---
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12),
-              color: Theme.of(context).canvasColor,
-              child: Row(
-                children: [
-                  // ✅ Botão de Emoji
-                  IconButton(
-                    icon: Icon(
-                      _emojiShowing ? Icons.keyboard_alt_outlined : Icons.emoji_emotions_outlined,
-                      color: Theme.of(context).iconTheme.color,
-                    ),
-                    onPressed: _toggleEmojiPicker,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.attach_file),
-                    onPressed: isRecording ? null : _pickImage, // Desativa durante gravação
-                  ),
-                  Expanded(
-                    child: isRecording
-                        ? WaveformRecorder(
-                      height: 48,
-                      controller: _waveController,
-                      onRecordingStopped: _onRecordingStopped,
-                    )
-                        : TextField(
-                      controller: _textController,
-                      focusNode: _focusNode,
-                      decoration: const InputDecoration(
-                        hintText: 'Digite sua mensagem...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-                          borderSide: BorderSide(width: 0.5),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-                          borderSide: BorderSide(width: 0.5, color: Colors.grey),
-                        ),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16),
+    return Material(
+
+      child: ListenableBuilder(
+        listenable: _waveController,
+        builder: (context, _) {
+          final isRecording = _waveController.isRecording;
+          return Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12),
+                color: Theme.of(context).canvasColor,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _emojiShowing ? Icons.keyboard_alt_outlined : Icons.emoji_emotions_outlined,
+                        color: Theme.of(context).iconTheme.color,
                       ),
-                      onSubmitted: (_) => _sendMessage(),
+                      onPressed: _toggleEmojiPicker,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: _canSend
-                        ? const Icon(Icons.send)
-                        : Icon(isRecording ? Icons.stop_circle : Icons.mic,
-                        color: isRecording ? Colors.red.shade400 : null),
-                    onPressed: _canSend ? _sendMessage : _handleRecording,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.attach_file),
+                      onPressed: isRecording ? null : _pickImage,
+                    ),
+                    // No arquivo chat_input_field.dart - ATUALIZE a parte do TextField:
+
+                    Expanded(
+                      child: isRecording
+                          ? WaveformRecorder(
+                        height: 48,
+                        controller: _waveController,
+                        onRecordingStopped: _onRecordingStopped,
+                      )
+                          : Container(
+                        height: _textFieldHeight,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            width: 0.5,
+                            color: Colors.grey,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: TextField(
+                          controller: _textController,
+                          focusNode: _focusNode,
+                          maxLines: null, // ✅ Permite múltiplas linhas
+                          textInputAction: TextInputAction.newline,
+                          decoration: const InputDecoration(
+                            hintText: 'Digite sua mensagem...',
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 12),
+                            isDense: true, // ✅ Remove padding extra
+                          ),
+                          onSubmitted: (_) => _sendMessage(),
+                        ),
+                      ),
+                    ),
+
+
+
+
+
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: _canSend
+                          ? const Icon(Icons.send)
+                          : Icon(
+                        isRecording ? Icons.stop_circle : Icons.mic,
+                        color: isRecording ? Colors.red.shade400 : null,
+                      ),
+                      onPressed: _canSend ? _sendMessage : _handleRecording,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // --- Seletor de Emoji (Controlado pela variável _emojiShowing) ---
-            Offstage(
-              offstage: !_emojiShowing,
-              child: SizedBox(
-                height: 250,
-                child: EmojiPicker(
-                  // ✅ Passa o controller diretamente para o picker
-                  textEditingController: _textController,
-                  config: Config(
-                    height: 250,
-                    checkPlatformCompatibility: true,
-                    emojiViewConfig: EmojiViewConfig(
-                      // Corrige bug de tamanho do emoji no iOS
-                      emojiSizeMax: 28 * (foundation.defaultTargetPlatform == TargetPlatform.iOS ? 1.20 : 1.0),
-                    ),
-                    // Outras configurações para um visual mais limpo
-                    categoryViewConfig: const CategoryViewConfig(
-                      indicatorColor: Colors.blue,
-                      iconColorSelected: Colors.blue,
-                    ),
-                    bottomActionBarConfig: const BottomActionBarConfig(
-                      enabled: false, // Remove a barra inferior para um visual mais limpo
+              Offstage(
+                offstage: !_emojiShowing,
+                child: SizedBox(
+                  height: 250,
+                  child: EmojiPicker(
+                    textEditingController: _textController,
+                    config: Config(
+                      height: 250,
+                      checkPlatformCompatibility: true,
+                      emojiViewConfig: EmojiViewConfig(
+                        emojiSizeMax: 28 * (foundation.defaultTargetPlatform == TargetPlatform.iOS ? 1.20 : 1.0),
+                      ),
+                      categoryViewConfig: const CategoryViewConfig(
+                        indicatorColor: Colors.blue,
+                        iconColorSelected: Colors.blue,
+                      ),
+                      bottomActionBarConfig: const BottomActionBarConfig(
+                        enabled: false,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 }

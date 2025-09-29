@@ -8,7 +8,7 @@ import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 
 import '../../../../cubits/store_manager_state.dart';
-import '../../../../models/prodcut_category_links.dart';
+import '../../../models/products/prodcut_category_links.dart';
 import '../../../core/enums/bulk_action_type.dart';
 import '../../categories/BulkCategoryPage.dart';
 import '../../product_edit/widgets/category_link_wizard.dart';

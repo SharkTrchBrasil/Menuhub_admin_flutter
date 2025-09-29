@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/services/print/print_manager.dart';
 import 'package:totem_pro_admin/services/subscription/subscription_service.dart';
 

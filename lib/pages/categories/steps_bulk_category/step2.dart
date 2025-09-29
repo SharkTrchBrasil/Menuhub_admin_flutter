@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_image.dart';
-import '../../../models/product.dart';
+
+import '../../../models/products/product.dart';
 import '../cubit/bulk_category_cubit.dart';
 import '../cubit/bulk_category_state.dart';
 

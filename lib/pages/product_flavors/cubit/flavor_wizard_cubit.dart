@@ -6,11 +6,12 @@ import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/flavor_price.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/models/option_group.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import '../../../core/enums/category_type.dart';
 import '../../../core/enums/foodtags.dart';
 import '../../../core/enums/option_group_type.dart';
 import '../../../models/image_model.dart';
+import '../../../models/products/product.dart';
 
 part 'flavor_wizard_state.dart';
 

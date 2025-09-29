@@ -7,7 +7,8 @@ import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import '../../../core/di.dart';
 import '../../../core/enums/category_type.dart';
 import '../../../core/enums/product_status.dart';
-import '../../../models/product.dart';
+
+import '../../../models/products/product.dart';
 import '../../../repositories/product_repository.dart';
 import '../../../services/dialog_service.dart';
 

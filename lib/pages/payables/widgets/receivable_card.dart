@@ -1,7 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
-import '../../../models/store_receivable.dart';
+import '../../../models/store/store_receivable.dart';
+
 
 class ReceivableCard extends StatelessWidget {
   final StoreReceivable receivable;

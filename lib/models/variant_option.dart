@@ -1,7 +1,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
-import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/products/product.dart';
 import 'package:uuid/uuid.dart'; // ✅ 1. IMPORTE O PACOTE UUID
 
 class VariantOption extends Equatable {

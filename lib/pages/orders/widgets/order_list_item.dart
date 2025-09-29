@@ -3,7 +3,7 @@ import 'package:avatar_glow/avatar_glow.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
 
 // ✅ 1. IMPORTE O NOVO WIDGET DE TIMER

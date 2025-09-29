@@ -2,7 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
-import 'package:totem_pro_admin/models/store_hour.dart';
+
+import '../../../../models/store/store_hour.dart';
+
 
 class VisualScheduleCalendar extends StatefulWidget {
   final Map<int, List<StoreHour>> openingHours;

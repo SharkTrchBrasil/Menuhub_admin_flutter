@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/app_edit_controller.dart';
 import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/models/store_pix_config.dart';
+
 import 'package:totem_pro_admin/pages/base/BasePage.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/widgets/app_file_form_field.dart';
@@ -10,6 +10,8 @@ import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 import 'package:totem_pro_admin/widgets/mobileappbar.dart';
+
+import '../../models/store/store_pix_config.dart';
 
 class EditPaymentInfoSection extends StatefulWidget {
   const EditPaymentInfoSection({super.key, required this.storeId});

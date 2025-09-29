@@ -4,7 +4,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 // Importe seus modelos e widgets necessários
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 
 import '../../../../widgets/store_mockup_preview_card.dart';

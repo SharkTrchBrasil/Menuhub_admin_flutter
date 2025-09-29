@@ -2,7 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../../models/page_status.dart';
-import '../../../models/plans.dart';
+import '../../../models/plans/plans.dart';
 import '../../../models/segment.dart';
 
 enum TaxIdType { none, cnpj, cpf }
@@ -158,7 +158,7 @@ class StoreSetupState extends Equatable {
 
 
   Map<String, dynamic> toJson() {
-    final freePlanId = plansList.firstWhereOrNull((p) => p.price == 0)?.id;
+
 
     return {
       // --- Dados da Loja ---
@@ -168,7 +168,7 @@ class StoreSetupState extends Equatable {
       'phone': storePhone.replaceAll(RegExp(r'\D'), ''),
       'cnpj': cnpj.isNotEmpty ? cnpj.replaceAll(RegExp(r'\D'), '') : null,
       'segment_id': selectedSpecialty?.id,
-      'plan_id': freePlanId,
+
 
       // ✅ ESTRUTURA ANINHADA PARA O ENDEREÇO
       'address': {

@@ -1,8 +1,8 @@
-import 'package:totem_pro_admin/models/product.dart';
+import 'package:totem_pro_admin/models/products/product.dart';
 import 'package:totem_pro_admin/models/variant.dart';
 
 
-import '../core/enums/ui_display_mode.dart'; // Importe o enum
+import '../../core/enums/ui_display_mode.dart'; // Importe o enum
 
 class ProductVariantLink {
   final UIDisplayMode uiDisplayMode;

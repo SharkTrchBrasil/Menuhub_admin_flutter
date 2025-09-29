@@ -2,10 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/helpers/mask.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 
-import '../../../../models/store_address.dart';
+import '../../../../models/store/store_address.dart';
+
+
 
 class AddressSettingsTab extends StatelessWidget {
   final Store store;

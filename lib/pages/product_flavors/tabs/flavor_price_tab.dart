@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
+
 import '../../../core/enums/option_group_type.dart';
 import '../../../models/flavor_price.dart';
 import '../../../models/option_group.dart';

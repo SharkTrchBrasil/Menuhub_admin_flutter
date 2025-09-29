@@ -10,7 +10,7 @@ import '../../core/enums/form_status.dart';
 import '../../core/enums/product_type.dart';
 import '../../core/responsive_builder.dart';
 import '../../models/category.dart';
-import '../../models/prodcut_category_links.dart';
+import '../../models/products/prodcut_category_links.dart';
 import '../../widgets/ds_primary_button.dart';
 import 'cubit/product_wizard_cubit.dart';
 import 'cubit/product_wizard_state.dart';

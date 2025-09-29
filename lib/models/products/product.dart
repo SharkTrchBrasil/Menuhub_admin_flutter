@@ -1,19 +1,20 @@
 import 'package:totem_pro_admin/models/image_model.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
-import 'package:totem_pro_admin/models/product_default_option.dart';
-import 'package:totem_pro_admin/models/product_rating.dart';
-import 'package:totem_pro_admin/models/product_variant_link.dart';
+import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
+import 'package:totem_pro_admin/models/products/product_default_option.dart';
+import 'package:totem_pro_admin/models/products/product_rating.dart';
+
+import 'package:totem_pro_admin/models/products/product_variant_link.dart';
 import 'package:totem_pro_admin/models/flavor_price.dart';
 
 
-import '../core/enums/beverage.dart';
-import '../core/enums/cashback_type.dart';
-import '../core/enums/foodtags.dart';
-import '../core/enums/product_status.dart';
-import '../core/enums/product_type.dart';
-import '../widgets/app_selection_form_field.dart';
+import '../../core/enums/beverage.dart';
+import '../../core/enums/cashback_type.dart';
+import '../../core/enums/foodtags.dart';
+import '../../core/enums/product_status.dart';
+import '../../core/enums/product_type.dart';
+import '../../widgets/app_selection_form_field.dart';
 
-import 'kit_component.dart';
+import '../kit_component.dart';
 
 import 'package:equatable/equatable.dart';
 

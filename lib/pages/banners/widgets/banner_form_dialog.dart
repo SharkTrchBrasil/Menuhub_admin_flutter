@@ -9,7 +9,8 @@ import '../../../core/di.dart';
 import '../../../models/banners.dart';
 
 import '../../../models/category.dart';
-import '../../../models/product.dart';
+
+import '../../../models/products/product.dart';
 import '../../../repositories/banner_repository.dart';
 
 import '../../../repositories/category_repository.dart';

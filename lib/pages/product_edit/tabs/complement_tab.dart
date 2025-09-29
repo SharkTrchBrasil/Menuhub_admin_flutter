@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/models/product_variant_link.dart';
+
 import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart';
 import 'package:totem_pro_admin/pages/product_edit/widgets/variant_link_card.dart';
 
 import '../../../core/responsive_builder.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
+import '../../../models/products/product_variant_link.dart';
 import '../../../models/variant_option.dart';
 import '../../../widgets/ds_primary_button.dart';
 import '../../product_groups/helper/side_panel_helper.dart';

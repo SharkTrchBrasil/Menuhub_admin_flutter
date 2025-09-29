@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 
 
 
-import 'image_model.dart';
+import '../image_model.dart';
 
 class StoreMedia {
   final String? fileKey;

@@ -14,8 +14,9 @@ import 'package:totem_pro_admin/pages/inventory/widgets/stock_operation_dialog.d
 import '../../core/enums/inventory_stock.dart';
 import '../../cubits/store_manager_cubit.dart';
 import '../../cubits/store_manager_state.dart';
-import '../../models/product.dart';
+
 // Removi DI e Repository daqui, a página não deve chamá-los diretamente
+import '../../models/products/product.dart';
 import '../../widgets/app_page_header.dart';
 import '../../core/responsive_builder.dart';
 import '../../widgets/fixed_header.dart';

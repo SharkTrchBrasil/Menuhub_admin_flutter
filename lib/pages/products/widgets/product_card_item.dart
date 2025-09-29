@@ -2,9 +2,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:totem_pro_admin/core/responsive_builder.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/pages/products/widgets/product_card_desktop.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_card_mobile.dart';
+
+import '../../../models/products/product.dart';
 
 class ProductCardItem extends StatelessWidget {
   final Product product;

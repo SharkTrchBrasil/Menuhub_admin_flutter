@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:totem_pro_admin/models/product.dart'; // Importa o modelo Product
+import 'package:totem_pro_admin/models/products/product.dart'; // Importa o modelo Product
 
 class KitComponent extends Equatable {
   final int kitProductId;

@@ -5,7 +5,9 @@ import 'package:brasil_fields/brasil_fields.dart';
 import 'package:totem_pro_admin/core/enums/cashback_type.dart';
 import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart';
 
-import '../../../models/product.dart';
+import '../../../models/products/product.dart';
+
+
 
 class ProductCashbackTab extends StatelessWidget {
   const ProductCashbackTab({super.key});

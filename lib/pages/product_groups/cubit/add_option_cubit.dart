@@ -1,8 +1,10 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/models/variant.dart';
 import 'package:totem_pro_admin/models/variant_option.dart';
+
+import '../../../models/products/product.dart';
 
 part 'add_option_state.dart';
 

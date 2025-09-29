@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/models/variant.dart';
 import 'package:totem_pro_admin/models/variant_option.dart';
 import 'package:totem_pro_admin/pages/product_groups/widgets/unifield_product_form.dart';
 import 'package:totem_pro_admin/pages/product_groups/widgets/wizard_footer.dart';
 
+import '../../../models/products/product.dart';
 import '../cubit/add_option_cubit.dart';
 import '../cubit/complement_form_cubit.dart';
 

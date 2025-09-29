@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
-import 'package:totem_pro_admin/models/store_customer.dart';
-import 'receivable_category.dart';
+import 'package:totem_pro_admin/models/store/store_customer.dart';
+
+import '../receivable_category.dart';
+
 
 
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/enums/foodtags.dart';
-import 'package:totem_pro_admin/models/product.dart';
 
 import '../../../core/enums/beverage.dart';
+import '../../../models/products/product.dart';
 
 class ProductAttributesSection extends StatelessWidget {
   final Product product;

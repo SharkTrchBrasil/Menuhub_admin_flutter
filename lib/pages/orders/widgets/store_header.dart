@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../cubits/store_manager_cubit.dart'; // Mantenha se o pai usar
-import '../../../models/store.dart';
+import '../../../models/store/store.dart';
 
 class StoreHeader extends StatelessWidget {
   // NOVO: O widget agora recebe o objeto Store diretamente.

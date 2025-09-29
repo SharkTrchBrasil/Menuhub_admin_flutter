@@ -1,7 +1,8 @@
 // lib/pages/opening_hours/widgets/schedule_form.dart
 
 import 'package:flutter/material.dart';
-import 'package:totem_pro_admin/models/store_hour.dart';
+
+import '../../../../models/store/store_hour.dart';
 import 'day_schedule_card.dart';
 
 class ScheduleForm extends StatelessWidget {

@@ -7,7 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-import 'package:totem_pro_admin/models/store_operation_config.dart';
+
 import 'package:totem_pro_admin/repositories/store_operation_config_repository.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
@@ -17,6 +17,7 @@ import '../../../core/di.dart';
 import '../../../widgets/app_counter_form_field.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/app_toasts.dart' as AppToasts;
+import '../../models/store/store_operation_config.dart';
 
 class OperationConfigurationPage extends StatefulWidget {
   final int storeId;

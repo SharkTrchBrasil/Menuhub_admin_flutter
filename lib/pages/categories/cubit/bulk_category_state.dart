@@ -5,10 +5,12 @@
 
 import '../../../core/enums/form_status.dart';
 import '../../../models/category.dart';
-import '../../../models/prodcut_category_links.dart';
-import '../../../models/product.dart';
+import '../../../models/products/prodcut_category_links.dart';
+
 
 import 'package:equatable/equatable.dart';
+
+import '../../../models/products/product.dart';
 
 class BulkAddToCategoryState extends Equatable {
   final List<Product> selectedProducts;

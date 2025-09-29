@@ -2,7 +2,7 @@ import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/models/store_with_role.dart';
+import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/widgets/app_drop_down_form_field.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';

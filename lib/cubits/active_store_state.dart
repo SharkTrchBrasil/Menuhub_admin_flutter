@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:totem_pro_admin/models/store.dart'; // Adapte o import
+import 'package:totem_pro_admin/models/store/store.dart'; // Adapte o import
 
 // Usar uma classe de estado torna mais fácil lidar com carregamento, erros, etc.
 abstract class ActiveStoreState extends Equatable {

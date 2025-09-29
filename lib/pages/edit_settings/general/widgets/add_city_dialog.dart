@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/models/store_city.dart';
-import 'package:totem_pro_admin/models/store_with_role.dart';
+
+import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 
 import '../../../../core/app_edit_controller.dart';
+import '../../../../models/store/store_city.dart';
 import '../../../../widgets/app_page_status_builder.dart';
 import '../../../../widgets/base_dialog.dart';
 

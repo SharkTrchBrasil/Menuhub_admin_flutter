@@ -2,30 +2,34 @@
 import 'package:totem_pro_admin/models/payable_category.dart';
 import 'package:totem_pro_admin/models/payment_method.dart';
 import 'package:totem_pro_admin/models/peak_hours.dart';
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/models/product_analytics_data.dart';
+
 import 'package:totem_pro_admin/models/rating_summary.dart';
 import 'package:totem_pro_admin/models/receivable_category.dart';
 import 'package:totem_pro_admin/models/scheduled_pause.dart';
-import 'package:totem_pro_admin/models/store_chatbot_config.dart';
-import 'package:totem_pro_admin/models/store_chatbot_message.dart';
-import 'package:totem_pro_admin/models/store_city.dart';
-import 'package:totem_pro_admin/models/store_hour.dart';
-import 'package:totem_pro_admin/models/store_neig.dart';
-import 'package:totem_pro_admin/models/store_operation_config.dart';
-import 'package:totem_pro_admin/models/store_payable.dart';
-import 'package:totem_pro_admin/models/store_receivable.dart';
+import 'package:totem_pro_admin/models/store/store_chatbot_config.dart';
+import 'package:totem_pro_admin/models/store/store_chatbot_message.dart';
+import 'package:totem_pro_admin/models/store/store_city.dart';
+import 'package:totem_pro_admin/models/store/store_hour.dart';
+import 'package:totem_pro_admin/models/store/store_neig.dart';
+import 'package:totem_pro_admin/models/store/store_operation_config.dart';
+import 'package:totem_pro_admin/models/store/store_payable.dart';
+import 'package:totem_pro_admin/models/store/store_receivable.dart';
+
 import 'package:totem_pro_admin/models/subscription_summary.dart';
 import 'package:totem_pro_admin/models/supplier.dart';
 import 'package:totem_pro_admin/models/table.dart';
 import 'package:totem_pro_admin/models/variant.dart';
 
-import 'category.dart';
-import 'command.dart';
-import 'coupon.dart';
-import 'customer_analytics_data.dart';
-import 'dashboard_data.dart';
-import 'dashboard_insight.dart';
+import '../category.dart';
+import '../command.dart';
+import '../coupon.dart';
+import '../customer_analytics_data.dart';
+import '../dashboard_data.dart';
+import '../dashboard_insight.dart';
+import '../products/product.dart';
+import '../products/product_analytics_data.dart';
+
+
 
 class StoreRelations {
   final List<PaymentMethodGroup> paymentMethodGroups;

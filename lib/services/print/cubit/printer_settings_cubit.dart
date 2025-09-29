@@ -11,12 +11,13 @@ import 'package:permission_handler/permission_handler.dart';
 // pubspec.yaml -> dependencies:
 //   collection: ^1.18.0
 import 'package:collection/collection.dart';
-import 'package:totem_pro_admin/models/store_operation_config.dart';
+
 
 
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
 
+import '../../../models/store/store_operation_config.dart';
 import '../constants/print_destinations.dart';
 import '../device_settings_service.dart';
 

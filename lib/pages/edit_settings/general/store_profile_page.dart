@@ -9,7 +9,7 @@ import 'dart:developer';
 import 'package:totem_pro_admin/constdata/typography.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/pages/edit_settings/general/tabs/address_settings_tab.dart';
 import 'package:totem_pro_admin/pages/edit_settings/general/tabs/general_settings_tab.dart';
 import 'package:totem_pro_admin/pages/edit_settings/general/tabs/social_media_tab.dart';

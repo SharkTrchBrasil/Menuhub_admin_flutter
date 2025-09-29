@@ -1,7 +1,9 @@
 // lib/cubits/chatbot/chatbot_state.dart
 import 'package:equatable/equatable.dart';
-import 'package:totem_pro_admin/models/store_chatbot_config.dart';
-import 'package:totem_pro_admin/models/store_chatbot_message.dart';
+
+import '../../../models/store/store_chatbot_config.dart';
+import '../../../models/store/store_chatbot_message.dart';
+
 
 abstract class ChatbotState extends Equatable {
   const ChatbotState();

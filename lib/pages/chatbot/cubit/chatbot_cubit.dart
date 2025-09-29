@@ -6,12 +6,13 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
-import 'package:totem_pro_admin/models/store_chatbot_config.dart';
-import 'package:totem_pro_admin/models/store_chatbot_message.dart';
+
 import 'package:totem_pro_admin/repositories/chatbot_repository.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
+import '../../../models/store/store_chatbot_config.dart';
+import '../../../models/store/store_chatbot_message.dart';
 import 'chatbot_state.dart';
 
 class ChatbotCubit extends Cubit<ChatbotState> {

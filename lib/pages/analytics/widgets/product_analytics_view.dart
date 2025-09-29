@@ -3,9 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:totem_pro_admin/models/product_analytics_data.dart';
+
 import 'package:cached_network_image/cached_network_image.dart'; // Adicione esta dependência
 
+import '../../../models/products/product_analytics_data.dart';
 import '../cubits/product_analytics_cubit.dart';
 
 class ProductAnalyticsView extends StatelessWidget {

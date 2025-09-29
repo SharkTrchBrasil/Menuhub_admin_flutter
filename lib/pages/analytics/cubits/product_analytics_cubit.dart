@@ -4,10 +4,11 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
-// Importe seus modelos e o Cubit/State principal da loja
-import 'package:totem_pro_admin/models/product_analytics_data.dart';
+
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
+
+import '../../../models/products/product_analytics_data.dart';
 
 part 'product_analytics_state.dart';
 

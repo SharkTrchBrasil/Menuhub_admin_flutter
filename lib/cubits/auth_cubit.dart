@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 
-import 'package:totem_pro_admin/models/store_with_role.dart';
+import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/repositories/auth_repository.dart';
 import 'package:totem_pro_admin/services/auth_service.dart';
 import '../core/di.dart';

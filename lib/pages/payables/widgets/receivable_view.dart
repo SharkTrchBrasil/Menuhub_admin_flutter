@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/pages/payables/widgets/receivable_card.dart';
 
-import '../../../models/store_receivable.dart';
+import '../../../models/store/store_receivable.dart';
+
+
 
 
 // ✅ ADIÇÃO: View e Card para a aba de Contas a Receber

@@ -7,13 +7,14 @@ import 'package:provider/provider.dart';
 import 'package:totem_pro_admin/constdata/colorprovider.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
-import 'package:totem_pro_admin/models/store.dart'; // Importe o modelo Store
-import 'package:totem_pro_admin/models/store_hour.dart';
+import 'package:totem_pro_admin/models/store/store.dart'; // Importe o modelo Store
+
 import 'package:totem_pro_admin/pages/orders/cubit/order_page_state.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import 'package:universal_html/js.dart';
 
 import '../../../ConstData/typography.dart';
+import '../../../models/store/store_hour.dart';
 import '../details/order_details_desktop.dart';
 
 class SummaryPanel extends StatelessWidget {

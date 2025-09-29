@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/pages/product_edit/tabs/product_cashback_tab.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+import '../../models/products/product.dart';
 import 'cubit/edit_product_cubit.dart';
 import 'tabs/product_details_tab.dart';
 import 'tabs/product_availability_tab.dart';

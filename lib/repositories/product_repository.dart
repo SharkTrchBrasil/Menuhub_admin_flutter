@@ -4,15 +4,17 @@ import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/cupertino.dart';
 
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/models/variant.dart';
 
 import '../models/catalog_product.dart';
 import '../models/category.dart';
 import '../models/image_model.dart';
 import '../models/minimal_product.dart';
-import '../models/product_availability.dart';
-import '../models/product_variant_link.dart';
+
+import '../models/products/product.dart';
+import '../models/products/product_availability.dart';
+import '../models/products/product_variant_link.dart';
 import '../models/variant_option.dart';
 
 class ProductRepository {

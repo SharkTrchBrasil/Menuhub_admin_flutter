@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
 
 import '../../../models/category.dart';
-import '../../../models/product.dart';
+
+import '../../../models/products/product.dart';
 import 'product_list_item_desktop.dart';
 import 'product_list_item_mobile.dart';
 

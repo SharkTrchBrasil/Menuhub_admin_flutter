@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/store.dart';
+import '../models/store/store.dart';
 
 class StoreProfilePreviewCard extends StatelessWidget {
   final Store store;

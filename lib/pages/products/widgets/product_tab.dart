@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/pages/products/widgets/prduct_filter.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_card_item.dart';
 import 'package:totem_pro_admin/pages/products/widgets/sliver_filter.dart';
@@ -10,6 +10,7 @@ import 'package:totem_pro_admin/pages/products/widgets/table_header.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import '../../../core/enums/bulk_action_type.dart';
 import '../../../core/responsive_builder.dart';
+import '../../../models/products/product.dart';
 import '../../../widgets/fixed_header.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
 import '../../categories/BulkCategoryPage.dart';

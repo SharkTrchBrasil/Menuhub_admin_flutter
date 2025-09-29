@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
 
 import '../core/enums/ui_display_mode.dart';
-import '../models/product.dart';
-import '../models/product_variant_link.dart';
+
+import '../models/products/product.dart';
+import '../models/products/product_variant_link.dart';
 import '../models/variant_option.dart';
 //----------- WIDGETS DO MOCKUP -----------//
 

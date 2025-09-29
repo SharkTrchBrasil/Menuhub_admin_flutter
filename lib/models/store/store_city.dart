@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:totem_pro_admin/models/store_neig.dart';
+import 'package:totem_pro_admin/models/store/store_neig.dart';
+
 
 
 

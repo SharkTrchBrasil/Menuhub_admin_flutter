@@ -6,8 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
+
+import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
 import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:equatable/equatable.dart';
 
@@ -17,7 +17,9 @@ import '../../../core/enums/foodtags.dart';
 import '../../../core/enums/product_status.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
-import '../../../models/product_variant_link.dart';
+
+import '../../../models/products/product.dart';
+import '../../../models/products/product_variant_link.dart';
 import '../../../models/variant_option.dart';
 import '../../product-wizard/cubit/product_wizard_state.dart';
 import '../../product_groups/cubit/create_complement_cubit.dart';

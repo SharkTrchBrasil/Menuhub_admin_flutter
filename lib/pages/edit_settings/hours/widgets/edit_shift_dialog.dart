@@ -1,8 +1,9 @@
 // lib/pages/opening_hours/widgets/edit_shift_dialog.dart
 
 import 'package:flutter/material.dart';
-import 'package:totem_pro_admin/models/store_hour.dart';
+
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+import '../../../../models/store/store_hour.dart';
 import 'shift_row.dart'; // Reutilizaremos o TimeInput
 
 // This class remains the same

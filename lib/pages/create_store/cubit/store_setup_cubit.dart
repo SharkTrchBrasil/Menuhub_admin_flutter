@@ -9,7 +9,7 @@ import '../../../cubits/auth_cubit.dart';
 import '../../../cubits/auth_state.dart';
 import '../../../models/page_status.dart';
 import '../../../models/segment.dart';
-import '../../../models/store_with_role.dart';
+import '../../../models/store/store_with_role.dart';
 import '../../../repositories/segment_repository.dart';
 import '../../../repositories/store_repository.dart';
 import '../../../repositories/user_repository.dart';

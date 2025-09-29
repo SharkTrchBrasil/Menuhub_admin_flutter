@@ -11,7 +11,7 @@ import 'package:totem_pro_admin/pages/orders/details/widgets/order_status_bar.da
 import 'package:totem_pro_admin/pages/orders/details/widgets/order_summary_card.dart';
 import 'package:totem_pro_admin/pages/orders/utils/order_helpers.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/store_header.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/widgets/order_printing_actions_widget.dart';
 
 import '../widgets/order_status_button.dart';

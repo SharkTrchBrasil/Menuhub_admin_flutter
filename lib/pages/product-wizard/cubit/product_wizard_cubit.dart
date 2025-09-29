@@ -13,10 +13,12 @@ import 'package:totem_pro_admin/core/enums/product_type.dart';
 import 'package:totem_pro_admin/models/catalog_product.dart';
 import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/image_model.dart';
-import 'package:totem_pro_admin/models/product.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
-import 'package:totem_pro_admin/models/product_variant_link.dart';
+
+import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
+
 import 'package:totem_pro_admin/repositories/product_repository.dart';
+import '../../../models/products/product.dart';
+import '../../../models/products/product_variant_link.dart';
 import '../../../models/variant_option.dart';
 import 'product_wizard_state.dart';
 

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
-import 'package:totem_pro_admin/models/product_variant_link.dart';
+
 
 
 import '../../../../widgets/mobile_mockup.dart';
+import '../../../models/products/product_variant_link.dart';
 import '../../../widgets/ds_primary_button.dart';
 import '../../product_edit/widgets/variant_link_card.dart';
 import '../../product_groups/helper/show_create_group_panel.dart';

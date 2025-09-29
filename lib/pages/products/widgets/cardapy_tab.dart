@@ -4,8 +4,9 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/product.dart';
+
 import '../../../core/extensions/colors.dart' as theme;
+import '../../../models/products/product.dart';
 import 'category_card.dart';
 
 import 'package:totem_pro_admin/pages/products/widgets/filter_bar.dart';

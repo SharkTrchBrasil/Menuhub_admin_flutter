@@ -12,7 +12,8 @@ import '../../../core/di.dart';
 import '../../../core/enums/category_type.dart';
 
 import '../../../models/category.dart';
-import '../../../models/product.dart';
+
+import '../../../models/products/product.dart';
 import '../../../repositories/product_repository.dart';
 import '../cubit/products_cubit.dart';
 

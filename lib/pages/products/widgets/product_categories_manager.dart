@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/services.dart';
 
-import '../../../models/prodcut_category_links.dart';
+import '../../../models/products/prodcut_category_links.dart';
 import '../../../widgets/ds_primary_button.dart';
 
 // -------------------------------------------------------------------

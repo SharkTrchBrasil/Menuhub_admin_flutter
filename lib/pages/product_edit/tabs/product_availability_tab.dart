@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/models/prodcut_category_links.dart';
+import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
 import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart';
 import 'package:totem_pro_admin/pages/product_edit/widgets/category_link_wizard.dart';
 import 'package:totem_pro_admin/pages/product_groups/helper/side_panel_helper.dart';

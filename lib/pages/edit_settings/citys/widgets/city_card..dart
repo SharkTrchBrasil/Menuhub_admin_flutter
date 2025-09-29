@@ -2,8 +2,10 @@
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:totem_pro_admin/models/store_city.dart';
-import 'package:totem_pro_admin/models/store_neig.dart';
+
+import '../../../../models/store/store_city.dart';
+import '../../../../models/store/store_neig.dart';
+
 
 class CityCard extends StatelessWidget {
   final int storeId;

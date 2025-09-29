@@ -7,7 +7,8 @@ import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 
 import '../../../../core/app_edit_controller.dart';
-import '../../../../models/store_neig.dart';
+
+import '../../../../models/store/store_neig.dart';
 import '../../../../widgets/app_page_status_builder.dart';
 import '../../../../widgets/base_dialog.dart';
 

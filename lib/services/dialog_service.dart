@@ -3,13 +3,14 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/models/payment_method.dart';
-import 'package:totem_pro_admin/models/store.dart';
-import 'package:totem_pro_admin/models/store_payable.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
+
 import 'package:totem_pro_admin/models/variant.dart';
 import 'package:totem_pro_admin/models/variant_option.dart';
 import 'package:totem_pro_admin/pages/coupons/widgets/edit_coupon_page_dialog.dart';
 
 import '../models/category.dart';
+import '../models/store/store_payable.dart';
 import '../pages/banners/widgets/banner_form_dialog.dart';
 
 

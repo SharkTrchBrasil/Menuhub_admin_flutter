@@ -1,5 +1,7 @@
-import 'package:totem_pro_admin/models/product.dart';
+
 import 'package:totem_pro_admin/models/variant.dart';
+
+import '../../models/products/product.dart';
 
 /// Uma função reutilizável que gera uma string com os nomes dos produtos
 /// vinculados a um determinado [variant].

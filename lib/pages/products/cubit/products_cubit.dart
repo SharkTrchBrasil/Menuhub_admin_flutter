@@ -4,7 +4,8 @@ import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/repositories/category_repository.dart';
 
 import '../../../core/enums/product_status.dart';
-import '../../../models/product.dart';
+
+import '../../../models/products/product.dart';
 import '../../../repositories/product_repository.dart';
 
 part 'products_state.dart';

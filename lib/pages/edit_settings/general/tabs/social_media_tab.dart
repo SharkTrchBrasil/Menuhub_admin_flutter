@@ -1,7 +1,7 @@
 // lib/pages/edit_settings/tabs/social_media_tab.dart
 
 import 'package:flutter/material.dart';
-import 'package:totem_pro_admin/models/store.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 
 class SocialMediaTab extends StatelessWidget {

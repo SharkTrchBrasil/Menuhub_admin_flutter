@@ -1,16 +1,12 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
-
-// Seus imports
-import 'package:totem_pro_admin/models/available_plan.dart';
+import 'package:totem_pro_admin/models/plans/available_plan.dart';
 import 'package:totem_pro_admin/pages/plans/edit_subscription_page_controller.dart';
 import 'package:totem_pro_admin/pages/new_subscription/new_subscription_dialog.dart';
 import 'package:totem_pro_admin/widgets/app_page_status_builder.dart';
-import 'package:totem_pro_admin/widgets/app_primary_button.dart';
-import 'package:totem_pro_admin/widgets/app_secondary_button.dart';
-
-import '../../models/plans.dart';
+import 'package:totem_pro_admin/models/plans/plans.dart';
 
 class EditSubscriptionPage extends StatelessWidget {
   final int storeId;
@@ -22,42 +18,40 @@ class EditSubscriptionPage extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => EditSubscriptionPageController(storeId),
       child: Scaffold(
-        backgroundColor: Colors.grey[50],
-        appBar: AppBar(
-          title: const Text('Nossos Planos'),
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          foregroundColor: Theme.of(context).colorScheme.onBackground,
-        ),
+        backgroundColor: Colors.white,
         body: Consumer<EditSubscriptionPageController>(
           builder: (_, controller, __) {
             return AppPageStatusBuilder<List<AvailablePlan>>(
               status: controller.status,
               successBuilder: (availablePlans) {
+                if (availablePlans.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Nenhum plano disponível.',
+                      style: TextStyle(color: Colors.black54),
+                    ),
+                  );
+                }
+
+                final plan = availablePlans.first;
+
                 return LayoutBuilder(
                   builder: (context, constraints) {
                     final isDesktop = constraints.maxWidth > 768;
 
-                    return SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Header
-                            _buildHeader(context),
-                            const SizedBox(height: 32),
-
-                            // Cards de planos
-                            if (isDesktop)
-                              _buildDesktopLayout(availablePlans, controller, context)
-                            else
-                              _buildMobileLayout(availablePlans, controller, context),
-                          ],
-                        ),
-                      ),
-                    );
+                    if (isDesktop) {
+                      return _DesktopLayout(
+                        plan: plan,
+                        storeId: storeId,
+                        controller: controller,
+                      );
+                    } else {
+                      return _MobileLayout(
+                        plan: plan,
+                        storeId: storeId,
+                        controller: controller,
+                      );
+                    }
                   },
                 );
               },
@@ -67,406 +61,580 @@ class EditSubscriptionPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildHeader(BuildContext context) {
+class _DesktopLayout extends StatelessWidget {
+  final AvailablePlan plan;
+  final int storeId;
+  final EditSubscriptionPageController controller;
+
+  const _DesktopLayout({
+    required this.plan,
+    required this.storeId,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      padding: const EdgeInsets.all(40.0),
       child: Column(
         children: [
-          Text(
-            'Escolha o plano perfeito',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
+          // Header
+          _buildHeader(context, plan),
+          const SizedBox(height: 40),
+
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Card Principal com Calculadora
+                Expanded(
+                  flex: 2,
+                  child: SingleChildScrollView(
+                    child: _PricingCalculatorCard(plan: plan.plan),
+                  ),
+                ),
+                const SizedBox(width: 32),
+
+                // Sidebar com Benefícios e CTA
+                Expanded(
+                  flex: 1,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildBenefitsCard(context, plan.plan),
+                        const SizedBox(height: 24),
+                        _buildCtaCard(context, plan, controller),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileLayout extends StatelessWidget {
+  final AvailablePlan plan;
+  final int storeId;
+  final EditSubscriptionPageController controller;
+
+  const _MobileLayout({
+    required this.plan,
+    required this.storeId,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        children: [
+          // Header
+          _buildHeader(context, plan),
+          const SizedBox(height: 32),
+
+          // Calculadora
+          _PricingCalculatorCard(plan: plan.plan),
+          const SizedBox(height: 24),
+
+          // Benefícios
+          _buildBenefitsCard(context, plan.plan),
+          const SizedBox(height: 24),
+
+          // CTA
+          _buildCtaCard(context, plan, controller),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _buildHeader(BuildContext context, AvailablePlan availablePlan) {
+  final statusText = availablePlan.isCurrent
+      ? 'Seu plano está ativo. Veja como sua cobrança funciona.'
+      : 'Seu período de teste de 30 dias está ativo!';
+
+  return Column(
+    children: [
+      Text(
+        'Transparência e Preço Justo',
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+        ),
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 12),
+      Text(
+        statusText,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: Colors.black54,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    ],
+  );
+}
+
+Widget _buildBenefitsCard(BuildContext context, Plans plan) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey.shade200),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 20,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Benefícios Inclusos',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildBenefitItem(
+          Icons.card_giftcard_rounded,
+          '1º Mês Grátis',
+          'Comece a vender sem custo algum no primeiro mês',
+          Colors.green,
+        ),
+        const SizedBox(height: 16),
+        _buildBenefitItem(
+          Icons.trending_down_rounded,
+          'Descontos Progressivos',
+          'Pague 50% no 2º mês e 25% no 3º mês',
+          Colors.blue,
+        ),
+        const SizedBox(height: 16),
+        _buildBenefitItem(
+          Icons.support_agent_rounded,
+          'Suporte Prioritário',
+          'Acesso direto ao nosso time via WhatsApp',
+          Colors.purple,
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildBenefitItem(IconData icon, String title, String subtitle, Color color) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: Colors.black54,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildCtaCard(BuildContext context, AvailablePlan plan, EditSubscriptionPageController controller) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey.shade200),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 20,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        Text(
+          plan.isCurrent ? 'Plano Ativo' : 'Pronto para Começar?',
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: plan.isCurrent ? null : () async {
+              await showDialog(
+                context: context,
+                builder: (_) => NewSubscriptionDialog(
+                  storeId: 5,
+                  plan: plan.plan,
+                ),
+              );
+              controller.reload();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3C76E8),
+              disabledBackgroundColor: Colors.green.shade100,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ),
+            child: Text(
+              plan.isCurrent ? 'PLANO ATIVO' : 'ADICIONAR PAGAMENTO',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Cancele a qualquer momento. Sem fidelidade.',
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Widget da Calculadora Interativa - Corrigido para evitar overflow
+class _PricingCalculatorCard extends StatefulWidget {
+  final Plans plan;
+  const _PricingCalculatorCard({required this.plan});
+
+  @override
+  State<_PricingCalculatorCard> createState() => _PricingCalculatorCardState();
+}
+
+class _PricingCalculatorCardState extends State<_PricingCalculatorCard> {
+  double _currentRevenue = 3000.0;
+  double _calculatedFee = 0;
+  int _activeTier = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateFee();
+  }
+
+  void _calculateFee() {
+    final plan = widget.plan;
+    final minFee = plan.minimumFee / 100.0;
+    final capFee = (plan.revenueCapFee ?? double.infinity) / 100.0;
+    final tierStart = (plan.percentageTierStart ?? 0) / 100.0;
+    final tierEnd = (plan.percentageTierEnd ?? double.infinity) / 100.0;
+
+    double fee;
+
+    if (_currentRevenue <= tierStart) {
+      fee = minFee;
+      _activeTier = 1;
+    } else if (_currentRevenue <= tierEnd) {
+      fee = _currentRevenue * plan.revenuePercentage;
+      if (fee < minFee) fee = minFee;
+      _activeTier = 2;
+    } else {
+      fee = capFee;
+      _activeTier = 3;
+    }
+
+    setState(() {
+      _calculatedFee = fee;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = widget.plan;
+    return Container(
+      padding: const EdgeInsets.all(24), // Reduzido o padding
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // Importante: não expande além do necessário
+        children: [
+          const Text(
+            'Simule sua mensalidade',
+            style: TextStyle(
+              fontSize: 18, // Reduzido
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Planos flexíveis que crescem com o seu negócio',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            'Arraste para ver quanto você pagaria com base no seu faturamento mensal.',
+            style: TextStyle(
               color: Colors.grey.shade600,
+              fontSize: 14,
             ),
-            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+
+          // Display do Faturamento
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16), // Reduzido
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Faturamento Mensal',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _currentRevenue.toCurrency(),
+                  style: const TextStyle(
+                    fontSize: 24, // Reduzido
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Slider
+          SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 6,
+              thumbShape: const RoundSliderThumbShape(
+                enabledThumbRadius: 10, // Reduzido
+              ),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+              activeTrackColor: const Color(0xFF3C76E8),
+              inactiveTrackColor: Colors.grey.shade300,
+              thumbColor: const Color(0xFF3C76E8),
+            ),
+            child: Slider(
+              value: _currentRevenue,
+              min: 0,
+              max: 15000,
+              divisions: 150,
+              label: _currentRevenue.toInt().toCurrency(),
+              onChanged: (value) {
+                setState(() {
+                  _currentRevenue = value;
+                  _calculateFee();
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('R\$ 0', style: TextStyle(color: Colors.grey.shade600)),
+              Text('R\$ 15.000', style: TextStyle(color: Colors.grey.shade600)),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+          const Divider(color: Colors.grey, height: 1),
+          const SizedBox(height: 24),
+
+          // Resultado
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20), // Reduzido
+            decoration: BoxDecoration(
+              color: const Color(0xFF3C76E8).withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF3C76E8).withOpacity(0.2)),
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  'Sua mensalidade seria:',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _calculatedFee.toInt().toCurrency(),
+                  style: const TextStyle(
+                    color: Color(0xFF3C76E8),
+                    fontSize: 28, // Reduzido
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '/mês',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Explicação das faixas de preço
+          const Text(
+            'Como funciona o cálculo:',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Lista de tiers com altura fixa para evitar overflow
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 200), // Limite de altura
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildTierInfo(
+                    isActive: _activeTier == 1,
+                    title: 'Até ${((plan.percentageTierStart ?? 0) / 100).toCurrency()}',
+                    description: 'Taxa mínima de ${(plan.minimumFee / 100).toCurrency()}',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTierInfo(
+                    isActive: _activeTier == 2,
+                    title: 'De ${((plan.percentageTierStart ?? 0) / 100).toCurrency()} a ${((plan.percentageTierEnd ?? 0) / 100).toCurrency()}',
+                    description: '${NumberFormat.decimalPercentPattern(decimalDigits: 1).format(plan.revenuePercentage)} do faturamento',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTierInfo(
+                    isActive: _activeTier == 3,
+                    title: 'Acima de ${((plan.percentageTierEnd ?? 0) / 100).toCurrency()}',
+                    description: 'Taxa fixa de ${((plan.revenueCapFee ?? 0) / 100).toCurrency()}',
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDesktopLayout(
-      List<AvailablePlan> plans,
-      EditSubscriptionPageController controller,
-      BuildContext context,
-      ) {
-    return SizedBox(
-      height: 500, // Altura fixa para a lista horizontal
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        itemCount: plans.length,
-        itemBuilder: (context, index) {
-          final plan = plans[index];
-          return Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: _ModernPlanCard(
-              availablePlan: plan,
-              onSubscribePressed: () async {
-                await showDialog(
-                  context: context,
-                  builder: (_) => NewSubscriptionDialog(
-                    storeId: storeId,
-                    plan: plan.plan,
-                  ),
-                );
-                controller.reload();
-              },
-              cardWidth: 320, // Largura maior para desktop
-            ),
-          );
-        },
+  Widget _buildTierInfo({required bool isActive, required String title, required String description}) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(12), // Reduzido
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0xFF3C76E8).withOpacity(0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isActive ? const Color(0xFF3C76E8) : Colors.grey.shade200,
+        ),
       ),
-    );
-  }
-
-  Widget _buildMobileLayout(
-      List<AvailablePlan> plans,
-      EditSubscriptionPageController controller,
-      BuildContext context,
-      ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Column(
-        children: plans.map((plan) => Padding(
-          padding: const EdgeInsets.only(bottom: 20),
-          child: _ModernPlanCard(
-            availablePlan: plan,
-            onSubscribePressed: () async {
-              await showDialog(
-                context: context,
-                builder: (_) => NewSubscriptionDialog(
-                  storeId: storeId,
-                  plan: plan.plan,
-                ),
-              );
-              controller.reload();
-            },
-            cardWidth: double.infinity, // Largura total no mobile
-          ),
-        )).toList(),
-      ),
-    );
-  }
-}
-
-class _ModernPlanCard extends StatelessWidget {
-  final AvailablePlan availablePlan;
-  final VoidCallback onSubscribePressed;
-  final double cardWidth;
-
-  const _ModernPlanCard({
-    required this.availablePlan,
-    required this.onSubscribePressed,
-    required this.cardWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final plan = availablePlan.plan;
-    final isCurrent = availablePlan.isCurrent;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    // Cores gradientes modernas para cada plano
-    final gradientColors = _getPlanGradient(plan.planName, colorScheme);
-    final iconData = _getPlanIcon(plan.planName);
-
-    return SizedBox(
-      width: cardWidth,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        child: Card(
-          elevation: isCurrent ? 12 : 6,
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: isCurrent
-                  ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  gradientColors[0].withOpacity(0.05),
-                  gradientColors[1].withOpacity(0.1),
-                ],
-              )
-                  : null,
-              border: isCurrent
-                  ? Border.all(
-                color: colorScheme.primary.withOpacity(0.3),
-                width: 2,
-              )
-                  : null,
+              color: isActive ? const Color(0xFF3C76E8) : Colors.grey.shade400,
+              shape: BoxShape.circle,
             ),
-            child: Stack(
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Badge "Recomendado" para o plano atual
-                if (isCurrent)
-                  Positioned(
-                    top: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: gradientColors),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: gradientColors[0].withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        'RECOMENDADO',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isActive ? Colors.black87 : Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14, // Reduzido
                   ),
-
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Header com ícone e nome do plano
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: gradientColors),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: gradientColors[0].withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              iconData,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              plan.planName,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Descrição do plano
-
-
-
-                      // Preço com possível promoção
-                      _PriceSection(plan: plan, theme: theme),
-                      const SizedBox(height: 24),
-
-                      // Lista de features
-                      ...plan.features.take(4).map((feature) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.check_circle_rounded,
-                              color: gradientColors[0],
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                feature.name,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )).toList(),
-
-                      // Botão de ação
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: isCurrent
-                            ? AppPrimaryButton(
-                          label: 'Plano Atual',
-                          onPressed: null,
-
-                        )
-                            : AppSecondaryButton(
-                          label: 'Escolher Plano',
-                          onPressed: onSubscribePressed,
-
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: isActive ? Colors.grey.shade600 : Colors.grey.shade500,
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
-  }
-}
-
-class _PriceSection extends StatelessWidget {
-  final Plans plan;
-  final ThemeData theme;
-
-  const _PriceSection({required this.plan, required this.theme});
-
-  @override
-  Widget build(BuildContext context) {
-   // final hasDiscount = plan.originalPrice != null && plan.originalPrice! > plan.price;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-
-        //
-        // if (hasDiscount) ...[
-        //   Row(
-        //     children: [
-        //       Text(
-        //         'De ${plan.originalPrice!.toPrice()}',
-        //         style: theme.textTheme.bodyMedium?.copyWith(
-        //           color: Colors.grey.shade500,
-        //           decoration: TextDecoration.lineThrough,
-        //         ),
-        //       ),
-        //       const SizedBox(width: 8),
-        //       if (plan.promotionDuration != null)
-        //         Container(
-        //           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        //           decoration: BoxDecoration(
-        //             color: Colors.orange.shade50,
-        //             borderRadius: BorderRadius.circular(6),
-        //           ),
-        //           child: Text(
-        //             plan.promotionDuration!,
-        //             style: theme.textTheme.labelSmall?.copyWith(
-        //               color: Colors.orange.shade800,
-        //               fontWeight: FontWeight.bold,
-        //             ),
-        //           ),
-        //         ),
-        //     ],
-        //   ),
-        //   const SizedBox(height: 4),
-        // ],
-        //
-
-
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              plan.price.toPrice(),
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                '/mês',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        // if (hasDiscount) ...[
-        //   const SizedBox(height: 4),
-        //   Text(
-        //     'Economize ${((plan.originalPrice! - plan.price) / plan.originalPrice! * 100).toStringAsFixed(0)}%',
-        //     style: theme.textTheme.bodySmall?.copyWith(
-        //       color: Colors.green.shade600,
-        //       fontWeight: FontWeight.bold,
-        //     ),
-        //   ),
-        // ],
-
-
-      ],
-    );
-  }
-}
-
-// Funções auxiliares para personalização baseada no nome do plano
-List<Color> _getPlanGradient(String planName, ColorScheme colorScheme) {
-  switch (planName.toLowerCase()) {
-    case 'básico':
-      return [Colors.blue.shade400, Colors.blue.shade600];
-    case 'premium':
-      return [Colors.purple.shade400, Colors.purple.shade600];
-    case 'empresarial':
-      return [Colors.teal.shade400, Colors.teal.shade600];
-    case 'ultimate':
-      return [Colors.orange.shade400, Colors.orange.shade600];
-    case 'startup':
-      return [Colors.green.shade400, Colors.green.shade600];
-    case 'professional':
-      return [Colors.red.shade400, Colors.red.shade600];
-    default:
-      return [colorScheme.primary, colorScheme.primary.withOpacity(0.8)];
-  }
-}
-
-IconData _getPlanIcon(String planName) {
-  switch (planName.toLowerCase()) {
-    case 'básico':
-      return Icons.star_outline;
-    case 'premium':
-      return Icons.star_half;
-    case 'empresarial':
-      return Icons.business_center;
-    case 'ultimate':
-      return Icons.diamond;
-    case 'startup':
-      return Icons.rocket_launch;
-    case 'professional':
-      return Icons.work;
-    default:
-      return Icons.credit_card;
   }
 }

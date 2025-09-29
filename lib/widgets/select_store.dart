@@ -7,8 +7,8 @@ import 'package:totem_pro_admin/widgets/access_wrapper.dart';
 
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
-import '../models/store.dart';
-import '../models/store_with_role.dart';
+import '../models/store/store.dart';
+import '../models/store/store_with_role.dart';
 
 // ✨ Transformado em StatelessWidget, muito mais simples! ✨
 class StoreSelectorWidget extends StatelessWidget {

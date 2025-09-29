@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/core/app_list_controller.dart';
 import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/models/store_access.dart';
-import 'package:totem_pro_admin/models/store_with_role.dart';
+
+import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/pages/accesses/widgets/add_user_dialog.dart';
 import 'package:totem_pro_admin/repositories/auth_repository.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
@@ -13,6 +13,7 @@ import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/widgets/app_table.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart';
 
+import '../../models/store/store_access.dart';
 import '../../repositories/store_repository.dart';
 
 class AccessesPage extends StatefulWidget {

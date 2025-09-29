@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
 import 'package:totem_pro_admin/pages/inventory/widgets/status_chip.dart';
 
-import '../../../models/product.dart';
+import '../../../models/products/product.dart';
 
 class InventoryTable extends StatelessWidget {
   final List<Product> products;

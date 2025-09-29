@@ -2,10 +2,9 @@ import 'package:brasil_fields/brasil_fields.dart';
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart';
-import 'package:totem_pro_admin/models/store.dart';
-import 'package:totem_pro_admin/models/store_access.dart';
-import 'package:totem_pro_admin/models/store_theme.dart';
-import 'package:totem_pro_admin/models/store_with_role.dart';
+import 'package:totem_pro_admin/models/store/store.dart';
+
+import 'package:totem_pro_admin/models/store/store_with_role.dart';
 
 
 
@@ -14,21 +13,24 @@ import '../core/payment_token.dart';
 import '../models/address.dart';
 import '../models/cash_session.dart';
 import '../models/cash_transaction.dart';
-import '../models/create_subscription_payload.dart';
-import '../models/credit_card.dart';
+import '../models/store/store_access.dart';
+import '../models/store/store_city.dart';
+import '../models/store/store_customer.dart';
+import '../models/store/store_hour.dart';
+import '../models/store/store_neig.dart';
+import '../models/store/store_payable.dart';
+import '../models/store/store_pix_config.dart';
+import '../models/store/store_theme.dart';
+import '../models/subscription/create_subscription_payload.dart';
+import '../models/subscription/credit_card.dart';
 
 
 import '../models/holiday.dart';
-import '../models/plans.dart';
+import '../models/plans/plans.dart';
 import '../models/scheduled_pause.dart';
-import '../models/store_city.dart';
-import '../models/store_customer.dart';
-import '../models/store_hour.dart';
-import '../models/store_neig.dart';
-import '../models/store_payable.dart';
-import '../models/store_pix_config.dart';
 
-import '../models/tokenized_card.dart';
+
+import '../models/subscription/tokenized_card.dart';
 import '../pages/create_store/cubit/store_setup-state.dart';
 
 

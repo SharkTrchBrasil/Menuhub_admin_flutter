@@ -3,7 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/models/peak_hours.dart';
-import 'package:totem_pro_admin/models/store_hour.dart';
+
+import '../../../../models/store/store_hour.dart';
 import 'summary_item.dart';
 
 class ActionAndSummaryPanel extends StatelessWidget {
