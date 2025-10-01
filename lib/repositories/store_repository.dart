@@ -71,7 +71,7 @@ class StoreRepository {
   }
 
   // Em store_repository.dart
-  Future<Either<Failure, Store>> createStore(StoreSetupState setupData) async {
+  Future<Either<Failure, StoreWithRole>> createStore(StoreSetupState setupData) async {
     try {
       // 1. Converte o estado para JSON
       final jsonData = setupData.toJson();
@@ -127,22 +127,24 @@ class StoreRepository {
 
       final formData = FormData.fromMap(flattenedData);
 
-      // 4. Envia os dados
+
       final response = await _dio.post('/stores', data: formData);
 
-      final createdStore = Store.fromJson(response.data);
-      return Right(createdStore);
+      // ✅ 3. FAÇA O PARSE USANDO StoreWithRole.fromJson
+      // A resposta da API é um StoreWithRole, então usamos o model correto.
+      final createdStoreWithRole = StoreWithRole.fromJson(response.data);
+
+      // Validação final para garantir que o ID não é nulo.
+      if (createdStoreWithRole.store.core.id == null) {
+        return Left(Failure('A API retornou uma loja sem ID.'));
+      }
+
+      return Right(createdStoreWithRole);
 
     } on DioException catch (e) {
       debugPrint('DioException em createStore: $e');
-
-      // Tratamento mais específico de erros
-      if (e.response?.statusCode == 422) {
-        final errors = e.response?.data?['errors'] ?? e.response?.data?['detail'];
-        return Left(Failure('Dados inválidos: $errors'));
-      }
-
-      return Left(Failure('Não foi possível criar a loja. Tente novamente.'));
+      final detail = e.response?.data?['detail'] ?? 'Não foi possível criar a loja. Tente novamente.';
+      return Left(Failure(detail.toString()));
     } catch (e) {
       debugPrint('Erro inesperado em createStore: $e');
       return Left(Failure('Ocorreu um erro inesperado ao criar a loja.'));

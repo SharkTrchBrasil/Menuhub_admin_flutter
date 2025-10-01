@@ -205,35 +205,32 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
     );
   }
 
+  // ✅ ===================================================================
+  // ✅ MÉTODO ATUALIZADO
+  // ✅ ===================================================================
   Future<void> submitStoreSetup() async {
     emit(state.copyWith(submissionStatus: const PageStatusLoading()));
 
+    // O repositório agora retorna um `Either<Failure, StoreWithRole>`
     final result = await _storeRepository.createStore(state);
 
     result.fold(
-      (failure) => emit(
+          (failure) => emit(
         state.copyWith(submissionStatus: PageStatusError(failure.message)),
       ),
-      (newStore) async {
-        // ✅ SUCESSO! A loja foi criada.
-        // O 'newStore' que recebemos é do tipo 'Store'.
-        // Precisamos criar um 'StoreWithRole' para adicionar ao AuthCubit.
-        final newStoreWithRole = StoreWithRole(
-          store: newStore,
-          role: StoreAccessRole.owner, // O criador é sempre o dono
-        );
+          (newStoreWithRole) async {
+        // ✅ SUCESSO! O tipo de `newStoreWithRole` é `StoreWithRole`.
 
-        // ✅ ATUALIZA O ESTADO GLOBAL DO APP COM A NOVA LOJA
+        // 1. Atualiza o estado global de autenticação com o objeto completo.
         _authCubit.addNewStore(newStoreWithRole);
 
         final authState = _authCubit.state;
-
         if (authState is AuthAuthenticated) {
           final currentUser = authState.data.user;
 
-          // ✅ LÓGICA DE DATA CORRIGIDA
+          // Lógica para atualizar dados do usuário (CPF, data de nascimento)
+          // se eles foram preenchidos no formulário.
           DateTime? newBirthDate;
-          // Tenta converter a string "DD/MM/AAAA" do formulário para um DateTime
           if (state.responsibleBirth.isNotEmpty) {
             try {
               final parts = state.responsibleBirth.split('/');
@@ -245,39 +242,30 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
                 );
               }
             } catch (e) {
-              // Ignora se o formato for inválido
               newBirthDate = null;
             }
           }
 
-          // Compara os dados do formulário com os dados atuais do usuário
           final bool needsCpfUpdate =
               state.cpf.isNotEmpty && state.cpf != currentUser.cpf;
-          // Compara o DateTime convertido com o DateTime do usuário
           final bool needsBirthUpdate =
               newBirthDate != null && newBirthDate != currentUser.birthDate;
 
           if (needsCpfUpdate || needsBirthUpdate) {
             final updatedUser = currentUser.copyWith(
-              // Usa o operador '??' para não sobrescrever com nulo se a condição for falsa
               cpf: needsCpfUpdate ? state.cpf : currentUser.cpf,
               birthDate:
-                  needsBirthUpdate ? newBirthDate : currentUser.birthDate,
+              needsBirthUpdate ? newBirthDate : currentUser.birthDate,
             );
 
             await _userRepository.updateUser(updatedUser);
-            // Opcional: Atualizar o AuthCubit aqui
           }
         }
 
-        // try {
-        //   await _authService.reinitializeRealtimeConnection();
-        // } catch (e) {
-        //   // Loga qualquer erro que possa acontecer na reconexão
-        //   print('[StoreSetupCubit] Erro ao reinicializar a conexão: $e');
-        // }
-
-        emit(state.copyWith(submissionStatus: PageStatusSuccess(newStore)));
+        // 2. Emite o estado de sucesso para a UI, passando apenas o objeto `Store`.
+        // A tela de animação (`SubmissionAnimationPage`) espera um `Store` para
+        // obter o ID e fazer a navegação.
+        emit(state.copyWith(submissionStatus: PageStatusSuccess(newStoreWithRole.store)));
       },
     );
   }

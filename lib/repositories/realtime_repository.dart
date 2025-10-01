@@ -7,13 +7,13 @@ import 'package:get_it/get_it.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
-// Adapte os imports para os caminhos corretos do seu projeto
+
 import 'package:totem_pro_admin/models/command.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 
 import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/models/table.dart';
-import 'package:totem_pro_admin/services/auth_service.dart';
+
 
 import '../core/enums/connectivity_status.dart';
 import '../models/category.dart';
@@ -33,8 +33,7 @@ import '../models/store/store_payable.dart';
 import '../models/store/store_receivable.dart';
 
 import '../models/supplier.dart';
-import '../models/totem_auth.dart';
-import '../models/totem_auth_and_stores.dart';
+
 import '../models/variant.dart';
 import '../services/connectivity_service.dart';
 import 'auth_repository.dart'; // Para ter acesso ao TotemAuth
@@ -43,7 +42,6 @@ import 'dart:convert'; // Para usar o JsonEncoder
 
 
 
-// ✅ ALTERAÇÃO: A classe helper agora contém todas as listas financeiras
 class FinancialsData {
   final List<StorePayable> payables;
   final List<Supplier> suppliers;
@@ -69,7 +67,7 @@ class RealtimeRepository {
   bool _isReconnecting = false; // Flag para evitar múltiplas tentativas
   int? _lastJoinedStoreId;
   bool _isDisposed = false;
-  // ✅ Variáveis de controle de estado
+
   String? _lastUsedAdminToken;
 
   final _connectionStatusController = BehaviorSubject<bool>.seeded(false);
@@ -85,7 +83,7 @@ class RealtimeRepository {
   final _storeDetailsController = BehaviorSubject<Store?>();
   final _dashboardDataController = BehaviorSubject<Map<String, dynamic>?>();
   final _payablesDashboardController = BehaviorSubject<PayablesDashboardMetrics?>();
-  final _newChatMessageController = StreamController<ChatbotMessage>.broadcast(); // ✅ Adicione esta linha
+  final _newChatMessageController = StreamController<ChatbotMessage>.broadcast();
 
 
   final _variantsStreams = <int, BehaviorSubject<List<Variant>>>{};
@@ -109,8 +107,6 @@ class RealtimeRepository {
   final _subscriptionErrorController = StreamController<Map<String, dynamic>>.broadcast();
 
   final _userHasNoStoresController = StreamController<void>.broadcast();
-
-
 
 
 
@@ -152,16 +148,11 @@ class RealtimeRepository {
   Stream<List<Variant>> listenToVariants(int storeId) =>
       _variantsStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])).stream;
   Stream<Map<String, dynamic>> get onStuckOrderAlert => _stuckOrderAlertController.stream;
-  Stream<ChatbotMessage> get onNewChatMessage => _newChatMessageController.stream; // ✅ Adicione este getter
+  Stream<ChatbotMessage> get onNewChatMessage => _newChatMessageController.stream;
 
   Stream<List<ChatbotConversation>> get onConversationsListUpdated => _conversationsListController.stream;
   Stream<Map<String, dynamic>> get onSubscriptionError => _subscriptionErrorController.stream;
   Stream<void> get onUserHasNoStores => _userHasNoStoresController.stream;
-
-
-
-
-
 
 
 
@@ -295,18 +286,47 @@ class RealtimeRepository {
     _socket!.on('new_order_notification', _handleNewOrderNotification);
 
 
-    // ✅ 3. ADICIONE O LISTENER PARA O NOVO EVENTO DEDICADO
     _socket!.on('chatbot_config_updated', _handleChatbotConfigUpdated);
 
 
     _socket!.on('admin_stores_list', (data) {
-      // ✅ LOG ADICIONADO
       log('✅ Evento recebido: admin_stores_list');
-      if (data is Map && data['stores'] is List) {
-        final stores = (data['stores'] as List).map((s) => StoreWithRole.fromJson(s)).toList();
-        _adminStoresListController.add(stores);
+      try {
+        // Validação robusta do payload
+        if (data is Map<String, dynamic> && data['stores'] is List) {
+          final storesData = data['stores'] as List;
+
+          // Se a lista estiver vazia, emita uma lista vazia.
+          if (storesData.isEmpty) {
+            log('🔵 [RealtimeRepository] Payload de "admin_stores_list" continha uma lista de lojas vazia.');
+            _adminStoresListController.add([]);
+            return;
+          }
+
+          // Mapeia os dados para a lista de objetos, com tratamento de erro individual.
+          final storesList = storesData.map<StoreWithRole?>((json) {
+            try {
+              return StoreWithRole.fromJson(json as Map<String, dynamic>);
+            } catch (e) {
+              log('❌ Erro ao fazer parse de um item da loja em "admin_stores_list": $e');
+              return null; // Retorna nulo se um item específico falhar
+            }
+          }).whereType<StoreWithRole>().toList(); // Filtra quaisquer nulos que possam ter ocorrido
+
+          log('✅ [RealtimeRepository] Lista de lojas processada com ${storesList.length} item(ns). Emitindo para o stream.');
+          _adminStoresListController.add(storesList);
+
+        } else {
+          // Se o payload não tiver o formato esperado, loga o erro mas não quebra o app.
+          log('⚠️ [RealtimeRepository] Payload de "admin_stores_list" com formato inesperado: $data');
+          // Opcional: emitir uma lista vazia se preferir
+          // _adminStoresListController.add([]);
+        }
+      } catch (e, st) {
+        log('❌ Erro geral ao processar o evento "admin_stores_list"', error: e, stackTrace: st);
       }
     });
+
 
     // ADICIONE ESTE NOVO LISTENER
     _socket!.on('stuck_order_alert', (data) {
@@ -885,6 +905,7 @@ class RealtimeRepository {
     _newPrintJobsController.close();
     _deviceConnectivitySubscription?.cancel();
     _userHasNoStoresController.close();
+    _adminStoresListController.close();
     _socket?.dispose();
     log('[RealtimeRepository] Todos os streams e o socket foram fechados');
   }
