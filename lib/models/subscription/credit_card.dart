@@ -1,22 +1,24 @@
+import '../../core/utils/card_utils.dart';
+
 class CreditCard {
 
   CreditCard({
     this.number = '',
     this.cvv = '',
     this.expirationDate,
-    this.brand = '',
+    this.brand = CardBrand.unknown
   });
 
   final String number;
   final String cvv;
   final DateTime? expirationDate;
-  final String? brand;
+  final CardBrand brand;
 
   CreditCard copyWith({
     String? number,
     String? cvv,
     DateTime? expirationDate,
-    String? brand,
+    CardBrand? brand,
   }) {
     return CreditCard(
       number: number ?? this.number,

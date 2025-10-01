@@ -7,6 +7,7 @@ import 'package:totem_pro_admin/core/helpers/navigation.dart';
 import 'package:totem_pro_admin/widgets/appbarcode.dart';
 import 'package:totem_pro_admin/widgets/drawercode.dart';
 import 'package:totem_pro_admin/widgets/persistent_notification_toast..dart';
+import 'package:totem_pro_admin/widgets/subscription_blocked_view.dart';
 
 
 
@@ -28,9 +29,33 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ResponsiveBuilder(
-      mobileBuilder: (context, constraints) => _buildMobileLayout(context),
-      desktopBuilder: (context, constraints) => _buildDesktopLayout(context),
+    // ✅ 2. ENVOLVA TUDO EM UM BLOCBUILDER PARA VERIFICAR A ASSINATURA
+    return BlocBuilder<StoresManagerCubit, StoresManagerState>(
+      // Otimização: só reconstrói se o objeto de assinatura mudar
+      buildWhen: (previous, current) {
+        final prevSub = (previous is StoresManagerLoaded) ? previous.activeStore?.relations.subscription : null;
+        final currSub = (current is StoresManagerLoaded) ? current.activeStore?.relations.subscription : null;
+        return prevSub != currSub;
+      },
+      builder: (context, state) {
+        if (state is StoresManagerLoaded) {
+          final subscription = state.activeStore?.relations.subscription;
+
+          // ✅ 3. A LÓGICA PRINCIPAL: VERIFICA SE ESTÁ BLOQUEADO
+          if (subscription != null && subscription.isBlocked) {
+            return SubscriptionBlockedView(
+              subscription: subscription,
+              storeId: storeId,
+            );
+          }
+        }
+
+        // Se não estiver bloqueado ou se o estado ainda não estiver carregado, mostra o layout normal.
+        return ResponsiveBuilder(
+          mobileBuilder: (context, constraints) => _buildMobileLayout(context),
+          desktopBuilder: (context, constraints) => _buildDesktopLayout(context),
+        );
+      },
     );
   }
 

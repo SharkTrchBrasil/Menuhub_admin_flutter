@@ -25,6 +25,8 @@ import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart';
 
+import '../../core/utils/card_utils.dart';
+
 class NewSubscriptionDialog extends StatefulWidget {
   const NewSubscriptionDialog({
     super.key,
@@ -113,6 +115,16 @@ class _NewSubscriptionDialogState extends State<NewSubscriptionDialog> {
       return;
     }
 
+    // ✅ PRINT DE DEPURACAO AQUI
+    debugPrint('--- DEBUG: [UI - NewSubscriptionDialog] ---');
+    debugPrint('Enviando para o repositório...');
+    debugPrint('Número do Cartão: "${_creditCard.number}"');
+    debugPrint('CVV: "${_creditCard.cvv}"');
+    debugPrint('Data de Vencimento: ${_creditCard.expirationDate}');
+    debugPrint('Bandeira Detectada: ${_creditCard.brand.name}');
+    debugPrint('-----------------------------------------');
+
+
     final VoidCallback hideLoading = showLoading();
 
     try {
@@ -194,9 +206,37 @@ class _NewSubscriptionDialogState extends State<NewSubscriptionDialog> {
                 AppTextField(
                   title: 'Número do cartão',
                   hint: '0000 0000 0000 0000',
-                  validator: (v) => (v == null || v.length < 19) ? 'Número inválido' : null,
-                  formatters: [FilteringTextInputFormatter.digitsOnly, CartaoBancarioInputFormatter()],
-                  onChanged: (c) => _creditCard = _creditCard.copyWith(number: c),
+                  // suffixIcon: Padding(
+                  //   padding: const EdgeInsets.all(8.0),
+                  //   child: Image.asset(
+                  //     _creditCard.brand.assetPath,
+                  //     width: 32, // ajuste o tamanho conforme necessário
+                  //   ),
+                  // ),
+                  // ✅ VALIDADOR CORRIGIDO E MAIS ROBUSTO
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'O número do cartão é obrigatório.';
+                    }
+                    if (v.length < 19) { // 19 por causa dos espaços do formatador
+                      return 'Número de cartão inválido.';
+                    }
+                    return null;
+                  },
+
+                  formatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    CartaoBancarioInputFormatter()
+                  ],
+
+                  onChanged: (c) {
+                    setState(() {
+                      final brand = CardUtils.detectCreditCardBrand(c ?? '');
+                      _creditCard = _creditCard.copyWith(number: c, brand: brand);
+                    });
+                  },
+
+
                 ),
                 const SizedBox(height: 16),
                 Row(

@@ -17,13 +17,21 @@ class BillingCustomer {
   final DateTime? birthday;
   final String phone;
 
+// Em lib/models/billing_customer.dart
+
   Map<String, dynamic> toJson() {
     return {
       'name': name,
-      'cpf': UtilBrasilFields.removeCaracteres(cpf),
+      // ✅ CORREÇÃO AQUI: Só formata o CPF se ele não for nulo E não for vazio.
+      'cpf': (cpf != null && cpf!.isNotEmpty)
+          ? UtilBrasilFields.removeCaracteres(cpf!)
+          : null,
       'email': email,
-      'birth': DateFormat('yyyy-MM-dd').format(birthday!),
-      'phone_number': UtilBrasilFields.removeCaracteres(phone),
+      // ✅ CORREÇÃO AQUI: Faz o mesmo para o telefone.
+      'phone_number': (phone != null && phone!.isNotEmpty)
+          ? UtilBrasilFields.removeCaracteres(phone!)
+          : null,
+      'birth': birthday != null ? DateFormat('yyyy-MM-dd').format(birthday!) : null,
     };
   }
 

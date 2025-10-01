@@ -7,7 +7,7 @@ import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/order_type_tab.dart';
 import 'package:totem_pro_admin/services/print/printer_settings.dart';
-import 'package:totem_pro_admin/widgets/access_wrapper.dart';
+
 
 import '../../../core/helpers/sidepanel.dart';
 import '../../chatpanel/widgets/chat_central_panel.dart';
@@ -135,9 +135,6 @@ class OrdersTopBar extends StatelessWidget {
     )
         : iconButton;
 
-    return AccessWrapper(
-      featureKey: 'auto_printing',
-      child: finalIconWidget,
-    );
+    return finalIconWidget;
   }
 }

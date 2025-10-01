@@ -20,14 +20,14 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
   final SegmentRepository _segmentRepository;
   final UserRepository _userRepository;
   final AuthCubit _authCubit;
-  final AuthService _authService;
+
 
   StoreSetupCubit(
     this._storeRepository,
     this._segmentRepository,
     this._userRepository,
     this._authCubit,
-    this._authService, {
+     {
     String? initialResponsibleName, // <-- Parâmetro para o nome
   }) : super(StoreSetupState(responsibleName: initialResponsibleName ?? ''));
 

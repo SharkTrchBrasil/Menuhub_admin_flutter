@@ -26,6 +26,7 @@ import '../models/products/product.dart';
 import '../models/products/product_analytics_data.dart';
 import '../models/store/store.dart';
 
+import '../models/subscription.dart';
 import '../models/table.dart';
 import '../models/variant.dart';
 import '../repositories/payment_method_repository.dart';
@@ -55,7 +56,8 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 // 1. Adicione uma nova StreamSubscription no topo da classe
   StreamSubscription? _stuckOrderAlertSubscription;
   StreamSubscription? _conversationsSubscription;
-
+  StreamSubscription? _subscriptionErrorSubscription; // ✅ 1. Adicione a nova subscription
+  StreamSubscription? _userHasNoStoresSubscription;
 
 
   StoresManagerCubit({
@@ -64,11 +66,11 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     required PaymentMethodRepository paymentRepository,
     required ProductRepository productRepository,
   }) : _storeRepository = storeRepository,
-       _realtimeRepository = realtimeRepository,
-       _paymentRepository = paymentRepository,
-       _productRepository = productRepository,
+        _realtimeRepository = realtimeRepository,
+        _paymentRepository = paymentRepository,
+        _productRepository = productRepository,
 
-       super(const StoresManagerInitial()) {}
+        super(const StoresManagerInitial()) {}
 
   void loadInitialData() {
     log('[StoresManagerCubit] Carregamento inicial de dados iniciado.');
@@ -123,11 +125,76 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _realtimeRepository.onNewChatMessage.listen(_onNewChatMessageReceived); // ✅ Adicione esta linha
     //
 
+    _subscriptionErrorSubscription = _realtimeRepository.onSubscriptionError.listen(
+      _onSubscriptionError,
+    );
 
-
+    _userHasNoStoresSubscription = _realtimeRepository.onUserHasNoStores.listen((_) {
+      if (isClosed) return;
+      log("🔵 [CUBIT] Evento user_has_no_stores recebido - emitindo StoresManagerEmpty");
+      emit(const StoresManagerEmpty());
+    });
 
     _listenToActiveStoreData();
   }
+
+
+  void _onSubscriptionError(Map<String, dynamic> errorPayload) {
+    if (isClosed) return;
+    final currentState = state;
+    if (currentState is! StoresManagerLoaded) return;
+
+    try {
+      final storeId = currentState.activeStoreId;
+      if (storeId == null) {
+        log("❌ [CUBIT] _onSubscriptionError: activeStoreId é nulo.");
+        return;
+      }
+
+      // ✅ VERIFICAÇÃO DE SEGURANÇA ADICIONADA AQUI
+      final subscriptionData = errorPayload['subscription'];
+      if (subscriptionData == null || subscriptionData is! Map<String, dynamic>) {
+        log("❌ [CUBIT] _onSubscriptionError: Payload de assinatura inválido ou nulo recebido.");
+        return; // Interrompe a execução se o payload for inválido
+      }
+
+      final newSubscription = Subscription.fromJson(subscriptionData);
+
+      final targetStoreWithRole = currentState.stores[storeId];
+      if (targetStoreWithRole == null) return;
+
+      final updatedStore = targetStoreWithRole.store.copyWith(
+        relations: targetStoreWithRole.store.relations.copyWith(
+          subscription: newSubscription,
+        ),
+      );
+
+      final updatedStoreWithRole = targetStoreWithRole.copyWith(store: updatedStore);
+
+      final newStoresMap = Map<int, StoreWithRole>.from(currentState.stores);
+      newStoresMap[storeId] = updatedStoreWithRole;
+
+      emit(currentState.copyWith(
+        stores: newStoresMap,
+        lastUpdate: DateTime.now(),
+      ));
+
+      log("✅ [CUBIT] Estado atualizado com status de assinatura bloqueada para a loja $storeId.");
+
+    } catch (e, st) {
+      log("❌ [CUBIT] Erro ao processar _onSubscriptionError: $e", stackTrace: st);
+    }
+  }
+
+
+
+
+
+
+
+
+
+
 
 
   /// Zera o contador de mensagens não lidas para um chat específico no estado local.
@@ -238,10 +305,10 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     // Cria um stream que emite o ID da loja ativa sempre que ele muda
     final activeStoreIdStream =
-        stream
-            .whereType<StoresManagerLoaded>()
-            .map((state) => state.activeStoreId)
-            .distinct();
+    stream
+        .whereType<StoresManagerLoaded>()
+        .map((state) => state.activeStoreId)
+        .distinct();
 
     // Usa o stream do ID da loja para ligar/desligar os listeners de dados
     _storeDetailsSubscription = activeStoreIdStream
@@ -465,55 +532,71 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-
-// DEPOIS (A SOLUÇÃO)
-
+  // ✅ MÉTODO CORRIGIDO E ROBUSTO
   void _onAdminStoresListReceived(List<StoreWithRole> stores) {
     if (isClosed) return;
 
     final currentState = state;
 
+    // Filtra lojas para garantir que tenham um ID válido antes de processar.
+    final validStores = stores.where((s) => s.store.core.id != null).toList();
 
-    if (currentState is StoresManagerLoaded && stores.isEmpty) {
-      log(
-        "🔵 [CUBIT] Ignorando lista de lojas vazia recebida durante o estado 'Loaded'. Mantendo os dados atuais.",
-      );
-      return; // Não faz nada, mantém os dados existentes!
-    }
-
-    // A lógica original para o primeiro carregamento e para quando o usuário realmente não tem lojas
-    if (currentState is StoresManagerInitial && stores.isEmpty) {
-      log(
-        "🔵 [CUBIT] Ignorando lista de lojas inicial vazia (seed do BehaviorSubject). Aguardando dados reais.",
-      );
-      return;
-    }
-
-    if (stores.isEmpty) {
+    // Cenário 1: A lista recebida está vazia.
+    if (validStores.isEmpty) {
+      // Se já estamos em um estado com lojas, não faz sentido regredir para o estado vazio.
+      // Isso pode acontecer em um refresh de token, por exemplo. Mantemos o estado atual.
+      if (currentState is StoresManagerLoaded) {
+        log("🔵 [CUBIT] Ignorando lista de lojas vazia recebida durante o estado 'Loaded'");
+        return;
+      }
+      // Se estamos no estado inicial ou já no vazio, confirmamos o estado vazio.
+      log("🔵 [CUBIT] Lista de lojas está vazia. Emitindo estado StoresManagerEmpty.");
       emit(const StoresManagerEmpty());
       return;
     }
 
+    // Cenário 2: Recebemos uma lista de lojas e o estado atual é 'Loaded'.
+    // Apenas atualizamos o mapa de lojas.
     if (currentState is StoresManagerLoaded) {
+      log("🔄 [CUBIT] Atualizando a lista de lojas existente com ${validStores.length} loja(s).");
       emit(
         currentState.copyWith(
-          stores: {for (var s in stores) s.store.core.id!: s},
+          stores: {for (var s in validStores) s.store.core.id!: s},
         ),
       );
-    } else {
-      final firstStoreId = stores.first.store.core.id!;
+      return;
+    }
+
+    // Cenário 3: Recebemos uma lista de lojas e o estado é 'Initial' ou 'Empty'.
+    // Este é o fluxo principal para o primeiro login ou após a criação da primeira loja.
+    if (currentState is StoresManagerInitial || currentState is StoresManagerEmpty) {
+      log("🚀 [CUBIT] Transicionando de ${currentState.runtimeType} para StoresManagerLoaded com ${validStores.length} loja(s).");
+
+      final firstStoreId = validStores.first.store.core.id!;
+
       emit(
         StoresManagerLoaded(
-          stores: {for (var s in stores) s.store.core.id!: s},
+          stores: {for (var s in validStores) s.store.core.id!: s},
           activeStoreId: firstStoreId,
           consolidatedStores: const [],
           notificationCounts: const {},
           lastUpdate: DateTime.now(),
+          conversations: const [],
+          stuckOrderIds: const {},
+          connectivityStatus: ConnectivityStatus.connected,
         ),
       );
+
+      // Após emitir o novo estado, nos conectamos à sala da primeira loja.
       _realtimeRepository.joinStoreRoom(firstStoreId);
+      return;
     }
   }
+
+
+
+
+
 
   void _onNotificationsReceived(Map<int, int> incomingNotificationCounts) {
     if (isClosed) return;
@@ -587,12 +670,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       );
 
       result.fold(
-        (error) {
+            (error) {
           print(
             '[StoresManagerCubit] Erro ao atualizar configurações da loja $storeId: $error',
           );
         },
-        (success) {
+            (success) {
           print(
             '[StoresManagerCubit] Configurações da loja $storeId atualizadas com sucesso.',
           );
@@ -623,12 +706,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     // Retorna true para sucesso e false para falha
     return result.fold(
-      (error) {
+          (error) {
         print("Erro no Cubit ao criar pausa: $error");
         // O repositório já deve ter mostrado um AppToast de erro
         return false;
       },
-      (newPause) {
+          (newPause) {
         // Sucesso!
         print("Pausa criada com sucesso no Cubit. ID: ${newPause.id}");
         // Não precisa atualizar o estado aqui, pois o backend enviará um
@@ -645,11 +728,11 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     );
 
     return result.fold(
-      (error) {
+          (error) {
         print("Erro no Cubit ao deletar pausa: $error");
         return false;
       },
-      (_) {
+          (_) {
         // Sucesso! O backend também deve enviar um evento de socket aqui.
         print("Pausa $pauseId deletada com sucesso no Cubit.");
         return true;
@@ -668,8 +751,8 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     final result = await _storeRepository.getHolidays(DateTime.now().year);
 
     result.fold((error) => print("Cubit Error fetching holidays: $error"), (
-      holidays,
-    ) {
+        holidays,
+        ) {
       if (state is StoresManagerLoaded) {
         emit((state as StoresManagerLoaded).copyWith(holidays: holidays));
       }
@@ -689,11 +772,11 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     // ✅ 2. RETORNE TRUE PARA SUCESSO E FALSE PARA ERRO
     return result.fold(
-      (error) {
+          (error) {
         print('Erro ao atualizar forma de pagamento: $error');
         return false; // Falha
       },
-      (_) {
+          (_) {
         print(
           'Ativação de pagamento enviada com sucesso. Aguardando atualização do estado.',
         );
@@ -807,6 +890,9 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _commandsSubscription?.cancel();
     _stuckOrderAlertSubscription?.cancel();
     _adminStoresListSubscription = null;
+    _subscriptionErrorSubscription?.cancel();
+    _userHasNoStoresSubscription?.cancel();
+    _userHasNoStoresSubscription = null;
 
   }
 

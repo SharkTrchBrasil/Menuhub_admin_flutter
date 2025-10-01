@@ -42,139 +42,87 @@ class ContractStepState extends State<ContractStep> {
   Widget build(BuildContext context) {
     final state = context.read<StoreSetupCubit>().state;
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      children: [
-        // --- CABEÇALHO ---
-        _buildSectionTitle('CONTRATO DE PRESTAÇÃO DE SERVIÇOS - MASHI DELIVERY'),
-        _buildParagraph(
-          'Este instrumento ("Contrato") é celebrado entre:',
-        ),
+    return  SingleChildScrollView(
 
-        // --- I. PARTES ---
-        _buildSectionTitle('I. PARTES CONTRATANTES'),
-        _buildSubSectionTitle('MASHi DELIVERY LTDA'),
-        _buildIndentedText('Razão Social: MASHi DELIVERY TECNOLOGIA LTDA'),
-        _buildIndentedText('CNPJ: 12.345.678/0001-99'),
-        _buildIndentedText('Endereço: Av. Paulista, 1000, Bela Vista'),
-        _buildIndentedText('São Paulo/SP - CEP: 01310-100'),
-        _buildIndentedText('E-mail: juridico@mashi.com.br'),
-
-        const SizedBox(height: 16),
-        _buildSubSectionTitle('PARCEIRO RESTAURANTE'),
-        _buildIndentedText('Nome: ${state.responsibleName}'),
-        _buildIndentedText('${state.taxIdType == TaxIdType.cnpj ? 'CNPJ' : 'CPF'}: ${state.taxIdType == TaxIdType.cnpj ? state.cnpj : state.cpf}'),
-        _buildIndentedText('Endereço: ${state.street}, ${state.number} - ${state.neighborhood}'),
-        _buildIndentedText('${state.city}/${state.uf} - CEP: ${state.cep}'),
-      //  _buildIndentedText('E-mail: ${state.}'),
-
-        // --- II. DADOS BANCÁRIOS ---
-        _buildSectionTitle('II. DADOS BANCÁRIOS'),
-        _buildParagraph(
-          'O Parceiro deverá cadastrar no Portal Mashi os dados bancários de titularidade exclusiva do estabelecimento para recebimento dos valores. A Mashi não se responsabiliza por repasses a contas de terceiros.',
-        ),
-
-        // --- III. VIGÊNCIA ---
-        _buildSectionTitle('III. VIGÊNCIA'),
-        _buildParagraph(
-          '3.1. Prazo inicial de 12 (doze) meses, renovável automaticamente por períodos iguais.\n\n'
-              '3.2. O Parceiro poderá rescindir com aviso prévio de 30 dias.',
-        ),
-
-        // --- IV. PLANO ---
-        _buildSectionTitle('IV. PLANO DE CONTRATAÇÃO'),
-        _buildTableHeader(),
-        _buildTableRow(
-            plano: 'Básico',
-            mensalidade: 'R\$ 99,00',
-            comissao: '12%',
-            taxaPagamento: '3,5%',
-            repasse: 'D+30'
-        ),
-        _buildParagraph(
-          '* Mensalidade isenta para faturamento mensal abaixo de R\$ 1.500,00',
-        ),
-
-        // --- V. OBRIGAÇÕES ---
-        _buildSectionTitle('V. OBRIGAÇÕES DO PARCEIRO'),
-        _buildParagraph(
-          '5.1. Manter alvará sanitário e documentação em dia\n\n'
-              '5.2. Não utilizar imagens sem direitos autorais\n\n'
-              '5.3. Atualizar preços e disponibilidade no sistema\n\n'
-              '5.4. Cumprir prazos de preparo informados\n\n'
-              '5.5. Fornecer informações verídicas aos clientes',
-        ),
-
-        // --- VI. PROTEÇÃO DE DADOS ---
-        _buildSectionTitle('VI. PROTEÇÃO DE DADOS'),
-        _buildParagraph(
-          '6.1. O Parceiro é responsável pelos dados de seus clientes\n\n'
-              '6.2. É proibido compartilhar dados com terceiros\n\n'
-              '6.3. Em caso de vazamento, notificar a Mashi em 24h\n\n'
-              '6.4. Aplicam-se as políticas de privacidade disponíveis em: mashi.com.br/privacidade',
-        ),
-
-        // --- VII. REAJUSTES ---
-        _buildSectionTitle('VII. REAJUSTES'),
-        _buildParagraph(
-          '7.1. A Mashi poderá reajustar tarifas com aviso prévio de 30 dias\n\n'
-              '7.2. Aumentos superiores a 15% dão direito à rescisão sem multa',
-        ),
-
-        // --- VIII. NÃO DISCRIMINAÇÃO ---
-        _buildSectionTitle('VIII. POLÍTICA DE NÃO DISCRIMINAÇÃO'),
-        _buildParagraph(
-          '8.1. O Parceiro se compromete a:\n\n'
-              'a) Não praticar discriminação por orientação sexual, identidade de gênero, raça ou religião\n\n'
-              'b) Respeitar direitos humanos em todas as interações\n\n'
-              'c) Cumprir a Lei 14.532/23 (criminalização de LGBTIfobia)',
-        ),
-
-        // --- IX. IMAGENS ---
-        _buildSectionTitle('IX. USO DE IMAGENS'),
-        _buildParagraph(
-          '9.1. O Parceiro garante possuir direitos sobre todas as imagens utilizadas\n\n'
-              '9.2. A Mashi poderá utilizar imagens do estabelecimento para promoção\n\n'
-              '9.3. Fotos de produtos devem refletir fielmente o item servido',
-        ),
-
-        // --- X. ASSINATURA ---
-        _buildSectionTitle('X. ACEITAÇÃO'),
-        _buildParagraph(
-          'Ao assinar, o Parceiro declara:\n\n'
-              'a) Ter lido e concordado com todos os termos\n\n'
-              'b) Que as informações são verídicas\n\n'
-              'c) Ciência do valor jurídico desta assinatura digital',
-        ),
-
-        const SizedBox(height: 24),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade400),
-            borderRadius: BorderRadius.circular(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('I. ACEITAÇÃO DOS TERMOS'),
+          _buildParagraph(
+            'Ao utilizar os serviços da MenuHub, você declara que leu, compreendeu e concorda com estes Termos de Uso. A continuidade do uso do serviço implica na aceitação integral destas condições.',
           ),
-          child: Signature(
-            controller: signatureController,
-            height: 150,
-            backgroundColor: Colors.grey.shade100,
+
+          _buildSectionTitle('II. SERVIÇO PRESTADO'),
+          _buildParagraph(
+            '2.1. A MenuHub fornece exclusivamente serviço de cardápio digital para estabelecimentos comerciais.\n\n'
+                '2.2. O serviço não inclui hospedagem de sites, infraestrutura de rede, APIs de terceiros ou quaisquer outros serviços externos.',
           ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  signatureController.clear();
-                  isSigned = false;
-                });
-              },
-              child: const Text('Limpar Assinatura'),
-            )
-          ],
-        )
-      ],
+
+          _buildSectionTitle('III. ISENÇÃO DE RESPONSABILIDADE POR TERCEIROS'),
+          _buildParagraph(
+            '3.1. A MenuHub não se responsabiliza por:\n\n'
+                'a) Falhas em serviços de hospedagem de terceiros\n\n'
+                'b) Problemas em APIs externas integradas ao sistema\n\n'
+                'c) Instabilidade em serviços de internet ou infraestrutura\n\n'
+                'd) Qualquer problema originado em serviços não gerenciados diretamente pela MenuHub',
+          ),
+
+          _buildSectionTitle('IV. REAJUSTES E ALTERAÇÕES'),
+          _buildParagraph(
+            '4.1. A MenuHub poderá reajustar anualmente os valores do plano único contratado.\n\n'
+                '4.2. As regras e condições do plano único podem ser alteradas a qualquer momento, com aviso prévio aos usuários.\n\n'
+                '4.3. O uso continuado do serviço após alterações implica em aceitação das novas condições.',
+          ),
+
+          _buildSectionTitle('V. RESPONSABILIDADES DO LOJISTA'),
+          _buildParagraph(
+            '5.1. Todas as informações do cardápio são de inteira responsabilidade do lojista, incluindo:\n\n'
+                'a) Preços e descrições dos produtos\n\n'
+                'b) Imagens e direitos autorais\n\n'
+                'c) Disponibilidade e estoque\n\n'
+                'd) Informações nutricionais e alergênicos\n\n'
+                'e) Conformidade com legislação sanitária e consumerista',
+          ),
+
+          _buildSectionTitle('VI. INATIVIDADE'),
+          _buildParagraph(
+            '6.1. Contas inativas por período superior a 90 (noventa) dias poderão ser desativadas permanentemente.\n\n'
+                '6.2. Considera-se inatividade a ausência total de acesso ao sistema e atualizações no cardápio.\n\n'
+                '6.3. A desativação resultará na perda irreversível de todos os dados cadastrados.',
+          ),
+
+          _buildSectionTitle('VII. LIMITAÇÃO DE RESPONSABILIDADE'),
+          _buildParagraph(
+            '7.1. A MenuHub não será responsável por:\n\n'
+                'a) Danos diretos ou indiretos decorrentes do uso do serviço\n\n'
+                'b) Perdas financeiras oriundas de indisponibilidade temporária\n\n'
+                'c) Problemas relacionados a equipamentos ou conexão do usuário\n\n'
+                'd. Ações judiciais movidas contra o lojista por informações incorretas no cardápio',
+          ),
+
+          _buildSectionTitle('VIII. PROPRIEDADE INTELECTUAL'),
+          _buildParagraph(
+            '8.1. O lojista garante possuir direitos sobre todo o conteúdo por ele inserido no sistema.\n\n'
+                '8.2. A MenuHub não se responsabiliza por violações de direitos autorais cometidas pelo lojista.',
+          ),
+
+          _buildSectionTitle('IX. RESCISÃO'),
+          _buildParagraph(
+            '9.1. O lojista pode cancelar o serviço a qualquer momento.\n\n'
+                '9.2. A MenuHub pode suspender ou cancelar contas que violem estes termos.\n\n'
+                '9.3. O cancelamento resultará na exclusão definitiva de todos os dados.',
+          ),
+
+          _buildSectionTitle('X. ACEITAÇÃO'),
+          _buildParagraph(
+            'Ao clicar em "Aceitar e Continuar", você declara:\n\n'
+                'a) Ter lido e compreendido todos os termos acima\n\n'
+                'b) Concordar integralmente com todas as condições\n\n'
+                'c) Isentar a MenuHub de responsabilidades conforme estabelecido\n\n'
+                'd) Assumir total responsabilidade pelas informações do cardápio',
+          ),
+        ],
+      ),
     );
   }
 

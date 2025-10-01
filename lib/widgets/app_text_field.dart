@@ -118,7 +118,7 @@ class _AppTextFieldState extends State<AppTextField> {
           inputFormatters: widget.formatters,
           maxLength: widget.maxLength,
           maxLines: widget.maxLines ?? 1,
-          cursorColor: const Color(0xFFF39C12),
+
           decoration: InputDecoration(
             filled: true,
             hintText: widget.hint,
@@ -129,23 +129,20 @@ class _AppTextFieldState extends State<AppTextField> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             border: OutlineInputBorder(
               borderRadius: borderRadius,
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+              borderSide: BorderSide(color: Colors.grey, width: 0.5),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: borderRadius,
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+              borderSide: BorderSide(color: Colors.grey, width: 0.5),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: borderRadius,
-              borderSide: const BorderSide(color: Color(0xFFF39C12), width: 1),
-            ),
+
             errorBorder: OutlineInputBorder(
               borderRadius: borderRadius,
-              borderSide: const BorderSide(color: Colors.red, width: 1.5),
+              borderSide: const BorderSide(color: Colors.red, width: 1),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: borderRadius,
-              borderSide: const BorderSide(color: Colors.red, width: 1.5),
+              borderSide: const BorderSide(color: Colors.red, width: 1),
             ),
             suffixIcon: widget.isHidden
                 ? IconButton(

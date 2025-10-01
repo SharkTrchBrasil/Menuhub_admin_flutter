@@ -106,6 +106,9 @@ class RealtimeRepository {
 
   final _conversationsListController = BehaviorSubject<List<ChatbotConversation>>.seeded([]);
 
+  final _subscriptionErrorController = StreamController<Map<String, dynamic>>.broadcast();
+
+  final _userHasNoStoresController = StreamController<void>.broadcast();
 
 
 
@@ -152,7 +155,8 @@ class RealtimeRepository {
   Stream<ChatbotMessage> get onNewChatMessage => _newChatMessageController.stream; // ✅ Adicione este getter
 
   Stream<List<ChatbotConversation>> get onConversationsListUpdated => _conversationsListController.stream;
-
+  Stream<Map<String, dynamic>> get onSubscriptionError => _subscriptionErrorController.stream;
+  Stream<void> get onUserHasNoStores => _userHasNoStoresController.stream;
 
 
 
@@ -326,6 +330,28 @@ class RealtimeRepository {
 
     _socket!.on('new_chat_message', _handleNewChatMessage);
     _socket!.on('conversations_initial', _handleConversationsInitial);
+
+    _socket!.on('subscription_error', _handleSubscriptionError);
+
+    _socket!.on('user_has_no_stores', (data) {
+      log('🔵 Evento recebido: user_has_no_stores - Usuário não possui lojas');
+      _userHasNoStoresController.add(null);
+    });
+
+
+
+  }
+
+  // ✅ 4. CRIE O MÉTODO HANDLER
+  void _handleSubscriptionError(dynamic data) {
+    log('❌ Evento recebido: subscription_error');
+    try {
+      if (data is Map<String, dynamic>) {
+        _subscriptionErrorController.add(data);
+      }
+    } catch (e, st) {
+      log('[Socket] ❌ Erro em _handleSubscriptionError', error: e, stackTrace: st);
+    }
   }
 
 
@@ -771,16 +797,6 @@ class RealtimeRepository {
   }
 
 
-  // --- Métodos Auxiliares e de Limpeza ---
-
-  void _clearNotificationForStore(int storeId) {
-    final currentNotifications = Map<int, int>.from(_storeNotificationController.value);
-    if (currentNotifications.containsKey(storeId)) {
-      currentNotifications.remove(storeId);
-      _storeNotificationController.add(currentNotifications);
-      log('✨ Notificações para a loja $storeId foram limpas.');
-    }
-  }
 
   /// Wrapper genérico para emitir eventos com ACK e tratar erros.
   Future<Either<String, Map<String, dynamic>>> _emitWithAck(String event, dynamic payload) async {
@@ -839,14 +855,7 @@ class RealtimeRepository {
 
 
 
-  void _closeStoreStreams(int storeId) {
-    log('[Socket] Fechando streams e limpando cache para loja $storeId');
 
-    _productsStreams.remove(storeId)?.close();
-    _ordersStreams.remove(storeId)?.close();
-    _tablesStreams.remove(storeId)?.close();
-    _commandsStreams.remove(storeId)?.close();
-  }
 
 
 
@@ -875,6 +884,7 @@ class RealtimeRepository {
     _orderNotificationController.close();
     _newPrintJobsController.close();
     _deviceConnectivitySubscription?.cancel();
+    _userHasNoStoresController.close();
     _socket?.dispose();
     log('[RealtimeRepository] Todos os streams e o socket foram fechados');
   }

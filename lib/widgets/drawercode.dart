@@ -298,7 +298,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     {
       'type': 'item',
       'title': 'Planos(ok)',
-      'route': '/plans',
+      'route': '/billing',
       'index': 18,
       'iconPath': 'assets/images/rocket-launch.png',
       'requiresSetup': true,

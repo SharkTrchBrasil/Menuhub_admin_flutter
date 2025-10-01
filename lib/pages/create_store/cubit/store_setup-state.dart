@@ -39,7 +39,7 @@ class StoreSetupState extends Equatable {
   final PageStatus submissionStatus;
   final Segment? selectedSpecialty;
 
-  final String? signatureBase64;
+
 
   const StoreSetupState({
     this.cep = '',
@@ -63,7 +63,6 @@ class StoreSetupState extends Equatable {
     this.isUrlTaken = false,
     this.urlChecking = false,
     this.lastCheckedUrl,
-    this.signatureBase64,
 
     this.plansList = const [],
     this.plansStatus = const PageStatusIdle(),
@@ -100,7 +99,7 @@ class StoreSetupState extends Equatable {
     bool? isUrlTaken,
     bool? urlChecking,
     String? lastCheckedUrl,
-    String? signatureBase64,
+
 
 
     List<Plans>? plansList,
@@ -136,7 +135,7 @@ class StoreSetupState extends Equatable {
       plansList: plansList ?? this.plansList,
       plansStatus: plansStatus ?? this.plansStatus,
       submissionStatus: submissionStatus ?? this.submissionStatus,
-      signatureBase64: signatureBase64 ?? this.signatureBase64,
+
     );
   }
 
@@ -151,15 +150,15 @@ class StoreSetupState extends Equatable {
     plansList,
     plansStatus,
     submissionStatus,
-    signatureBase64
+
   ];
 
 
 
 
+// Em store_setup-state.dart
   Map<String, dynamic> toJson() {
-
-
+    // ✅ CORREÇÃO: Adicione os campos que estão faltando
     return {
       // --- Dados da Loja ---
       'name': storeName,
@@ -169,6 +168,11 @@ class StoreSetupState extends Equatable {
       'cnpj': cnpj.isNotEmpty ? cnpj.replaceAll(RegExp(r'\D'), '') : null,
       'segment_id': selectedSpecialty?.id,
 
+      // ✅ CORREÇÃO: Adicione os dados do responsável que estão faltando
+      'responsible': {
+        'name': responsibleName,
+        'phone': storePhone.replaceAll(RegExp(r'\D'), ''), // ou crie um campo específico para phone do responsável
+      },
 
       // ✅ ESTRUTURA ANINHADA PARA O ENDEREÇO
       'address': {
@@ -180,15 +184,8 @@ class StoreSetupState extends Equatable {
         'uf': uf,
         'complement': complement.isNotEmpty ? complement : null,
       },
-
-      // ✅ ESTRUTURA ANINHADA PARA O RESPONSÁVEL
-      'responsible': {
-        'name': responsibleName,
-        'phone': storePhone.replaceAll(RegExp(r'\D'), ''),
-      },
     };
   }
-
 
 
 

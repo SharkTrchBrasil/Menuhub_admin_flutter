@@ -52,15 +52,20 @@ class Address {
     );
   }
 
+// Em lib/models/address.dart
+
   Map<String, dynamic> toJson() {
     return {
-      'zipcode': UtilBrasilFields.removeCaracteres(zipcode),
-      'city': city,
-      'state': state,
-      'neighborhood': neighborhood,
       'street': street,
       'number': number,
       'complement': complement,
+      'neighborhood': neighborhood,
+      'city': city,
+      'state': state,
+      // ✅ CORREÇÃO AQUI: Só formata o CEP se ele não for nulo E não for vazio.
+      'zipcode': (zipcode != null && zipcode!.isNotEmpty)
+          ? UtilBrasilFields.removeCaracteres(zipcode!)
+          : null,
     };
   }
 }

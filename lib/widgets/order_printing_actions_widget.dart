@@ -3,7 +3,7 @@ import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/services/print/print_manager.dart';
-import 'package:totem_pro_admin/services/subscription/subscription_service.dart';
+
 
 // Constantes para os destinos, para evitar erros de digitação.
 class PrintDestinations {
@@ -32,7 +32,7 @@ class OrderPrintingActionsWidget extends StatelessWidget {
   void _handleAction(BuildContext context, String action) async {
     // Pega os serviços necessários do GetIt
     final printManager = getIt<PrintManager>();
-    final accessControl = getIt<AccessControlService>();
+
 
     // Ação de compartilhar é tratada separadamente
     if (action == PrintDestinations.share) {
@@ -42,10 +42,8 @@ class OrderPrintingActionsWidget extends StatelessWidget {
       return;
     }
 
-    // Para impressão, verificamos a permissão de impressão direta
-    final canPrintDirectly = accessControl.canAccess('auto_printing');
 
-    if (canPrintDirectly) {
+
       print('[Printing Actions] Usando impressão direta para o destino: $action');
       final bool success = await printManager.manualPrint(
         order: order,
@@ -56,15 +54,7 @@ class OrderPrintingActionsWidget extends StatelessWidget {
       if (success && context.mounted) {
         _showSuccessSnackbar(context);
       }
-    } else {
-      print('[Printing Actions] Usando diálogo de impressão do sistema para o destino: $action');
-      // A impressão com diálogo é uma responsabilidade do PrintManager também
-      await printManager.printWithDialog(
-        order: order,
-        store: store,
-        destination: action,
-      );
-    }
+
   }
 
   /// Mostra um feedback visual de sucesso.

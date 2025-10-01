@@ -127,50 +127,81 @@ class AppRouter {
       final splashRoute = '/splash';
       final authRoutes = ['/sign-in', '/sign-up', '/verify-email'];
       final isGoingToAuthRoute = authRoutes.any((r) => location.startsWith(r));
+      final isGoingToVerifyEmail = location.startsWith('/verify-email');
+      final isGoingToCreateStore = location.startsWith('/stores/new');
 
       final preferenceService = getIt<PreferenceService>();
 
+      debugPrint('🔄 REDIRECT: location=$location, authState=$authState, storesState=$storesState');
 
+      // ✅ 1. Estado de verificação necessário
+      if (authState is AuthNeedsVerification) {
+        if (isGoingToVerifyEmail) return null;
+        debugPrint('📧 Redirecting to verify email: ${authState.email}');
+        return '/verify-email?email=${Uri.encodeComponent(authState.email)}';
+      }
+
+      // ✅ 2. Estados de carregamento/incial
       if (authState is AuthInitial || authState is AuthLoading) {
+        debugPrint('⏳ Auth loading - redirecting to splash');
         return location == splashRoute ? null : splashRoute;
       }
 
-
+      // ✅ 3. Estado não autenticado
       if (authState is AuthUnauthenticated) {
+        debugPrint('🚫 Not authenticated - redirecting to sign-in');
         return isGoingToAuthRoute ? null : '/sign-in';
       }
 
+      // ✅ 4. Estado autenticado - agora verifica as lojas
+      if (authState is AuthAuthenticated) {
+        debugPrint('✅ Authenticated - checking stores state: $storesState');
 
-      if (storesState is StoresManagerInitial ||
-          storesState is StoresManagerLoading) {
-        // ...mantemos o usuário na splash page! Não pulamos para a loading-data.
-        return location == splashRoute ? null : splashRoute;
-      }
+        // ✅ 4.1 Estados de carregamento das lojas - vai para splash
+        if (storesState is StoresManagerInitial || storesState is StoresManagerLoading) {
+          debugPrint('🔄 Stores loading - redirecting to splash');
+          return location == splashRoute ? null : splashRoute;
+        }
 
+        // ✅ 4.2 Sem lojas - criar nova (IMPORTANTE: isso deve vir ANTES do loaded)
+        if (storesState is StoresManagerEmpty) {
+          debugPrint('🏪 No stores - redirecting to create store');
+          // Se já está na tela de criar loja, permite ficar
+          if (isGoingToCreateStore) return null;
+          // Senão, redireciona para criar loja
+          return '/stores/new';
+        }
 
-      // Se o resultado foi "sem lojas"...
-      if (storesState is StoresManagerEmpty) {
-        return '/stores/new';
-      }
+        // ✅ 4.3 Com lojas carregadas - decisão final
+        if (storesState is StoresManagerLoaded) {
+          debugPrint('📊 Stores loaded - checking final destination');
+          if (location == splashRoute) {
+            final shouldSkipHub = await preferenceService.getSkipHubPreference();
+            final lastRoute = await preferenceService.getLastAccessedRoute();
 
-      // --- ✅ NOVA REGRA 5: Logado, com lojas carregadas ---
-      if (storesState is StoresManagerLoaded) {
-        // Se o usuário está na splash, é hora de decidir para onde mandá-lo
-        if (location == splashRoute) {
-          final shouldSkipHub = await preferenceService.getSkipHubPreference();
-          final lastRoute = await preferenceService.getLastAccessedRoute();
+            debugPrint('🏠 Splash route - skipHub: $shouldSkipHub, lastRoute: $lastRoute');
 
-          if (shouldSkipHub && lastRoute != null) {
-            return lastRoute; // Vai direto para a última tela acessada
-          } else {
-            return '/hub'; // Vai para a nova tela de escolha
+            if (shouldSkipHub && lastRoute != null) {
+              return lastRoute;
+            } else {
+              return '/hub';
+            }
           }
+        }
+
+        // ✅ 4.4 Erro ao carregar lojas
+        if (storesState is StoresManagerError) {
+          debugPrint('❌ Stores error: ${storesState.message}');
+          BotToast.showText(text: storesState.message);
+          return '/hub'; // fallback
         }
       }
 
-      // Se nenhuma regra se aplicou, a navegação é permitida.
+      // ✅ 5. Permite a navegação se nenhuma regra se aplicou
+      debugPrint('✅ No redirect needed');
       return null;
     },
+
     errorPageBuilder:
         (context, state) =>
         MaterialPage(
@@ -189,6 +220,20 @@ class AppRouter {
         },
       ),
 
+
+
+      GoRoute(
+        path: '/billing/:storeId',
+        builder: (context, state) {
+          final storeId = int.tryParse(state.pathParameters['storeId'] ?? '');
+          if (storeId == null) {
+            return const Scaffold(body: Center(child: Text('ID da Loja inválido')));
+          }
+          // Reutilizamos a MESMA página de planos, mas agora ela é acessível
+          // publicamente através desta rota.
+          return EditSubscriptionPage(storeId: storeId);
+        },
+      ),
 
       GoRoute(
         path: '/hub',
@@ -228,21 +273,29 @@ class AppRouter {
       GoRoute(
         path: '/verify-email',
         builder: (context, state) {
-          // CORREÇÃO: Leia o e-mail dos parâmetros da URL em vez de 'extra'.
+          // Tenta pegar o email dos parâmetros da URL
           final email = state.uri.queryParameters['email'];
 
-          // É uma boa prática verificar se o e-mail não é nulo.
+          // Se não tem na URL, tenta pegar do AuthCubit
           if (email == null) {
-            // Retorna uma tela de erro ou redireciona se o e-mail não for encontrado.
+            final authState = context.read<AuthCubit>().state;
+            if (authState is AuthNeedsVerification) {
+              return VerifyCodePage(email: authState.email);
+            }
+          }
+
+          // Se ainda não tem, mostra erro
+          if (email == null) {
             return const Scaffold(
-              body: Center(child: Text('Erro: E-mail não fornecido.')),
+              body: Center(
+                child: Text('E-mail não encontrado. Volte para o login.'),
+              ),
             );
           }
 
           return VerifyCodePage(email: email);
         },
       ),
-
       GoRoute(
         path: '/stores/:storeId',
 

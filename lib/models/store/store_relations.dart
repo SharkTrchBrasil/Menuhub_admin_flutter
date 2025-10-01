@@ -15,7 +15,7 @@ import 'package:totem_pro_admin/models/store/store_operation_config.dart';
 import 'package:totem_pro_admin/models/store/store_payable.dart';
 import 'package:totem_pro_admin/models/store/store_receivable.dart';
 
-import 'package:totem_pro_admin/models/subscription_summary.dart';
+
 import 'package:totem_pro_admin/models/supplier.dart';
 import 'package:totem_pro_admin/models/table.dart';
 import 'package:totem_pro_admin/models/variant.dart';
@@ -28,6 +28,7 @@ import '../dashboard_data.dart';
 import '../dashboard_insight.dart';
 import '../products/product.dart';
 import '../products/product_analytics_data.dart';
+import '../subscription.dart';
 
 
 
@@ -38,7 +39,7 @@ class StoreRelations {
   final RatingsSummary? ratingsSummary;
   final List<StoreCity>? cities;
   final List<StoreNeighborhood>? neighborhoods;
-  final SubscriptionSummary? subscription;
+  final Subscription? subscription;
   final List<Category> categories;
   final List<Product> products;
   final List<Variant> variants;
@@ -121,7 +122,7 @@ class StoreRelations {
           ?.map((e) => StoreNeighborhood.fromJson(e as Map<String, dynamic>))
           .toList(),
       subscription: json['subscription'] != null && json['subscription'] is Map<String, dynamic>
-          ? SubscriptionSummary.fromJson(json['subscription'])
+          ? Subscription.fromJson(json['subscription'])
           : null,
       categories: (json['categories'] as List<dynamic>? ?? [])
           .map((e) => Category.fromJson(e as Map<String, dynamic>))
@@ -210,7 +211,7 @@ class StoreRelations {
     RatingsSummary? ratingsSummary,
     List<StoreCity>? cities,
     List<StoreNeighborhood>? neighborhoods,
-    SubscriptionSummary? subscription,
+    Subscription? subscription,
     List<Category>? categories,
     List<Product>? products,
     List<Variant>? variants,

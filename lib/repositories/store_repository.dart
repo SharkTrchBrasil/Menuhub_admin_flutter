@@ -70,27 +70,86 @@ class StoreRepository {
     }
   }
 
-
-  // ✅ NOVO MÉTODO COMPLETO PARA CRIAR A LOJA
+  // Em store_repository.dart
   Future<Either<Failure, Store>> createStore(StoreSetupState setupData) async {
     try {
-      // 1. Converte o estado inteiro para um mapa JSON.
+      // 1. Converte o estado para JSON
       final jsonData = setupData.toJson();
-      // 2. Envia os dados para o endpoint de criação de lojas.
-      final response = await _dio.post('/stores', data: jsonData);
 
-      final createdStore = Store.fromJson(response.data['store']);
+      // ✅ CORREÇÃO: Verifique se o jsonData não é nulo
+      if (jsonData.isEmpty) {
+        return Left(Failure('Dados de configuração inválidos'));
+      }
 
+      // ✅ CORREÇÃO: Verifique campos obrigatórios antes de prosseguir
+      if (jsonData['name'] == null || jsonData['name'].toString().isEmpty) {
+        return Left(Failure('Nome da loja é obrigatório'));
+      }
+
+      if (jsonData['address'] == null) {
+        return Left(Failure('Endereço é obrigatório'));
+      }
+
+      // 2. Crie o FormData de forma segura
+      final Map<String, dynamic> flattenedData = {
+        // Dados principais:
+        'name': jsonData['name'] ?? '',
+        'store_url': jsonData['store_url'] ?? '',
+        'description': jsonData['description'],
+        'phone': jsonData['phone'] ?? '',
+        'cnpj': jsonData['cnpj'],
+        'segment_id': jsonData['segment_id'],
+
+        // Dados do Endereço (com verificações de segurança)
+        'cep': jsonData['address']?['cep'] ?? '',
+        'street': jsonData['address']?['street'] ?? '',
+        'number': jsonData['address']?['number'] ?? '',
+        'complement': jsonData['address']?['complement'],
+        'neighborhood': jsonData['address']?['neighborhood'] ?? '',
+        'city': jsonData['address']?['city'] ?? '',
+        'uf': jsonData['address']?['uf'] ?? '',
+
+        // Dados do Responsável (com verificações de segurança)
+        'responsible_name': jsonData['responsible']?['name'] ?? '',
+        'responsible_phone': jsonData['responsible']?['phone'] ?? '',
+      };
+
+      // 3. Remova valores nulos para campos obrigatórios
+      flattenedData.removeWhere((key, value) {
+        if (value == null) return true;
+        if (value is String && value.isEmpty) {
+          // Campos obrigatórios que não podem estar vazios
+          final requiredFields = ['name', 'cep', 'street', 'number', 'neighborhood', 'city', 'uf'];
+          return requiredFields.contains(key);
+        }
+        return false;
+      });
+
+      final formData = FormData.fromMap(flattenedData);
+
+      // 4. Envia os dados
+      final response = await _dio.post('/stores', data: formData);
+
+      final createdStore = Store.fromJson(response.data);
       return Right(createdStore);
 
     } on DioException catch (e) {
       debugPrint('DioException em createStore: $e');
+
+      // Tratamento mais específico de erros
+      if (e.response?.statusCode == 422) {
+        final errors = e.response?.data?['errors'] ?? e.response?.data?['detail'];
+        return Left(Failure('Dados inválidos: $errors'));
+      }
+
       return Left(Failure('Não foi possível criar a loja. Tente novamente.'));
     } catch (e) {
       debugPrint('Erro inesperado em createStore: $e');
       return Left(Failure('Ocorreu um erro inesperado ao criar a loja.'));
     }
   }
+
+
 
 
 
@@ -789,14 +848,24 @@ class StoreRepository {
     const accountId = 'b58c97a1ec95e962ec0ebc9d5098fd76';
 
     try {
-      // ✅ VALIDAÇÃO ADICIONAL: Garante que a data de expiração não é nula
-      if (card.expirationDate == null) {
-        return Left(Failure('Data de vencimento do cartão é inválida.'));
+
+      // ✅ PRINT DE DEPURACAO AQUI
+      debugPrint('--- DEBUG: [Repository - StoreRepository] ---');
+      debugPrint('Recebido em generateCardToken...');
+      debugPrint('Número do Cartão: "${card.number}"');
+      debugPrint('CVV: "${card.cvv}"');
+      debugPrint('--------------------------------------------');
+      if (card.number.trim().isEmpty || card.cvv.trim().isEmpty || card.expirationDate == null) {
+        return Left(Failure('Todos os dados do cartão são obrigatórios.'));
       }
 
-      // Lógica para determinar a bandeira do cartão deve ser implementada aqui
-      // Por enquanto, usaremos 'visa' como placeholder
-      final cardBrand = 'visa';
+      final cardBrand = card.brand.name;
+
+      if (cardBrand == 'unknown') {
+        return Left(Failure('Bandeira do cartão não reconhecida ou inválida.'));
+      }
+
+
 
       final result = await PaymentToken.generate(
         {
@@ -824,22 +893,34 @@ class StoreRepository {
     }
   }
 
-  /// Cria a assinatura no backend.
   Future<Either<Failure, void>> createSubscription(
       int storeId,
-      CreateSubscriptionPayload subscription, // ✅ Usa o payload correto
+      CreateSubscriptionPayload subscription,
       ) async {
     try {
       await _dio.post(
         '/stores/$storeId/subscriptions',
         data: subscription.toJson(),
       );
-      // await getStores(); // Opcional: Idealmente, o BLoC/Cubit decide quando recarregar
       return const Right(null);
     } on DioException catch (e) {
       debugPrint('DioException em createSubscription: $e');
-      final errorMsg = e.response?.data?['detail'] ?? 'Falha ao criar assinatura.';
+
+      // ✅ INÍCIO DA CORREÇÃO ROBUSTA
+      String errorMsg = 'Falha ao criar assinatura. Tente novamente.';
+      if (e.response?.data != null && e.response!.data['detail'] != null) {
+        final detail = e.response!.data['detail'];
+        if (detail is Map) {
+          // Se 'detail' for um objeto, pegamos a 'message' de dentro dele
+          errorMsg = detail['message'] ?? errorMsg;
+        } else if (detail is String) {
+          // Se for apenas uma string, usamos diretamente
+          errorMsg = detail;
+        }
+      }
       return Left(Failure(errorMsg));
+      // ✅ FIM DA CORREÇÃO ROBUSTA
+
     } catch (e) {
       debugPrint('Erro inesperado em createSubscription: $e');
       return Left(Failure('Ocorreu um erro inesperado.'));

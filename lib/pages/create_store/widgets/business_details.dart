@@ -34,29 +34,31 @@ class _BusinessDetailsStepState extends State<BusinessDetailsStep> {
 
         return Form(
           key: widget.formKey,
-          child: ListView(
-            children: [
-              AppTextField(
-                title: 'CNPJ',
-                hint: '00.000.000/0000-00',
-                initialValue: state.cnpj, // Garante que o valor seja mantido
-                onChanged: (v) => cubit.updateBusinessField(cnpj: v),
-                validator: (v) {
-                  final digits = v?.replaceAll(RegExp(r'\D'), '') ?? '';
-                  if (digits.isEmpty) return 'Obrigatório';
-                  if (!CNPJValidator.isValid(digits)) return 'CNPJ inválido';
-                  return null;
-                },
-                formatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  CnpjInputFormatter(),
-                ],
-              ),
-              const SizedBox(height: 24),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                AppTextField(
+                  title: 'CNPJ',
+                  hint: '00.000.000/0000-00',
+                  initialValue: state.cnpj, // Garante que o valor seja mantido
+                  onChanged: (v) => cubit.updateBusinessField(cnpj: v),
+                  validator: (v) {
+                    final digits = v?.replaceAll(RegExp(r'\D'), '') ?? '';
+                    if (digits.isEmpty) return 'Obrigatório';
+                    if (!CNPJValidator.isValid(digits)) return 'CNPJ inválido';
+                    return null;
+                  },
+                  formatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    CnpjInputFormatter(),
+                  ],
+                ),
+                const SizedBox(height: 24),
 
-              // 4. Renderização condicional para o dropdown
-           //   _buildSpecialtyField(context, state),
-            ],
+                // 4. Renderização condicional para o dropdown
+             //   _buildSpecialtyField(context, state),
+              ],
+            ),
           ),
         );
       },

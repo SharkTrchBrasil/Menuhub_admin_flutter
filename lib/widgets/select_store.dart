@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/widgets/access_wrapper.dart';
+
 
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
@@ -31,13 +31,10 @@ class StoreSelectorWidget extends StatelessWidget {
         final int selectedStoreId = state.activeStoreId;
 
         if (stores.isEmpty) {
-          return AccessWrapper(
-            featureKey: 'extra_store_location',
-            child: IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () => context.go('/stores/new'),
-              tooltip: 'Adicionar loja',
-            ),
+          return IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => context.go('/stores/new'),
+            tooltip: 'Adicionar loja',
           );
         }
 
@@ -143,22 +140,19 @@ class StorePopupMenu extends StatelessWidget {
           padding: EdgeInsets.zero,
 
           // 3. Envolvemos o conteúdo com o AccessWrapper.
-          child: AccessWrapper(
-            featureKey: 'extra_store_location',
-            child: ListTile( // Usamos um ListTile para um visual e alinhamento consistentes
-              leading: Icon(
-                Icons.add,
+          child:  ListTile( // Usamos um ListTile para um visual e alinhamento consistentes
+            leading: Icon(
+              Icons.add,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            title: Text(
+              'Adicionar loja',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.primary,
               ),
-              title: Text(
-                'Adicionar loja',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              // O onTap do ListTile só será chamado se houver permissão.
-              onTap: onAddStore,
             ),
+            // O onTap do ListTile só será chamado se houver permissão.
+            onTap: onAddStore,
           ),
         ),
       ],

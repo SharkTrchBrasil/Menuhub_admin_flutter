@@ -17,6 +17,8 @@ import 'package:totem_pro_admin/pages/create_store/widgets/submission_animation_
 import 'package:totem_pro_admin/pages/create_store/widgets/tax_id.dart';
 import 'package:totem_pro_admin/pages/create_store/widgets/wizard_layout.dart';
 
+import '../../widgets/ds_primary_button.dart';
+
 enum SetupStep { storeDetails, address, taxId, specialty, businessDetails, personDetails, plans, contract }
 
 class StoreSetupPage extends StatefulWidget {
@@ -49,7 +51,7 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
     SetupStep.specialty: 'Qual a especialidade da sua loja?',
     SetupStep.businessDetails: 'Dados da sua empresa',
     SetupStep.personDetails: 'Quem é o responsável?',
-    SetupStep.plans: 'Plano gratuito ativado',
+    SetupStep.plans: 'Plano Único ativado',
     SetupStep.contract: 'Termos e Condições de Uso',
   };
 
@@ -76,77 +78,88 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
   };
 
   Future<void> _finalSubmit() async {
-    final signatureController = _contractStepKey.currentState?.signatureController;
 
-    if (signatureController == null || signatureController.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('É necessário assinar o contrato para continuar.')),
-      );
-      return;
-    }
 
-    final signatureBytes = await signatureController.toPngBytes();
-    if (signatureBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível capturar a assinatura.')),
-      );
-      return;
-    }
 
-    final signatureBase64 = base64Encode(signatureBytes);
     final cubit = context.read<StoreSetupCubit>();
-    cubit.emit(cubit.state.copyWith(signatureBase64: signatureBase64));
 
-    // Dispara a submissão para o backend
+
     await cubit.submitStoreSetup();
   }
 
   void _goToNextStep() {
-    // 1. Valida o formulário da etapa atual (se houver)
     if (_formKeys[_currentStep]?.currentState?.validate() ?? true) {
-
-      // 2. Se a etapa atual for o contrato, chama a submissão final
       if (_currentStep == SetupStep.contract) {
         _finalSubmit();
         return;
       }
 
-      // 3. Se não for, apenas avança para a próxima etapa
       final cubit = context.read<StoreSetupCubit>();
+      final nextStep = _getNextStep(_currentStep, cubit.state.taxIdType);
+
       setState(() {
-        _currentStep = switch (_currentStep) {
-          SetupStep.storeDetails => SetupStep.address,
-          SetupStep.address => SetupStep.taxId,
-          SetupStep.taxId => SetupStep.specialty,
-          SetupStep.specialty => cubit.state.taxIdType == TaxIdType.cnpj
-              ? SetupStep.businessDetails
-              : SetupStep.personDetails,
-          SetupStep.businessDetails => SetupStep.personDetails,
-          SetupStep.personDetails => SetupStep.plans,
-          SetupStep.plans => SetupStep.contract,
-          SetupStep.contract => _currentStep,
-        };
+        _currentStep = nextStep;
       });
     }
   }
 
+// ✅ MÉTODO AUXILIAR PARA CALCULAR PRÓXIMO STEP
+  SetupStep _getNextStep(SetupStep currentStep, TaxIdType taxIdType) {
+    switch (currentStep) {
+      case SetupStep.storeDetails:
+        return SetupStep.address;
+      case SetupStep.address:
+        return SetupStep.taxId;
+      case SetupStep.taxId:
+        return SetupStep.specialty;
+      case SetupStep.specialty:
+        return taxIdType == TaxIdType.cnpj
+            ? SetupStep.businessDetails
+            : SetupStep.personDetails;
+      case SetupStep.businessDetails:
+        return SetupStep.personDetails;
+      case SetupStep.personDetails:
+        return SetupStep.plans;
+      case SetupStep.plans:
+        return SetupStep.contract;
+      case SetupStep.contract:
+        return SetupStep.contract;
+    }
+  }
   void _goToPreviousStep() {
     final cubit = context.read<StoreSetupCubit>();
+    final previousStep = _getPreviousStep(_currentStep, cubit.state.taxIdType);
+
     setState(() {
-      _currentStep = switch (_currentStep) {
-        SetupStep.storeDetails => _currentStep,
-        SetupStep.address => SetupStep.storeDetails,
-        SetupStep.taxId => SetupStep.address,
-        SetupStep.specialty => SetupStep.taxId,
-        SetupStep.businessDetails => SetupStep.specialty,
-        SetupStep.personDetails => cubit.state.taxIdType == TaxIdType.cnpj
-            ? SetupStep.businessDetails
-            : SetupStep.specialty,
-        SetupStep.plans => SetupStep.personDetails,
-        SetupStep.contract => SetupStep.plans,
-      };
+      _currentStep = previousStep;
     });
   }
+
+// ✅ MÉTODO AUXILIAR PARA CALCULAR STEP ANTERIOR
+  SetupStep _getPreviousStep(SetupStep currentStep, TaxIdType taxIdType) {
+    switch (currentStep) {
+      case SetupStep.storeDetails:
+        return SetupStep.storeDetails;
+      case SetupStep.address:
+        return SetupStep.storeDetails;
+      case SetupStep.taxId:
+        return SetupStep.address;
+      case SetupStep.specialty:
+        return SetupStep.taxId;
+      case SetupStep.businessDetails:
+        return SetupStep.specialty;
+      case SetupStep.personDetails:
+        return taxIdType == TaxIdType.cnpj
+            ? SetupStep.businessDetails
+            : SetupStep.specialty;
+      case SetupStep.plans:
+        return SetupStep.personDetails;
+      case SetupStep.contract:
+        return SetupStep.plans;
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -166,21 +179,31 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
           backgroundColor: Colors.white,
           elevation: 0,
           automaticallyImplyLeading: false,
+
+
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(8.0),
             child: BlocBuilder<StoreSetupCubit, StoreSetupState>(
               builder: (context, state) {
-                final totalSteps = state.taxIdType == TaxIdType.cnpj ? 8 : 7; // Agora são 8 ou 7 passos
+                // ✅ CORREÇÃO: Calcula dinamicamente baseado no tipo de documento
+                final totalSteps = _calculateTotalSteps(state.taxIdType);
+                final currentStepIndex = _calculateCurrentStepIndex(_currentStep, state.taxIdType);
+
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: SegmentedProgressBar(
                     totalSteps: totalSteps,
-                    currentStep: _currentStep.index + 1,
+                    currentStep: currentStepIndex,
                   ),
                 );
               },
             ),
           ),
+
+
+
+
+
         ),
         body: LayoutBuilder(
           builder: (context, constraints) {
@@ -197,30 +220,41 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
                 : wizardCard;
           },
         ),
-        bottomNavigationBar: Padding(
-          padding: const EdgeInsets.all(18.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: _currentStep == SetupStep.storeDetails ? null : _goToPreviousStep,
-                child: const Text('‹ Voltar'),
-              ),
-              SizedBox(
-                height: 48,
-                child: FilledButton(
-                  onPressed: _goToNextStep,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(250, 48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: Text(
-                    _currentStep == SetupStep.contract ? 'ACEITAR E FINALIZAR' : 'Continuar',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        bottomNavigationBar: Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom > 0
+                ? 8.0  // Menos padding quando teclado está aberto
+                : 18.0, // Padding normal
+            left: 18.0,
+            right: 18.0,
+            top: 12.0,
+          ),
+
+          child: SafeArea(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+
+                if(_currentStep != SetupStep.storeDetails)
+                Flexible(
+                  child: DsButton(
+                    requiresConnection: false,
+                    style: DsButtonStyle.secondary,
+                    onPressed: _currentStep == SetupStep.storeDetails ? null : _goToPreviousStep,
+                    label: 'Voltar',
                   ),
                 ),
-              ),
-            ],
+
+                const SizedBox(width: 18),
+                Flexible(
+                  child: DsButton(
+                    requiresConnection: false,
+                    onPressed: _goToNextStep,
+                    label: _currentStep == SetupStep.contract ? 'ACEITAR E FINALIZAR' : 'Continuar',
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -238,5 +272,25 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
       SetupStep.plans => const PlansStep(),
       SetupStep.contract => ContractStep(key: _contractStepKey),
     };
+  }
+
+  // ✅ ADICIONE ESTES MÉTODOS AUXILIARES:
+  int _calculateTotalSteps(TaxIdType taxIdType) {
+    return taxIdType == TaxIdType.cnpj ? 8 : 7;
+  }
+
+  int _calculateCurrentStepIndex(SetupStep currentStep, TaxIdType taxIdType) {
+    final allSteps = [
+      SetupStep.storeDetails,
+      SetupStep.address,
+      SetupStep.taxId,
+      SetupStep.specialty,
+      if (taxIdType == TaxIdType.cnpj) SetupStep.businessDetails,
+      SetupStep.personDetails,
+      SetupStep.plans,
+      SetupStep.contract,
+    ];
+
+    return allSteps.indexOf(currentStep) + 1;
   }
 }

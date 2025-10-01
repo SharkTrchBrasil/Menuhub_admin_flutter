@@ -22,55 +22,70 @@ class PersonDetailsStep extends StatelessWidget {
 
     return Form(
       key: formKey,
-      child: ListView(
-        children: [
-
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+        
+              AppTextField(
+                title: 'CPF',
+                keyboardType: TextInputType.number,
+        
+                initialValue: state.cpf, // Adicionado para manter o estado
+                hint: '000.000.000-00',
+                onChanged: (v) => cubit.updateResponsibleField(cpf: v),
+                validator: (v) {
+                  final digits = v?.replaceAll(RegExp(r'\D'), '') ?? '';
+                  if (digits.isEmpty) return 'Obrigatório';
+                  if (!CPFValidator.isValid(digits)) return 'CPF inválido';
+                  return null;
+                },
+                formatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  CpfInputFormatter(),
+                ],
+              ),
+              const SizedBox(height: 16),
+        
             AppTextField(
-              title: 'CPF',
+              title: 'Nome Completo',
+              // ✅ AQUI ESTÁ A MUDANÇA FINAL
+              // O campo agora lê o valor inicial diretamente do estado do Cubit.
+              initialValue: state.responsibleName,
+              onChanged: (v) => cubit.updateResponsibleField(name: v),
+              validator: (v) => (v?.isEmpty ?? true) ? 'Obrigatório' : null,
+              hint: 'Nome como aparece no documento',
+            ),
+            const SizedBox(height: 16),
+            AppTextField(
               keyboardType: TextInputType.number,
-
-              initialValue: state.cpf, // Adicionado para manter o estado
-              hint: '000.000.000-00',
-              onChanged: (v) => cubit.updateResponsibleField(cpf: v),
-              validator: (v) {
-                final digits = v?.replaceAll(RegExp(r'\D'), '') ?? '';
-                if (digits.isEmpty) return 'Obrigatório';
-                if (!CPFValidator.isValid(digits)) return 'CPF inválido';
-                return null;
-              },
+              title: 'Data de nascimento',
+              initialValue: state.responsibleBirth, // Adicionado para manter o estado
+              hint: 'DD/MM/AAAA',
+              onChanged: (v) => cubit.updateResponsibleField(birth: v),
+              validator: (v) => (v?.isEmpty ?? true) ? 'Obrigatório' : null,
               formatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                CpfInputFormatter(),
+                DataInputFormatter(),
               ],
             ),
             const SizedBox(height: 16),
-
-          AppTextField(
-            title: 'Nome Completo',
-            // ✅ AQUI ESTÁ A MUDANÇA FINAL
-            // O campo agora lê o valor inicial diretamente do estado do Cubit.
-            initialValue: state.responsibleName,
-            onChanged: (v) => cubit.updateResponsibleField(name: v),
-            validator: (v) => (v?.isEmpty ?? true) ? 'Obrigatório' : null,
-            hint: 'Nome como aparece no documento',
-          ),
-          const SizedBox(height: 16),
-
-          AppTextField(
-            keyboardType: TextInputType.number,
-            title: 'Data de nascimento',
-            initialValue: state.responsibleBirth, // Adicionado para manter o estado
-            hint: 'DD/MM/AAAA',
-            onChanged: (v) => cubit.updateResponsibleField(birth: v),
-            validator: (v) => (v?.isEmpty ?? true) ? 'Obrigatório' : null,
-            formatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              DataInputFormatter(),
-            ],
-          ),
-          const SizedBox(height: 16),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  String? validMobilePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Telefone obrigatório';
+    }
+
+    final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
+
+    if (digitsOnly.length != 11 || !digitsOnly.startsWith('1') && digitsOnly[2] != '9') {
+      return 'Telefone inválido';
+    }
+
+    return null;
   }
 }

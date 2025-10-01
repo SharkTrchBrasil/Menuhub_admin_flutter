@@ -17,6 +17,7 @@ import '../../cubits/auth_cubit.dart';
 
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_toasts.dart';
+import '../../widgets/ds_primary_button.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key, required this.redirectTo});
@@ -75,39 +76,42 @@ class _SignUpPageState extends State<SignUpPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            TextButton(
-              onPressed: () {
-                context.go('/sign-in${widget.redirectTo != null ? '?redirectTo=${widget.redirectTo!}' : ''}');
-              },
-              child: const Text('‹ Voltar'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final loading = showLoading();
 
-                  await context.read<AuthCubit>().signUp(
-                    name: name,
-                    phone: phone,
-                    email: email,
-                    password: password,
-                  );
+            Flexible(
 
-                  loading();
-                }
-              },
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(160, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+              child: DsButton(
+                requiresConnection: false,
+                style: DsButtonStyle.secondary,
+                onPressed: () {
+                  context.go('/sign-in${widget.redirectTo != null ? '?redirectTo=${widget.redirectTo!}' : ''}');
+                },
+                label: ' Voltar',
               ),
-              child: const Text(
-                'Continuar',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+            ),
+            SizedBox(width: 16,),
+            Flexible(
+              child: DsButton(
+                requiresConnection: false,
+
+                onPressed: () async {
+                  if (formKey.currentState!.validate()) {
+
+
+                    await context.read<AuthCubit>().signUp(
+                      name: name,
+                      phone: phone,
+                      email: email,
+                      password: password,
+                    );
+
+
+                  }
+                },
+
+                label:
+                  'Continuar',
+
+
               ),
             ),
           ],
@@ -120,162 +124,160 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget _buildFormSection() {
     final isMobile = MediaQuery.of(context).size.width < 800;
 
-    return Padding(
-      padding:  EdgeInsets.all(isMobile ? 10 : 40.0),
-      child: Container(
-      //  margin: EdgeInsets.all(58),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey[100]!), // ✅ Borda cinza
-          borderRadius: BorderRadius.circular(16), // ✅ Radius de 8
-        ),
+    return Container(
+    //  margin: EdgeInsets.all(58),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey[100]!), // ✅ Borda cinza
+        borderRadius: BorderRadius.circular(16), // ✅ Radius de 8
+      ),
 
-        child: Padding(
-          padding:  EdgeInsets.all(isMobile ? 8 : 22.0),
-          child: Center(
-            child: Form(
-              key: formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding:  EdgeInsets.all(isMobile ? 8 : 18.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 20),
-                      Text(
-                        'Estamos felizes em ter você por aqui!',
-                        style: TextStyle(
-                          fontSize: isMobile ? 18 : 30,
-                          overflow: TextOverflow.ellipsis,
-                          fontWeight: FontWeight.bold,
-                        ),
+
+      child: Padding(
+       padding:  EdgeInsets.all(isMobile ? 8 : 22.0),
+        child: Center(
+          child: Form(
+            key: formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding:  EdgeInsets.all(isMobile ? 8 : 18.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 20),
+                    Text(
+                      'Estamos felizes em ter você por aqui!',
+                      style: TextStyle(
+                        fontSize: isMobile ? 18 : 30,
+                        overflow: TextOverflow.ellipsis,
+                        fontWeight: FontWeight.bold,
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Precisamos de algumas informações para começar o cadastro do seu restaurante.',
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        style: TextStyle(
-                          fontSize: isMobile ? 12 : 14,
-                          color: Colors.black87,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Precisamos de algumas informações para começar o cadastro do seu restaurante.',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: TextStyle(
+                        fontSize: isMobile ? 12 : 14,
+                        color: Colors.black87,
 
-                          fontWeight: FontWeight.w500,
-                        ),
+                        fontWeight: FontWeight.w500,
                       ),
+                    ),
 
-                      const SizedBox(height: 50),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              title: 'Nome completo*',
-                              hint: 'enter_your_full_name'.tr(),
-                              validator: (s) {
-                                if (s == null || s.isEmpty) {
-                                  return 'name_required'.tr();
-                                } else if (s.trim().split(' ').length < 2) {
-                                  return 'enter_valid_full_name'.tr();
-                                }
-                                return null;
-                              },
-                              onChanged: (s) => name = s ?? '',
-                            ),
+                    const SizedBox(height: 50),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppTextField(
+                            title: 'Nome completo*',
+                            hint: 'enter_your_full_name'.tr(),
+                            validator: (s) {
+                              if (s == null || s.isEmpty) {
+                                return 'name_required'.tr();
+                              } else if (s.trim().split(' ').length < 2) {
+                                return 'enter_valid_full_name'.tr();
+                              }
+                              return null;
+                            },
+                            onChanged: (s) => name = s ?? '',
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
 
-                      const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                      AppTextField(
-                        title: 'Celular*',
-                        hint: 'enter_your_phone'.tr(),
-                        validator: (s) {
-                          if (s == null || s.trim().isEmpty) {
-                            return 'Campo obrigatório';
+                    AppTextField(
+                      title: 'Celular*',
+                      hint: 'enter_your_phone'.tr(),
+                      validator: (s) {
+                        if (s == null || s.trim().isEmpty) {
+                          return 'Campo obrigatório';
+                        }
+
+                        try {
+                          // Tenta parsear o número de telefone
+                          final phone = PhoneNumber.parse(
+                            s,
+                            destinationCountry: IsoCode.BR,
+                          );
+
+                          // Valida se é um número de celular
+                          final isValidMobile = phone.isValid(
+                            type: PhoneNumberType.mobile,
+                          );
+
+                          if (!isValidMobile) {
+                            return 'Número de celular inválido';
                           }
 
+                          return null; // ✅ Válido
+                        } catch (e) {
+                          return 'Número inválido';
+                        }
+                      },
+                      onChanged: (s) {
+                        if (s != null && s.trim().isNotEmpty) {
                           try {
-                            // Tenta parsear o número de telefone
-                            final phone = PhoneNumber.parse(
+                            final parsedPhone = PhoneNumber.parse(
                               s,
                               destinationCountry: IsoCode.BR,
                             );
 
-                            // Valida se é um número de celular
-                            final isValidMobile = phone.isValid(
+                            if (parsedPhone.isValid(
                               type: PhoneNumberType.mobile,
-                            );
-
-                            if (!isValidMobile) {
-                              return 'Número de celular inválido';
+                            )) {
+                              phone =
+                                  parsedPhone
+                                      .international; // ✅ "+55 31 99999-8888"
+                            } else {
+                              phone =
+                                  phoneMask.getUnmaskedText(); // fallback bruto
                             }
-
-                            return null; // ✅ Válido
                           } catch (e) {
-                            return 'Número inválido';
+                            phone = phoneMask.getUnmaskedText(); // fallback bruto
                           }
-                        },
-                        onChanged: (s) {
-                          if (s != null && s.trim().isNotEmpty) {
-                            try {
-                              final parsedPhone = PhoneNumber.parse(
-                                s,
-                                destinationCountry: IsoCode.BR,
-                              );
+                        }
+                      },
 
-                              if (parsedPhone.isValid(
-                                type: PhoneNumberType.mobile,
-                              )) {
-                                phone =
-                                    parsedPhone
-                                        .international; // ✅ "+55 31 99999-8888"
-                              } else {
-                                phone =
-                                    phoneMask.getUnmaskedText(); // fallback bruto
-                              }
-                            } catch (e) {
-                              phone = phoneMask.getUnmaskedText(); // fallback bruto
-                            }
-                          }
-                        },
+                      formatters: [phoneMask], // Aplica a máscara
+                    ),
+                    const SizedBox(height: 20),
+                    AppTextField(
+                      title: 'Email',
+                      hint: 'enter_your_email'.tr(),
+                      validator: (s) {
+                        if (s == null || !EmailValidator.validate(s)) {
+                          return 'invalid_email'.tr();
+                        }
+                        return null;
+                      },
+                      onChanged: (s) => email = s ?? '',
+                    ),
 
-                        formatters: [phoneMask], // Aplica a máscara
-                      ),
-                      const SizedBox(height: 20),
-                      AppTextField(
-                        title: 'Email',
-                        hint: 'enter_your_email'.tr(),
-                        validator: (s) {
-                          if (s == null || !EmailValidator.validate(s)) {
-                            return 'invalid_email'.tr();
-                          }
-                          return null;
-                        },
-                        onChanged: (s) => email = s ?? '',
-                      ),
+                    const SizedBox(height: 20),
 
-                      const SizedBox(height: 20),
-
-                      AppTextField(
-                        title: 'password'.tr(),
-                        hint: 'enter_your_password'.tr(),
-                        isHidden: true,
-                        validator: (s) {
-                          if (s == null || s.isEmpty) {
-                            return 'field_required'.tr();
-                          } else if (s.length < 8) {
-                            return 'password_too_short'.tr();
-                          }
-                          return null;
-                        },
-                        onChanged: (s) => password = s ?? '',
-                      ),
+                    AppTextField(
+                      title: 'password'.tr(),
+                      hint: 'enter_your_password'.tr(),
+                      isHidden: true,
+                      validator: (s) {
+                        if (s == null || s.isEmpty) {
+                          return 'field_required'.tr();
+                        } else if (s.length < 8) {
+                          return 'password_too_short'.tr();
+                        }
+                        return null;
+                      },
+                      onChanged: (s) => password = s ?? '',
+                    ),
 
 
-                    ],
-                  ),
+                  ],
                 ),
               ),
             ),

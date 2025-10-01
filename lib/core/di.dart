@@ -32,7 +32,7 @@ import 'package:totem_pro_admin/services/print/print_layout_service.dart';
 import 'package:totem_pro_admin/services/print/printing_service.dart';
 import 'package:totem_pro_admin/services/print/print_manager.dart';
 import 'package:totem_pro_admin/services/print/printer_mapping_service.dart';
-import 'package:totem_pro_admin/services/subscription/subscription_service.dart';
+
 
 // Cubits
 import 'package:totem_pro_admin/cubits/active_store_cubit.dart';
@@ -131,11 +131,6 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<ActiveStoreCubit>(ActiveStoreCubit(realtimeRepository: getIt<RealtimeRepository>()));
   getIt.registerSingleton<SplashPageCubit>(SplashPageCubit());
 
-  // --- 5. SERVIÇOS QUE DEPENDEM DE CUBITS ---
-  // Agora registramos o AccessControlService, pois o StoresManagerCubit já existe.
-  getIt.registerSingleton<AccessControlService>(
-    AccessControlService(getIt<StoresManagerCubit>()),
-  );
 
   // --- 6. SISTEMA DE IMPRESSÃO (Ordem correta) ---
   getIt.registerSingleton<DeviceSettingsService>(DeviceSettingsService(getIt<SharedPreferences>()));
@@ -167,7 +162,7 @@ Future<void> configureDependencies() async {
       getIt<SegmentRepository>(),
       getIt<UserRepository>(),
       getIt<AuthCubit>(),
-      getIt<AuthService>(),
+
     ),
   );
 
