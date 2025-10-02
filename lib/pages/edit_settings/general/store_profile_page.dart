@@ -19,10 +19,8 @@ import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 
-// ✅ 1. CLASSE RENOMEADA
 class StoreProfilePage extends StatefulWidget {
   final int storeId;
-  // ✅ 2. NOVO PARÂMETRO 'isInWizard'
   final bool isInWizard;
 
   const StoreProfilePage({
@@ -32,59 +30,46 @@ class StoreProfilePage extends StatefulWidget {
   });
 
   @override
-  // ✅ 3. STATE COM NOME PÚBLICO
   State<StoreProfilePage> createState() => StoreProfilePageState();
 }
 
 class StoreProfilePageState extends State<StoreProfilePage> {
   final StoreRepository storeRepository = getIt();
   final formKey = GlobalKey<FormState>();
-
-  // 'Rascunho' local da loja para edição
   Store? _editableStore;
-
-  // Variáveis de controle para sincronização
   int? _storeIdForSync;
   DateTime? _dataLastSynced;
 
-
-  // ✅ 1. INICIALIZAÇÃO DOS DADOS NO initState
   @override
   void initState() {
     super.initState();
-    // Pega o estado atual do Cubit assim que a página é criada
     final currentState = context.read<StoresManagerCubit>().state;
     if (currentState is StoresManagerLoaded && currentState.activeStore != null) {
-      print('📝 Inicializando UI da StoreProfilePage com dados do Cubit...');
-      // Popula o nosso 'rascunho' local com uma cópia dos dados atuais
+      log('📝 Inicializando UI da StoreProfilePage com dados do Cubit...');
       _editableStore = currentState.activeStore!.copyWith();
       _dataLastSynced = currentState.lastUpdate;
     }
   }
 
-  // ✅ 4. MÉTODO 'save' PÚBLICO PARA O WIZARD
   Future<bool> save() async {
     if (!(formKey.currentState?.validate() ?? false)) return false;
     if (_editableStore == null) return false;
 
     try {
-      // Usamos o repositório para salvar o 'rascunho'
       await storeRepository.updateStore(widget.storeId, _editableStore!);
       if (mounted) {
-        // Notifica o Cubit para recarregar os dados, mantendo tudo sincronizado
-       // context.read<StoresManagerCubit>().reloadActiveStore();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Informações salvas com sucesso!'), backgroundColor: Colors.green),
         );
       }
-      return true; // Sucesso
+      return true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red),
         );
       }
-      return false; // Falha
+      return false;
     }
   }
 
@@ -96,99 +81,98 @@ class StoreProfilePageState extends State<StoreProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 5. LÓGICA DE SINCRONIZAÇÃO MOVIDA PARA O BlocListener
     return BlocListener<StoresManagerCubit, StoresManagerState>(
       listener: (context, state) {
         if (state is StoresManagerLoaded) {
           final activeStore = state.activeStore;
           if (activeStore == null) return;
-
-          // Sincroniza o 'rascunho' local se os dados do Cubit forem mais recentes
           if (_storeIdForSync != activeStore.core.id || _dataLastSynced != state.lastUpdate) {
             log('🔄 Sincronizando UI da StoreProfilePage com dados do Cubit...');
             setState(() {
-              _editableStore = activeStore.copyWith(); // Cria uma cópia para edição
+              _editableStore = activeStore.copyWith();
               _storeIdForSync = activeStore.core.id;
               _dataLastSynced = state.lastUpdate;
             });
           }
         }
       },
-      // ✅ 6. BUILD CONDICIONAL
       child: widget.isInWizard
           ? _buildWizardContent()
           : _buildStandalonePage(),
     );
   }
 
-  // MÉTODO PARA A PÁGINA COMPLETA (MODO NORMAL)
   Widget _buildStandalonePage() {
     return Scaffold(
-
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            FixedHeader(title: 'Informações da loja'),
-SizedBox(height: 32,),
+            const FixedHeader(title: 'Informações da loja'),
+            const SizedBox(height: 32),
+            // ✅ CORREÇÃO: Envolve o conteúdo com Expanded aqui para o modo standalone
             Expanded(child: _buildWizardContent()),
           ],
         ),
       ),
-
     );
   }
 
-  // MÉTODO PARA O CONTEÚDO DO FORMULÁRIO (REUTILIZADO)
   Widget _buildWizardContent() {
-    // ✅ 7. BlocBuilder SIMPLIFICADO
+    if (_editableStore == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        if (_editableStore == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        return Form(
-          key: formKey,
-          child: DefaultTabController(
-            length: 3,
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft, // <-- AQUI
-                  child: _buildTabBar(),
+    // ✅ CORREÇÃO: O conteúdo reutilizável agora é um SingleChildScrollView.
+    // Isso resolve o problema de altura infinita dentro do Stepper.
+    return SingleChildScrollView(
+      child: Form(
+        key: formKey,
+        child: DefaultTabController(
+          length: 3,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: _buildTabBar(),
+              ),
+              const SizedBox(height: 25),
+              // ✅ CORREÇÃO: O TabBarView precisa de uma altura fixa.
+              // Damos a ele uma altura razoável para o conteúdo dos formulários.
+              SizedBox(
+                height: 400, // Ajuste esta altura conforme necessário
+                child: TabBarView(
+                  children: [
+                    GeneralSettingsTab(store: _editableStore!, onChanged: _onStoreChanged),
+                    AddressSettingsTab(store: _editableStore!, onChanged: _onStoreChanged),
+                    SocialMediaTab(store: _editableStore!, onChanged: _onStoreChanged),
+                  ],
                 ),
-                const SizedBox(height: 25),
-                Expanded(
-                  child: TabBarView(
+              ),
+              // O botão de salvar só é mostrado no modo standalone.
+              // No wizard, os botões são controlados pelo Stepper.
+              if (!widget.isInWizard)
+                Padding(
+                  padding: const EdgeInsets.only(top: 24.0, bottom: 50.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      GeneralSettingsTab(store: _editableStore!, onChanged: _onStoreChanged),
-                      AddressSettingsTab(store: _editableStore!, onChanged: _onStoreChanged),
-                      SocialMediaTab(store: _editableStore!, onChanged: _onStoreChanged),
+                      AppPrimaryButton(
+                        onPressed: save,
+                        label: 'Salvar Alterações',
+                      ),
                     ],
                   ),
                 ),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-
-                    AppPrimaryButton(
-                      onPressed: save, // Botão chama o método público
-                      label: 'Salvar Alterações',
-                    ),
-                  ],
-                ),
-                SizedBox(height: 50,)
-              ],
-            ),
+            ],
           ),
-        );
-
+        ),
+      ),
+    );
   }
 
-// O método para construir a TabBar pode continuar aqui
   Widget _buildTabBar() {
     return TabBar(
       isScrollable: true,
@@ -228,6 +212,3 @@ SizedBox(height: 32,),
     );
   }
 }
-
-
-

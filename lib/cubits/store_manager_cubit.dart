@@ -60,6 +60,9 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   StreamSubscription? _userHasNoStoresSubscription;
 
 
+  Completer<void>? _initialLoadCompleter;
+
+
   StoresManagerCubit({
     required StoreRepository storeRepository,
     required RealtimeRepository realtimeRepository,
@@ -72,16 +75,70 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
         super(const StoresManagerInitial()) {}
 
-  void loadInitialData() {
-    log('[StoresManagerCubit] Carregamento inicial de dados iniciado.');
-    // Apenas inicia os listeners se eles ainda não estiverem ativos.
+
+
+
+// =========================================================================
+  // ✅ [REATORAÇÃO COMPLETA] LÓGICA DE CARREGAMENTO INICIAL
+  // =========================================================================
+  Future<void> loadInitialData() async {
+    if (state is StoresManagerLoading) return;
+
+    log('[CUBIT]  Orchestrating initial data load...');
+    emit(const StoresManagerLoading());
+
+    // 1. Inicia um novo Completer para esta sessão de carregamento.
+    _initialLoadCompleter = Completer<void>();
+
+    // 2. Inicia os listeners de tempo real IMEDIATAMENTE.
+    // Isso é crucial para não perder os primeiros eventos do socket.
     if (_adminStoresListSubscription == null) {
+      log("[CUBIT] Starting real-time listeners before any network call.");
       _startRealtimeListeners();
     }
+
+    // 3. Busca as lojas via HTTP. O objetivo é apenas saber se o usuário tem lojas
+    // e qual era a última ativa, não para popular a UI.
+    final result = await _storeRepository.getStores();
+
+    await result.fold(
+          (failure) async {
+        log('❌ [CUBIT] Failed to load initial stores via HTTP: failure');
+        emit(const StoresManagerError(message: 'Não foi possível carregar suas lojas.'));
+        if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
+      },
+          (stores) async {
+        final validStores = stores.where((s) => s.store.core.id != null).toList();
+
+        if (validStores.isEmpty) {
+          log("🔵 [CUBIT] HTTP load complete: No stores found. Emitting StoresManagerEmpty.");
+          emit(const StoresManagerEmpty());
+          if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
+          return;
+        }
+
+        final firstStoreId = validStores.first.store.core.id!;
+        log("✅ [CUBIT] HTTP load complete. Active store will be ID: $firstStoreId.");
+        log("⏳ [CUBIT] Now waiting for the essential WebSocket data to arrive...");
+
+        // 4. Entra na sala da loja para começar a receber dados detalhados.
+        await _realtimeRepository.joinStoreRoom(firstStoreId);
+
+        // 5. AGUARDA O SINAL do Completer. Ele será completado por _onAdminStoresListReceived.
+        try {
+          await _initialLoadCompleter!.future.timeout(const Duration(seconds: 20));
+          log("✅ [CUBIT] Initial load signal received. The app can now proceed.");
+        } catch (e) {
+          log("⚠️ [CUBIT] Timeout! Essential WebSocket data did not arrive in time.");
+          if (state is! StoresManagerLoaded) {
+            emit(const StoresManagerError(message: 'Falha ao sincronizar com o servidor.'));
+          }
+        }
+      },
+    );
   }
 
-// ✨ PASSO 1: Deixe apenas UM método helper para atualização de estado.
-  //    Vamos chamá-lo de _updateActiveStore para ficar bem claro.
+  /// Helper para atualizar a loja ativa de forma segura e imutável.
   void _updateActiveStore(
       StoreWithRole Function(StoresManagerLoaded currentState, StoreWithRole activeStore) updater,
       ) {
@@ -102,42 +159,48 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   }
 
   void _startRealtimeListeners() {
-    // Listeners que NÃO dependem de uma loja ativa
-    _adminStoresListSubscription = _realtimeRepository.onAdminStoresList.listen(
-      _onAdminStoresListReceived,
-    );
-    _notificationSubscription = _realtimeRepository.onStoreNotification.listen(
-      _onNotificationsReceived,
-    );
-    // ... suas outras inscrições
-    _connectivitySubscription = _realtimeRepository.onConnectivityChanged
-        .listen(_onConnectivityChanged);
+    // Cancel any previous subscriptions to avoid duplicates
+    _cancelSubscriptions();
 
-
-    _stuckOrderAlertSubscription = _realtimeRepository.onStuckOrderAlert.listen(
-      _onStuckOrderAlertReceived,
-    );
+    // Listeners que não dependem de uma loja ativa
+    _adminStoresListSubscription = _realtimeRepository.onAdminStoresList.listen(_onAdminStoresListReceived);
+    _notificationSubscription = _realtimeRepository.onStoreNotification.listen(_onNotificationsReceived);
+    _connectivitySubscription = _realtimeRepository.onConnectivityChanged.listen(_onConnectivityChanged);
+    _stuckOrderAlertSubscription = _realtimeRepository.onStuckOrderAlert.listen(_onStuckOrderAlertReceived);
+    _conversationsSubscription = _realtimeRepository.onConversationsListUpdated.listen(_onConversationsListUpdated);
+    _realtimeRepository.onNewChatMessage.listen(_onNewChatMessageReceived);
+    _subscriptionErrorSubscription = _realtimeRepository.onSubscriptionError.listen(_onSubscriptionError);
 
 
 
-    _conversationsSubscription = _realtimeRepository.onConversationsListUpdated.listen(_onConversationsListUpdated); // ✅ Adicione esta linha
-    // Ouvir novas mensagens para atualizar a lista em tempo real
-    _realtimeRepository.onNewChatMessage.listen(_onNewChatMessageReceived); // ✅ Adicione esta linha
-    //
-
-    _subscriptionErrorSubscription = _realtimeRepository.onSubscriptionError.listen(
-      _onSubscriptionError,
-    );
-
+    // ✅ BLINDANDO O LISTENER
     _userHasNoStoresSubscription = _realtimeRepository.onUserHasNoStores.listen((_) {
       if (isClosed) return;
-      log("🔵 [CUBIT] Evento user_has_no_stores recebido - emitindo StoresManagerEmpty");
-      emit(const StoresManagerEmpty());
+
+      // Se o app ainda está carregando, ignore este evento.
+      // O fluxo principal (loadInitialData) decidirá se há lojas ou não.
+      if (state is StoresManagerLoading) {
+        log("🔵 [CUBIT] 'user_has_no_stores' event received during initial load. Ignoring.");
+        return;
+      }
+
+      log("🔵 [CUBIT] Event 'user_has_no_stores' received. Emitting StoresManagerEmpty.");
+      // Só emite Empty se o app já estava carregado (ex: o usuário deletou sua última loja)
+      if (state is! StoresManagerEmpty) {
+        emit(const StoresManagerEmpty());
+      }
     });
 
     _listenToActiveStoreData();
-  }
 
+
+
+
+
+
+
+    _listenToActiveStoreData();
+  }
 
   void _onSubscriptionError(Map<String, dynamic> errorPayload) {
     if (isClosed) return;
@@ -151,7 +214,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
         return;
       }
 
-      // ✅ VERIFICAÇÃO DE SEGURANÇA ADICIONADA AQUI
+
       final subscriptionData = errorPayload['subscription'];
       if (subscriptionData == null || subscriptionData is! Map<String, dynamic>) {
         log("❌ [CUBIT] _onSubscriptionError: Payload de assinatura inválido ou nulo recebido.");
@@ -224,7 +287,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-  // ✅ Adicione estes dois novos métodos
+
   void _onConversationsListUpdated(List<ChatbotConversation> conversations) {
     if (isClosed) return;
     final currentState = state;
@@ -246,8 +309,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       if (index != -1) {
         final existing = conversations[index];
         conversations[index] = existing.copyWith(
-          // ✅ CORREÇÃO: Usa o nome do cliente que pode ter vindo na mensagem
-          // e só mantém o nome antigo se o novo for nulo.
+
           customerName: customerName != 'Novo Contato' ? customerName : existing.customerName,
           lastMessagePreview: newMessage.textContent ?? '(Mídia)',
           lastMessageTimestamp: newMessage.timestamp,
@@ -280,7 +342,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   void _onConnectivityChanged(ConnectivityStatus status) {
     if (state is StoresManagerLoaded) {
       final currentState = state as StoresManagerLoaded;
-      // ✅ CORREÇÃO: Adicione 'lastUpdate' para garantir que o estado seja sempre novo
+
       emit(currentState.copyWith(
         connectivityStatus: status,
         lastUpdate: DateTime.now(),
@@ -392,36 +454,39 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   }
 
 
-// store_manager_cubit.dart - Garantir que chatbotConfig seja copiado
-  void _onStoreDetailsUpdated(Store? updatedStoreDetails) {
-    if (updatedStoreDetails == null) return;
 
+  /// ✅ Atualiza os detalhes da loja ATIVA. Nunca cria o estado `Loaded`.
+  void _onStoreDetailsUpdated(Store? updatedStoreDetails) {
+    if (updatedStoreDetails == null || state is! StoresManagerLoaded) return;
+
+    log("✅ [CUBIT] Updating active store details from socket.");
     _updateActiveStore((_, activeStore) {
       final currentStore = activeStore.store;
+      // Usamos o `copyWith` de forma segura, garantindo que não sobrescrevemos
+      // dados que ainda não chegaram com nulo.
+      final newRelations = currentStore.relations.copyWith(
+        paymentMethodGroups: updatedStoreDetails.relations.paymentMethodGroups,
+        coupons: updatedStoreDetails.relations.coupons,
+        scheduledPauses: updatedStoreDetails.relations.scheduledPauses,
+        hours: updatedStoreDetails.relations.hours,
+        cities: updatedStoreDetails.relations.cities,
+        storeOperationConfig: updatedStoreDetails.relations.storeOperationConfig,
+        chatbotMessages: updatedStoreDetails.relations.chatbotMessages,
+        chatbotConfig: updatedStoreDetails.relations.chatbotConfig,
+        subscription: updatedStoreDetails.relations.subscription,
+      );
+
       final newStore = currentStore.copyWith(
         core: updatedStoreDetails.core,
         address: updatedStoreDetails.address,
         operation: updatedStoreDetails.operation,
         marketing: updatedStoreDetails.marketing,
         media: updatedStoreDetails.media,
-        relations: currentStore.relations.copyWith(
-          paymentMethodGroups: updatedStoreDetails.relations.paymentMethodGroups,
-          coupons: updatedStoreDetails.relations.coupons,
-          scheduledPauses: updatedStoreDetails.relations.scheduledPauses,
-          hours: updatedStoreDetails.relations.hours,
-          storeOperationConfig: updatedStoreDetails.relations.storeOperationConfig,
-          chatbotMessages: updatedStoreDetails.relations.chatbotMessages,
-          // ✅ CORREÇÃO: Incluir chatbotConfig
-          chatbotConfig: updatedStoreDetails.relations.chatbotConfig,
-        ),
+        relations: newRelations,
       );
       return activeStore.copyWith(store: newStore);
     });
   }
-
-
-
-
 
 
   void _onTablesUpdated(List<Table> tables) {
@@ -532,70 +597,101 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-  // ✅ MÉTODO CORRIGIDO E ROBUSTO
   void _onAdminStoresListReceived(List<StoreWithRole> stores) {
     if (isClosed) return;
 
     final currentState = state;
-
-    // Filtra lojas para garantir que tenham um ID válido antes de processar.
     final validStores = stores.where((s) => s.store.core.id != null).toList();
 
-    // Cenário 1: A lista recebida está vazia.
-    if (validStores.isEmpty) {
-      // Se já estamos em um estado com lojas, não faz sentido regredir para o estado vazio.
-      // Isso pode acontecer em um refresh de token, por exemplo. Mantemos o estado atual.
-      if (currentState is StoresManagerLoaded) {
-        log("🔵 [CUBIT] Ignorando lista de lojas vazia recebida durante o estado 'Loaded'");
+    // Cenário 1: Primeira carga do app (estado é Initial ou Loading)
+    if (currentState is! StoresManagerLoaded) {
+      // ✅ NOVA GUARDA DE SEGURANÇA:
+      // Se estamos no meio do carregamento inicial e recebemos uma lista vazia,
+      // é provável que seja um evento prematuro do socket. IGNORAMOS.
+      // Só vamos considerar a lista vazia como definitiva se o fluxo principal
+      // (loadInitialData) já tiver falhado ou completado.
+      if (validStores.isEmpty && currentState is StoresManagerLoading) {
+        log("🟡 [CUBIT] Ignorando lista de lojas vazia recebida durante o carregamento inicial. Aguardando dados definitivos.");
+        return; // Não faz nada e continua esperando.
+      }
+
+      if (validStores.isEmpty) {
+        log("🔵 [CUBIT] Initial socket data: No stores. Emitting StoresManagerEmpty.");
+        if (currentState is! StoresManagerEmpty) emit(const StoresManagerEmpty());
+      } else {
+        log("🚀 [CUBIT] First valid store list from socket. Emitting StoresManagerLoaded with ${validStores.length} stores.");
+        final firstStoreId = validStores.first.store.core.id!;
+
+        emit(
+          StoresManagerLoaded(
+            stores: {for (var s in validStores) s.store.core.id!: s},
+            activeStoreId: firstStoreId,
+            connectivityStatus: ConnectivityStatus.synchronizing,
+            consolidatedStores: const [],
+            lastUpdate: DateTime.now(),
+            notificationCounts: const {},
+            stuckOrderIds: const {},
+            conversations: const [],
+          ),
+        );
+      }
+
+      // Sinaliza que os dados essenciais chegaram (ou a falta deles foi confirmada).
+      if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+        _initialLoadCompleter!.complete();
+      }
+    }
+    // Cenário 2: App já carregado, isto é uma atualização da lista de lojas.
+    else {
+      // Esta lógica existente já ignora listas vazias se já tivermos dados, o que está correto.
+      if (validStores.isEmpty && currentState.stores.isNotEmpty) {
+        log("🔵 [CUBIT] Ignoring empty store list from socket because we already have data.");
         return;
       }
-      // Se estamos no estado inicial ou já no vazio, confirmamos o estado vazio.
-      log("🔵 [CUBIT] Lista de lojas está vazia. Emitindo estado StoresManagerEmpty.");
-      emit(const StoresManagerEmpty());
-      return;
-    }
-
-    // Cenário 2: Recebemos uma lista de lojas e o estado atual é 'Loaded'.
-    // Apenas atualizamos o mapa de lojas.
-    if (currentState is StoresManagerLoaded) {
-      log("🔄 [CUBIT] Atualizando a lista de lojas existente com ${validStores.length} loja(s).");
+      log("🔄 [CUBIT] Socket update received. Refreshing store list with ${validStores.length} items.");
       emit(
         currentState.copyWith(
           stores: {for (var s in validStores) s.store.core.id!: s},
-        ),
-      );
-      return;
-    }
-
-    // Cenário 3: Recebemos uma lista de lojas e o estado é 'Initial' ou 'Empty'.
-    // Este é o fluxo principal para o primeiro login ou após a criação da primeira loja.
-    if (currentState is StoresManagerInitial || currentState is StoresManagerEmpty) {
-      log("🚀 [CUBIT] Transicionando de ${currentState.runtimeType} para StoresManagerLoaded com ${validStores.length} loja(s).");
-
-      final firstStoreId = validStores.first.store.core.id!;
-
-      emit(
-        StoresManagerLoaded(
-          stores: {for (var s in validStores) s.store.core.id!: s},
-          activeStoreId: firstStoreId,
-          consolidatedStores: const [],
-          notificationCounts: const {},
           lastUpdate: DateTime.now(),
-          conversations: const [],
-          stuckOrderIds: const {},
-          connectivityStatus: ConnectivityStatus.connected,
         ),
       );
-
-      // Após emitir o novo estado, nos conectamos à sala da primeira loja.
-      _realtimeRepository.joinStoreRoom(firstStoreId);
-      return;
     }
   }
 
+  void addNewStore(StoreWithRole newStore) {
+    if (isClosed) return;
 
+    final currentState = state;
+    Map<int, StoreWithRole> currentStores = {};
 
+    // Se já tínhamos lojas, pegamos o mapa atual
+    if (currentState is StoresManagerLoaded) {
+      currentStores = Map.from(currentState.stores);
+    }
 
+    // Adiciona a nova loja ao mapa
+    currentStores[newStore.store.core.id!] = newStore;
+
+    log("✅ [CUBIT] Adicionando nova loja (ID: ${newStore.store.core.id}) ao estado. Transicionando para StoresManagerLoaded.");
+
+    // Emite o estado `Loaded` com a nova loja, definindo-a como ativa.
+    // Isso funciona tanto se o estado anterior era `Empty` quanto `Loaded`.
+    emit(
+      StoresManagerLoaded(
+        stores: currentStores,
+        activeStoreId: newStore.store.core.id!,
+        consolidatedStores: const [],
+        notificationCounts: const {},
+        lastUpdate: DateTime.now(),
+        conversations: const [],
+        stuckOrderIds: const {},
+        connectivityStatus: ConnectivityStatus.connected,
+      ),
+    );
+
+    // Conecta-se à sala da nova loja
+    _realtimeRepository.joinStoreRoom(newStore.store.core.id!);
+  }
 
 
   void _onNotificationsReceived(Map<int, int> incomingNotificationCounts) {
@@ -790,23 +886,27 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-
-
-  // ✅ ADICIONE ESTE NOVO MÉTODO ÚNICO
+  /// ✅ Atualiza o menu completo (produtos, categorias, variantes) da loja ATIVA.
   void _onFullMenuUpdated(FullMenuData menuData) {
+    if (state is! StoresManagerLoaded) return;
+
+    log("✅ [CUBIT] Atomic full menu update from socket.");
     _updateActiveStore((_, activeStore) {
       final newRelations = activeStore.store.relations.copyWith(
         products: menuData.products,
-        categories: menuData.categories, // Já vem reconciliada!
+        categories: menuData.categories,
         variants: menuData.variants,
       );
       return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
     });
 
-
-    log("✅ [CUBIT] Menu completo (produtos, categorias, variantes) atualizado via socket de forma atômica.");
+    // Após a primeira carga do menu, consideramos a sincronização completa.
+    final currentState = state as StoresManagerLoaded;
+    if (currentState.connectivityStatus == ConnectivityStatus.synchronizing) {
+      log("🎉 [CUBIT] Full menu received. Store is now fully synchronized.");
+      emit(currentState.copyWith(connectivityStatus: ConnectivityStatus.connected));
+    }
   }
-
 
 
 
@@ -896,16 +996,15 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
   }
 
-  // ✅ ATUALIZE O MÉTODO resetState
+
   void resetState() {
     log('[StoresManagerCubit] Resetando estado e cancelando listeners...');
-    // 1. Apenas cancela as assinaturas ativas
     _cancelSubscriptions();
-    // 2. Emite o estado inicial para limpar a UI
+    // Ao fazer logout, volte para o estado inicial, não para o vazio.
     emit(const StoresManagerInitial());
   }
 
-  // ✅ ATUALIZE O MÉTODO close PARA USAR O HELPER
+
   @override
   Future<void> close() {
     log('[StoresManagerCubit] Fechando o Cubit e todos os listeners.');

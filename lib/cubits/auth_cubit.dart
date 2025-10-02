@@ -40,13 +40,13 @@ class AuthCubit extends Cubit<AuthState> {
           emit( AuthUnauthenticated());
         }
       },
-          (data) {
+          (data) async {
         print('[AuthCubit] App initialized. Emitting AuthAuthenticated.');
         emit(AuthAuthenticated(data));
 
         // ✅ INICIA O SERVIÇO DE IMPRESSÃO AQUI
         print('[AuthCubit] Inicializando serviços pós-autenticação...');
-        _storesManagerCubit.loadInitialData();
+        await _storesManagerCubit.loadInitialData();
         getIt<PrintingService>().initialize();
       },
     );
@@ -125,19 +125,6 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  void addNewStore(StoreWithRole newStoreWithRole) {
-    final currentState = state;
-    if (currentState is AuthAuthenticated) {
-      final updatedStores = [newStoreWithRole, ...currentState.data.stores];
-
-      // ✅ A CORREÇÃO ESTÁ AQUI
-      // Usamos o 'copyWith' do nosso modelo de dados para criar a nova instância.
-      final updatedData = currentState.data.copyWith(stores: updatedStores);
-
-      emit(AuthAuthenticated(updatedData));
-      print('[AuthCubit] Nova loja adicionada ao estado global.');
-    }
-  }
 
   @override
   Future<void> close() {

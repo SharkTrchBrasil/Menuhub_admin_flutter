@@ -996,7 +996,30 @@ class StoreRepository {
     }
   }
 
+  Future<Either<Failure, void>> completeStoreSetup(int storeId) async {
+    try {
+      // Usamos um FormData simples para atualizar apenas um campo.
+      // O backend já está preparado para receber `is_setup_complete` como um campo de formulário.
+      final formData = FormData.fromMap({
+        'is_setup_complete': true,
+      });
 
+      // Usamos a rota PATCH para atualizar a loja existente.
+      await _dio.patch(
+        '/stores/$storeId',
+        data: formData,
+      );
+
+      return const Right(null);
+    } on DioException catch (e) {
+      debugPrint('DioException em completeStoreSetup: $e');
+      final detail = e.response?.data?['detail'] ?? 'Não foi possível finalizar a configuração.';
+      return Left(Failure(detail.toString()));
+    } catch (e) {
+      debugPrint('Erro inesperado em completeStoreSetup: $e');
+      return Left(Failure('Ocorreu um erro inesperado.'));
+    }
+  }
 
 
 

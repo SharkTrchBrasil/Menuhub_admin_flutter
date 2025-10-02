@@ -162,6 +162,8 @@ Future<void> configureDependencies() async {
       getIt<SegmentRepository>(),
       getIt<UserRepository>(),
       getIt<AuthCubit>(),
+      getIt<StoresManagerCubit>(),
+
 
     ),
   );

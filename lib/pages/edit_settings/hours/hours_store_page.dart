@@ -10,6 +10,7 @@ import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/scheduled_paus
 import 'package:totem_pro_admin/pages/edit_settings/hours/widgets/visual_schedule_calendar.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 import 'package:totem_pro_admin/core/di.dart';
 
@@ -62,13 +63,26 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _populateHoursFromInitialData(widget.initialHours);
-
-    // ✅ 1. ADICIONA O LISTENER
-    // Isso fará com que a UI se atualize sempre que uma nova aba for selecionada.
     _tabController.addListener(() {
       setState(() {});
     });
   }
+
+
+  // ✅ ================== CORREÇÃO APLICADA AQUI ==================
+  @override
+  void didUpdateWidget(covariant OpeningHoursPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Esta condição verifica se a lista de horários que o widget está recebendo
+    // mudou. Isso acontece quando o `StoresManagerCubit` é atualizado pelo
+    // WebSocket e reconstrói a tela.
+    if (widget.initialHours != oldWidget.initialHours) {
+      // Se os dados mudaram, repopulamos o estado local da UI com os novos dados.
+      _populateHoursFromInitialData(widget.initialHours);
+    }
+  }
+  // ================== FIM DA CORREÇÃO ==================
+
 
   @override
   void dispose() {
@@ -94,19 +108,17 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
   }
 
   Future<bool> save({bool showSuccessToast = true}) async {
-    // ✅ Adiciona parâmetro opcional
     if (!_validateHours()) return false;
     final allSlots = _openingHours.values.expand((slots) => slots).toList();
     final result = await storeRepository.updateHours(widget.storeId, allSlots);
     if (!mounted) return false;
 
     return result.fold(
-      (error) {
+          (error) {
         AppToasts.showError('Erro ao salvar os horários.');
         return false;
       },
-      (success) {
-        // ✅ Mostra o toast apenas se solicitado
+          (success) {
         if (showSuccessToast) {
           AppToasts.showSuccess('Horários salvos com sucesso!');
         }
@@ -122,35 +134,24 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
 
       for (int i = 0; i < slots.length; i++) {
         final currentSlot = slots[i];
-        if (currentSlot.openingTime == null ||
-            currentSlot.closingTime == null) {
+        if (currentSlot.openingTime == null || currentSlot.closingTime == null) {
           AppToasts.showError('Horário inválido em ${dayNames[weekday]}');
           return false;
         }
 
-        final openingMinutes =
-            currentSlot.openingTime!.hour * 60 +
-            currentSlot.openingTime!.minute;
-        final closingMinutes =
-            currentSlot.closingTime!.hour * 60 +
-            currentSlot.closingTime!.minute;
+        final openingMinutes = currentSlot.openingTime!.hour * 60 + currentSlot.openingTime!.minute;
+        final closingMinutes = currentSlot.closingTime!.hour * 60 + currentSlot.closingTime!.minute;
 
         if (openingMinutes >= closingMinutes) {
-          AppToasts.showError(
-            'Abertura deve ser antes do fechamento em ${dayNames[weekday]}',
-          );
+          AppToasts.showError('Abertura deve ser antes do fechamento em ${dayNames[weekday]}');
           return false;
         }
 
         if (i > 0) {
           final previousSlot = slots[i - 1];
-          final previousClosingMinutes =
-              previousSlot.closingTime!.hour * 60 +
-              previousSlot.closingTime!.minute;
+          final previousClosingMinutes = previousSlot.closingTime!.hour * 60 + previousSlot.closingTime!.minute;
           if (openingMinutes < previousClosingMinutes) {
-            AppToasts.showError(
-              'Sobreposição de horários em ${dayNames[weekday]}',
-            );
+            AppToasts.showError('Sobreposição de horários em ${dayNames[weekday]}');
             return false;
           }
         }
@@ -179,13 +180,7 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     });
   }
 
-  // ✅ 1. CRIE UMA NOVA FUNÇÃO PARA ADICIONAR UM TURNO ESPECÍFICO
-  void _addSpecificSlot(
-    int weekday,
-    TimeOfDay openingTime,
-    TimeOfDay closingTime,
-  ) {
-    // Não precisa de setState aqui, pois será chamado dentro de um
+  void _addSpecificSlot(int weekday, TimeOfDay openingTime, TimeOfDay closingTime) {
     _openingHours[weekday]!.add(
       StoreHour(
         dayOfWeek: weekday,
@@ -197,17 +192,15 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
     );
   }
 
-  // ✅ 2. CRIE A FUNÇÃO PARA MOSTRAR O DIÁLOGO DE ADIÇÃO
-  Future<void> _showAddShiftDialog(int day, TimeOfDay time) async {
+  Future<void> _showAddShiftDialog({int? day, TimeOfDay? time}) async {
     final result = await showDialog<AddShiftResult>(
       context: context,
-      builder:
-          (context) => AddShiftDialog(
-            initialDay: day,
-            initialTime: time,
-            dayNames: dayNames,
-            displayOrder: displayOrder,
-          ),
+      builder: (context) => AddShiftDialog(
+        initialDay: day ?? 1, // Padrão: Segunda-feira
+        initialTime: time ?? const TimeOfDay(hour: 9, minute: 0), // Padrão: 09:00
+        dayNames: dayNames,
+        displayOrder: displayOrder,
+      ),
     );
 
     if (result == null) return;
@@ -218,50 +211,29 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
       }
     });
 
-    // Salva automaticamente após adicionar
-    //  setState(() { _isSaving = true; });
-
     final bool success = await save(showSuccessToast: false);
-    if (mounted) {
-      //  setState(() { _isSaving = false; });
-    }
     if (success && mounted) {
       AppToasts.showSuccess('Novo(s) horário(s) salvo(s) com sucesso!');
     }
   }
 
-  Future<void> _showHolidayPauseDialog(
-    Holiday holiday,
-    ScheduledPause? existingPause,
-  ) async {
-    print('Configurando o feriado: ${holiday.name}');
-
+  Future<void> _showHolidayPauseDialog(Holiday holiday, ScheduledPause? existingPause) async {
     final result = await showDialog<AddPauseResult>(
       context: context,
-      builder:
-          (context) => AddPauseDialog(
-            // ✅ Passa os dados do feriado e da pausa (se existir) para o diálogo
-            holiday: holiday,
-            existingPause: existingPause,
-          ),
+      builder: (context) => AddPauseDialog(
+        holiday: holiday,
+        existingPause: existingPause,
+      ),
     );
 
     if (result == null) return;
 
-    // A lógica para salvar (criar ou atualizar) continua a mesma
     if (existingPause != null) {
-      // TODO: Chamar o Cubit para ATUALIZAR a pausa existente
-      // (você precisará de um método `updatePause` no Cubit e Repositório)
+      // TODO: Lógica de atualização
     } else {
-
-
       final success = await context.read<StoresManagerCubit>().addPause(
         storeId: widget.storeId,
-        // Garante que o motivo seja o nome do feriado se o usuário não digitar nada
-        reason:
-            (result.reason != null && result.reason!.isNotEmpty)
-                ? result.reason
-                : holiday.name,
+        reason: (result.reason != null && result.reason!.isNotEmpty) ? result.reason : holiday.name,
         startTime: result.startTime,
         endTime: result.endTime,
       );
@@ -274,44 +246,32 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
   Future<void> _showEditShiftDialog(StoreHour shiftToEdit) async {
     final result = await showDialog<EditShiftResult>(
       context: context,
-      builder:
-          (context) => EditShiftDialog(
-            initialShift: shiftToEdit,
-            dayName: dayNames[shiftToEdit.dayOfWeek]!,
-          ),
+      builder: (context) => EditShiftDialog(
+        initialShift: shiftToEdit,
+        dayName: dayNames[shiftToEdit.dayOfWeek]!,
+      ),
     );
 
     if (result == null) return;
 
-    // Atualiza o estado local primeiro para uma resposta de UI imediata
     setState(() {
       final daySlots = _openingHours[shiftToEdit.dayOfWeek]!;
-      final shiftIndex = daySlots.indexWhere(
-        (s) => s.shiftNumber == shiftToEdit.shiftNumber,
-      );
+      final shiftIndex = daySlots.indexWhere((s) => s.shiftNumber == shiftToEdit.shiftNumber);
       if (shiftIndex == -1) return;
 
       if (result.deleted) {
         _removeSlot(shiftToEdit.dayOfWeek!, shiftToEdit);
       } else {
         if (result.openingTime != null) {
-          _updateOpeningTime(
-            shiftToEdit.dayOfWeek!,
-            shiftIndex,
-            result.openingTime!,
-          );
+          _updateOpeningTime(shiftToEdit.dayOfWeek!, shiftIndex, result.openingTime!);
         }
         if (result.closingTime != null) {
-          _updateClosingTime(
-            shiftToEdit.dayOfWeek!,
-            shiftIndex,
-            result.closingTime!,
-          );
+          _updateClosingTime(shiftToEdit.dayOfWeek!, shiftIndex, result.closingTime!);
         }
       }
     });
 
-    await save(); // Salva no banco de dados
+    await save();
   }
 
   Future<void> _showAddPauseDialog() async {
@@ -354,39 +314,19 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
           if (!widget.isInWizard)
             FixedHeader(
               title: 'Horário de funcionamento',
-              subtitle:
-                  'Escolha os dias e horários que sua loja receberá pedidos.',
+              subtitle: 'Escolha os dias e horários que sua loja receberá pedidos.',
             ),
-
-          SizedBox(height: 25),
-          // Em opening_hours_page.dart -> _buildContent()
-
+          const SizedBox(height: 25),
           TabBar(
             controller: _tabController,
             labelColor: Theme.of(context).primaryColor,
             unselectedLabelColor: Colors.grey[600],
             indicatorColor: Theme.of(context).primaryColor,
-
-            // ✅ 1. FAZ AS ABAS OCUPAREM APENAS O ESPAÇO NECESSÁRIO
             isScrollable: true,
-
-            // ✅ 2. ALINHA O CONJUNTO DE ABAS NO INÍCIO (ESQUERDA)
             tabAlignment: TabAlignment.start,
-
-            // ✅ 3. FAZ O INDICADOR TER A LARGURA DO TEXTO
             indicatorSize: TabBarIndicatorSize.label,
-
-            // ✅ ESTILO PARA A ABA SELECIONADA
-            labelStyle: const TextStyle(
-              fontSize: 16, // <-- AUMENTE O TAMANHO AQUI
-              fontWeight: FontWeight.w600,
-            ),
-
-            // ✅ ESTILO PARA AS ABAS NÃO SELECIONADAS
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 16, // <-- AUMENTE O TAMANHO AQUI
-              fontWeight: FontWeight.w400, // Um pouco menos de destaque (medium)
-            ),
+            labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
             tabs: const [
               Tab(text: 'Horários'),
               Tab(text: 'Pausa programada'),
@@ -394,29 +334,72 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
             ],
           ),
           const SizedBox(height: 24),
-
           [
-            _buildSchedulesView(), // Conteúdo da Aba 0
+            _buildSchedulesView(),
             ScheduledPausesView(onAddPause: _showAddPauseDialog),
             HolidaysView(onConfigureHoliday: _showHolidayPauseDialog),
           ][_tabController.index],
-
-          // Seleciona o widget com base no índice da aba
         ],
       ),
     );
   }
 
+  // ✅ MÉTODO ATUALIZADO PARA SER INTELIGENTE
   Widget _buildSchedulesView() {
+    // Verifica se há algum horário cadastrado em qualquer dia
+    final bool isScheduleEmpty = _openingHours.values.every((list) => list.isEmpty);
+
+    if (isScheduleEmpty) {
+      // Se estiver vazio, mostra a tela de boas-vindas com o botão de ação
+      return _buildEmptyScheduleState();
+    } else {
+      // Se houver horários, mostra a UI completa com o calendário
+      return _buildPopulatedScheduleState();
+    }
+  }
+
+  // ✅ NOVO WIDGET: UI para quando NÃO HÁ horários cadastrados
+  Widget _buildEmptyScheduleState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48.0, horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(Icons.timer_off_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'Sua loja ainda não tem horários',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Clique no botão abaixo para definir os dias e horas em que sua loja estará aberta para receber pedidos.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            DsButton(
+              label: 'Cadastrar primeiro horário',
+              onPressed: () => _showAddShiftDialog(), // Chama o diálogo diretamente
+              icon: Icons.add_alarm,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ NOVO WIDGET: UI para quando HÁ horários cadastrados (código anterior)
+  Widget _buildPopulatedScheduleState() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ActionAndSummaryPanel(openingHours: _openingHours),
         const SizedBox(height: 20),
-        // O widget refatorado é chamado aqui
-        //  const InfoAlert(),
         const SizedBox(height: 20),
-
         VisualScheduleCalendar(
           openingHours: _openingHours,
           dayNames: dayNames,
@@ -425,7 +408,7 @@ class OpeningHoursPageState extends State<OpeningHoursPage>
             _showEditShiftDialog(slot);
           },
           onEmptySpaceTap: (day, time) {
-            _showAddShiftDialog(day, time);
+            _showAddShiftDialog(day: day, time: time);
           },
         ),
       ],

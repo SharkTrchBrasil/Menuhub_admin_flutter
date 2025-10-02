@@ -13,7 +13,7 @@ class SplashPage extends StatelessWidget {
     // Apenas exibe a UI de splash. O GoRouter cuida do resto.
     return  Scaffold(
       body: Center(
-        child:  SvgPicture.asset("assets/images/logo.png",),
+        child:  Image.asset("assets/images/logo.png",),
       ),
     );
   }

@@ -76,6 +76,7 @@ import '../pages/product_edit/edit_product_page.dart';
 import '../pages/product_flavors/flavor_wizard_page.dart';
 import '../pages/reports/reports_page.dart';
 
+import '../pages/store_wizard/store_setup_wizard_page.dart';
 import '../pages/totems/totems_page.dart';
 
 import '../pages/variants/edit_variants.dart';
@@ -134,6 +135,20 @@ class AppRouter {
 
       debugPrint('🔄 REDIRECT: location=$location, authState=$authState, storesState=$storesState');
 
+      // ✅ CORREÇÃO 2: Trata o estado de erro de autenticação
+      if (authState is AuthError) {
+        // Se deu erro, manda para o login, a menos que já esteja lá.
+        return isGoingToAuthRoute ? null : '/sign-in';
+      }
+
+
+      // ✅ PASSO 1: LÓGICA PARA USUÁRIO DESLOGADO (A CORREÇÃO)
+      if (authState is AuthUnauthenticated) {
+        // Se o usuário está deslogado, ele só pode acessar as rotas de autenticação.
+        // Se ele tentar ir para qualquer outro lugar, será redirecionado para o login.
+        return isGoingToAuthRoute ? null : '/sign-in';
+      }
+
       // ✅ 1. Estado de verificação necessário
       if (authState is AuthNeedsVerification) {
         if (isGoingToVerifyEmail) return null;
@@ -141,60 +156,65 @@ class AppRouter {
         return '/verify-email?email=${Uri.encodeComponent(authState.email)}';
       }
 
-      // ✅ 2. Estados de carregamento/incial
+      // ✅ CORREÇÃO 1: Refina a lógica de carregamento
       if (authState is AuthInitial || authState is AuthLoading) {
-        debugPrint('⏳ Auth loading - redirecting to splash');
-        return location == splashRoute ? null : splashRoute;
+        // SÓ redireciona para o splash se NÃO estivermos numa tela de autenticação.
+        if (!isGoingToAuthRoute) {
+          debugPrint('⏳ App initializing - redirecting to splash');
+          return splashRoute;
+        }
+        // Se estivermos em /sign-in (ou /sign-up), não faz nada e deixa
+        // a própria tela mostrar o indicador de loading no botão.
+        debugPrint('⏳ User action in progress on auth route. No redirect.');
+        return null;
       }
 
-      // ✅ 3. Estado não autenticado
-      if (authState is AuthUnauthenticated) {
-        debugPrint('🚫 Not authenticated - redirecting to sign-in');
-        return isGoingToAuthRoute ? null : '/sign-in';
-      }
 
-      // ✅ 4. Estado autenticado - agora verifica as lojas
+
+
+
+
+
       if (authState is AuthAuthenticated) {
         debugPrint('✅ Authenticated - checking stores state: $storesState');
 
-        // ✅ 4.1 Estados de carregamento das lojas - vai para splash
-        if (storesState is StoresManagerInitial || storesState is StoresManagerLoading) {
+        if (storesState is StoresManagerInitial ||
+            storesState is StoresManagerLoading) {
           debugPrint('🔄 Stores loading - redirecting to splash');
           return location == splashRoute ? null : splashRoute;
         }
 
-        // ✅ 4.2 Sem lojas - criar nova (IMPORTANTE: isso deve vir ANTES do loaded)
         if (storesState is StoresManagerEmpty) {
           debugPrint('🏪 No stores - redirecting to create store');
-          // Se já está na tela de criar loja, permite ficar
-          if (isGoingToCreateStore) return null;
-          // Senão, redireciona para criar loja
-          return '/stores/new';
+          return isGoingToCreateStore ? null : '/stores/new';
         }
 
-        // ✅ 4.3 Com lojas carregadas - decisão final
         if (storesState is StoresManagerLoaded) {
           debugPrint('📊 Stores loaded - checking final destination');
+
+          final activeStore = storesState.activeStore;
+
+
+          if (activeStore != null &&
+              !activeStore.core.isSetupComplete &&
+              !location.contains('/setup') &&
+              !isGoingToCreateStore) { // <-- NÃO redirecione se ainda estamos no fluxo de criação
+            debugPrint('🛠️ Store not set up, redirecting to wizard.');
+            return '/stores/${activeStore.core.id}/setup';
+          }
+
+
+          // Lógica para sair da Splash Page (executa se o wizard não for necessário)
           if (location == splashRoute) {
-            final shouldSkipHub = await preferenceService.getSkipHubPreference();
+            final shouldSkipHub = await preferenceService
+                .getSkipHubPreference();
             final lastRoute = await preferenceService.getLastAccessedRoute();
-
-            debugPrint('🏠 Splash route - skipHub: $shouldSkipHub, lastRoute: $lastRoute');
-
-            if (shouldSkipHub && lastRoute != null) {
-              return lastRoute;
-            } else {
-              return '/hub';
-            }
+            debugPrint(
+                '🏠 Splash route - skipHub: $shouldSkipHub, lastRoute: $lastRoute');
+            return (shouldSkipHub && lastRoute != null) ? lastRoute : '/hub';
           }
         }
 
-        // ✅ 4.4 Erro ao carregar lojas
-        if (storesState is StoresManagerError) {
-          debugPrint('❌ Stores error: ${storesState.message}');
-          BotToast.showText(text: storesState.message);
-          return '/hub'; // fallback
-        }
       }
 
       // ✅ 5. Permite a navegação se nenhuma regra se aplicou
@@ -241,7 +261,13 @@ class AppRouter {
       ),
 
 
-
+      GoRoute(
+        path: '/stores/:storeId/setup',
+        builder: (context, state) {
+          final storeId = int.parse(state.pathParameters['storeId']!);
+          return StoreSetupWizardPage(storeId: storeId);
+        },
+      ),
 
 
 

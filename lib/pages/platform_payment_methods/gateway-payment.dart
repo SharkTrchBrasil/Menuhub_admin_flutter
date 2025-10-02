@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-
 import 'package:totem_pro_admin/repositories/payment_method_repository.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import '../../core/responsive_builder.dart';
 import '../../models/payment_method.dart';
-import 'widgets/payment_method_group_section.dart'; // Importando o widget refatorado
+import 'widgets/payment_method_group_section.dart';
 import '../../widgets/app_primary_button.dart';
 
-// ✅ 1. ADICIONADO O PARÂMETRO 'isInWizard'
 class PlatformPaymentMethodsPage extends StatefulWidget {
   final int storeId;
   final bool isInWizard;
@@ -22,7 +20,6 @@ class PlatformPaymentMethodsPage extends StatefulWidget {
   });
 
   @override
-  // ✅ 2. STATE COM NOME PÚBLICO
   State<PlatformPaymentMethodsPage> createState() => PlatformPaymentMethodsPageState();
 }
 
@@ -47,9 +44,7 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
       _error = null;
     });
 
-    final result = await paymentRepository.getPaymentMethodsForStore(
-      widget.storeId,
-    );
+    final result = await paymentRepository.getPaymentMethodsForStore(widget.storeId);
 
     if (!mounted) return;
     result.fold(
@@ -59,37 +54,33 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
       }),
           (groups) => setState(() {
         _paymentGroups = groups;
-        // ✅ O .map de uma Lista é mais simples e o .deepCopy() funciona
         _initialPaymentGroups = groups.map((g) => g.deepCopy()).toList();
         _isLoading = false;
       }),
     );
   }
 
-
-  // ✅ 3. MÉTODO 'save' PÚBLICO PARA O WIZARD
+  // ✅ ================== MÉTODO 'save' CORRIGIDO ==================
   Future<void> save() async {
     setState(() { _isLoading = true; });
 
     final List<Future> updateFutures = [];
 
-    // Lógica para encontrar as diferenças e preparar as chamadas de API
+    // Loop simplificado: iteramos sobre os grupos e diretamente sobre seus métodos.
     for (int i = 0; i < _paymentGroups.length; i++) {
-      for (int j = 0; j < _paymentGroups[i].categories.length; j++) {
-        for (int k = 0; k < _paymentGroups[i].categories[j].methods.length; k++) {
-          final currentActivation = _paymentGroups[i].categories[j].methods[k].activation;
-          final initialActivation = _initialPaymentGroups[i].categories[j].methods[k].activation;
+      for (int j = 0; j < _paymentGroups[i].methods.length; j++) {
+        final currentMethod = _paymentGroups[i].methods[j];
+        final initialMethod = _initialPaymentGroups[i].methods[j];
 
-          // Compara o estado inicial com o final
-          if (currentActivation?.isActive != initialActivation?.isActive) {
-            updateFutures.add(
-              paymentRepository.updateActivation(
-                storeId: widget.storeId,
-                platformMethodId: _paymentGroups[i].categories[j].methods[k].id,
-                activation: currentActivation!,
-              ),
-            );
-          }
+        // Compara a ativação do método atual com o inicial
+        if (currentMethod.activation?.isActive != initialMethod.activation?.isActive) {
+          updateFutures.add(
+            paymentRepository.updateActivation(
+              storeId: widget.storeId,
+              platformMethodId: currentMethod.id,
+              activation: currentMethod.activation!,
+            ),
+          );
         }
       }
     }
@@ -97,7 +88,7 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
     if (updateFutures.isEmpty) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nenhuma alteração para salvar.')));
       setState(() { _isLoading = false; });
-      return ;
+      return;
     }
 
     final results = await Future.wait(updateFutures);
@@ -105,61 +96,40 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
 
     if (results.any((res) => res.isLeft)) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ocorreu um erro.'), backgroundColor: Colors.red));
-      return ; // Falha
     } else {
-     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alterações salvas!'), backgroundColor: Colors.green));
-
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alterações salvas!'), backgroundColor: Colors.green));
       if (widget.isInSidePanel) {
-
-        Navigator.of(context).pop(); // Fecha o painel
+        Navigator.of(context).pop();
       } else {
-        _fetchPaymentMethods(); // Recarrega os dados locais se for standalone
+        _fetchPaymentMethods();
       }
-      return ; // Sucesso
     }
   }
+  // ================== FIM DA CORREÇÃO ==================
 
-
+  // ✅ ================== MÉTODO '_handleActivationChange' CORRIGIDO ==================
   void _handleActivationChange(PlatformPaymentMethod method, bool newValue) {
     setState(() {
-      _paymentGroups =
-          _paymentGroups.map((group) {
-            return group.copyWith(
-              categories:
-              group.categories.map((category) {
-                return category.copyWith(
-                  methods:
-                  category.methods.map((m) {
-                    if (m.id == method.id) {
-                      final activationToUpdate =
-                          m.activation ??
-                              StorePaymentMethodActivation(
-                                id: 0,
-                                isActive: newValue,
-                                feePercentage: 0,
-                                isForDelivery: true,
-                                isForPickup: true,
-                                isForInStore: true,
-                              );
-                      return m.copyWith(
-                        activation: activationToUpdate.copyWith(
-                          isActive: newValue,
-                        ),
-                      );
-                    }
-                    return m;
-                  }).toList(),
-                );
-              }).toList(),
-            );
-          }).toList();
+      _paymentGroups = _paymentGroups.map((group) {
+        return group.copyWith(
+          // Mapeamos diretamente os métodos do grupo.
+          methods: group.methods.map((m) {
+            if (m.id == method.id) {
+              final activationToUpdate = m.activation ?? StorePaymentMethodActivation.empty();
+              return m.copyWith(
+                activation: activationToUpdate.copyWith(isActive: newValue),
+              );
+            }
+            return m;
+          }).toList(),
+        );
+      }).toList();
     });
   }
-
+  // ================== FIM DA CORREÇÃO ==================
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 4. LÓGICA DE BUILD ATUALIZADA
     if (widget.isInSidePanel) {
       return _buildSidePanelLayout();
     }
@@ -168,7 +138,6 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
         : _buildStandalonePage();
   }
 
-  // ✅ 5. NOVO MÉTODO PARA O LAYOUT DO SIDE PANEL
   Widget _buildSidePanelLayout() {
     return Material(
       child: Padding(
@@ -176,33 +145,19 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cabeçalho do painel
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Adicionar / Remover Métodos',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
+                Text('Adicionar / Remover Métodos', style: Theme.of(context).textTheme.headlineSmall),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
               ],
             ),
             const Divider(height: 32),
-            // Conteúdo com scroll
-            Expanded(
-              child: _buildWizardContent(), // Reutilizamos a lista!
-            ),
+            Expanded(child: _buildWizardContent()),
             const Divider(height: 32),
-            // Rodapé com o botão de salvar
             SizedBox(
               width: double.infinity,
-              child: AppPrimaryButton(
-                onPressed: _isLoading ? null : save,
-                label: 'Salvar Alterações',
-              ),
+              child: AppPrimaryButton(onPressed: _isLoading ? null : save, label: 'Salvar Alterações'),
             ),
           ],
         ),
@@ -210,29 +165,23 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
     );
   }
 
-
-  // MÉTODO PARA A PÁGINA COMPLETA (MODO NORMAL)
   Widget _buildStandalonePage() {
     return Scaffold(
       appBar: AppBar(title: const Text('Configurar Formas de Pagamento')),
       body: _buildWizardContent(),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: AppPrimaryButton(
-          onPressed: _isLoading ? null : save, // Chama o método público 'save'
-          label: 'Salvar Alterações',
-        ),
+        child: AppPrimaryButton(onPressed: _isLoading ? null : save, label: 'Salvar Alterações'),
       ),
     );
   }
 
-  // MÉTODO PARA O CONTEÚDO DO FORMULÁRIO (REUTILIZADO)
   Widget _buildWizardContent() {
     if (_isLoading) return const Center(child: DotLoading());
     if (_error != null) return Center(child: Text('Erro: $_error'));
 
     return ListView.builder(
-      padding:  EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isMobile(context) ? 8 : 24.0),
+      padding: EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isMobile(context) ? 8 : 24.0),
       itemCount: _paymentGroups.length,
       itemBuilder: (context, index) {
         final group = _paymentGroups[index];
@@ -244,4 +193,3 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
     );
   }
 }
-

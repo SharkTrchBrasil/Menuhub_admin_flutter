@@ -7,6 +7,7 @@ import 'package:totem_pro_admin/pages/create_store/cubit/store_setup-state.dart'
 
 import '../../../cubits/auth_cubit.dart';
 import '../../../cubits/auth_state.dart';
+import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/page_status.dart';
 import '../../../models/segment.dart';
 import '../../../models/store/store_with_role.dart';
@@ -20,6 +21,7 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
   final SegmentRepository _segmentRepository;
   final UserRepository _userRepository;
   final AuthCubit _authCubit;
+  final StoresManagerCubit _storesManagerCubit;
 
 
   StoreSetupCubit(
@@ -27,6 +29,7 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
     this._segmentRepository,
     this._userRepository,
     this._authCubit,
+      this._storesManagerCubit,
      {
     String? initialResponsibleName, // <-- Parâmetro para o nome
   }) : super(StoreSetupState(responsibleName: initialResponsibleName ?? ''));
@@ -222,9 +225,10 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
         // ✅ SUCESSO! O tipo de `newStoreWithRole` é `StoreWithRole`.
 
         // 1. Atualiza o estado global de autenticação com o objeto completo.
-        _authCubit.addNewStore(newStoreWithRole);
+         _storesManagerCubit.addNewStore(newStoreWithRole);
 
-        final authState = _authCubit.state;
+
+            final authState = _authCubit.state;
         if (authState is AuthAuthenticated) {
           final currentUser = authState.data.user;
 

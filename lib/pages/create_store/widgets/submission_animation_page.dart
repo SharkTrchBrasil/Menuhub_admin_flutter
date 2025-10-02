@@ -195,13 +195,15 @@ class _SubmissionAnimationPageState extends State<SubmissionAnimationPage>
     );
   }
 
+
   Widget _buildActionButtons() {
     return Column(
       children: [
         FilledButton(
           onPressed: () {
             if (_newStore != null) {
-              context.go('/stores/${_newStore!.core.id}/dashboard');
+              // ✅ ALTERAÇÃO AQUI: Navega para a rota do wizard
+              context.go('/stores/${_newStore!.core.id}/setup');
             }
           },
           style: FilledButton.styleFrom(
@@ -221,15 +223,13 @@ class _SubmissionAnimationPageState extends State<SubmissionAnimationPage>
                   fontWeight: FontWeight.w600,
                 ),
               ),
-
             ],
           ),
         ),
-
-
       ],
     );
   }
+// ...
 
   Widget _buildMessageText() {
     return AnimatedSwitcher(
