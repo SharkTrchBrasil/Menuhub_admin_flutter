@@ -51,10 +51,11 @@ class AppImageFormFieldBanner extends StatelessWidget {
           final double effectiveHeight = maxAvailableWidth / desiredAspectRatio;
 
           // Altura mínima quando não há imagem (reduzida para evitar overflow)
-          final double emptyStateHeight = effectiveHeight * 0.5;
+          final double emptyStateHeight = 120.0; // Altura fixa mínima
 
           return Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 decoration: BoxDecoration(
@@ -96,7 +97,7 @@ class AppImageFormFieldBanner extends StatelessWidget {
                     width: maxAvailableWidth,
                     height: state.value == null ? emptyStateHeight : effectiveHeight,
                     child: state.value == null
-                        ? _buildEmptyState(context)
+                        ? _buildEmptyState(context, emptyStateHeight)
                         : _buildImage(state.value!, maxAvailableWidth, effectiveHeight, context),
                   ),
                 ),
@@ -119,19 +120,27 @@ class AppImageFormFieldBanner extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.add_a_photo, size: 48),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-        ],
+  Widget _buildEmptyState(BuildContext context, double containerHeight) {
+    return Container(
+      height: containerHeight,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Importante: tamanho mínimo
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add_a_photo, size: 32), // Ícone menor
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 14, // Texto menor
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2, // Limita a 2 linhas
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -143,38 +152,82 @@ class AppImageFormFieldBanner extends StatelessWidget {
           future: model.file!.readAsBytes(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
-              return Image.memory(
-                snapshot.data!,
-                width: width,
-                height: height,
-                fit: BoxFit.cover,
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(
+                  snapshot.data!,
+                  width: width,
+                  height: height,
+                  fit: BoxFit.cover,
+                ),
               );
             } else if (snapshot.hasError) {
-              return const Icon(Icons.error_outline, size: 48, color: Colors.red);
+              return _buildErrorState(context, height);
             }
-            return const CircularProgressIndicator();
+            return _buildLoadingState(height);
           },
         );
       } else {
-        return Image.file(
-          File(model.file!.path),
-          width: width,
-          height: height,
-          fit: BoxFit.cover,
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(
+            File(model.file!.path),
+            width: width,
+            height: height,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildErrorState(context, height),
+          ),
         );
       }
     } else if (model.url != null && model.url!.isNotEmpty && Uri.tryParse(model.url!)?.hasAbsolutePath == true) {
-      return Image.network(
-        model.url!,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return const Icon(Icons.broken_image, size: 48);
-        },
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          model.url!,
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _buildLoadingState(height);
+          },
+          errorBuilder: (context, error, stackTrace) => _buildErrorState(context, height),
+        ),
       );
     }
 
-    return _buildEmptyState(context);
+    return _buildEmptyState(context, height);
+  }
+
+  Widget _buildLoadingState(double height) {
+    return Container(
+      height: height,
+      color: Colors.grey[200],
+      child: const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, double height) {
+    return Container(
+      height: height,
+      color: Colors.grey[200],
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 32, color: Colors.red),
+            const SizedBox(height: 8),
+            Text(
+              'Erro ao carregar imagem',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.red,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

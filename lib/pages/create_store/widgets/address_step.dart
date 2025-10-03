@@ -18,9 +18,9 @@ class AddressStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<StoreSetupCubit, StoreSetupState>(
+    return BlocBuilder<CreateStoreCubit, CreateStoreState>(
       builder: (context, state) {
-        final cubit = context.read<StoreSetupCubit>();
+        final cubit = context.read<CreateStoreCubit>();
         final status = state.zipCodeStatus;
 
         // Verifica se já fez alguma busca (sucesso ou erro)
@@ -108,7 +108,7 @@ class AddressStep extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorFeedback(PageStatusError status, String cep, StoreSetupCubit cubit) {
+  Widget _buildErrorFeedback(PageStatusError status, String cep, CreateStoreCubit cubit) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -185,8 +185,8 @@ class AddressStep extends StatelessWidget {
     );
   }
 
-  Widget _buildAddressFields(BuildContext context, StoreSetupState state) {
-    final cubit = context.read<StoreSetupCubit>();
+  Widget _buildAddressFields(BuildContext context, CreateStoreState state) {
+    final cubit = context.read<CreateStoreCubit>();
 
     return Column(
       children: [

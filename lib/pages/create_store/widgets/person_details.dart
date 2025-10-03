@@ -14,9 +14,9 @@ class PersonDetailsStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Para ler o estado e reconstruir a tela quando ele mudar
-    final state = context.watch<StoreSetupCubit>().state;
+    final state = context.watch<CreateStoreCubit>().state;
     // Para chamar métodos do cubit sem reconstruir a tela
-    final cubit = context.read<StoreSetupCubit>();
+    final cubit = context.read<CreateStoreCubit>();
 
 
 

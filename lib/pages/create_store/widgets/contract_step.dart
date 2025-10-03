@@ -40,7 +40,7 @@ class ContractStepState extends State<ContractStep> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.read<StoreSetupCubit>().state;
+    final state = context.read<CreateStoreCubit>().state;
 
     return  SingleChildScrollView(
 

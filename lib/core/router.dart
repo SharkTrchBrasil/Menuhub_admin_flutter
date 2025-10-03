@@ -76,7 +76,8 @@ import '../pages/product_edit/edit_product_page.dart';
 import '../pages/product_flavors/flavor_wizard_page.dart';
 import '../pages/reports/reports_page.dart';
 
-import '../pages/store_wizard/store_setup_wizard_page.dart';
+import '../pages/store_wizard/cubit/store_wizard_cubit.dart';
+import '../pages/store_wizard/store_wizard_page.dart';
 import '../pages/totems/totems_page.dart';
 
 import '../pages/variants/edit_variants.dart';
@@ -197,10 +198,10 @@ class AppRouter {
 
           if (activeStore != null &&
               !activeStore.core.isSetupComplete &&
-              !location.contains('/setup') &&
+              !location.contains('/wizard') &&
               !isGoingToCreateStore) { // <-- NÃO redirecione se ainda estamos no fluxo de criação
             debugPrint('🛠️ Store not set up, redirecting to wizard.');
-            return '/stores/${activeStore.core.id}/setup';
+            return '/stores/${activeStore.core.id}/wizard';
           }
 
 
@@ -262,10 +263,21 @@ class AppRouter {
 
 
       GoRoute(
-        path: '/stores/:storeId/setup',
+        path: '/stores/:storeId/wizard',
         builder: (context, state) {
           final storeId = int.parse(state.pathParameters['storeId']!);
-          return StoreSetupWizardPage(storeId: storeId);
+
+          // ✅ AQUI ESTÁ A MÁGICA!
+          // Usamos o BlocProvider para criar o StoreWizardCubit.
+          // Ele estará disponível para a StoreSetupWizardPage e todos os seus descendentes.
+          return BlocProvider<StoreWizardCubit>(
+            create: (context) => StoreWizardCubit(
+              storeId: storeId,
+              // Pegamos a instância global do StoresManagerCubit que já existe
+              storesManagerCubit: context.read<StoresManagerCubit>(),
+            ),
+            child: StoreSetupWizardPage(storeId: storeId),
+          );
         },
       ),
 
@@ -768,7 +780,7 @@ class AppRouter {
                             key: UniqueKey(),
                             child: OpeningHoursPage(
                               storeId: storeId,
-                              initialHours: initialHours,
+
                               // O `isInWizard: false` é o padrão, o que está correto para esta rota.
                             ),
                           );
@@ -796,7 +808,7 @@ class AppRouter {
                             NoTransitionPage(
                               key: UniqueKey(),
                               child: CityNeighborhoodPage(
-                                storeId: state.storeId,
+                                storeId: state.storeId, isInWizard: false,
                               ),
                             ),
                       ),

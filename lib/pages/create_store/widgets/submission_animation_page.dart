@@ -11,7 +11,7 @@ import '../cubit/store_setup-state.dart';
 import '../cubit/store_setup_cubit.dart';
 
 class SubmissionAnimationPage extends StatefulWidget {
-  final StoreSetupCubit storeSetupCubit;
+  final CreateStoreCubit storeSetupCubit;
   const SubmissionAnimationPage({super.key, required this.storeSetupCubit});
 
   @override
@@ -256,7 +256,7 @@ class _SubmissionAnimationPageState extends State<SubmissionAnimationPage>
       value: widget.storeSetupCubit,
       child: Scaffold(
         backgroundColor: Colors.white,
-        body: BlocListener<StoreSetupCubit, StoreSetupState>(
+        body: BlocListener<CreateStoreCubit, CreateStoreState>(
           listenWhen: (prev, current) =>
           prev.submissionStatus != current.submissionStatus,
           listener: (context, state) {

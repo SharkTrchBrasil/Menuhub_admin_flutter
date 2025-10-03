@@ -14,7 +14,7 @@ class LocationsFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+      padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
       color: Theme.of(context).scaffoldBackgroundColor, // Garante que a barra tenha fundo ao flutuar
       child: Row(
         children: [

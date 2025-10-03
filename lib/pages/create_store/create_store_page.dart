@@ -81,7 +81,7 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
 
 
 
-    final cubit = context.read<StoreSetupCubit>();
+    final cubit = context.read<CreateStoreCubit>();
 
 
     await cubit.submitStoreSetup();
@@ -94,7 +94,7 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
         return;
       }
 
-      final cubit = context.read<StoreSetupCubit>();
+      final cubit = context.read<CreateStoreCubit>();
       final nextStep = _getNextStep(_currentStep, cubit.state.taxIdType);
 
       setState(() {
@@ -127,7 +127,7 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
     }
   }
   void _goToPreviousStep() {
-    final cubit = context.read<StoreSetupCubit>();
+    final cubit = context.read<CreateStoreCubit>();
     final previousStep = _getPreviousStep(_currentStep, cubit.state.taxIdType);
 
     setState(() {
@@ -163,13 +163,13 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<StoreSetupCubit, StoreSetupState>(
+    return BlocListener<CreateStoreCubit, CreateStoreState>(
       listenWhen: (previous, current) => previous.submissionStatus != current.submissionStatus,
       listener: (context, state) {
         final status = state.submissionStatus;
         if (status is PageStatusLoading) {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => SubmissionAnimationPage(storeSetupCubit: context.read<StoreSetupCubit>())),
+            MaterialPageRoute(builder: (_) => SubmissionAnimationPage(storeSetupCubit: context.read<CreateStoreCubit>())),
           );
         }
       },
@@ -183,7 +183,7 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
 
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(8.0),
-            child: BlocBuilder<StoreSetupCubit, StoreSetupState>(
+            child: BlocBuilder<CreateStoreCubit, CreateStoreState>(
               builder: (context, state) {
                 // ✅ CORREÇÃO: Calcula dinamicamente baseado no tipo de documento
                 final totalSteps = _calculateTotalSteps(state.taxIdType);

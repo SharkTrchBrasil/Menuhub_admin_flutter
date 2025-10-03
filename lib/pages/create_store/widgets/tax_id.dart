@@ -10,7 +10,7 @@ class TaxIdStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Usamos o watch aqui para que a UI reconstrua quando a seleção mudar
-    final selectedType = context.watch<StoreSetupCubit>().state.taxIdType;
+    final selectedType = context.watch<CreateStoreCubit>().state.taxIdType;
 
     return Column(
       // O conteúdo principal é o Row com as duas opções
@@ -24,7 +24,7 @@ class TaxIdStep extends StatelessWidget {
                 icon: Icons.business_center,
                 isSelected: selectedType == TaxIdType.cnpj,
                 onTap: () {
-                  context.read<StoreSetupCubit>().setTaxIdType(TaxIdType.cnpj);
+                  context.read<CreateStoreCubit>().setTaxIdType(TaxIdType.cnpj);
                 },
               ),
             ),
@@ -37,7 +37,7 @@ class TaxIdStep extends StatelessWidget {
                 icon: Icons.person,
                 isSelected: selectedType == TaxIdType.cpf,
                 onTap: () {
-                  context.read<StoreSetupCubit>().setTaxIdType(TaxIdType.cpf);
+                  context.read<CreateStoreCubit>().setTaxIdType(TaxIdType.cpf);
                 },
               ),
             ),

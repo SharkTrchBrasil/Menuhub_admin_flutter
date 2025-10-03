@@ -25,12 +25,12 @@ class _StoreDetailsStepState extends State<StoreDetailsStep> {
   @override
   void initState() {
     super.initState();
-    final state = context.read<StoreSetupCubit>().state;
+    final state = context.read<CreateStoreCubit>().state;
     urlController = TextEditingController(text: state.storeUrl);
 
     urlController.addListener(() {
       if (urlFocusNode.hasFocus && urlController.text.isNotEmpty) {
-        context.read<StoreSetupCubit>().updateStoreDetails(
+        context.read<CreateStoreCubit>().updateStoreDetails(
           url: urlController.text,
           urlEditedManually: _urlEditedManually,
         );
@@ -61,7 +61,7 @@ class _StoreDetailsStepState extends State<StoreDetailsStep> {
   }
 
   Widget _buildUrlFeedback(BuildContext context) {
-    final state = context.watch<StoreSetupCubit>().state;
+    final state = context.watch<CreateStoreCubit>().state;
     final urlInField = urlController.text.trim();
 
     if (state.urlChecking) {
@@ -96,8 +96,8 @@ class _StoreDetailsStepState extends State<StoreDetailsStep> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<StoreSetupCubit>().state;
-    final cubit = context.read<StoreSetupCubit>();
+    final state = context.watch<CreateStoreCubit>().state;
+    final cubit = context.read<CreateStoreCubit>();
 
     if (!_urlEditedManually && state.storeUrl != urlController.text) {
       _updateUrlController(state.storeUrl);

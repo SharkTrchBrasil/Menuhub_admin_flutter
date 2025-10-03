@@ -156,8 +156,8 @@ Future<void> configureDependencies() async {
 
 
   // Adicione o registro do seu cubit
-  getIt.registerFactory<StoreSetupCubit>(
-        () => StoreSetupCubit(
+  getIt.registerFactory<CreateStoreCubit>(
+        () => CreateStoreCubit(
       getIt<StoreRepository>(),
       getIt<SegmentRepository>(),
       getIt<UserRepository>(),

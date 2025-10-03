@@ -153,8 +153,6 @@ class _OnboardingWizardPageState extends State<OnboardingWizardPage> {
             key: _hoursPageKey,
             storeId: widget.storeId,
             isInWizard: true,
-            // ✅ 4. CORRIGIDO PARA activeStore.hours
-            initialHours: activeStore.relations.hours,
           ),
           PlatformPaymentMethodsPage(
             storeId: widget.storeId,

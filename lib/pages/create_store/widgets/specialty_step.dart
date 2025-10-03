@@ -20,15 +20,15 @@ class _SpecialtyStepState extends State<SpecialtyStep> {
   @override
   void initState() {
     super.initState();
-    context.read<StoreSetupCubit>().fetchSpecialties();
+    context.read<CreateStoreCubit>().fetchSpecialties();
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<StoreSetupCubit, StoreSetupState>(
+    return BlocBuilder<CreateStoreCubit, CreateStoreState>(
       builder: (context, state) {
 
-        final cubit = context.read<StoreSetupCubit>();
+        final cubit = context.read<CreateStoreCubit>();
         final status = state.specialtiesStatus;
 
         if (status is PageStatusLoading && state.specialtiesList.isEmpty) {

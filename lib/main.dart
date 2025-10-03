@@ -74,7 +74,7 @@ class AppRoot extends StatelessWidget {
           BlocProvider(create: (context) => getIt<AuthCubit>()),
           BlocProvider(create: (context) => getIt<OrderCubit>()),
           BlocProvider(create: (context) => getIt<ActiveStoreCubit>()),
-          BlocProvider(create: (context) => getIt<StoreSetupCubit>()),
+          BlocProvider(create: (context) => getIt<CreateStoreCubit>()),
           BlocProvider(
             create: (context) => TablesCubit(realtimeRepository: getIt<RealtimeRepository>()),),
 

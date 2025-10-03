@@ -87,10 +87,10 @@ class _FullScreenMobileWrapper extends StatelessWidget {
 
           // Botão 'X' para fechar no canto superior direito
           Positioned(
-            top: 16,
+            top: 40,
             right: 16,
             child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.black54, size: 28),
+              icon: const Icon(Icons.close, color: Colors.red, size: 28),
               onPressed: () => Navigator.of(context).pop(),
               tooltip: 'Fechar',
             ),

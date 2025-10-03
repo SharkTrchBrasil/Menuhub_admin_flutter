@@ -20,31 +20,23 @@ class PaymentMethodTile extends StatelessWidget {
     final activation = method.activation;
     final bool isEnabled = activation?.isActive ?? false;
 
-    // Usamos um Card para dar um bom visual e espaçamento
+    // ✅ Usamos um Card para dar o visual da imagem de referência
     return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12), // Espaçamento entre os cards
+
       child: ListTile(
         leading: _buildPaymentIcon(method.iconKey),
         title: Text(method.name, style: const TextStyle(fontWeight: FontWeight.w500)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // O Switch para ativar/desativar
             Switch(
               value: isEnabled,
               onChanged: (newValue) {
-                final updatedActivation = activation?.copyWith(isActive: newValue) ??
-                    StorePaymentMethodActivation(
-                      id: 0,
-                      isActive: newValue,
-                      feePercentage: 0,
-                      isForDelivery: true,
-                      isForPickup: true,
-                      isForInStore: true,
-                    );
+                final currentActivation = activation ?? StorePaymentMethodActivation.empty();
+                final updatedActivation = currentActivation.copyWith(isActive: newValue);
 
                 context.read<StoresManagerCubit>().updatePaymentMethodActivation(
                   storeId: storeId,
@@ -53,19 +45,19 @@ class PaymentMethodTile extends StatelessWidget {
                 );
               },
             ),
+            // O botão de configurações (os três pontinhos da imagem)
             if (method.requiresDetails)
               IconButton(
-                icon: const Icon(Icons.settings_outlined),
+                icon: const Icon(Icons.more_vert), // Ícone de três pontinhos
                 tooltip: 'Configurar ${method.name}',
                 onPressed: () {
                   showDialog(
                     context: context,
                     builder: (_) => PaymentMethodConfigDialog(
-                      method: method, // Passa o método de pagamento específico
-                      storeId: storeId,   // E o ID da loja
+                      method: method,
+                      storeId: storeId,
                     ),
                   );
-
                 },
               ),
           ],
@@ -75,19 +67,17 @@ class PaymentMethodTile extends StatelessWidget {
   }
 
   Widget _buildPaymentIcon(String? iconKey) {
-
     if (iconKey != null && iconKey.isNotEmpty) {
       final String assetPath = 'assets/icons/$iconKey';
       return SizedBox(
-        width: 24,
-        height: 24,
+        width: 32, // Um pouco maior para destaque
+        height: 32,
         child: SvgPicture.asset(
           assetPath,
-
-          placeholderBuilder: (context) => Icon(Icons.credit_card, size: 24, ),
+          placeholderBuilder: (context) => const Icon(Icons.credit_card, size: 24),
         ),
       );
     }
-    return Icon(Icons.payment, size: 24);
+    return const Icon(Icons.payment, size: 24);
   }
 }

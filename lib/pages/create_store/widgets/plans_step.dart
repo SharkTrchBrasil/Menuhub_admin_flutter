@@ -10,7 +10,7 @@ class PlansStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<StoreSetupCubit, StoreSetupState>(
+    return BlocBuilder<CreateStoreCubit, CreateStoreState>(
       builder: (context, state) {
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),

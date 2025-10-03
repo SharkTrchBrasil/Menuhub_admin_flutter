@@ -71,7 +71,7 @@ class StoreRepository {
   }
 
   // Em store_repository.dart
-  Future<Either<Failure, StoreWithRole>> createStore(StoreSetupState setupData) async {
+  Future<Either<Failure, StoreWithRole>> createStore(CreateStoreState setupData) async {
     try {
       // 1. Converte o estado para JSON
       final jsonData = setupData.toJson();
@@ -354,6 +354,24 @@ class StoreRepository {
 
 
               ///  citys //
+  ///
+
+// ✅ NOVO MÉTODO PARA SALVAR CIDADE COM BAIRROS
+  Future<Either<Failure, StoreCity>> saveCityWithNeighborhoods(int storeId, StoreCity city) async {
+    try {
+      // Usamos o novo endpoint e enviamos o JSON completo.
+      final response = await _dio.post(
+        '/stores/$storeId/cities-with-neighborhoods',
+        data: city.toJson(), // O toJson() agora envia a estrutura completa!
+      );
+      return Right(StoreCity.fromJson(response.data));
+    } on DioException catch (e) {
+      final detail = e.response?.data?['detail'] ?? 'Não foi possível salvar os locais.';
+      return Left(Failure(detail.toString()));
+    } catch (e) {
+      return Left(Failure('Ocorreu um erro inesperado ao salvar.'));
+    }
+  }
 
   Future<Either<void, List<StoreCity>>> getCities(int storeId) async {
     try {
@@ -398,6 +416,10 @@ class StoreRepository {
       return const Left(null);
     }
   }
+
+
+  
+
 
   Future<Either<void, void>> deleteCity(int storeId, int cityId) async {
     try {
@@ -468,6 +490,9 @@ class StoreRepository {
   }
 
    // FIM ///
+
+
+
 
 
   Future<Either<void, List<StorePayable>>> getPayables(int storeId) async {

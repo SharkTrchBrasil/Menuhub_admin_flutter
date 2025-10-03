@@ -16,7 +16,7 @@ import '../../../repositories/store_repository.dart';
 import '../../../repositories/user_repository.dart';
 import '../../../services/auth_service.dart';
 
-class StoreSetupCubit extends Cubit<StoreSetupState> {
+class CreateStoreCubit extends Cubit<CreateStoreState> {
   final StoreRepository _storeRepository;
   final SegmentRepository _segmentRepository;
   final UserRepository _userRepository;
@@ -24,7 +24,7 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
   final StoresManagerCubit _storesManagerCubit;
 
 
-  StoreSetupCubit(
+  CreateStoreCubit(
     this._storeRepository,
     this._segmentRepository,
     this._userRepository,
@@ -32,7 +32,7 @@ class StoreSetupCubit extends Cubit<StoreSetupState> {
       this._storesManagerCubit,
      {
     String? initialResponsibleName, // <-- Parâmetro para o nome
-  }) : super(StoreSetupState(responsibleName: initialResponsibleName ?? ''));
+  }) : super(CreateStoreState(responsibleName: initialResponsibleName ?? ''));
 
   void updateField({
     String? cep,

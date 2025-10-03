@@ -119,7 +119,7 @@ class _StoreSetupWizardPageState extends State<StoreSetupWizardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Cor de fundo suave
+
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -129,7 +129,7 @@ class _StoreSetupWizardPageState extends State<StoreSetupWizardPage> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(8.0),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
             child: SegmentedProgressBar(
               totalSteps: StoreConfigStep.values.length,
               currentStep: _currentStep.index + 1,
@@ -140,16 +140,12 @@ class _StoreSetupWizardPageState extends State<StoreSetupWizardPage> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth > 800;
-          Widget wizardCard = WizardStepLayout(
-            largeTitle: _largeTitles[_currentStep]!,
-            description: _descriptions[_currentStep]!,
-            sectionTitle: _sections[_currentStep]!,
-            child: _buildStepContent(),
-          );
-
-          return isDesktop
-              ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 700), child: wizardCard))
-              : wizardCard;
+             return isDesktop
+              ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 800), child: _buildStepContent()))
+              : Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14.0),
+                child: _buildStepContent(),
+              );
         },
       ),
       bottomNavigationBar: Container(
@@ -160,29 +156,29 @@ class _StoreSetupWizardPageState extends State<StoreSetupWizardPage> {
           right: 24.0,
           top: 12.0,
         ),
-        child: SafeArea(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (_currentStep != StoreConfigStep.paymentMethods)
-                Flexible(
-                  child: DsButton(
-                    style: DsButtonStyle.secondary,
-                    onPressed: _isLoading ? null : _goToPreviousStep,
-                    label: 'Voltar',
-                  ),
-                ),
-              if (_currentStep != StoreConfigStep.paymentMethods)
-                const SizedBox(width: 16),
+        child: Row(
+          mainAxisAlignment: _currentStep == StoreConfigStep.paymentMethods
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.spaceBetween,
+          children: [
+            if (_currentStep != StoreConfigStep.paymentMethods)
               Flexible(
                 child: DsButton(
-                  isLoading: _isLoading,
-                  onPressed: _isLoading ? null : _goToNextStep,
-                  label: _currentStep == StoreConfigStep.menu ? 'IR PARA O PAINEL' : 'Continuar',
+                  style: DsButtonStyle.secondary,
+                  onPressed: _isLoading ? null : _goToPreviousStep,
+                  label: 'Voltar',
                 ),
               ),
-            ],
-          ),
+            if (_currentStep != StoreConfigStep.paymentMethods)
+              const SizedBox(width: 16),
+            Flexible(
+              child: DsButton(
+                isLoading: _isLoading,
+                onPressed: _isLoading ? null : _goToNextStep,
+                label: _currentStep == StoreConfigStep.menu ? 'IR PARA O PAINEL' : 'Continuar',
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -194,9 +190,9 @@ class _StoreSetupWizardPageState extends State<StoreSetupWizardPage> {
       case StoreConfigStep.paymentMethods:
         return PaymentMethodsPage(storeId: widget.storeId);
       case StoreConfigStep.deliveryArea:
-        return CityNeighborhoodPage(storeId: widget.storeId);
+        return CityNeighborhoodPage(storeId: widget.storeId, isInWizard: true,);
       case StoreConfigStep.openingHours:
-        return OpeningHoursPage(key: _hoursKey, storeId: widget.storeId, isInWizard: true, initialHours: [],);
+        return OpeningHoursPage(key: _hoursKey, storeId: widget.storeId, isInWizard: true,);
       case StoreConfigStep.profile:
         return StoreProfilePage(key: _profileKey, storeId: widget.storeId, isInWizard: true);
       case StoreConfigStep.menu:

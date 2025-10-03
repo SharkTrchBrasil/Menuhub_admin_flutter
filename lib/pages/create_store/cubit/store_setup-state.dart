@@ -7,7 +7,7 @@ import '../../../models/segment.dart';
 
 enum TaxIdType { none, cnpj, cpf }
 
-class StoreSetupState extends Equatable {
+class CreateStoreState extends Equatable {
   final String cep;
   final String street;
   final String number;
@@ -41,7 +41,7 @@ class StoreSetupState extends Equatable {
 
 
 
-  const StoreSetupState({
+  const CreateStoreState({
     this.cep = '',
     this.street = '',
     this.number = '',
@@ -74,7 +74,7 @@ class StoreSetupState extends Equatable {
         specialtiesList = specialtiesList ?? const [],
         specialtiesStatus = specialtiesStatus ?? const PageStatusIdle();
 
-  StoreSetupState copyWith({
+  CreateStoreState copyWith({
     String? cep,
     String? street,
     String? number,
@@ -106,7 +106,7 @@ class StoreSetupState extends Equatable {
     PageStatus? plansStatus,
     PageStatus? submissionStatus
   }) {
-    return StoreSetupState(
+    return CreateStoreState(
       cep: cep ?? this.cep,
       street: street ?? this.street,
       number: number ?? this.number,

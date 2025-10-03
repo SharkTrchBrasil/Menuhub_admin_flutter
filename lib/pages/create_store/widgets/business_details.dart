@@ -22,15 +22,15 @@ class _BusinessDetailsStepState extends State<BusinessDetailsStep> {
   void initState() {
     super.initState();
     // 2. Chama o método para buscar as especialidades assim que a tela é construída
-    context.read<StoreSetupCubit>().fetchSpecialties();
+    context.read<CreateStoreCubit>().fetchSpecialties();
   }
 
   @override
   Widget build(BuildContext context) {
     // 3. Usa o BlocBuilder para reconstruir a UI com base no estado
-    return BlocBuilder<StoreSetupCubit, StoreSetupState>(
+    return BlocBuilder<CreateStoreCubit, CreateStoreState>(
       builder: (context, state) {
-        final cubit = context.read<StoreSetupCubit>();
+        final cubit = context.read<CreateStoreCubit>();
 
         return Form(
           key: widget.formKey,

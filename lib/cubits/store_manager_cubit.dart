@@ -26,11 +26,16 @@ import '../models/products/product.dart';
 import '../models/products/product_analytics_data.dart';
 import '../models/store/store.dart';
 
+import '../models/store/store_city.dart';
+import '../models/store/store_hour.dart';
 import '../models/subscription.dart';
 import '../models/table.dart';
 import '../models/variant.dart';
+import '../pages/edit_settings/hours/widgets/add_shift_dialog.dart';
+import '../pages/edit_settings/hours/widgets/edit_shift_dialog.dart';
 import '../repositories/payment_method_repository.dart';
 import '../repositories/product_repository.dart';
+import '../widgets/app_toasts.dart' as AppToasts;
 import 'auth_cubit.dart';
 
 class StoresManagerCubit extends Cubit<StoresManagerState> {
@@ -975,7 +980,130 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
+  /// Adiciona novos turnos de horário para uma loja específica.
+  Future<void> addHours(int storeId, AddShiftResult result) async {
+    if (state is! StoresManagerLoaded) return;
 
+    final currentStore = (state as StoresManagerLoaded).stores[storeId]?.store;
+    if (currentStore == null) return;
+
+    final List<StoreHour> currentHours = List.from(currentStore.relations.hours);
+
+    for (final day in result.selectedDays) {
+      currentHours.add(StoreHour(
+        dayOfWeek: day,
+        openingTime: result.openingTime,
+        closingTime: result.closingTime,
+        isActive: true,
+      ));
+    }
+
+    await _updateAndPersistHours(storeId, currentHours, currentStore);
+  }
+
+  /// Remove um turno de horário de uma loja específica.
+  Future<void> removeHour(int storeId, StoreHour hourToRemove) async {
+    if (state is! StoresManagerLoaded) return;
+
+    final currentStore = (state as StoresManagerLoaded).stores[storeId]?.store;
+    if (currentStore == null) return;
+
+    final List<StoreHour> updatedHours = currentStore.relations.hours
+        .where((h) => h.dayOfWeek != hourToRemove.dayOfWeek || h.openingTime != hourToRemove.openingTime || h.closingTime != hourToRemove.closingTime)
+        .toList();
+
+    await _updateAndPersistHours(storeId, updatedHours, currentStore);
+  }
+
+  /// Atualiza um turno de horário existente em uma loja específica.
+  Future<void> updateHour(int storeId, StoreHour oldHour, EditShiftResult result) async {
+    if (state is! StoresManagerLoaded) return;
+
+    final currentStore = (state as StoresManagerLoaded).stores[storeId]?.store;
+    if (currentStore == null) return;
+
+    final List<StoreHour> updatedHours = currentStore.relations.hours.map((h) {
+      // Usamos uma comparação mais robusta para encontrar o turno certo
+      if (h.dayOfWeek == oldHour.dayOfWeek && h.openingTime == oldHour.openingTime && h.closingTime == oldHour.closingTime) {
+        return h.copyWith(
+          openingTime: result.openingTime,
+          closingTime: result.closingTime,
+        );
+      }
+      return h;
+    }).toList();
+
+    await _updateAndPersistHours(storeId, updatedHours, currentStore);
+  }
+
+  /// Método privado para centralizar a lógica de atualização de horários.
+  Future<void> _updateAndPersistHours(int storeId, List<StoreHour> updatedHours, Store currentStore) async {
+    // 1. Atualização Otimista: a UI é atualizada imediatamente.
+    _updateActiveStore((currentState, activeStore) {
+      final newRelations = currentStore.relations.copyWith(hours: updatedHours);
+      final newStore = currentStore.copyWith(relations: newRelations);
+      return activeStore.copyWith(store: newStore);
+    });
+
+    // 2. Persistência: salva os dados na API em segundo plano.
+    final repoResult = await _storeRepository.updateHours(storeId, updatedHours);
+
+    repoResult.fold(
+          (failure) {
+        // Em caso de erro, reverte para o estado anterior e mostra um aviso.
+        _updateActiveStore((_, activeStore) => activeStore.copyWith(store: currentStore));
+        AppToasts.showError("Falha ao salvar horários: ${failure.toString()}");
+      },
+          (_) {
+        // Em caso de sucesso, o estado já está atualizado. Apenas mostramos a confirmação.
+        AppToasts.showSuccess('Horários salvos com sucesso!');
+        // Opcional: pode-se forçar uma nova busca do backend para garantir 100% de consistência.
+        // _realtimeRepository.joinStoreRoom(storeId);
+      },
+    );
+  }
+
+  // ✅ MÉTODO CORRIGIDO E ALINHADO COM A ARQUITETURA DO CUBIT
+  Future<bool> saveCityWithNeighborhoods(int storeId, StoreCity city) async {
+    final result = await _storeRepository.saveCityWithNeighborhoods(storeId, city);
+
+    return result.fold(
+          (failure) {
+        // Em caso de falha, apenas mostramos o erro. O estado não é alterado.
+        AppToasts.showError(failure.message);
+        log('❌ [CUBIT] Falha ao salvar cidade e bairros: ${failure.message}');
+        return false;
+      },
+          (savedCity) {
+        // Em caso de sucesso, mostramos a confirmação.
+        // O estado será atualizado automaticamente pelo evento de socket 'store_updated'.
+        AppToasts.showSuccess('Locais de entrega salvos com sucesso!');
+        log('✅ [CUBIT] Cidade e bairros salvos. ID: ${savedCity.id}. Aguardando atualização via socket.');
+        return true;
+      },
+    );
+  }
+
+
+
+  // ✅ NOVO MÉTODO SÍNCRONO PARA BUSCAR A CIDADE NO ESTADO ATUAL
+  // Este método não faz chamadas de rede.
+  StoreCity? getCityFromState(int cityId) {
+    final currentState = state;
+    if (currentState is! StoresManagerLoaded) {
+      log('⚠️ [CUBIT] Tentativa de buscar cidade do estado, mas o estado não está carregado.');
+      return null;
+    }
+
+    try {
+      // Busca a cidade na lista de cidades da loja ativa que já está em memória.
+      return currentState.activeStore?.relations.cities?.firstWhere((c) => c.id == cityId);
+    } catch (e) {
+      // Ocorre se 'firstWhere' não encontrar a cidade na lista.
+      log('❌ [CUBIT] Erro: Cidade com ID $cityId não foi encontrada no estado atual.');
+      return null;
+    }
+  }
 
 
 

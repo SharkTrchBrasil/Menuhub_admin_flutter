@@ -4,6 +4,7 @@ import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import '../../core/responsive_builder.dart';
 import '../../models/payment_method.dart';
+import '../../widgets/ds_primary_button.dart';
 import 'widgets/payment_method_group_section.dart';
 import '../../widgets/app_primary_button.dart';
 
@@ -60,19 +61,16 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
     );
   }
 
-  // ✅ ================== MÉTODO 'save' CORRIGIDO ==================
   Future<void> save() async {
     setState(() { _isLoading = true; });
 
     final List<Future> updateFutures = [];
 
-    // Loop simplificado: iteramos sobre os grupos e diretamente sobre seus métodos.
     for (int i = 0; i < _paymentGroups.length; i++) {
       for (int j = 0; j < _paymentGroups[i].methods.length; j++) {
         final currentMethod = _paymentGroups[i].methods[j];
         final initialMethod = _initialPaymentGroups[i].methods[j];
 
-        // Compara a ativação do método atual com o inicial
         if (currentMethod.activation?.isActive != initialMethod.activation?.isActive) {
           updateFutures.add(
             paymentRepository.updateActivation(
@@ -105,14 +103,11 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
       }
     }
   }
-  // ================== FIM DA CORREÇÃO ==================
 
-  // ✅ ================== MÉTODO '_handleActivationChange' CORRIGIDO ==================
   void _handleActivationChange(PlatformPaymentMethod method, bool newValue) {
     setState(() {
       _paymentGroups = _paymentGroups.map((group) {
         return group.copyWith(
-          // Mapeamos diretamente os métodos do grupo.
           methods: group.methods.map((m) {
             if (m.id == method.id) {
               final activationToUpdate = m.activation ?? StorePaymentMethodActivation.empty();
@@ -126,7 +121,6 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
       }).toList();
     });
   }
-  // ================== FIM DA CORREÇÃO ==================
 
   @override
   Widget build(BuildContext context) {
@@ -139,55 +133,128 @@ class PlatformPaymentMethodsPageState extends State<PlatformPaymentMethodsPage> 
   }
 
   Widget _buildSidePanelLayout() {
-    return Material(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Adicionar / Remover Métodos', style: Theme.of(context).textTheme.headlineSmall),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
-              ],
-            ),
-            const Divider(height: 32),
-            Expanded(child: _buildWizardContent()),
-            const Divider(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: AppPrimaryButton(onPressed: _isLoading ? null : save, label: 'Salvar Alterações'),
-            ),
-          ],
+    return Scaffold(
+      appBar: AppBar(automaticallyImplyLeading: false,
+
+        title:  Text(
+          'Configurar Formas de Pagamento',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
+
+
+      ),
+
+      body: Column(
+        children: [
+          // Header fixo com título e botão fechar
+
+
+          // Conteúdo com scroll
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _buildWizardContent(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: AppPrimaryButton(
+                        onPressed: _isLoading ? null : save,
+                        label: 'Salvar Alterações'
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildStandalonePage() {
     return Scaffold(
-      appBar: AppBar(title: const Text('Configurar Formas de Pagamento')),
+      appBar: AppBar(
+        title: const Text('Configurar Formas de Pagamento'),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        foregroundColor: Theme.of(context).colorScheme.onBackground,
+      ),
       body: _buildWizardContent(),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: AppPrimaryButton(onPressed: _isLoading ? null : save, label: 'Salvar Alterações'),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: DsButton(
+              onPressed: _isLoading ? null : save,
+              isLoading: _isLoading,
+              label: 'Salvar Alterações'
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildWizardContent() {
-    if (_isLoading) return const Center(child: DotLoading());
-    if (_error != null) return Center(child: Text('Erro: $_error'));
+    if (_isLoading) {
+      return const Center(child: DotLoading());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Erro ao carregar métodos de pagamento',
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton(
+                onPressed: _fetchPaymentMethods,
+                child: const Text('Tentar Novamente'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isMobile(context) ? 8 : 24.0),
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveBuilder.isMobile(context) ? 8 : 24.0,
+        vertical: 16.0,
+      ),
       itemCount: _paymentGroups.length,
       itemBuilder: (context, index) {
         final group = _paymentGroups[index];
-        return PaymentMethodGroupSection(
-          group: group,
-          onActivationChanged: _handleActivationChange,
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16.0),
+          child: PaymentMethodGroupSection(
+            group: group,
+            onActivationChanged: _handleActivationChange,
+          ),
         );
       },
     );
