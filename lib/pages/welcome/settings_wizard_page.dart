@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/di.dart';
 import '../../core/responsive_builder.dart';
 import '../../cubits/store_manager_cubit.dart';
 import '../../cubits/store_manager_state.dart';
+import '../../repositories/store_repository.dart';
 
 import '../edit_settings/general/store_profile_page.dart';
 import '../edit_settings/hours/hours_store_page.dart';
@@ -31,6 +33,7 @@ class _OnboardingWizardPageState extends State<OnboardingWizardPage> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
   bool _isSaving = false; // ✅ 3. VARIÁVEL DE ESTADO ADICIONADA
+  bool _isLoadingStoreData = true; // ✅ NOVO: Flag para controlar carregamento de dados
 
   // ✅ 1. REATIVE A KEY DO PRODUTO
   final _profilePageKey = GlobalKey<StoreProfilePageState>();
@@ -50,6 +53,34 @@ class _OnboardingWizardPageState extends State<OnboardingWizardPage> {
       'Formas de Pagamento',
       'Cadastre um Produto',
     ];
+    // ✅ NOVO: Carregar dados da loja quando o wizard abre
+    _loadStoreData();
+  }
+
+  // ✅ NOVO: Método para garantir que temos os dados mais recentes da loja
+  Future<void> _loadStoreData() async {
+    final storeRepository = getIt<StoreRepository>();
+    final cubit = context.read<StoresManagerCubit>();
+    
+    // Buscar os dados completos da loja do backend
+    final result = await storeRepository.fetchStore(widget.storeId);
+    
+    result.fold(
+      (error) {
+        // Em caso de erro, apenas prosseguir com os dados que já temos no cubit
+        print('Aviso: Não foi possível recarregar dados da loja: $error');
+        if (mounted) {
+          setState(() => _isLoadingStoreData = false);
+        }
+      },
+      (store) {
+        // Atualizar o cubit com os dados completos da loja
+        cubit.updateStoreInState(widget.storeId, store);
+        if (mounted) {
+          setState(() => _isLoadingStoreData = false);
+        }
+      },
+    );
   }
 
   @override
@@ -137,7 +168,8 @@ class _OnboardingWizardPageState extends State<OnboardingWizardPage> {
   Widget build(BuildContext context) {
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, state) {
-        if (state is! StoresManagerLoaded || state.activeStore == null) {
+        // Mostrar loading enquanto carrega dados da loja ou se o estado não está pronto
+        if (_isLoadingStoreData || state is! StoresManagerLoaded || state.activeStore == null) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         final activeStore = state.activeStore!;

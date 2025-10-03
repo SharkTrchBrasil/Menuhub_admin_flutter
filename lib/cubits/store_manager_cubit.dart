@@ -1125,6 +1125,26 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   }
 
 
+  // ✅ NOVO: Atualiza os dados de uma loja específica no estado
+  void updateStoreInState(int storeId, Store updatedStore) {
+    final currentState = state;
+    if (currentState is StoresManagerLoaded) {
+      final storeWithRole = currentState.stores[storeId];
+      if (storeWithRole != null) {
+        // Usar copyWith para manter role e isConsolidated, apenas atualizar store
+        final updatedStoreWithRole = storeWithRole.copyWith(store: updatedStore);
+        
+        // Criar um novo mapa de stores com a loja atualizada
+        final updatedStores = Map<int, StoreWithRole>.from(currentState.stores);
+        updatedStores[storeId] = updatedStoreWithRole;
+        
+        // Emitir novo estado com as lojas atualizadas
+        emit(currentState.copyWith(stores: updatedStores));
+        log('[StoresManagerCubit] Store $storeId atualizada no estado com dados completos.');
+      }
+    }
+  }
+
   void resetState() {
     log('[StoresManagerCubit] Resetando estado e cancelando listeners...');
     _cancelSubscriptions();
