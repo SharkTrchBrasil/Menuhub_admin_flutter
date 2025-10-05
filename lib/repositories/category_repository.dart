@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:image_picker/image_picker.dart';
 import 'package:totem_pro_admin/models/category.dart';
 
 import '../models/option_group.dart';
@@ -12,10 +13,8 @@ class CategoryRepository {
   final Dio _dio;
 
   // Este método é para CRIAR (POST)
-  Future<Either<String, Category>> createCategory(
-    int storeId,
-    Category category,
-  ) async {
+  Future<Either<String, Category>> createCategory(int storeId,
+      Category category,) async {
     try {
       final response = await _dio.post(
         '/stores/$storeId/categories',
@@ -28,10 +27,8 @@ class CategoryRepository {
   }
 
   // Este método é para ATUALIZAR (PATCH)
-  Future<Either<String, Category>> updateCategory(
-    int storeId,
-    Category category,
-  ) async {
+  Future<Either<String, Category>> updateCategory(int storeId,
+      Category category,) async {
     try {
       final response = await _dio.patch(
         '/stores/$storeId/categories/${category.id}',
@@ -42,6 +39,7 @@ class CategoryRepository {
       return Left("Falha ao atualizar categoria.");
     }
   }
+
 
   Future<Either<String, List<Category>>> getCategories(int storeId) async {
     try {
@@ -108,6 +106,30 @@ class CategoryRepository {
     } catch (e) {
       debugPrint('$e');
       return Left("Falha ao criar item de opção.");
+    }
+  }
+
+  // ✅ VERSÃO FINAL E CORRETA DO MÉTODO DE UPLOAD
+  Future<Either<String, void>> uploadOptionItemImage({
+    required int itemId,
+    required XFile imageFile,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'image_file': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.name,
+        ),
+      });
+
+      // ✅ URL CORRIGIDA: Aponta para o endpoint aninhado, sem /stores/
+      await _dio.post(
+        '/option-items/$itemId/image',
+        data: formData,
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left("Falha ao enviar imagem do item.");
     }
   }
 }

@@ -257,7 +257,7 @@ class _ProductListItemMobileState extends State<ProductListItemMobile> {
     }
   }
 
-// Em product_list_item_desktop.dart
+
 
   Widget _buildDefaultImage(bool isAvailable) {
     // ✅ LÓGICA CORRIGIDA AQUI

@@ -100,7 +100,7 @@ class _CustomizableCategoryDetailsScreenState extends State<CustomizableCategory
         return Scaffold(
           appBar: AppBar(
             automaticallyImplyLeading: false, // Remove a seta de voltar padrão da AppBar
-            elevation: 1,
+            elevation: 0,
             backgroundColor: Colors.white,
             flexibleSpace: Column(
               children: [

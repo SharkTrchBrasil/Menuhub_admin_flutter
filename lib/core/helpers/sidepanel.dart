@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-/// Exibe um painel de forma responsiva.
+/// Exibe um painel de forma responsiva e retorna um valor quando fechado.
 /// - Em telas largas (desktop), mostra um painel lateral deslizando da direita.
 /// - Em telas estreitas (mobile), mostra um modal de tela cheia deslizando de baixo.
-void showResponsiveSidePanel(BuildContext context, Widget panel) {
-  // Pega a largura da tela para decidir qual layout usar
+Future<T?> showResponsiveSidePanel<T>(BuildContext context, Widget panel) {
   final screenWidth = MediaQuery.of(context).size.width;
-  const double mobileBreakpoint = 700.0; // Ponto de quebra entre os layouts
+  const double mobileBreakpoint = 700.0;
   final bool isMobile = screenWidth < mobileBreakpoint;
 
-  Navigator.of(context).push(
+  return Navigator.of(context).push<T>(
     PageRouteBuilder(
       opaque: false,
       barrierColor: Colors.black.withOpacity(0.5),
@@ -18,16 +18,13 @@ void showResponsiveSidePanel(BuildContext context, Widget panel) {
 
       pageBuilder: (context, animation, secondaryAnimation) {
         if (isMobile) {
-          // No mobile, envolve o painel com o wrapper de tela cheia
           return _FullScreenMobileWrapper(child: panel);
         } else {
-          // No desktop, usa o container de painel lateral
           return _SidePanelContainer(child: panel);
         }
       },
 
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        // Define a animação com base no tipo de dispositivo
         final begin = isMobile ? const Offset(0.0, 1.0) : const Offset(1.0, 0.0);
         const end = Offset.zero;
         final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.easeOutCubic));
@@ -41,27 +38,59 @@ void showResponsiveSidePanel(BuildContext context, Widget panel) {
   );
 }
 
-
 /// Helper para o layout de PAINEL LATERAL (Desktop)
 class _SidePanelContainer extends StatelessWidget {
   final Widget child;
-  final double width;
 
   const _SidePanelContainer({
     required this.child,
-    this.width = 450, // Largura padrão do painel
   });
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Calcula a largura como 50% da tela, com limites mínimos e máximos
+    double calculatedWidth = screenWidth * 0.5;
+    const double minWidth = 400.0;
+    const double maxWidth = 800.0;
+    double width = calculatedWidth.clamp(minWidth, maxWidth);
+
     return Align(
       alignment: Alignment.centerRight,
       child: Material(
         elevation: 16.0,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(12),
+          bottomLeft: Radius.circular(12),
+        ),
         child: SizedBox(
           width: width,
           height: double.infinity,
-          child: child,
+          child: Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              automaticallyImplyLeading: false, // Remove a seta de voltar
+              title: const Text(
+                'Editar',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close, size: 24),
+                  onPressed: () => Navigator.of(context).pop(),
+                  tooltip: 'Fechar',
+                ),
+              ],
+              elevation: 0,
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+            ),
+            body: child, // Conteúdo passado como parâmetro
+          ),
         ),
       ),
     );
@@ -76,26 +105,30 @@ class _FullScreenMobileWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white, // Fundo branco padrão para o painel
-      body: Stack(
-        children: [
-          // O seu painel ocupa todo o espaço
-          Positioned.fill(
-            child: child,
-          ),
-
-          // Botão 'X' para fechar no canto superior direito
-          Positioned(
-            top: 40,
-            right: 16,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.red, size: 28),
-              onPressed: () => Navigator.of(context).pop(),
-              tooltip: 'Fechar',
+    return Material(
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          automaticallyImplyLeading: false, // Remove a seta de voltar
+          title: const Text(
+            '',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
             ),
           ),
-        ],
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.close, size: 24, color: Colors.red,),
+              onPressed: () => context.pop(),
+              tooltip: 'Fechar',
+            ),
+          ],
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+        body: child, // Conteúdo passado como parâmetro
       ),
     );
   }

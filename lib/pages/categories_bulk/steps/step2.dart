@@ -11,7 +11,7 @@ import '../cubit/bulk_category_state.dart';
 // =========================================================================
 // ✅ PASSO 1: CRIAR O MIXIN COM TODA A LÓGICA DE ESTADO
 // =========================================================================
-// Em: steps_bulk_category/step2.dart
+// Em: steps/step2.dart
 
 // =========================================================================
 // ✅ MIXIN COM A LÓGICA FINAL E CORRIGIDA

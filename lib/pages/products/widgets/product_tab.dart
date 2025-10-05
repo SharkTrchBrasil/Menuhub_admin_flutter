@@ -13,7 +13,7 @@ import '../../../core/responsive_builder.dart';
 import '../../../models/products/product.dart';
 import '../../../widgets/fixed_header.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
-import '../../categories/BulkCategoryPage.dart';
+import '../../categories_bulk/BulkCategoryPage.dart';
 import '../cubit/products_cubit.dart';
 
 

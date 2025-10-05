@@ -11,13 +11,13 @@ import 'dart:developer';
 import 'package:totem_pro_admin/constdata/typography.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-import 'package:totem_pro_admin/models/image_model.dart'; // ✅ 1. IMPORTAR ImageModel
+import 'package:totem_pro_admin/models/image_model.dart';
 import 'package:totem_pro_admin/models/store/store.dart';
-import 'package:totem_pro_admin/models/store/store_media.dart'; // ✅ 2. IMPORTAR StoreMedia
+import 'package:totem_pro_admin/models/store/store_media.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/widgets/app_image_form_field_banner.dart'; // ✅ 3. IMPORTAR WIDGETS DE IMAGEM
+import 'package:totem_pro_admin/widgets/app_image_form_field_banner.dart';
 import 'package:totem_pro_admin/widgets/app_image_form_field_logo.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 import 'package:totem_pro_admin/core/helpers/mask.dart';
@@ -44,6 +44,9 @@ class StoreProfilePage extends StatefulWidget {
 class StoreProfilePageState extends State<StoreProfilePage> {
   final StoreRepository storeRepository = getIt();
   final formKey = GlobalKey<FormState>();
+
+  // ✅ 1. ADICIONADO _originalStore PARA GUARDAR O ESTADO INICIAL
+  Store? _originalStore;
   Store? _editableStore;
   int? _storeIdForSync;
   DateTime? _dataLastSynced;
@@ -60,16 +63,28 @@ class StoreProfilePageState extends State<StoreProfilePage> {
     final currentState = context.read<StoresManagerCubit>().state;
     if (currentState is StoresManagerLoaded && currentState.activeStore != null) {
       log('📝 Inicializando UI da StoreProfilePage com dados do Cubit...');
+      // ✅ 2. GUARDA TANTO A VERSÃO ORIGINAL QUANTO A EDITÁVEL
+      _originalStore = currentState.activeStore!.copyWith();
       _editableStore = currentState.activeStore!.copyWith();
       _dataLastSynced = currentState.lastUpdate;
     }
   }
 
+
+
+
+
+  // ✅ PASSO 2: SIMPLIFICAR O MÉTODO `save`
+  // Ele não precisa mais verificar as mudanças, pois o wizard fará isso.
   Future<bool> save() async {
-    if (!(formKey.currentState?.validate() ?? false)) return false;
     if (_editableStore == null) return false;
 
-    // Salva o formulário para garantir que todos os `onSaved` sejam chamados, se houver
+    log('💾 Iniciando processo de salvamento...');
+    if (!(formKey.currentState?.validate() ?? false)) {
+      log('❌ Validação falhou.');
+      return false;
+    }
+
     formKey.currentState!.save();
 
     try {
@@ -79,8 +94,14 @@ class StoreProfilePageState extends State<StoreProfilePage> {
           const SnackBar(content: Text('Informações salvas com sucesso!'), backgroundColor: Colors.green),
         );
       }
+      // Atualiza o estado original para refletir o novo estado salvo.
+      setState(() {
+        _originalStore = _editableStore?.copyWith();
+      });
+      log('✅ Salvo com sucesso.');
       return true;
     } catch (e) {
+      log('🔥 Erro ao salvar: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red),
@@ -89,6 +110,10 @@ class StoreProfilePageState extends State<StoreProfilePage> {
       return false;
     }
   }
+
+
+
+
 
   void _onStoreChanged(Store updatedStore) {
     setState(() {
@@ -106,6 +131,8 @@ class StoreProfilePageState extends State<StoreProfilePage> {
           if (_storeIdForSync != activeStore.core.id || _dataLastSynced != state.lastUpdate) {
             log('🔄 Sincronizando UI da StoreProfilePage com dados do Cubit...');
             setState(() {
+              // ✅ 4. ATUALIZA AMBOS OS ESTADOS QUANDO HÁ SINCRONIZAÇÃO EXTERNA
+              _originalStore = activeStore.copyWith();
               _editableStore = activeStore.copyWith();
               _storeIdForSync = activeStore.core.id;
               _dataLastSynced = state.lastUpdate;
@@ -119,6 +146,7 @@ class StoreProfilePageState extends State<StoreProfilePage> {
     );
   }
 
+  // O restante do arquivo permanece o mesmo...
   Widget _buildStandalonePage() {
     return Scaffold(
       body: Column(
@@ -144,81 +172,74 @@ class StoreProfilePageState extends State<StoreProfilePage> {
     return SingleChildScrollView(
       child: Form(
         key: formKey,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
 
-              const SizedBox(height: 16),
-              const FixedHeader(
-                title: 'Configurações da loja',
-                subtitle: 'Defina as informações da sua loja.',
-              ),
-              const SizedBox(height: 16),
+            const FixedHeader(
+              title: 'Configurações da loja',
+              subtitle: 'Defina as informações da sua loja.',
+            ),
+            const SizedBox(height: 16),
 
-              // SEÇÃO GERAL
-              _buildSectionHeader(
-                icon: "assets/images/user.svg",
-                title: "Informações Gerais",
-                subtitle: "Dados básicos do seu estabelecimento",
-              ),
-              const SizedBox(height: 24),
-              _buildGeneralSection(),
-              const SizedBox(height: 40),
+            // SEÇÃO GERAL
+            _buildSectionHeader(
+              icon: "assets/images/user.svg",
+              title: "Informações Gerais",
+              subtitle: "Dados básicos do seu estabelecimento",
+            ),
+            const SizedBox(height: 24),
+            _buildGeneralSection(),
+            const SizedBox(height: 40),
 
-              // ✅ NOVA SEÇÃO DE MÍDIA
-              _buildSectionHeader(
-                icon: "assets/images/fingerprint-viewfinder.svg", // Ícone de exemplo
-                title: "Mídia da Loja",
-                subtitle: "Logo e imagem de capa do seu estabelecimento",
-              ),
-              const SizedBox(height: 24),
-              _buildMediaSection(), // <-- NOSSA NOVA SEÇÃO
-              const SizedBox(height: 40),
+            _buildSectionHeader(
+              icon: "assets/images/fingerprint-viewfinder.svg",
+              title: "Mídia da Loja",
+              subtitle: "Logo e imagem de capa do seu estabelecimento",
+            ),
+            const SizedBox(height: 24),
+            _buildMediaSection(),
+            const SizedBox(height: 40),
 
-              // SEÇÃO ENDEREÇO
-              _buildSectionHeader(
-                icon: "assets/images/share.svg",
-                title: "Endereço",
-                subtitle: "Localização física da sua loja",
-              ),
-              const SizedBox(height: 24),
-              _buildAddressSection(),
-              const SizedBox(height: 40),
+            // SEÇÃO ENDEREÇO
+            _buildSectionHeader(
+              icon: "assets/images/share.svg",
+              title: "Endereço",
+              subtitle: "Localização física da sua loja",
+            ),
+            const SizedBox(height: 24),
+            _buildAddressSection(),
+            const SizedBox(height: 40),
 
-              // SEÇÃO REDES SOCIAIS
-              _buildSectionHeader(
-                icon: "assets/images/fingerprint-viewfinder.svg",
-                title: "Redes Sociais",
-                subtitle: "Conecte suas redes sociais",
-              ),
-              const SizedBox(height: 24),
-              _buildSocialMediaSection(),
+            // SEÇÃO REDES SOCIAIS
+            _buildSectionHeader(
+              icon: "assets/images/fingerprint-viewfinder.svg",
+              title: "Redes Sociais",
+              subtitle: "Conecte suas redes sociais",
+            ),
+            const SizedBox(height: 24),
+            _buildSocialMediaSection(),
 
-              // BOTÃO SALVAR
-              if (!widget.isInWizard)
-                Padding(
-                  padding: const EdgeInsets.only(top: 40, bottom: 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      AppPrimaryButton(
-                        onPressed: save,
-                        label: 'Salvar Alterações',
-                      ),
-                    ],
-                  ),
+            if (!widget.isInWizard)
+              Padding(
+                padding: const EdgeInsets.only(top: 40, bottom: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    AppPrimaryButton(
+                      onPressed: save,
+                      label: 'Salvar Alterações',
+                    ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildSectionHeader({required String icon, required String title, required String subtitle}) {
-    // ... (nenhuma mudança aqui)
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -253,14 +274,10 @@ class StoreProfilePageState extends State<StoreProfilePage> {
     );
   }
 
-  // ✅ ================================================================
-  // ✅ PASSO 4: CONSTRUIR A SEÇÃO DE MÍDIA
-  // ✅ ================================================================
   Widget _buildMediaSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- LOGO ---
         AppImageFormFieldLogo(
           title: 'Logo da Loja',
           initialValue: _editableStore!.media?.image,
@@ -272,7 +289,6 @@ class StoreProfilePageState extends State<StoreProfilePage> {
             );
           },
           validator: (imageModel) {
-            // Validação: obrigatório ter uma imagem (seja URL existente ou novo arquivo)
             if (imageModel == null || (imageModel.file == null && imageModel.url == null)) {
               return 'A logo da loja é obrigatória.';
             }
@@ -280,7 +296,6 @@ class StoreProfilePageState extends State<StoreProfilePage> {
           },
         ),
         const SizedBox(height: 24),
-        // --- BANNER ---
         AppImageFormFieldBanner(
           title: 'Banner da Loja',
           aspectRatio: 1920 / 375,
@@ -293,7 +308,6 @@ class StoreProfilePageState extends State<StoreProfilePage> {
             );
           },
           validator: (imageModel) {
-            // Banner é opcional, então não precisa de validação
             return null;
           },
         ),
@@ -303,7 +317,6 @@ class StoreProfilePageState extends State<StoreProfilePage> {
 
 
   Widget _buildGeneralSection() {
-    // ... (nenhuma mudança aqui)
     return Column(
       children: [
         AppTextField(
@@ -374,7 +387,6 @@ class StoreProfilePageState extends State<StoreProfilePage> {
   }
 
   Widget _buildAddressSection() {
-    // ... (nenhuma mudança aqui)
     return Column(
       children: [
         AppTextField(
@@ -493,7 +505,6 @@ class StoreProfilePageState extends State<StoreProfilePage> {
   }
 
   Widget _buildSocialMediaSection() {
-    // ... (NENHUMA MUDANÇA AQUI, mas note a segurança com `?.`)
     return Column(
       children: [
         AppTextField(
@@ -531,4 +542,56 @@ class StoreProfilePageState extends State<StoreProfilePage> {
       ],
     );
   }
+
+
+
+
+
+
+  // ✅✅✅ MÉTODO hasChanges ATUALIZADO PARA SER 100% CONFIÁVEL ✅✅✅
+  bool hasChanges() {
+    if (_editableStore == null || _originalStore == null) {
+      return false; // Sem dados, sem mudanças.
+    }
+
+    // Compara os campos primitivos um por um, tratando nulos.
+    // O `?.trim()` ajuda a ignorar diferenças de espaços em branco.
+    if (_editableStore?.core.name.trim() != _originalStore?.core.name.trim()) return true;
+    if (_editableStore?.core.description?.trim() != _originalStore?.core.description?.trim()) return true;
+    if (_editableStore?.core.phone?.trim() != _originalStore?.core.phone?.trim()) return true;
+
+    // Compara o endereço
+    if (_editableStore?.address?.zipCode?.trim() != _originalStore?.address?.zipCode?.trim()) return true;
+    if (_editableStore?.address?.street?.trim() != _originalStore?.address?.street?.trim()) return true;
+    if (_editableStore?.address?.number?.trim() != _originalStore?.address?.number?.trim()) return true;
+    if (_editableStore?.address?.neighborhood?.trim() != _originalStore?.address?.neighborhood?.trim()) return true;
+    if (_editableStore?.address?.complement?.trim() != _originalStore?.address?.complement?.trim()) return true;
+    if (_editableStore?.address?.city?.trim() != _originalStore?.address?.city?.trim()) return true;
+    if (_editableStore?.address?.state?.trim() != _originalStore?.address?.state?.trim()) return true;
+
+    // Compara redes sociais
+    if (_editableStore?.marketing?.instagram?.trim() != _originalStore?.marketing?.instagram?.trim()) return true;
+    if (_editableStore?.marketing?.facebook?.trim() != _originalStore?.marketing?.facebook?.trim()) return true;
+    if (_editableStore?.marketing?.tiktok?.trim() != _originalStore?.marketing?.tiktok?.trim()) return true;
+
+    // Compara as mídias (logo e banner).
+    // Compara tanto se um novo arquivo foi selecionado quanto se a URL mudou.
+    if (_editableStore?.media?.image?.file != _originalStore?.media?.image?.file ||
+        _editableStore?.media?.image?.url != _originalStore?.media?.image?.url) {
+      return true;
+    }
+    if (_editableStore?.media?.banner?.file != _originalStore?.media?.banner?.file ||
+        _editableStore?.media?.banner?.url != _originalStore?.media?.banner?.url) {
+      return true;
+    }
+
+    // Se nenhuma das verificações acima encontrou diferença, então não houve mudanças.
+    log('🔎 Detecção: NÃO houve mudanças nos campos do formulário.');
+    return false;
+  }
+
+
+
+
+
 }

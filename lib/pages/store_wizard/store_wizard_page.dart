@@ -1,181 +1,84 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/core/di.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/pages/edit_settings/citys/delivery_locations_page.dart';
-import 'package:totem_pro_admin/pages/edit_settings/hours/hours_store_page.dart';
 import 'package:totem_pro_admin/pages/edit_settings/general/store_profile_page.dart';
+import 'package:totem_pro_admin/pages/edit_settings/hours/hours_store_page.dart';
 import 'package:totem_pro_admin/pages/edit_settings/payment_methods/payment_methods_page.dart';
-import 'package:totem_pro_admin/pages/create_store/widgets/progress_bar.dart';
-import 'package:totem_pro_admin/pages/create_store/widgets/wizard_layout.dart';
-import 'package:totem_pro_admin/repositories/store_repository.dart';
-import 'package:totem_pro_admin/widgets/app_toasts.dart';
+import 'package:totem_pro_admin/pages/products/products_page.dart';
+import 'package:totem_pro_admin/pages/store_wizard/widgets/finish_step_content.dart';
+import 'package:totem_pro_admin/pages/store_wizard/widgets/progress_bar.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 
-import '../../widgets/app_toasts.dart' as AppToasts;
+import 'cubit/store_wizard_cubit.dart';
 
-// 1. Enum para os novos passos de configuração
+// ✅ ENUM ATUALIZADO
 enum StoreConfigStep {
+  profile,
   paymentMethods,
   deliveryArea,
   openingHours,
-  profile,
-  menu,
+  productCatalog,
+  finish,
 }
 
-class StoreSetupWizardPage extends StatefulWidget {
+class StoreSetupWizardPage extends StatelessWidget {
   final int storeId;
   const StoreSetupWizardPage({super.key, required this.storeId});
 
   @override
-  State<StoreSetupWizardPage> createState() => _StoreSetupWizardPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => StoreWizardCubit(
+        storeId: storeId,
+        storesManagerCubit: context.read<StoresManagerCubit>(),
+      ),
+      child: const _StoreSetupWizardView(),
+    );
+  }
 }
 
-class _StoreSetupWizardPageState extends State<StoreSetupWizardPage> {
-  StoreConfigStep _currentStep = StoreConfigStep.paymentMethods;
-  bool _isLoading = false;
+class _StoreSetupWizardView extends StatelessWidget {
+  const _StoreSetupWizardView();
 
-  // Chaves para chamar métodos `save` nas páginas filhas
-  final _profileKey = GlobalKey<StoreProfilePageState>();
-  final _hoursKey = GlobalKey<OpeningHoursPageState>();
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<StoreWizardCubit, StoreWizardState>(
+      builder: (context, state) {
+        if (state is StoreWizardLoading || state is StoreWizardInitial) {
+          return const _LoadingState();
+        }
 
-  // Dicionários com os textos para cada passo, mantendo o layout
-  final Map<StoreConfigStep, String> _largeTitles = {
-    StoreConfigStep.paymentMethods: 'Quais formas de pagamento você aceita?',
-    StoreConfigStep.deliveryArea: 'Onde você faz entregas?',
-    StoreConfigStep.openingHours: 'Qual seu horário de funcionamento?',
-    StoreConfigStep.profile: 'Complete o perfil da sua loja',
-    StoreConfigStep.menu: 'Tudo pronto para começar!',
-  };
+        if (state is StoreWizardError) {
+          return _ErrorState(message: state.message);
+        }
 
-  final Map<StoreConfigStep, String> _descriptions = {
-    StoreConfigStep.paymentMethods: 'Selecione os meios de pagamento que estarão disponíveis para seus clientes.',
-    StoreConfigStep.deliveryArea: 'Configure as cidades e bairros que você atende ou defina um raio de entrega.',
-    StoreConfigStep.openingHours: 'Informe os dias e horários em que sua loja estará aberta para receber pedidos.',
-    StoreConfigStep.profile: 'Adicione informações importantes como CNPJ, logo e banner para personalizar sua página.',
-    StoreConfigStep.menu: 'Sua loja está configurada. Agora você pode ir para o painel principal e começar a cadastrar seus produtos no cardápio.',
-  };
+        if (state is StoreWizardLoaded) {
+          return _WizardContent(state: state);
+        }
 
-  final Map<StoreConfigStep, String> _sections = {
-    StoreConfigStep.paymentMethods: 'CONFIGURAÇÃO DA LOJA',
-    StoreConfigStep.deliveryArea: 'CONFIGURAÇÃO DA LOJA',
-    StoreConfigStep.openingHours: 'CONFIGURAÇÃO DA LOJA',
-    StoreConfigStep.profile: 'CONFIGURAÇÃO DA LOJA',
-    StoreConfigStep.menu: 'CONFIGURAÇÃO DA LOJA',
-  };
-
-  Future<void> _goToNextStep() async {
-    setState(() => _isLoading = true);
-    bool canAdvance = false;
-
-    // Lógica de salvamento por passo
-    switch (_currentStep) {
-      case StoreConfigStep.profile:
-        canAdvance = await _profileKey.currentState?.save() ?? false;
-        break;
-      case StoreConfigStep.openingHours:
-        canAdvance = await _hoursKey.currentState?.save(showSuccessToast: false) ?? false;
-        break;
-      case StoreConfigStep.paymentMethods:
-      case StoreConfigStep.deliveryArea:
-      // Essas páginas salvam automaticamente, então podemos avançar
-        canAdvance = true;
-        break;
-      case StoreConfigStep.menu:
-        await _finishSetup();
-        return; // A finalização já faz a navegação
-    }
-
-    setState(() => _isLoading = false);
-
-    if (canAdvance && _currentStep != StoreConfigStep.menu) {
-      setState(() {
-        _currentStep = StoreConfigStep.values[_currentStep.index + 1];
-      });
-    }
-  }
-
-  void _goToPreviousStep() {
-    if (_currentStep.index > 0) {
-      setState(() {
-        _currentStep = StoreConfigStep.values[_currentStep.index - 1];
-      });
-    }
-  }
-
-  Future<void> _finishSetup() async {
-    setState(() => _isLoading = true);
-    final result = await getIt<StoreRepository>().completeStoreSetup(widget.storeId);
-    setState(() => _isLoading = false);
-
-    result.fold(
-          (failure) => AppToasts.showError(failure.message),
-          (_) {
-        AppToasts.showSuccess('Configuração concluída! Bem-vindo(a)!');
-        context.go('/stores/${widget.storeId}/dashboard');
+        return const SizedBox.shrink();
       },
     );
   }
+}
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: const Text('Configure sua Loja'),
-        centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(8.0),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-            child: SegmentedProgressBar(
-              totalSteps: StoreConfigStep.values.length,
-              currentStep: _currentStep.index + 1,
-            ),
-          ),
-        ),
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth > 800;
-             return isDesktop
-              ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 800), child: _buildStepContent()))
-              : Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14.0),
-                child: _buildStepContent(),
-              );
-        },
-      ),
-      bottomNavigationBar: Container(
-        color: Colors.white,
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 8.0 : 24.0,
-          left: 24.0,
-          right: 24.0,
-          top: 12.0,
-        ),
-        child: Row(
-          mainAxisAlignment: _currentStep == StoreConfigStep.paymentMethods
-              ? MainAxisAlignment.end
-              : MainAxisAlignment.spaceBetween,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (_currentStep != StoreConfigStep.paymentMethods)
-              Flexible(
-                child: DsButton(
-                  style: DsButtonStyle.secondary,
-                  onPressed: _isLoading ? null : _goToPreviousStep,
-                  label: 'Voltar',
-                ),
-              ),
-            if (_currentStep != StoreConfigStep.paymentMethods)
-              const SizedBox(width: 16),
-            Flexible(
-              child: DsButton(
-                isLoading: _isLoading,
-                onPressed: _isLoading ? null : _goToNextStep,
-                label: _currentStep == StoreConfigStep.menu ? 'IR PARA O PAINEL' : 'Continuar',
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Carregando configurações...',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.grey[600],
               ),
             ),
           ],
@@ -183,42 +86,300 @@ class _StoreSetupWizardPageState extends State<StoreSetupWizardPage> {
       ),
     );
   }
-
-  // 2. Constrói o conteúdo do passo atual
-  Widget _buildStepContent() {
-    switch (_currentStep) {
-      case StoreConfigStep.paymentMethods:
-        return PaymentMethodsPage(storeId: widget.storeId);
-      case StoreConfigStep.deliveryArea:
-        return CityNeighborhoodPage(storeId: widget.storeId, isInWizard: true,);
-      case StoreConfigStep.openingHours:
-        return OpeningHoursPage(key: _hoursKey, storeId: widget.storeId, isInWizard: true,);
-      case StoreConfigStep.profile:
-        return StoreProfilePage(key: _profileKey, storeId: widget.storeId, isInWizard: true);
-      case StoreConfigStep.menu:
-        return const FinalStepContent(); // Widget de finalização
-    }
-  }
 }
 
-// 3. Widget simples para o último passo
-class FinalStepContent extends StatelessWidget {
-  const FinalStepContent({super.key});
+class _ErrorState extends StatelessWidget {
+  final String message;
+  const _ErrorState({required this.message});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Erro ao carregar',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WizardContent extends StatelessWidget {
+  final StoreWizardLoaded state;
+  const _WizardContent({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<StoreWizardCubit>();
+    final isFinalStep = state.currentStep == StoreConfigStep.finish;
+
+    return Scaffold(
+      appBar: _WizardAppBar(
+        state: state,
+        onStepTapped: (step) => cubit.goToStep(step),
+      ),
+      body: _ResponsiveWizardBody(
+        state: state,
+        cubit: cubit,
+      ),
+      bottomNavigationBar: _WizardBottomBar(
+        state: state,
+        cubit: cubit,
+        isFinalStep: isFinalStep,
+      ),
+    );
+  }
+}
+
+class _WizardAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final StoreWizardLoaded state;
+  final Function(StoreConfigStep) onStepTapped;
+
+  const _WizardAppBar({required this.state, required this.onStepTapped});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(100);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Configure sua Loja',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+        ],
+      ),
+      centerTitle: false,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(40),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              StoreWizardProgressBar(
+                totalSteps: state.stepCompletionStatus.length,
+                stepStatus: state.stepCompletionStatus,
+                currentStepIndex: state.currentStep.index,
+                onStepTapped: onStepTapped,
+              ),
+              const SizedBox(height: 8),
+              _StepIndicator(state: state),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StepIndicator extends StatelessWidget {
+  final StoreWizardLoaded state;
+
+  const _StepIndicator({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalSteps = StoreConfigStep.values.length;
+    final currentStepNumber = state.currentStep.index + 1;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Text(
+          'Etapa $currentStepNumber de $totalSteps',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ResponsiveWizardBody extends StatelessWidget {
+  final StoreWizardLoaded state;
+  final StoreWizardCubit cubit;
+
+  const _ResponsiveWizardBody({
+    required this.state,
+    required this.cubit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth > 1024;
+        final isTablet = constraints.maxWidth > 600;
+
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isDesktop ? 1000 : (isTablet ? 800 : 500),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 0 : 14.0,
+                vertical: 1.0,
+              ),
+              child: _AnimatedStepContent(
+                step: state.currentStep,
+                cubit: cubit,
+                storeId: state.store.core.id!,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AnimatedStepContent extends StatelessWidget {
+  final StoreConfigStep step;
+  final StoreWizardCubit cubit;
+  final int storeId;
+
+  const _AnimatedStepContent({
+    required this.step,
+    required this.cubit,
+    required this.storeId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      switchInCurve: Curves.easeInOut,
+      switchOutCurve: Curves.easeInOut,
+      child: Container(
+        key: ValueKey(step),
+        child: _buildStepContent(step, cubit, storeId),
+      ),
+    );
+  }
+
+  Widget _buildStepContent(StoreConfigStep step, StoreWizardCubit cubit, int storeId) {
+    final content = switch (step) {
+      StoreConfigStep.profile => StoreProfilePage(
+        key: cubit.profileKey,
+        storeId: storeId,
+        isInWizard: true,
+      ),
+      StoreConfigStep.paymentMethods => PaymentMethodsPage(storeId: storeId),
+      StoreConfigStep.deliveryArea => CityNeighborhoodPage(
+        storeId: storeId,
+        isInWizard: true,
+      ),
+      StoreConfigStep.openingHours => OpeningHoursPage(
+        key: cubit.hoursKey,
+        storeId: storeId,
+        isInWizard: true,
+      ),
+      StoreConfigStep.productCatalog => CategoryProductPage(
+        key: cubit.catalogKey,
+        storeId: storeId,
+        isInWizard: true,
+      ),
+      StoreConfigStep.finish => const FinishStepContent(),
+    };
+
+    return content;
+  }
+}
+
+class _WizardBottomBar extends StatelessWidget {
+  final StoreWizardLoaded state;
+  final StoreWizardCubit cubit;
+  final bool isFinalStep;
+
+  const _WizardBottomBar({
+    required this.state,
+    required this.cubit,
+    required this.isFinalStep,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.black12, width: 1)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 8.0 : 24.0,
+        left: 24.0,
+        right: 24.0,
+        top: 16.0,
+      ),
+      child: SafeArea(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(Icons.restaurant_menu, size: 60, color: Colors.green),
-            SizedBox(height: 24),
-            Text(
-              'O próximo passo é adicionar seus produtos, categorias e complementos na seção "Cardápio" do painel principal.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, height: 1.5),
+            if (state.currentStep.index > 0)
+              Flexible(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: !state.isLoadingAction
+                      ? DsButton(
+                    key: const ValueKey('back_button'),
+                    style: DsButtonStyle.secondary,
+                    onPressed: cubit.goToPreviousStep,
+                    label: 'Voltar',
+                  )
+                      : const SizedBox.shrink(),
+                ),
+              )
+            else
+              const Spacer(),
+            const SizedBox(width: 16),
+            Flexible(
+              child: DsButton(
+                isLoading: state.isLoadingAction,
+                onPressed: state.isLoadingAction
+                    ? null
+                    : () => isFinalStep
+                    ? cubit.finishSetup(context)
+                    : cubit.goToNextStep(),
+                label: isFinalStep ? 'IR PARA O PAINEL' : 'Continuar',
+              ),
             ),
           ],
         ),

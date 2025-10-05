@@ -8,10 +8,13 @@ import 'package:totem_pro_admin/core/enums/category_type.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/models/category.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_panel.dart';
 
 
 
+import '../../../core/helpers/sidepanel.dart';
 import '../../../models/products/product.dart';
+import '../../product_flavors/flavor_edit_panel.dart';
 import '../cubit/products_cubit.dart';
 
 class ProductActionsSheet extends StatefulWidget {
@@ -125,6 +128,40 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
       _stockFocusNode.requestFocus();
     });
   }
+
+
+  void _openEditPanel() {
+    // Fecha o BottomSheet que está aberto
+    Navigator.of(context).pop();
+
+    final isCustomizable = widget.parentCategory.type == CategoryType.CUSTOMIZABLE;
+
+    // Decide qual painel abrir
+    final Widget panelToOpen = isCustomizable
+        ? FlavorEditPanel(
+      storeId: widget.storeId,
+      product: widget.product,
+      parentCategory: widget.parentCategory,
+      onSaveSuccess: () {
+        Navigator.of(context).pop(); // Fecha o painel
+
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    )
+        : ProductEditPanel(
+      storeId: widget.storeId,
+      product: widget.product,
+      onSaveSuccess: () {
+        Navigator.of(context).pop(); // Fecha o painel
+
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    );
+
+    // Usa o seu helper para abrir o painel lateral escolhido
+    showResponsiveSidePanel(context, panelToOpen);
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -256,31 +293,8 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
               ListTile(
                 leading: const Icon(Icons.edit),
                 title: const Text('Editar item'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  final storeIdStr = widget.storeId.toString();
-                  final productIdStr = currentProduct.id.toString();
 
-                  if (isCustomizable) {
-                    context.pushNamed(
-                      'flavor-edit',
-                      pathParameters: {
-                        'storeId': storeIdStr,
-                        'productId': productIdStr,
-                      },
-                      extra: currentProduct,
-                    );
-                  } else {
-                    context.pushNamed(
-                      'product-edit',
-                      pathParameters: {
-                        'storeId': storeIdStr,
-                        'productId': productIdStr,
-                      },
-                      extra: currentProduct,
-                    );
-                  }
-                },
+                onTap: _openEditPanel,
               ),
 
               ListTile(

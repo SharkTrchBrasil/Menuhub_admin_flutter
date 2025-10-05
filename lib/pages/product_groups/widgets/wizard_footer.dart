@@ -24,7 +24,7 @@ class WizardFooter extends StatelessWidget {
     // A mágica está aqui:
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0,),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14),
         child: Row(
           mainAxisAlignment: hasBackButton
               ? MainAxisAlignment.spaceBetween

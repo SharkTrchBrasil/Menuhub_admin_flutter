@@ -38,7 +38,6 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
   );
 
 
-
   void applyTemplate(CategoryTemplateType template) {
     List<OptionGroup> groups;
 
@@ -78,7 +77,7 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
     else {
       emit(state.copyWith(
         categoryType: type,
-        step: WizardStep.pricingModelSelection,// ✅ MUDANÇA AQUI
+        step: WizardStep.pricingModelSelection, // ✅ MUDANÇA AQUI
       ));
     }
   }
@@ -93,16 +92,14 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
   }
 
 
-
-
-
   void goToTypeSelection() {
     emit(state.copyWith(step: WizardStep.typeSelection));
   }
 
 
   // ✅ ADICIONE ESTE NOVO MÉTODO
-  void updateGroupPricingStrategy(String groupLocalId, PricingStrategy strategy) {
+  void updateGroupPricingStrategy(String groupLocalId,
+      PricingStrategy strategy) {
     final updatedGroups = state.optionGroups.map((group) {
       if (group.localId == groupLocalId) {
         return group.copyWith(pricingStrategy: strategy);
@@ -113,15 +110,27 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
   }
 
   // --- AÇÕES DE DADOS BÁSICOS DA CATEGORIA ---
-  void updateCategoryName(String name) => emit(state.copyWith(categoryName: name));
-  void isActiveChanged(bool newStatus) => emit(state.copyWith(isActive: newStatus));
-  void priorityChanged(String newPriority) => emit(state.copyWith(priority: newPriority));
-  void printerDestinationChanged(String value) => emit(state.copyWith(printerDestination: value));
+  void updateCategoryName(String name) =>
+      emit(state.copyWith(categoryName: name));
+
+  void isActiveChanged(bool newStatus) =>
+      emit(state.copyWith(isActive: newStatus));
+
+  void priorityChanged(String newPriority) =>
+      emit(state.copyWith(priority: newPriority));
+
+  void printerDestinationChanged(String value) =>
+      emit(state.copyWith(printerDestination: value));
+
   void cashbackTypeChanged(CashbackType newType) {
-    final newCashbackValue = (newType == CashbackType.none) ? '0.00' : state.cashbackValue;
-    emit(state.copyWith(cashbackType: newType, cashbackValue: newCashbackValue));
+    final newCashbackValue = (newType == CashbackType.none) ? '0.00' : state
+        .cashbackValue;
+    emit(
+        state.copyWith(cashbackType: newType, cashbackValue: newCashbackValue));
   }
-  void cashbackValueChanged(String newValue) => emit(state.copyWith(cashbackValue: newValue));
+
+  void cashbackValueChanged(String newValue) =>
+      emit(state.copyWith(cashbackValue: newValue));
 
   // --- GERENCIAMENTO DE GRUPOS DE OPÇÕES (GENÉRICO) ---
   void addOptionGroup() {
@@ -132,9 +141,12 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
       maxSelection: 1,
       groupType: OptionGroupType.generic,
       isConfigurable: true,
-      items: [OptionItem(localId: _uuid.v4(), name: 'Nova Opção', isActive: true)],
+      items: [
+        OptionItem(localId: _uuid.v4(), name: 'Nova Opção', isActive: true)
+      ],
     );
-    final updatedGroups = List<OptionGroup>.from(state.optionGroups)..add(newGroup);
+    final updatedGroups = List<OptionGroup>.from(state.optionGroups)
+      ..add(newGroup);
     emit(state.copyWith(optionGroups: updatedGroups));
   }
 
@@ -163,8 +175,10 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
   void addOptionItem(String groupLocalId) {
     final updatedGroups = state.optionGroups.map((group) {
       if (group.localId == groupLocalId) {
-        final newItem = OptionItem(localId: _uuid.v4(), name: 'Nova Opção', isActive: true);
-        final updatedItems = List<OptionItem>.from(group.items)..add(newItem);
+        final newItem = OptionItem(
+            localId: _uuid.v4(), name: 'Nova Opção', isActive: true);
+        final updatedItems = List<OptionItem>.from(group.items)
+          ..add(newItem);
         return group.copyWith(items: updatedItems);
       }
       return group;
@@ -198,7 +212,6 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
   }
 
 
-
   // --- GERENCIAMENTO DE DISPONIBILIDADE (Refatorado com localId) ---
 
   void availabilityTypeChanged(AvailabilityType newType) {
@@ -225,7 +238,8 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
   // ✅ NOVO: Método para adicionar mais regras de horário
   void addScheduleRule() {
     final newRule = ScheduleRule(localId: _uuid.v4());
-    final updatedSchedules = List<ScheduleRule>.from(state.schedules)..add(newRule);
+    final updatedSchedules = List<ScheduleRule>.from(state.schedules)
+      ..add(newRule);
     emit(state.copyWith(schedules: updatedSchedules));
   }
 
@@ -250,7 +264,8 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
   }
 
   // ✅ CORRIGIDO: Agora recebe 'ruleLocalId'
-  void updateShiftTime(String ruleLocalId, int shiftIndex, TimeOfDay newTime, {required bool isStart}) {
+  void updateShiftTime(String ruleLocalId, int shiftIndex, TimeOfDay newTime,
+      {required bool isStart}) {
     final updatedSchedules = state.schedules.map((rule) {
       if (rule.localId == ruleLocalId) {
         final updatedShifts = List<TimeShift>.from(rule.shifts);
@@ -269,7 +284,8 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
   void addShift(String ruleLocalId) {
     final updatedSchedules = state.schedules.map((rule) {
       if (rule.localId == ruleLocalId) {
-        final updatedShifts = List<TimeShift>.from(rule.shifts)..add(const TimeShift());
+        final updatedShifts = List<TimeShift>.from(rule.shifts)
+          ..add(const TimeShift());
         return rule.copyWith(shifts: updatedShifts);
       }
       return rule;
@@ -282,7 +298,8 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
     final updatedSchedules = state.schedules.map((rule) {
       if (rule.localId == ruleLocalId) {
         final updatedShifts = List<TimeShift>.from(rule.shifts);
-        if (updatedShifts.length > 1) { // Só permite remover se houver mais de um
+        if (updatedShifts.length >
+            1) { // Só permite remover se houver mais de um
           updatedShifts.removeAt(shiftIndex);
         }
         return rule.copyWith(shifts: updatedShifts);
@@ -297,6 +314,7 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
     emit(state.copyWith(status: FormStatus.cancelled));
   }
 
+
   Future<void> submitCategory() async {
     if (state.categoryName.trim().isEmpty || state.categoryType == null) return;
     emit(state.copyWith(status: FormStatus.loading));
@@ -310,15 +328,12 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
       cashbackType: state.cashbackType,
       cashbackValue: double.tryParse(state.cashbackValue.replaceAll(',', '.')) ?? 0.0,
       printerDestination: state.printerDestination.isNotEmpty ? state.printerDestination : null,
-
-
       optionGroups: state.optionGroups,
-
       selectedTemplate: state.selectedTemplate,
       schedules: state.schedules,
       availabilityType: state.availabilityType,
       pricingStrategy: state.pricingStrategy,
-        priceVariesBySize: state.priceVariesBySize,
+      priceVariesBySize: state.priceVariesBySize,
     );
 
     final result = (state.editingCategoryId != null)
@@ -329,24 +344,41 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
           (error) {
         if (!isClosed) emit(state.copyWith(status: FormStatus.error, errorMessage: error));
       },
-          (success) {
-        if (!isClosed) emit(state.copyWith(status: FormStatus.success, createdCategory: success));
+          (savedCategory) async {
+        try {
+          // ✅ LÓGICA DE MAPEAMENTO CORRIGIDA E ROBUSTA
+          for (int groupIndex = 0; groupIndex < savedCategory.optionGroups.length; groupIndex++) {
+            final savedGroup = savedCategory.optionGroups[groupIndex];
+            final uiGroup = state.optionGroups[groupIndex]; // Pega pelo mesmo índice
+
+            for (int itemIndex = 0; itemIndex < savedGroup.items.length; itemIndex++) {
+              final savedItem = savedGroup.items[itemIndex];
+              final uiItem = uiGroup.items[itemIndex]; // Pega pelo mesmo índice
+
+              // A condição para upload permanece a mesma
+              if (uiItem.image?.file != null) {
+                await categoryRepository.uploadOptionItemImage(
+                  itemId: savedItem.id!,
+                  imageFile: uiItem.image!.file!,
+                );
+              }
+            }
+          }
+          if (!isClosed) emit(state.copyWith(status: FormStatus.success, createdCategory: savedCategory));
+        } catch (e) {
+          if (!isClosed) {
+            emit(state.copyWith(
+              status: FormStatus.success,
+              createdCategory: savedCategory,
+            ));
+          }
+        }
       },
     );
   }
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
+  
 
 

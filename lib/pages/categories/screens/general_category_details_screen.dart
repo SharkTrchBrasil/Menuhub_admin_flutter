@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/pages/categories/screens/tabs/widgets/tab_header.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import '../../../core/enums/cashback_type.dart';
@@ -35,7 +36,7 @@ class GeneralCategoryDetailsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✨ 1. A ÁREA DE CONTEÚDO AGORA É EXPANSÍVEL E ROLÁVEL ✨
+
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
@@ -61,7 +62,7 @@ class GeneralCategoryDetailsScreen extends StatelessWidget {
                         _buildNameField(context, state, cubit),
                         const SizedBox(height: 34),
                         // ✅ AQUI: Substituímos os widgets individuais pela nova linha responsiva
-                        _buildSettingsRow(context, state, cubit),
+                     //   _buildSettingsRow(context, state, cubit),
 
                         const SizedBox(height: 24), // Espaço extra no final do scroll
                     //  _buildStatusSwitch(context, state, isLoading),
@@ -206,43 +207,6 @@ class GeneralCategoryDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusSwitch(BuildContext context, CategoryWizardState state, bool isLoading) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: SwitchListTile(
-        title: Text(
-          "Status da Categoria",
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          state.isActive ? "Visível para os clientes" : "Oculta do cardápio",
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        value: state.isActive,
-        onChanged: isLoading ? null : context.read<CategoryWizardCubit>().isActiveChanged,
-        secondary: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: state.isActive ? Colors.green.shade50 : Colors.grey.shade100,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            state.isActive ? Icons.visibility : Icons.visibility_off,
-            color: state.isActive ? Colors.green : Colors.grey,
-          ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      ),
-    );
-  }
 
 
   Widget _buildCashbackSection(BuildContext context, CategoryWizardState state) {
@@ -406,7 +370,9 @@ class GeneralCategoryDetailsScreen extends StatelessWidget {
               requiresConnection: false,
               label: 'Cancelar',
               style: DsButtonStyle.secondary,
-              onPressed: isLoading ? null : () => context.read<CategoryWizardCubit>().cancelWizard(),
+              onPressed: (){
+                context.pop();
+              }
 
             ),
           ),

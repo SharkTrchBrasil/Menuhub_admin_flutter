@@ -1,9 +1,10 @@
 import '../core/enums/foodtags.dart';
 import 'package:equatable/equatable.dart';
+import 'image_model.dart'; // ✅ 1. IMPORTE O IMAGE MODEL
 
 class OptionItem extends Equatable {
-  final int? id; // ID do banco de dados (nulo se for um item novo)
-  final String? localId; // ✅ NOVO CAMPO: ID temporário para a UI
+  final int? id;
+  final String? localId;
   final String name;
   final String? description;
   final int price;
@@ -13,10 +14,11 @@ class OptionItem extends Equatable {
   final int? slices;
   final int? maxFlavors;
   final Set<FoodTag> tags;
+  final ImageModel? image; // ✅ 2. ADICIONE O CAMPO DE IMAGEM
 
   const OptionItem({
     this.id,
-    this.localId, // ✅ Adicionado ao construtor
+    this.localId,
     required this.name,
     this.description,
     this.price = 0,
@@ -26,26 +28,18 @@ class OptionItem extends Equatable {
     this.slices,
     this.maxFlavors,
     this.tags = const {},
+    this.image, // ✅ 3. ADICIONE AO CONSTRUTOR
   });
 
   @override
   List<Object?> get props => [
-    id,
-    localId, // ✅ Adicionado aos props
-    name,
-    description,
-    price,
-    isActive,
-    priority,
-    externalCode,
-    slices,
-    maxFlavors,
-    tags
+    id, localId, name, description, price, isActive, priority,
+    externalCode, slices, maxFlavors, tags, image // ✅ 4. ADICIONE AOS PROPS
   ];
 
   OptionItem copyWith({
     int? id,
-    String? localId, // ✅ Adicionado ao copyWith
+    String? localId,
     String? name,
     String? description,
     int? price,
@@ -55,10 +49,12 @@ class OptionItem extends Equatable {
     int? slices,
     int? maxFlavors,
     Set<FoodTag>? tags,
+    ImageModel? image, // ✅ 5. ADICIONE AO COPYWITH
+    bool forceImageToNull = false, // Flag para limpar a imagem
   }) {
     return OptionItem(
       id: id ?? this.id,
-      localId: localId ?? this.localId, // ✅ Adicionado ao copyWith
+      localId: localId ?? this.localId,
       name: name ?? this.name,
       description: description ?? this.description,
       price: price ?? this.price,
@@ -68,12 +64,11 @@ class OptionItem extends Equatable {
       slices: slices ?? this.slices,
       maxFlavors: maxFlavors ?? this.maxFlavors,
       tags: tags ?? this.tags,
+      image: forceImageToNull ? null : (image ?? this.image), // ✅ 6. LÓGICA DO COPYWITH
     );
   }
 
-
   factory OptionItem.fromJson(Map<String, dynamic> json) {
-    // Lógica para tags, se houver
     final tagsSet = (json['tags'] as List<dynamic>? ?? [])
         .map((tagString) => FoodTag.values.firstWhere((e) => e.name == tagString, orElse: () => FoodTag.vegetarian))
         .toSet();
@@ -82,31 +77,31 @@ class OptionItem extends Equatable {
       id: json['id'],
       name: json['name'],
       description: json['description'],
-      // ✅ O backend envia um float/decimal, convertemos para int (centavos)
       price: ((json['price'] as num? ?? 0.0) * 100).round(),
       isActive: json['is_active'],
       priority: json['priority'],
       externalCode: json['external_code'],
-      slices: json['slices'],           // ✨
-      maxFlavors: json['max_flavors'], // ✨
+      slices: json['slices'],
+      maxFlavors: json['max_flavors'],
       tags: tagsSet,
+      // ✅ 7. LEIA A IMAGEM DO JSON
+      image: json['image_path'] != null ? ImageModel(url: json['image_path']) : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id, // Enviar o ID é crucial para a lógica de update!
+      'id': id,
       'name': name,
       'description': description,
-      'price': price / 100, // ✅ Converte centavos de volta para o formato decimal para a API
+      'price': price / 100,
       'is_active': isActive,
       'priority': priority,
       'external_code': externalCode,
-      'slices': slices,           // ✨
-      'max_flavors': maxFlavors, // ✨
+      'slices': slices,
+      'max_flavors': maxFlavors,
       'tags': tags.map((tag) => tag.name).toList(),
+      // A imagem não é enviada no JSON principal. O upload é um processo separado.
     };
   }
-
-
 }

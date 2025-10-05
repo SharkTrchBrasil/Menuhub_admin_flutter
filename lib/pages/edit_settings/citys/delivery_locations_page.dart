@@ -13,6 +13,7 @@ import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import '../../../core/di.dart';
+import '../../../core/helpers/sidepanel.dart';
 import '../../../repositories/store_repository.dart';
 import '../../../services/dialog_service.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
@@ -60,9 +61,9 @@ class _CityNeighborhoodPageState extends State<CityNeighborhoodPage> {
       }
     }
 
-    showResponsiveSidePanelGroup(
+    showResponsiveSidePanel(
       context,
-      panel: AddEditCityPage(
+      AddEditCityPage(
         storeId: widget.storeId,
         initialCity: cityToEdit,
       ),
@@ -133,67 +134,64 @@ class _CityNeighborhoodPageState extends State<CityNeighborhoodPage> {
         c.neighborhoods.any((n) => n.name.toLowerCase().contains(_searchText))
     ).toList();
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 800),
-      child: CustomScrollView(
-        slivers: [
+    return CustomScrollView(
+      slivers: [
 
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
-                child: FixedHeader(
-                  showActionsOnMobile: true,
-                  title: 'Locais de Entrega',
-                  subtitle: 'Gerencie as cidades e bairros onde sua loja realiza entregas.',
-                  // O botão aqui é um atalho útil em telas maiores, podemos mantê-lo.
-                  actions: [
-                    DsButton(
-                      label: 'Cadastrar cidade',
-                      style: DsButtonStyle.secondary,
-                      onPressed: _showCityEditorPanel,
-                    )
-                  ],
-                ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+              child: FixedHeader(
+                showActionsOnMobile: true,
+                title: 'Locais de Entrega',
+                subtitle: 'Gerencie as cidades e bairros onde sua loja realiza entregas.',
+                // O botão aqui é um atalho útil em telas maiores, podemos mantê-lo.
+                actions: [
+                  DsButton(
+                    label: 'Cadastrar cidade',
+                    style: DsButtonStyle.secondary,
+                    onPressed: _showCityEditorPanel,
+                  )
+                ],
               ),
             ),
+          ),
 
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: SliverFilterBarDelegate(
-                child: LocationsFilterBar(searchController: _searchController),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: SliverFilterBarDelegate(
+              child: LocationsFilterBar(searchController: _searchController),
+            ),
+          ),
+        if (visibleCities.isEmpty && _searchText.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Container(
+              height: 300,
+              alignment: Alignment.center,
+              child: Text('Nenhum local encontrado para "$_searchText"', style: Theme.of(context).textTheme.titleMedium),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(0, 16, 0, 88), // Espaço extra no final para o FAB não cobrir
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                  final city = visibleCities[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: CityCard(
+                      city: city,
+                      neighborhoods: city.neighborhoods,
+                      onEdit: () => _showCityEditorPanel(city: city),
+                      onDelete: () => _deleteCity(city),
+                    ),
+                  );
+                },
+                childCount: visibleCities.length,
               ),
             ),
-          if (visibleCities.isEmpty && _searchText.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Container(
-                height: 300,
-                alignment: Alignment.center,
-                child: Text('Nenhum local encontrado para "$_searchText"', style: Theme.of(context).textTheme.titleMedium),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(0, 16, 0, 88), // Espaço extra no final para o FAB não cobrir
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    final city = visibleCities[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: CityCard(
-                        city: city,
-                        neighborhoods: city.neighborhoods,
-                        onEdit: () => _showCityEditorPanel(city: city),
-                        onDelete: () => _deleteCity(city),
-                      ),
-                    );
-                  },
-                  childCount: visibleCities.length,
-                ),
-              ),
-            ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

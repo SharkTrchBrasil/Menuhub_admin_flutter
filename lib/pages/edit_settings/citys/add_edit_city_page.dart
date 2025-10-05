@@ -1,3 +1,4 @@
+import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -97,6 +98,7 @@ class _AddEditCityPageState extends State<AddEditCityPage> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(
           // ✅ 3. UI MELHORADA: TÍTULO DINÂMICO
           isEditing ? 'Editar "${widget.initialCity!.name}"' : 'Adicionar Nova Cidade',
@@ -115,7 +117,7 @@ class _AddEditCityPageState extends State<AddEditCityPage> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -485,41 +487,3 @@ class _NeighborhoodEditRowState extends State<NeighborhoodEditRow> {
   }
 }
 
-// Formatter para centavos (exemplo básico - ajuste conforme sua implementação)
-class CentavosInputFormatter extends TextInputFormatter {
-  final bool moeda;
-
-  CentavosInputFormatter({this.moeda = false});
-
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue,
-      TextEditingValue newValue,
-      ) {
-    if (newValue.text.isEmpty) {
-      return newValue;
-    }
-
-    // Remove todos os caracteres não numéricos
-    String cleanText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-
-    // Converte para inteiro
-    int value = int.tryParse(cleanText) ?? 0;
-
-    // Formata como moeda se necessário
-    if (moeda) {
-      double realValue = value / 100;
-      String formattedText = 'R\$${realValue.toStringAsFixed(2).replaceAll('.', ',')}';
-
-      return TextEditingValue(
-        text: formattedText,
-        selection: TextSelection.collapsed(offset: formattedText.length),
-      );
-    } else {
-      return TextEditingValue(
-        text: cleanText,
-        selection: TextSelection.collapsed(offset: cleanText.length),
-      );
-    }
-  }
-}

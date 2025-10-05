@@ -218,7 +218,7 @@ class DsButton extends StatelessWidget {
               onPressed: finalOnPressed, // ✅ Usa o onPressed final
               style: baseStyle.copyWith(
                 side: MaterialStateProperty.all(
-                  BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 1),
+                  BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 0.5),
                 ),
               ),
               child: finalChild,
@@ -232,7 +232,7 @@ class DsButton extends StatelessWidget {
               style: baseStyle.copyWith(
                 side: style == DsButtonStyle.custom
                     ? MaterialStateProperty.all(
-                  BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 1),
+                  BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 0.5),
                 )
                     : null,
               ),

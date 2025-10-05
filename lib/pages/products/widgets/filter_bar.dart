@@ -100,7 +100,7 @@ class _FilterBarState extends State<FilterBar> {
     return Container(
       padding: EdgeInsets.symmetric(
         vertical: 16.0,
-        horizontal: isMobile ? 16.0 : 24.0,
+
       ),
       child: isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
     );
@@ -116,37 +116,42 @@ class _FilterBarState extends State<FilterBar> {
         ),
         const SizedBox(width: 16),
         Expanded(
-          flex: 2,
+          flex: 1,
           child: _buildCategoryDropdown(),
         ),
         const SizedBox(width: 16),
 
 
 
-        DsButton(
-          onPressed: widget.onAddCategory,
-          label: 'Adicionar Categoria',
+        Expanded(
+          child: DsButton(
+            onPressed: widget.onAddCategory,
 
-          style: DsButtonStyle.custom,
-          backgroundColor: Colors.white,      // Fundo branco
-          foregroundColor: Colors.black,      // Texto preto
-          borderColor: Colors.black
-          ,
+            label: 'Adicionar Categoria',
 
 
+            style: DsButtonStyle.custom,
+            backgroundColor: Colors.white,      // Fundo branco
+            foregroundColor: Colors.black,      // Texto preto
+            borderColor: Colors.black
+
+            ,
+
+
+          ),
         ),
 
-        const SizedBox(width: 16),
+   //     const SizedBox(width: 16),
         // IconButton(
         //   onPressed: () {},
         //   icon: const Icon(Icons.copy_outlined),
         //   tooltip: 'Replicar cardápio',
         // ),
-        IconButton(
-          onPressed: () => _showReorderDialog(context, false),
-          icon: const Icon(Icons.sort),
-          tooltip: 'Reordenar',
-        ),
+        // IconButton(
+        //   onPressed: () => _showReorderDialog(context, false),
+        //   icon: const Icon(Icons.sort),
+        //   tooltip: 'Reordenar',
+        // ),
       ],
     );
   }
@@ -229,7 +234,7 @@ class _FilterBarState extends State<FilterBar> {
 
   Widget _buildCategoryDropdown() {
     return Container(
-      height: 48,
+      height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
@@ -237,12 +242,22 @@ class _FilterBarState extends State<FilterBar> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<Category?>(
-          hint: const Text('Todas as categorias'),
+          hint: const Text('Todas'),
           value: widget.selectedValue,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down),
           style: Theme.of(context).textTheme.bodyMedium,
           items: [
+            // 🔹 Adiciona a opção "Todas as categorias"
+            const DropdownMenuItem<Category?>(
+              value: null,
+              child: Text(
+                'Todas',
+
+
+              ),
+            ),
+            // 🔹 Depois lista as categorias normais
             ...widget.categories.map((Category category) {
               return DropdownMenuItem<Category?>(
                 value: category,
@@ -256,6 +271,10 @@ class _FilterBarState extends State<FilterBar> {
       ),
     );
   }
+
+
+
+
 }
 
 class _ReorderCategoriesDialog extends StatefulWidget {

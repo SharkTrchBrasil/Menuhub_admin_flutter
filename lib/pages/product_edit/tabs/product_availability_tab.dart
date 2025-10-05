@@ -10,7 +10,7 @@ import 'package:totem_pro_admin/pages/product_groups/helper/side_panel_helper.da
 import 'package:totem_pro_admin/pages/products/widgets/product_categories_manager.dart';
 
 import '../../../core/enums/bulk_action_type.dart';
-import '../../categories/BulkCategoryPage.dart';
+import '../../categories_bulk/BulkCategoryPage.dart';
 
 // Sugestão: Renomeie a classe para refletir sua função
 class ProductPricingTab extends StatelessWidget {

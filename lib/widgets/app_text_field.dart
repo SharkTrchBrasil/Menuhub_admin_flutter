@@ -4,12 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../ConstData/typography.dart';
 
-
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import '../ConstData/typography.dart';
-
 class AppTextField extends StatefulWidget {
   const AppTextField({
     super.key,
@@ -39,7 +33,6 @@ class AppTextField extends StatefulWidget {
   final bool isHidden;
   final String? icon;
   final List<TextInputFormatter>? formatters;
-  // ❗ O parâmetro 'controller' foi removido do construtor
   final TextInputType? keyboardType;
   final bool readOnly;
   final bool enabled;
@@ -54,30 +47,37 @@ class AppTextField extends StatefulWidget {
 }
 
 class _AppTextFieldState extends State<AppTextField> {
-  // ✅ 1. Controller local. Ele será a única fonte da verdade para o texto.
   late final TextEditingController _controller;
   late bool obscure = widget.isHidden;
 
   @override
   void initState() {
     super.initState();
-    // ✅ 2. Inicializamos o controller com o valor que veio do pai.
     _controller = TextEditingController(text: widget.initialValue);
   }
 
+  // ✅✅✅ MÉTODO CORRIGIDO PARA EVITAR O ERRO 'setState called during build' ✅✅✅
   @override
   void didUpdateWidget(covariant AppTextField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // ✅ 3. Sincronizamos o controller se o valor inicial do pai mudar externamente.
-    //    Isso é crucial para quando o estado do Cubit atualiza o formulário.
-    if (widget.initialValue != oldWidget.initialValue && widget.initialValue != _controller.text) {
-      _controller.text = widget.initialValue ?? '';
+
+    final newInitialValue = widget.initialValue ?? '';
+
+    // A condição continua a mesma: só atualizamos se o valor mudou externamente.
+    if (widget.initialValue != oldWidget.initialValue && newInitialValue != _controller.text) {
+      // A solução: Agendamos a atualização do controller para DEPOIS que o build terminar.
+      // Isso quebra o loop de reconstrução e evita o erro.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Verifica se o widget ainda está "montado" antes de mudar o controller.
+        if (mounted) {
+          _controller.text = newInitialValue;
+        }
+      });
     }
   }
 
   @override
   void dispose() {
-    // ✅ 4. Fazemos a limpeza do nosso controller local para evitar vazamentos de memória.
     _controller.dispose();
     super.dispose();
   }
@@ -100,10 +100,8 @@ class _AppTextFieldState extends State<AppTextField> {
         ),
         const SizedBox(height: 8),
         TextFormField(
-          // ✅ 5. Usamos SEMPRE o controller local e REMOVEMOS o initialValue.
           controller: _controller,
           onChanged: widget.onChanged,
-
           focusNode: widget.focusNode,
           style: TextStyle(
             color: Theme.of(context).textTheme.displayLarge?.color,
@@ -118,7 +116,6 @@ class _AppTextFieldState extends State<AppTextField> {
           inputFormatters: widget.formatters,
           maxLength: widget.maxLength,
           maxLines: widget.maxLines ?? 1,
-
           decoration: InputDecoration(
             filled: true,
             hintText: widget.hint,
@@ -135,7 +132,6 @@ class _AppTextFieldState extends State<AppTextField> {
               borderRadius: borderRadius,
               borderSide: BorderSide(color: Colors.grey, width: 0.5),
             ),
-
             errorBorder: OutlineInputBorder(
               borderRadius: borderRadius,
               borderSide: const BorderSide(color: Colors.red, width: 1),
@@ -177,17 +173,3 @@ class _AppTextFieldState extends State<AppTextField> {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

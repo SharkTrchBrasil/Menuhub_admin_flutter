@@ -95,7 +95,7 @@ class PaymentMethodsPage extends StatelessWidget {
         // ✅ 1. HEADER FIXO (SliverToBoxAdapter)
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
             child: FixedHeader(
               showActionsOnMobile: true,
               title: 'Formas de pagamento',

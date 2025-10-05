@@ -1,59 +1,85 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:totem_pro_admin/core/responsive_builder.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
+import 'package:totem_pro_admin/pages/categories/category_panel.dart';
+// ✅ 1. IMPORT DO FILTER_BAR NECESSÁRIO AQUI AGORA
+import 'package:totem_pro_admin/pages/products/widgets/filter_bar.dart';
 import 'package:totem_pro_admin/pages/products/widgets/cardapy_tab.dart';
+import 'package:totem_pro_admin/pages/products/widgets/sliver_persistent_header_delegate.dart';
 import 'package:totem_pro_admin/pages/variants/tabs/complement_tab.dart';
-
-// Renomeado de cardapy_tab
-import 'package:totem_pro_admin/pages/products/widgets/page_header.dart';
 import 'package:totem_pro_admin/pages/products/widgets/page_tab.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_tab.dart';
-
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
+import 'package:totem_pro_admin/core/di.dart';
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+import 'package:totem_pro_admin/widgets/fixed_header.dart';
+import 'package:totem_pro_admin/models/category.dart';
 
-import '../../core/di.dart';
-import '../../core/responsive_builder.dart';
 
-import '../../models/variant.dart';
+import '../../core/helpers/sidepanel.dart';
 import '../../repositories/category_repository.dart';
 import '../../repositories/product_repository.dart';
-
-import '../variants/cubits/variant_edit_cubit.dart';
 import '../variants/cubits/variants_tab_cubit.dart';
 import 'cubit/products_cubit.dart';
 
 class CategoryProductPage extends StatefulWidget {
   final int storeId;
+  final bool isInWizard;
 
-  const CategoryProductPage({super.key, required this.storeId});
+  const CategoryProductPage({
+    super.key,
+    required this.storeId,
+    this.isInWizard = false,
+  });
 
   @override
   State<CategoryProductPage> createState() => CategoryProductPageState();
 }
 
-class CategoryProductPageState extends State<CategoryProductPage> {
-  final _scrollController = ScrollController();
+class CategoryProductPageState extends State<CategoryProductPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  int _currentTabIndex = 0;
+
+  // ✅ 2. ESTADO PARA O FILTRO MOVIDO PARA CÁ
+  final _searchController = TextEditingController();
+  Category? _selectedCategory;
+
+
+  @override
+  void initState() {
+    super.initState();
+    final tabCount = widget.isInWizard ? 1 : 3;
+    _tabController = TabController(length: tabCount, vsync: this);
+    _tabController.addListener(() {
+      if (mounted && _tabController.indexIsChanging) {
+        setState(() => _currentTabIndex = _tabController.index);
+      }
+    });
+    // O listener do searchController pode ficar aqui para forçar a reconstrução
+    _searchController.addListener(() {
+      if(mounted) setState(() {});
+    });
+  }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<bool> hasContent() async {
-    // ...
     final state = context.read<StoresManagerCubit>().state;
     if (state is StoresManagerLoaded) {
-      final hasCategories =
-          state.activeStore?.relations.categories.isNotEmpty ?? false;
+      final hasCategories = state.activeStore?.relations.categories.isNotEmpty ?? false;
       if (!hasCategories && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Você precisa criar pelo menos uma categoria para finalizar.',
-            ),
+            content: Text('Você precisa criar pelo menos uma categoria para finalizar.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -63,145 +89,157 @@ class CategoryProductPageState extends State<CategoryProductPage> {
     return false;
   }
 
+
+  // Em CategoryProductPageState dentro de products_page.dart
+
   void _navigateToCreateCategory() {
-    context.pushNamed(
-      'category-new',
-      pathParameters: {'storeId': widget.storeId.toString()},
+    showResponsiveSidePanel( // Supondo que você tenha uma função assim
+      context,
+      CategoryPanel(
+        storeId: widget.storeId,
+        // Não passa categoria, indicando que é uma criação
+        onSaveSuccess: () {
+          Navigator.of(context).pop(); // Fecha o painel
+
+        }
+      ),
     );
   }
 
+
+
+
   void _navigateToCreateProduct() {
-    // O nome da rota pode ser 'product-new' ou 'product-create',
-    // verifique o nome exato que você definiu no seu AppRouter.
-    context.pushNamed(
-      'product-create',
-      pathParameters: {'storeId': widget.storeId.toString()},
-    );
+    print("Navegar para criação de produto");
+  }
+
+  void _handlePrimaryAction() {
+    switch (_currentTabIndex) {
+      case 0: _navigateToCreateCategory(); break;
+      case 1: _navigateToCreateProduct(); break;
+      case 2:
+        context.pushNamed(
+          'variant-edit',
+          pathParameters: {'storeId': widget.storeId.toString(), 'variantId': 'new'},
+        );
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isMobile = ResponsiveBuilder.isMobile(context);
-    final double appBarHeight = isMobile ? 40.0 : 80.0;
-
-    // ✅ PASSO 1: FORNEÇA O CUBIT DE AÇÕES NO TOPO DA ÁRVORE DE WIDGETS DA TELA.
     return BlocProvider(
-      create:
-          (context) => ProductsCubit(
-            categoryRepository: getIt<CategoryRepository>(),
-            // Se o ProductsCubit também for gerenciar produtos, adicione o repositório aqui:
-            productRepository: getIt<ProductRepository>(),
-          ),
-      child: DefaultTabController(
-        length: 3,
-        child: Scaffold(
-          floatingActionButton:
-              isMobile
-                  ? FloatingActionButton(
-                    // A navegação para criar continua sendo uma ação de UI, o que está correto.
-                    onPressed: _navigateToCreateCategory,
-                    child: const Icon(Icons.add),
-                  )
-                  : null,
-          // ✅ PASSO 2: ADICIONE O LISTENER PARA GERENCIAR O FEEDBACK VISUAL
-          //    DE FORMA CENTRALIZADA PARA TODAS AS AÇÕES.
-          body: BlocListener<ProductsCubit, ProductsState>(
-            listener: (context, state) {
-              if (state is ProductsActionSuccess) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.message),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } else if (state is ProductsActionFailure) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.error),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+      create: (context) => ProductsCubit(
+        categoryRepository: getIt<CategoryRepository>(),
+        productRepository: getIt<ProductRepository>(),
+      ),
+      child: Scaffold(
+        body: BlocListener<ProductsCubit, ProductsState>(
+          listener: (context, state) {
+            if (state is ProductsActionSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: Colors.green));
+            } else if (state is ProductsActionFailure) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error), backgroundColor: Colors.red));
+            }
+          },
+          child: BlocBuilder<StoresManagerCubit, StoresManagerState>(
+            builder: (context, state) {
+              if (state is! StoresManagerLoaded) {
+                return const Center(child: DotLoading());
               }
-            },
 
-            child: BlocBuilder<StoresManagerCubit, StoresManagerState>(
-              builder: (context, state) {
-                if (state is! StoresManagerLoaded) {
-                  return const Center(child: DotLoading());
-                }
+              final allCategories = state.activeStore?.relations.categories ?? [];
+              final allProducts = state.activeStore?.relations.products ?? [];
 
-                final allCategories =
-                    state.activeStore?.relations.categories ?? [];
-                final allProducts = state.activeStore?.relations.products ?? [];
-                final allVariants = state.activeStore?.relations.variants ?? [];
+              // ✅ 4. REMOVIDO O PADDING EXTERNO
+              return NestedScrollView(
+                headerSliverBuilder: (context, innerBoxIsScrolled) {
+                  return [
+                    SliverToBoxAdapter(
+                      child: FixedHeader(
+                        showActionsOnMobile: true,
 
-                // O restante da sua lógica de UI continua exatamente igual...
-                return NestedScrollView(
-                  controller: _scrollController,
-                  headerSliverBuilder: (context, innerBoxIsScrolled) {
-                    return <Widget>[
-                      SliverOverlapAbsorber(
-                        handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
-                          context,
-                        ),
-                        sliver: SliverAppBar(
-                          expandedHeight: appBarHeight,
-                          backgroundColor:
-                              Theme.of(context).scaffoldBackgroundColor,
-                          foregroundColor:
-                              Theme.of(context).colorScheme.onBackground,
-                          automaticallyImplyLeading: false,
-                          flexibleSpace: FlexibleSpaceBar(
-                            background: PageHeader(),
-                            collapseMode: CollapseMode.pin,
+                        title: 'Cardápio e Produtos',
+                        subtitle: 'Gerencie suas categorias, produtos e complementos.',
+                        actions: [
+                          if(!ResponsiveBuilder.isDesktop(context))
+                          DsButton(
+
+                            label: 'Adicionar',
+                            style: DsButtonStyle.secondary,
+                            onPressed: _handlePrimaryAction,
+                          )
+
+
+                        ],
+                      ),
+                    ),
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: SliverPersistentHeaderDelegateWrapper(
+                        minHeight: 28,
+                        maxHeight: 28,
+                        child: Container(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          child: PageTabBar(
+                            controller: _tabController,
+                            isInWizard: widget.isInWizard,
                           ),
-                          bottom: PageTabBar(),
                         ),
                       ),
-                    ];
-                  },
-                  body: TabBarView(
-                    children: [
-                      MenuContentTab(
-                        allCategories: allCategories,
-                        storeId: widget.storeId,
-                        allProducts: allProducts,
+                    ),
+                    // ✅ 5. FILTERBAR MOVIDO PARA CÁ, COMO UM SLIVER PINNED
+                    if (_currentTabIndex == 0 && allCategories.isNotEmpty)
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: SliverPersistentHeaderDelegateWrapper(
+                          minHeight: 100,
+                          maxHeight: 100,
+                          child: Container(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 1.0),
+                            child: FilterBar(
+                              searchController: _searchController,
+                              categories: allCategories,
+                              selectedValue: _selectedCategory,
+                              onAddCategory: _navigateToCreateCategory,
+                              onReorder: (reordered) { /* TODO */ },
+                              onCategoryChanged: (category) {
+                                setState(() => _selectedCategory = category);
+                              },
+                            ),
+                          ),
+                        ),
                       ),
+                  ];
+                },
+                body: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // ✅ 6. PASSANDO OS DADOS DO FILTRO PARA A TELA FILHA
+                    MenuContentTab(
+                      allCategories: allCategories,
+                      storeId: widget.storeId,
+                      allProducts: allProducts,
+                      searchText: _searchController.text,
+                      selectedCategory: _selectedCategory,
+                      onNavigateToAddCategory: _navigateToCreateCategory,
+                    ),
+                    if (!widget.isInWizard)
                       ProductListTab(
                         storeId: widget.storeId,
                         products: allProducts,
                         allCategories: allCategories,
                         onAddProduct: _navigateToCreateProduct,
                       ),
-
-
-
-                      // ✅ AQUI ESTÁ A LÓGICA FINAL E CORRETA
+                    if (!widget.isInWizard)
                       BlocProvider<VariantsTabCubit>(
                         create: (context) {
-                          // 1. Pegamos as duas listas que vêm do estado principal
+                          //... (lógica do BlocProvider inalterada)
                           final allMasterVariants = state.activeStore?.relations.variants ?? [];
-                          final allProducts = state.activeStore?.relations.products ?? [];
-
-                          // 2. Descobrimos quais IDs de variantes estão realmente em uso
-                          final Set<int> usedVariantIds = {};
-                          for (final product in allProducts) {
-                            for (final link in product.variantLinks ?? []) {
-                              if (link.variant.id != null) {
-                                usedVariantIds.add(link.variant.id!);
-                              }
-                            }
-                          }
-
-                          // 3. Filtramos a lista mestra de variantes com base nos IDs em uso
-                          final linkedVariants = allMasterVariants.where((variant) {
-                            return usedVariantIds.contains(variant.id);
-                          }).toList();
-
-                          // Ordena a lista alfabeticamente
+                          final usedVariantIds = allProducts.expand((p) => p.variantLinks ?? []).map((l) => l.variant.id).toSet();
+                          final linkedVariants = allMasterVariants.where((v) => usedVariantIds.contains(v.id)).toList();
                           linkedVariants.sort((a, b) => a.name.compareTo(b.name));
-
-                          // 4. Passamos a lista JÁ FILTRADA para o nosso Cubit
                           return VariantsTabCubit(
                             initialVariants: linkedVariants,
                             productRepository: getIt<ProductRepository>(),
@@ -210,61 +248,13 @@ class CategoryProductPageState extends State<CategoryProductPage> {
                         },
                         child: VariantsTab(storeId: widget.storeId),
                       ),
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                    ],
-                  ),
-                );
-              },
-            ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),
     );
-  }
-}
-
-// ✅ NOVO DELEGATE APENAS PARA A TABBAR
-class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
-  final PageTabBar tabBar;
-
-  const _SliverTabBarDelegate({required this.tabBar});
-
-  @override
-  double get minExtent => tabBar.preferredSize.height;
-
-  @override
-  double get maxExtent => tabBar.preferredSize.height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Container(
-      color:
-          Theme.of(context).scaffoldBackgroundColor, // Garante um fundo sólido
-      child: tabBar,
-    );
-  }
-
-  @override
-  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
-    return tabBar != oldDelegate.tabBar;
   }
 }

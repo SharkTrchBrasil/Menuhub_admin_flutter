@@ -39,7 +39,7 @@ import '../pages/accesses/accesses_page.dart';
 import '../pages/analytics/analytics_page.dart';
 import '../pages/banners/banners_page.dart';
 
-import '../pages/categories/create_category_page.dart';
+import '../pages/categories/create_category_page(delete).dart';
 
 import '../pages/chatbot/chatbot_page.dart';
 import '../pages/chatbot/cubit/chatbot_cubit.dart';
@@ -71,9 +71,9 @@ import '../pages/orders/orders_page.dart';
 import '../pages/orders/details/order_details_mobile.dart';
 import '../pages/payables/payables_page.dart';
 import '../pages/platform_payment_methods/gateway-payment.dart';
-import '../pages/product-wizard/product_wizard_page.dart';
-import '../pages/product_edit/edit_product_page.dart';
-import '../pages/product_flavors/flavor_wizard_page.dart';
+import '../pages/product-wizard/product_wizard_page(delete).dart';
+import '../pages/product_edit/edit_product_page(delete).dart';
+import '../pages/product_flavors/flavor_wizard_page(delete).dart';
 import '../pages/reports/reports_page.dart';
 
 import '../pages/store_wizard/cubit/store_wizard_cubit.dart';
@@ -84,8 +84,7 @@ import '../pages/variants/edit_variants.dart';
 
 import '../pages/variants/variant_edit_screen_wrapper.dart';
 import '../pages/verify_code/verify_code_page.dart';
-import '../pages/welcome/settings_wizard_page.dart';
-import '../pages/welcome/welcome_page.dart';
+
 import '../repositories/analytics_repository.dart';
 import '../repositories/chatbot_repository.dart';
 import '../repositories/realtime_repository.dart';
@@ -196,12 +195,27 @@ class AppRouter {
           final activeStore = storesState.activeStore;
 
 
-          if (activeStore != null &&
-              !activeStore.core.isSetupComplete &&
-              !location.contains('/wizard') &&
-              !isGoingToCreateStore) { // <-- NÃO redirecione se ainda estamos no fluxo de criação
-            debugPrint('🛠️ Store not set up, redirecting to wizard.');
-            return '/stores/${activeStore.core.id}/wizard';
+          // Se a loja não está configurada, força o wizard.
+          if (activeStore != null && !activeStore.core.isSetupComplete) {
+            // ✅ INÍCIO DA CORREÇÃO
+
+            // Define as rotas que são "portas de entrada" para o setup.
+            // O usuário SEMPRE pode acessá-las.
+            final setupEntryRoutes = ['/wizard', '/stores/new', '/welcome'];
+
+            // Verifica se a localização atual é uma dessas rotas de entrada.
+            final isGoingToSetupEntry = setupEntryRoutes.any((route) => location.contains(route));
+
+            // Se o usuário está tentando ir para uma rota de setup, ou JÁ ESTÁ
+            // em uma rota detalhada da loja (ex: /categories/new), permita.
+            if (isGoingToSetupEntry || location.startsWith('/stores/${activeStore.core.id}/')) {
+              // Não faz nada, deixa o usuário navegar.
+            } else {
+              // Se ele não está em nenhuma rota de configuração, aí sim redirecionamos.
+              debugPrint('🛠️ Store not set up, redirecting to wizard.');
+              return '/stores/${activeStore.core.id}/wizard';
+            }
+            // ✅ FIM DA CORREÇÃO
           }
 
 
@@ -354,25 +368,6 @@ class AppRouter {
         },
 
         routes: [
-          // ✅ MOVA A ROTA PARA CÁ
-          GoRoute(
-            path: 'welcome',
-            // O caminho completo será /stores/:storeId/welcome
-            builder: (context, state) {
-              final storeId = int.parse(state.pathParameters['storeId']!);
-              return WelcomeSetupPage(storeId: storeId);
-            },
-          ),
-          // ✅ ROTA DO WIZARD NO LUGAR CERTO
-          GoRoute(
-            path: 'wizard-settings',
-            // Caminho relativo. O path completo será /stores/:storeId/wizard-settings
-            builder: (context, state) {
-              // Agora o storeId está disponível nos parâmetros da rota!
-              final storeId = int.parse(state.pathParameters['storeId']!);
-              return OnboardingWizardPage(storeId: storeId);
-            },
-          ),
 
 
           StatefulShellRoute.indexedStack(
@@ -1136,56 +1131,56 @@ class AppRouter {
             },
           ),
 
-          GoRoute(
-            path: 'categories/new', // CRIAÇÃO DE CATEGORIA
-            name: 'category-new',
-            builder:
-                (_, state) =>
-                CreateCategoryPage(
-                  storeId: int.parse(state.pathParameters['storeId']!),
-                ),
-          ),
-          GoRoute(
-            path: 'categories/:categoryId',
-            name: 'category-edit',
-            builder: (context, state) {
-              // --- Início da Lógica Robusta ---
-
-              // Passo 1: Obter IDs e o Cubit (continua igual)
-              final categoryId = int.parse(state.pathParameters['categoryId']!);
-              final storesManagerCubit = context.read<StoresManagerCubit>();
-
-              // Passo 2: Tentar carregar a categoria do 'extra' de forma SEGURA
-              Category? category; // Começa como nulo
-
-              if (state.extra is Category) {
-                // Caso 1: Veio como o objeto correto. Ótimo!
-                category = state.extra as Category;
-              } else if (state.extra is Map<String, dynamic>) {
-                // Caso 2: O tipo se perdeu e veio como um Map. Reconstruímos a partir do JSON.
-                category =
-                    Category.fromJson(state.extra as Map<String, dynamic>);
-              }
-
-              // Passo 3: Plano B - se o 'extra' falhou ou era nulo, buscar no Cubit (continua igual)
-              category ??= storesManagerCubit.getCategoryById(categoryId);
-
-              // Passo 4: Validação Final (continua igual)
-              if (category == null) {
-                return Scaffold(
-                  appBar: AppBar(title: const Text("Erro")),
-                  body: Center(child: Text(
-                      "Categoria com ID $categoryId não encontrada!")),
-                );
-              }
-
-              // Passo 5: Construir a página com os dados garantidos (continua igual)
-              return CreateCategoryPage(
-                storeId: int.parse(state.pathParameters['storeId']!),
-                category: category,
-              );
-            },
-          ),
+          // GoRoute(
+          //   path: 'categories/new', // CRIAÇÃO DE CATEGORIA
+          //   name: 'category-new',
+          //   builder:
+          //       (_, state) =>
+          //       CreateCategoryPage(
+          //         storeId: int.parse(state.pathParameters['storeId']!),
+          //       ),
+          // ),
+          // GoRoute(
+          //   path: 'categories/:categoryId',
+          //   name: 'category-edit',
+          //   builder: (context, state) {
+          //     // --- Início da Lógica Robusta ---
+          //
+          //     // Passo 1: Obter IDs e o Cubit (continua igual)
+          //     final categoryId = int.parse(state.pathParameters['categoryId']!);
+          //     final storesManagerCubit = context.read<StoresManagerCubit>();
+          //
+          //     // Passo 2: Tentar carregar a categoria do 'extra' de forma SEGURA
+          //     Category? category; // Começa como nulo
+          //
+          //     if (state.extra is Category) {
+          //       // Caso 1: Veio como o objeto correto. Ótimo!
+          //       category = state.extra as Category;
+          //     } else if (state.extra is Map<String, dynamic>) {
+          //       // Caso 2: O tipo se perdeu e veio como um Map. Reconstruímos a partir do JSON.
+          //       category =
+          //           Category.fromJson(state.extra as Map<String, dynamic>);
+          //     }
+          //
+          //     // Passo 3: Plano B - se o 'extra' falhou ou era nulo, buscar no Cubit (continua igual)
+          //     category ??= storesManagerCubit.getCategoryById(categoryId);
+          //
+          //     // Passo 4: Validação Final (continua igual)
+          //     if (category == null) {
+          //       return Scaffold(
+          //         appBar: AppBar(title: const Text("Erro")),
+          //         body: Center(child: Text(
+          //             "Categoria com ID $categoryId não encontrada!")),
+          //       );
+          //     }
+          //
+          //     // Passo 5: Construir a página com os dados garantidos (continua igual)
+          //     return CreateCategoryPage(
+          //       storeId: int.parse(state.pathParameters['storeId']!),
+          //       category: category,
+          //     );
+          //   },
+          // ),
 
 
           GoRoute(

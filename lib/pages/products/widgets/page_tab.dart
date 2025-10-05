@@ -1,40 +1,44 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-
-import '../../../themes/ds_theme_switcher.dart';
-
-/// WIDGET: Barra de abas
 class PageTabBar extends StatelessWidget implements PreferredSizeWidget {
-  const PageTabBar({super.key});
+  // ✅ 1. Adiciona os parâmetros que estavam faltando
+  final TabController controller;
+  final bool isInWizard;
+
+  const PageTabBar({
+    super.key,
+    required this.controller,
+    this.isInWizard = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<DsThemeSwitcher>().theme;
+    // ✅ 2. Define as abas com base no modo wizard
+    final List<Widget> tabs = isInWizard
+        ? [const Tab(text: 'Cardápio')]
+        : [
+      const Tab(text: 'Cardápio'),
+      const Tab(text: 'Produtos'),
+      const Tab(text: 'Complementos'), // Corrigido de "Complemento"
+    ];
 
-    return Container(
-      color: Colors.white,
-    //  padding: const EdgeInsets.symmetric(horizontal: 2),
-      child:  TabBar( // ✅ O TabBar vai encontrar o controller do DefaultTabController
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        labelColor: theme.primaryColor,
-        dividerColor: Colors.transparent,
-        unselectedLabelColor: Colors.black54,
-        indicatorColor: theme.primaryColor,
-        indicatorWeight: 3.0,
-        labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-        tabs: [
-          Tab(text: 'Cardápio'),
-          Tab(text: 'Produtos'),
-          Tab(text: 'Complemento'),
-
-        ],
-      ),
+    return TabBar(
+      // ✅ 3. Usa o controller recebido
+      controller: controller,
+      padding: EdgeInsets.zero,
+      isScrollable: true, // Não precisa ser rolável com 3 itens
+      tabAlignment: TabAlignment.start, // Preenche o espaço
+      labelColor: Theme.of(context).colorScheme.primary,
+      dividerColor: Colors.transparent,
+      unselectedLabelColor: Colors.black54,
+      indicatorColor: Theme.of(context).colorScheme.primary,
+      indicatorWeight: 3.0,
+      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+      // ✅ 4. Usa a lista dinâmica de abas
+      tabs: tabs,
     );
   }
 
-  // ✅ Adicione este getter para informar a altura da barra
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight); // Altura padrão de uma TabBar
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }

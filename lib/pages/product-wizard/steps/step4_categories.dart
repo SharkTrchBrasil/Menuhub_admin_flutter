@@ -10,7 +10,7 @@ import 'package:totem_pro_admin/widgets/app_text_field.dart';
 import '../../../../cubits/store_manager_state.dart';
 import '../../../models/products/prodcut_category_links.dart';
 import '../../../core/enums/bulk_action_type.dart';
-import '../../categories/BulkCategoryPage.dart';
+import '../../categories_bulk/BulkCategoryPage.dart';
 import '../../product_edit/widgets/category_link_wizard.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
 import '../../products/widgets/product_categories_manager.dart';

@@ -117,13 +117,14 @@ class _FlavorWizardPageState extends State<FlavorWizardPage> with SingleTickerPr
                         style: DsButtonStyle.secondary,
                         requiresConnection: false,
                         // Desabilita o botão de cancelar durante o carregamento
-                        onPressed: isLoading ? null : () => context.pop(),
+                        onPressed: () => context.pop(),
                         child: const Text('Cancelar'),
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: DsButton(
+                        isLoading: isLoading,
                         onPressed: isFormValid && !isLoading
                             ? () {
                           // ✅ --- INÍCIO DA LÓGICA CORRIGIDA --- ✅
@@ -141,14 +142,12 @@ class _FlavorWizardPageState extends State<FlavorWizardPage> with SingleTickerPr
                           // ✅ --- FIM DA LÓGICA CORRIGIDA --- ✅
                         }
                             : null,
-                        child: isLoading
-                            ? const SizedBox(/* ... CircularProgressIndicator ... */)
-                            : Text(
+                       label:
                           // ✅ O texto do botão agora é mais inteligente
                           state.isEditMode
                               ? 'Salvar Alterações'
                               : (isLastTab ? 'Criar Sabor' : 'Continuar'),
-                        ),
+
                       ),
                     ),
                   ],

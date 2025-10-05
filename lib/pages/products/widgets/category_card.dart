@@ -5,16 +5,21 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:totem_pro_admin/models/category.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_creation_panel.dart';
 
 import 'package:totem_pro_admin/pages/products/widgets/product_list_item.dart';
 
 import 'package:totem_pro_admin/services/dialog_service.dart';
 
 import '../../../core/enums/category_type.dart';
+import '../../../core/helpers/sidepanel.dart';
+import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/products/product.dart';
 import '../../categories/widgets/category_card_header.dart';
 import '../../categories/widgets/empty_category.dart';
+import '../../product_flavors/flavor_creation_panel.dart';
 import '../cubit/products_cubit.dart';
+import '../../categories/category_panel.dart';
 
 
 class CategoryCard extends StatefulWidget {
@@ -87,37 +92,58 @@ class _CategoryCardState extends State<CategoryCard> {
 
 
 
-  void _navigateToAddItem() async {
-    // 2. Espera o resultado da navegação (a tela do wizard)
-    final result = await context.push<bool>(
-      '/stores/${widget.storeId}/products/create',
-      extra: widget.category,
+  void _openAddItemPanel() {
+    // A lógica inteligente que antes estava no router, agora está aqui.
+    final bool isCustomizable = widget.category.type == CategoryType.CUSTOMIZABLE;
+
+    final Widget panelToOpen = isCustomizable
+        ? FlavorCreationPanel(
+      storeId: widget.storeId,
+      category: widget.category,
+      onSaveSuccess: () {
+        Navigator.of(context).pop(); // Fecha o painel
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Sabor criado com sucesso!"), backgroundColor: Colors.green),
+        );
+
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    )
+        : ProductCreationPanel(
+      storeId: widget.storeId,
+      category: widget.category,
+      onSaveSuccess: () {
+        Navigator.of(context).pop(); // Fecha o painel
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Produto criado com sucesso!"), backgroundColor: Colors.green),
+        );
+
+      },
+      onCancel: () => Navigator.of(context).pop(),
     );
 
-    // 3. Reage ao resultado DEPOIS que a tela do wizard foi fechada
-    if (result == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Produto criado com sucesso!"),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
+    // Abre o painel escolhido
+    showResponsiveSidePanel(context, panelToOpen);
   }
+
+
 
   void _navigateToEditCategory() {
+    // Substituímos o context.goNamed por uma chamada que abre o painel.
+    showResponsiveSidePanel( // Supondo que você tenha uma função assim
+      context,
+      CategoryPanel(
+        storeId: widget.storeId,
+        category: widget.category, // Passa a categoria para edição
+        onSaveSuccess: () {   Navigator.of(context).pop();        // Fecha o painel
 
-    context.goNamed(
-      'category-edit', // Chama a rota de edição pelo nome
-      pathParameters: {
-        'storeId': widget.storeId.toString(),
-        'categoryId': widget.category.id.toString(),
-      },
-      extra: widget.category, // Continuamos enviando o 'extra' para o carregamento rápido!
+
+        }
+      ),
     );
-
-
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +166,7 @@ class _CategoryCardState extends State<CategoryCard> {
               _nameController.text = widget.category.name;
               setState(() => _isEditingName = false);
             },
-            onAddItem: _navigateToAddItem,
+            onAddItem: _openAddItemPanel,
             onToggleStatus: _toggleCategoryStatus,
             onEditCategory: _navigateToEditCategory,
             onDeleteCategory: () => _deleteCategory(),
@@ -150,7 +176,7 @@ class _CategoryCardState extends State<CategoryCard> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: widget.products.isEmpty
-                ? EmptyCategoryCardContent(onAddItem: _navigateToAddItem)
+                ? EmptyCategoryCardContent( onAddItem: _openAddItemPanel,)
                 : ListView.separated(
               itemCount: widget.products.length,
               shrinkWrap: true,

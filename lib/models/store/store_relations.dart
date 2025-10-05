@@ -21,6 +21,7 @@ import 'package:totem_pro_admin/models/supplier.dart';
 
 import 'package:totem_pro_admin/models/variant.dart';
 
+import '../billing_preview.dart';
 import '../category.dart';
 import '../command.dart';
 import '../coupon.dart';
@@ -65,6 +66,7 @@ class StoreRelations {
 
   final List<StoreChatbotMessage> chatbotMessages;
   final StoreChatbotConfig? chatbotConfig;
+  final BillingPreview? billingPreview;
 
   StoreRelations({
     this.paymentMethodGroups = const [],
@@ -93,6 +95,7 @@ class StoreRelations {
     this.commands = const [],
     this.chatbotMessages = const [],
     this.chatbotConfig,
+    this.billingPreview,
   });
 
   factory StoreRelations.fromJson(Map<String, dynamic> json) {
@@ -181,6 +184,9 @@ class StoreRelations {
       chatbotConfig: json['chatbot_config'] != null
           ? StoreChatbotConfig.fromJson(json['chatbot_config'])
           : null,
+      billingPreview: json['billing_preview'] != null
+          ? BillingPreview.fromJson(json['billing_preview'])
+          : null, // ✅ Adicione aqui
     );
   }
 
@@ -211,6 +217,7 @@ class StoreRelations {
     List<Command>? commands,
     List<StoreChatbotMessage>? chatbotMessages,
     StoreChatbotConfig? chatbotConfig,
+    BillingPreview? billingPreview,
   }) {
     return StoreRelations(
         paymentMethodGroups: paymentMethodGroups ?? this.paymentMethodGroups,
@@ -238,7 +245,9 @@ class StoreRelations {
         tables: tables ?? this.tables,
         commands: commands ?? this.commands,
         chatbotMessages: chatbotMessages ?? this.chatbotMessages,
-        chatbotConfig: chatbotConfig ?? this.chatbotConfig
+        chatbotConfig: chatbotConfig ?? this.chatbotConfig,
+      billingPreview: billingPreview ?? this.billingPreview
+
     );
   }
 }

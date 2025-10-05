@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:image_picker/image_picker.dart';
 
 
 import 'package:totem_pro_admin/models/variant.dart';
@@ -884,7 +885,43 @@ class ProductRepository {
   }
 
 
+  // ✅ NOVO MÉTODO PARA IMPORTAÇÃO POR IA
+  Future<Either<String, String>> importMenuFromImages({
+    required int storeId,
+    required List<XFile> imageFiles,
+    required Function(int, int) onSendProgress,
+  }) async {
+    try {
+      final formData = FormData();
 
+      // Adiciona cada arquivo de imagem ao FormData
+      for (final file in imageFiles) {
+        formData.files.add(MapEntry(
+          'files', // A chave que o backend espera
+          MultipartFile.fromBytes(
+            await file.readAsBytes(),
+            filename: file.name,
+          ),
+        ));
+      }
+
+      // Faz a chamada POST para o endpoint que criamos no backend
+      final response = await _dio.post(
+        '/stores/$storeId/import/menu-from-images',
+        data: formData,
+        onSendProgress: onSendProgress, // Passa a função de progresso para o Dio
+      );
+
+      // Retorna a mensagem de sucesso do backend (ex: "Recebemos seu cardápio...")
+      return Right(response.data['message']);
+
+    } on DioException catch (e) {
+      final error = e.response?.data['detail'] ?? 'Erro ao enviar as imagens.';
+      return Left(error);
+    } catch (e) {
+      return Left('Ocorreu um erro inesperado: ${e.toString()}');
+    }
+  }
 
 
 

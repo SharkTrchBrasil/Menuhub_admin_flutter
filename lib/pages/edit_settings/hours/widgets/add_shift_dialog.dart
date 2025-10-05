@@ -1,10 +1,8 @@
-// lib/pages/opening_hours/widgets/add_shift_dialog.dart
-
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import 'shift_row.dart'; // Reutilizaremos o TimeInput
 
-// Classe para retornar os dados do diálogo (sem alterações)
+// A classe de resultado permanece a mesma
 class AddShiftResult {
   final Set<int> selectedDays;
   final TimeOfDay openingTime;
@@ -17,6 +15,7 @@ class AddShiftResult {
   });
 }
 
+// O nome "Dialog" foi mantido, mas agora é efetivamente uma "Página" de painel.
 class AddShiftDialog extends StatefulWidget {
   final int initialDay;
   final TimeOfDay initialTime;
@@ -36,7 +35,7 @@ class AddShiftDialog extends StatefulWidget {
 }
 
 class _AddShiftDialogState extends State<AddShiftDialog> {
-  // Estado local do diálogo (sem alterações)
+  // A lógica de estado e inicialização permanece a mesma
   late Set<int> _selectedDays;
   late TimeOfDay _openingTime;
   late TimeOfDay _closingTime;
@@ -54,8 +53,8 @@ class _AddShiftDialogState extends State<AddShiftDialog> {
     _closingTime = TimeOfDay(hour: _openingTime.hour + 2, minute: _openingTime.minute);
   }
 
+  // A lógica de confirmação e validação permanece a mesma
   void _confirm() {
-    // Validações (sem alterações)
     if (_selectedDays.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Selecione pelo menos um dia da semana.'),
@@ -78,73 +77,57 @@ class _AddShiftDialogState extends State<AddShiftDialog> {
     ));
   }
 
+  // ✅✅✅ BUILD SIMPLIFICADO ✅✅✅
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 550;
-
-    return Dialog(
-      // ✅ 1. LÓGICA PARA TELA CHEIA NO MOBILE
-      // Remove o padding e as bordas arredondadas no mobile
-      insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 40.0, vertical: 24.0),
-      shape: isMobile
-          ? const RoundedRectangleBorder(borderRadius: BorderRadius.zero)
-          : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-
-      child: Container(
-        // Define a altura máxima para o modo desktop
-        width: 500,
-        height: isMobile ? double.infinity : null,
-        child: isMobile ? _buildMobileFullScreen() : _buildDesktopDialog(),
-      ),
-    );
-  }
-
-  // ✅ 2. LAYOUT PARA DESKTOP (O DIÁLOGO PADRÃO)
-  Widget _buildDesktopDialog() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: _buildFormContent(),
-      ),
-    );
-  }
-
-  // ✅ 3. LAYOUT PARA MOBILE (TELA CHEIA COM APPBAR)
-  Widget _buildMobileFullScreen() {
+    // O widget agora é sempre um Scaffold, que funciona perfeitamente no Side Panel.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Adicionar Novo Horário'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton(
-              onPressed: _confirm,
-              child: const Text('SALVAR'),
-            ),
-          )
-        ],
+        // Botão para fechar o painel
+        automaticallyImplyLeading: false,
+
+
       ),
+      // O corpo agora tem rolagem para evitar overflow
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: _buildFormContent(),
+        padding: const EdgeInsets.all(14.0),
+        child: _buildFormContent(), // O conteúdo do formulário é reutilizado
+      ),
+      // Botões ficam em um rodapé fixo para melhor UX
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: DsButton(
+                style: DsButtonStyle.secondary,
+                onPressed: () => Navigator.of(context).pop(),
+                label: 'Cancelar',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DsButton(
+                label: 'Salvar Horários',
+                onPressed: _confirm,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ✅ 4. CONTEÚDO DO FORMULÁRIO REUTILIZÁVEL
-  // Para não repetir código entre os layouts mobile e desktop
+  // ✅✅✅ CONTEÚDO DO FORMULÁRIO SIMPLIFICADO ✅✅✅
+  // Não precisa mais de lógica para mostrar/esconder botões.
   Widget _buildFormContent() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Seletor de Dias da Semana
+        const SizedBox(height: 28),
+
         const Text('Escolha os dias da semana:', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Wrap(
@@ -183,25 +166,6 @@ class _AddShiftDialogState extends State<AddShiftDialog> {
             Expanded(child: TimeInput(time: _closingTime, onChanged: (t) => setState(() => _closingTime = t), label: 'Até')),
           ],
         ),
-
-        // Os botões no desktop são renderizados separadamente no AppBar do mobile
-        if (MediaQuery.of(context).size.width >= 550) ...[
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              OutlinedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancelar'),
-              ),
-              const SizedBox(width: 8),
-              DsButton(
-                label: 'Confirmar horários',
-                onPressed: _confirm,
-              ),
-            ],
-          ),
-        ]
       ],
     );
   }

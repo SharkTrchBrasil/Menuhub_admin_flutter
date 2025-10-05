@@ -6,15 +6,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_panel.dart';
 
 
 import '../../../core/di.dart';
 import '../../../core/enums/category_type.dart';
 
+import '../../../core/helpers/sidepanel.dart';
 import '../../../models/category.dart';
 
 import '../../../models/products/product.dart';
 import '../../../repositories/product_repository.dart';
+import '../../product_flavors/flavor_edit_panel.dart';
 import '../cubit/products_cubit.dart';
 
 
@@ -441,19 +444,7 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
 
 
 
-              if (isCustomizable) {
-                context.pushNamed(
-                  'flavor-edit', // Nome da rota para editar sabores
-                  pathParameters: {'storeId': '${widget.storeId}', 'productId': '${widget.product.id}'},
-                  extra: widget.product,
-                );
-              } else {
-                context.pushNamed(
-                  'product-edit', // ✅ Nome da rota para editar produtos simples
-                  pathParameters: {'storeId': '${widget.storeId}', 'productId': '${widget.product.id}'},
-                  extra: widget.product,
-                );
-              }
+              _openEditPanel();
 
 
 
@@ -472,6 +463,46 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
   }
 
 // Em product_list_item_desktop.dart
+
+
+  void _openEditPanel() {
+
+
+    final isCustomizable = widget.parentCategory.type == CategoryType.CUSTOMIZABLE;
+
+    // Decide qual painel abrir
+    final Widget panelToOpen = isCustomizable
+        ? FlavorEditPanel(
+      storeId: widget.storeId,
+      product: widget.product,
+      parentCategory: widget.parentCategory,
+      onSaveSuccess: () {
+
+
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    )
+        : ProductEditPanel(
+      storeId: widget.storeId,
+      product: widget.product,
+      onSaveSuccess: () {
+      // Fecha o painel
+
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    );
+
+    // Usa o seu helper para abrir o painel lateral escolhido
+    showResponsiveSidePanel(context, panelToOpen);
+  }
+
+
+
+
+
+
+
+
 
   Widget _buildDefaultImage(bool isAvailable) {
     // ✅ LÓGICA CORRIGIDA AQUI

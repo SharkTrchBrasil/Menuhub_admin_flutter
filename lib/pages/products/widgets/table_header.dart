@@ -110,7 +110,7 @@ class TableHeader extends StatelessWidget {
   // ✅ BARRA DE AÇÕES RESPONSIVA (MOBILE E DESKTOP)
   Widget _buildSelectionActionsBar(BuildContext context) {
     final bool isMobile = ResponsiveBuilder.isMobile(context);
-    final bool isTablet = ResponsiveBuilder.isTablet(context);
+   // final bool isTablet = ResponsiveBuilder.isTablet(context);
 
     return Container(
       padding: EdgeInsets.symmetric(

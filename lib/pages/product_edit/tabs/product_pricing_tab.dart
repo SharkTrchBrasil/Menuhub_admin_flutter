@@ -8,7 +8,7 @@ import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart
 import '../../../core/enums/bulk_action_type.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
-import '../../categories/BulkCategoryPage.dart';
+import '../../categories_bulk/BulkCategoryPage.dart';
 import '../../product-wizard/cubit/product_wizard_cubit.dart';
 import '../../product-wizard/cubit/product_wizard_state.dart';
 import '../../product_groups/helper/side_panel_helper.dart';

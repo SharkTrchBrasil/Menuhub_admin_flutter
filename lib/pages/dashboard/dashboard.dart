@@ -96,6 +96,18 @@ class _DashboardView extends StatelessWidget {
 
                         const SizedBox(height: 24),
 
+                // ATIVAR ESSE CARD DE RESUMO DO PLANO
+
+                //      final billingPreview = state.activeStore?.relations.billingPreview;
+                        //
+                        // BillingPreviewCard(
+                        //   preview: billingPreview,
+                        //   onTap: () {
+                        //     // Ação de clique: Navega para a tela de pedidos ou mostra um resumo.
+                        //     // Exemplo: Navegar para uma tela de relatórios financeiros
+                        //     context.go('/stores/${state.activeStore!.core.id}/financial-reports');
+                        //   },
+                        // ),
 
 
 

@@ -62,19 +62,7 @@ class FilterBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          // Botão Reordenar
-          IconButton(
-            icon: const Icon(Icons.sort,),
-            tooltip: 'Reordenar',
-            onPressed: () {
-              // TODO: Implementar lógica de reordenação
-            },
-            style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                side: const BorderSide(),
-                padding: const EdgeInsets.all(12)
-            ),
-          ),
+
         ],
       ),
     );
