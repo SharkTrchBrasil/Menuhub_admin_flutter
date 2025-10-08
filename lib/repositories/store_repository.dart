@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
@@ -31,7 +33,9 @@ import '../models/scheduled_pause.dart';
 
 
 import '../models/subscription/tokenized_card.dart';
+import '../pages/clone_store_wizard/cubit/new_store_state.dart';
 import '../pages/create_store/cubit/store_setup-state.dart';
+
 
 
 class StoreRepository {
@@ -55,6 +59,61 @@ class StoreRepository {
       return const Left(null);
     }
   }
+
+
+  // ✅ NOVO: Método para buscar as lojas do usuário (para a tela de clone)
+  Future<Either<Failure, List<StoreWithRole>>> getStoresForUser() async {
+    try {
+      final response = await _dio.get('/stores');
+      final stores = (response.data as List)
+          .map<StoreWithRole>((json) => StoreWithRole.fromJson(json))
+          .toList();
+      return Right(stores);
+    } on DioException catch (e) {
+      return Left(Failure(e.response?.data?['detail'] ?? 'Erro ao buscar lojas.'));
+    } catch (e) {
+      return Left(Failure('Ocorreu um erro inesperado.'));
+    }
+  }
+
+  // ✅ MÉTODO DE CLONAGEM CORRIGIDO
+  Future<Either<Failure, StoreWithRole>> cloneStore({
+    required int sourceStoreId,
+    required String name,
+    required String urlSlug,
+    required String? description,
+    required String phone,
+    required String addressJson, // Recebe a string JSON diretamente
+    required String optionsJson, // Recebe a string JSON diretamente
+  }) async {
+    try {
+      // O backend espera 'multipart/form-data', então usamos FormData.
+      final formData = FormData.fromMap({
+        'source_store_id': sourceStoreId,
+        'name': name,
+        'url_slug': urlSlug,
+        'phone': phone,
+        if (description != null) 'description': description,
+        // O alias 'address' e 'options' é definido na API, aqui usamos o nome do campo.
+        'address': addressJson,
+        'options': optionsJson,
+      });
+
+      final response = await _dio.post('/stores/clone', data: formData);
+
+      final newStore = StoreWithRole.fromJson(response.data);
+      return Right(newStore);
+
+    } on DioException catch (e) {
+      final detail = e.response?.data?['detail'] ?? 'Não foi possível clonar a loja.';
+      return Left(Failure(detail.toString()));
+    } catch (e) {
+      return Left(Failure('Ocorreu um erro inesperado ao clonar a loja.'));
+    }
+  }
+
+
+
 
 // Em StoreRepository
   Future<bool> urlExists(String url) async {
@@ -353,7 +412,7 @@ class StoreRepository {
 
 
 
-              ///  citys //
+  ///  citys //
   ///
 
 // ✅ NOVO MÉTODO PARA SALVAR CIDADE COM BAIRROS
@@ -418,7 +477,7 @@ class StoreRepository {
   }
 
 
-  
+
 
 
   Future<Either<void, void>> deleteCity(int storeId, int cityId) async {
@@ -432,7 +491,7 @@ class StoreRepository {
   }
 
 
-   // FIM //
+  // FIM //
 
 
   Future<Either<void, List<StoreNeighborhood>>> getNeighborhoods(int cityId) async {
@@ -489,7 +548,7 @@ class StoreRepository {
     }
   }
 
-   // FIM ///
+  // FIM ///
 
 
 
@@ -1050,27 +1109,3 @@ class StoreRepository {
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

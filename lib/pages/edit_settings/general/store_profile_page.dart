@@ -25,6 +25,7 @@ import 'package:totem_pro_admin/widgets/app_text_field.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
+import '../../../core/responsive_builder.dart';
 import '../../../models/store/store_address.dart';
 
 class StoreProfilePage extends StatefulWidget {
@@ -44,6 +45,14 @@ class StoreProfilePage extends StatefulWidget {
 class StoreProfilePageState extends State<StoreProfilePage> {
   final StoreRepository storeRepository = getIt();
   final formKey = GlobalKey<FormState>();
+
+  bool validateForm() {
+    // O método `validate()` do FormState faz o trabalho pesado:
+    // 1. Executa o `validator` de cada campo.
+    // 2. Mostra as mensagens de erro abaixo dos campos inválidos.
+    // 3. Retorna `true` se tudo estiver OK, `false` caso contrário.
+    return formKey.currentState?.validate() ?? false;
+  }
 
   // ✅ 1. ADICIONADO _originalStore PARA GUARDAR O ESTADO INICIAL
   Store? _originalStore;
@@ -152,9 +161,10 @@ class StoreProfilePageState extends State<StoreProfilePage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const FixedHeader(title: 'Informações da loja'),
-          const SizedBox(height: 16),
-          Expanded(child: _buildUnifiedContent()),
+          Expanded(child: Padding(
+            padding:  EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isDesktop(context) ? 24: 14.0),
+            child: _buildUnifiedContent(),
+          )),
         ],
       ),
     );
@@ -279,7 +289,7 @@ class StoreProfilePageState extends State<StoreProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AppImageFormFieldLogo(
-          title: 'Logo da Loja',
+          title: 'Logo da Loja*',
           initialValue: _editableStore!.media?.image,
           onChanged: (imageModel) {
             _onStoreChanged(
@@ -290,7 +300,7 @@ class StoreProfilePageState extends State<StoreProfilePage> {
           },
           validator: (imageModel) {
             if (imageModel == null || (imageModel.file == null && imageModel.url == null)) {
-              return 'A logo da loja é obrigatória.';
+              return 'A logo da loja é obrigatória.'; // ← Esta mensagem agora será exibida corretamente
             }
             return null;
           },

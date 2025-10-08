@@ -9,6 +9,7 @@ import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 
 import '../../../core/helpers/sidepanel.dart';
+import '../../../core/responsive_builder.dart';
 import '../../platform_payment_methods/gateway-payment.dart';
 
 // ✅ DELEGATE COPIADO DA delivery_locations_page.dart (ou pode ser movido para um arquivo comum)
@@ -75,12 +76,15 @@ class PaymentMethodsPage extends StatelessWidget {
           length: tabs.length,
           child: Scaffold(
             // ✅ A ESTRUTURA AGORA É UM CUSTOMSCROLLVIEW ÚNICO DENTRO DO TABBARVIEW
-            body: TabBarView(
-              children: [
-                // Cada aba tem seu próprio CustomScrollView
-                _buildContentForTab(context, onlineGroups, storeId, tabs),
-                _buildContentForTab(context, offlineGroups, storeId, tabs),
-              ],
+            body: Padding(
+              padding:  EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isDesktop(context) ? 24: 14.0),
+              child: TabBarView(
+                children: [
+                  // Cada aba tem seu próprio CustomScrollView
+                  _buildContentForTab(context, onlineGroups, storeId, tabs),
+                  _buildContentForTab(context, offlineGroups, storeId, tabs),
+                ],
+              ),
             ),
           ),
         );
@@ -95,7 +99,7 @@ class PaymentMethodsPage extends StatelessWidget {
         // ✅ 1. HEADER FIXO (SliverToBoxAdapter)
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
             child: FixedHeader(
               showActionsOnMobile: true,
               title: 'Formas de pagamento',

@@ -14,6 +14,10 @@ class ImageModel extends Equatable {
     this.isVideo = false,
   });
 
+  // ✅ 1. ADICIONADO O GETTER 'hasImage'
+  /// Retorna `true` se houver uma imagem remota (url) OU uma imagem local (file).
+  bool get hasImage => (url != null && url!.isNotEmpty) || file != null;
+
   factory ImageModel.fromJson(Map<String, dynamic> json) {
     return ImageModel(
       id: json['id'],
@@ -22,5 +26,5 @@ class ImageModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, url, file, isVideo]; // ✅ CORREÇÃO: isVideo adicionado aqui
+  List<Object?> get props => [id, url, file, isVideo];
 }

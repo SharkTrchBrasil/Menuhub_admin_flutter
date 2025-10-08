@@ -6,6 +6,7 @@ import 'package:bloc/bloc.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
+import 'package:totem_pro_admin/repositories/store_operation_config_repository.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 
@@ -28,6 +29,7 @@ import '../models/store/store.dart';
 
 import '../models/store/store_city.dart';
 import '../models/store/store_hour.dart';
+import '../models/store/store_operation_config.dart';
 import '../models/subscription.dart';
 import '../models/table.dart';
 import '../models/variant.dart';
@@ -44,6 +46,8 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
   final PaymentMethodRepository _paymentRepository;
   final ProductRepository _productRepository; //
+  // ✅ 1. Adicione o novo repositório
+  final StoreOperationConfigRepository _storeOperationConfigRepository;
 
   StreamSubscription? _adminStoresListSubscription;
   StreamSubscription? _notificationSubscription;
@@ -73,75 +77,123 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     required RealtimeRepository realtimeRepository,
     required PaymentMethodRepository paymentRepository,
     required ProductRepository productRepository,
+    // ✅ 2. Injete o novo repositório no construtor
+    required StoreOperationConfigRepository storeOperationConfigRepository,
   }) : _storeRepository = storeRepository,
         _realtimeRepository = realtimeRepository,
         _paymentRepository = paymentRepository,
         _productRepository = productRepository,
+  // ✅ 3. Atribua a variável da classe
+        _storeOperationConfigRepository = storeOperationConfigRepository,
 
         super(const StoresManagerInitial()) {}
 
 
 
 
-// =========================================================================
-  // ✅ [REATORAÇÃO COMPLETA] LÓGICA DE CARREGAMENTO INICIAL
-  // =========================================================================
+// Em store_manager_cubit.dart - NO método loadInitialData
   Future<void> loadInitialData() async {
     if (state is StoresManagerLoading) return;
 
-    log('[CUBIT]  Orchestrating initial data load...');
+    log('[CUBIT] Orchestrating initial data load...');
     emit(const StoresManagerLoading());
 
-    // 1. Inicia um novo Completer para esta sessão de carregamento.
     _initialLoadCompleter = Completer<void>();
 
-    // 2. Inicia os listeners de tempo real IMEDIATAMENTE.
-    // Isso é crucial para não perder os primeiros eventos do socket.
-    if (_adminStoresListSubscription == null) {
-      log("[CUBIT] Starting real-time listeners before any network call.");
-      _startRealtimeListeners();
+    // ✅ CORREÇÃO: Aguarda o WebSocket estar conectado antes de iniciar listeners
+    try {
+      await _waitForSocketConnection();
+
+      // 2. Inicia os listeners de tempo real APÓS conexão estabelecida
+      if (_adminStoresListSubscription == null) {
+        log("[CUBIT] Starting real-time listeners after socket connection.");
+        _startRealtimeListeners();
+      }
+
+      // Resto do código permanece igual...
+      final result = await _storeRepository.getStores();
+
+      await result.fold(
+            (failure) async {
+          log('❌ [CUBIT] Failed to load initial stores via HTTP: failure');
+          emit(const StoresManagerError(message: 'Não foi possível carregar suas lojas.'));
+          if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
+        },
+            (stores) async {
+          final validStores = stores.where((s) => s.store.core.id != null).toList();
+
+          if (validStores.isEmpty) {
+            log("🔵 [CUBIT] HTTP load complete: No stores found. Emitting StoresManagerEmpty.");
+            emit(const StoresManagerEmpty());
+            if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
+            return;
+          }
+
+          final firstStoreId = validStores.first.store.core.id!;
+          log("✅ [CUBIT] HTTP load complete. Active store will be ID: $firstStoreId.");
+          log("⏳ [CUBIT] Now waiting for the essential WebSocket data to arrive...");
+
+          // ✅ CORREÇÃO: Aguarda conexão antes de entrar na sala
+          await _waitForSocketConnection();
+
+          // 4. Entra na sala da loja para começar a receber dados detalhados.
+          await _realtimeRepository.joinStoreRoom(firstStoreId);
+
+          // 5. AGUARDA O SINAL do Completer
+          try {
+            await _initialLoadCompleter!.future.timeout(const Duration(seconds: 20));
+            log("✅ [CUBIT] Initial load signal received. The app can now proceed.");
+          } catch (e) {
+            log("⚠️ [CUBIT] Timeout! Essential WebSocket data did not arrive in time.");
+            if (state is! StoresManagerLoaded) {
+              emit(const StoresManagerError(message: 'Falha ao sincronizar com o servidor.'));
+            }
+          }
+        },
+      );
+    } catch (e) {
+      log('❌ [CUBIT] Error waiting for socket connection: $e');
+      emit(const StoresManagerError(message: 'Falha na conexão com o servidor.'));
+    }
+  }
+
+// ✅ NOVO MÉTODO: Aguarda conexão WebSocket
+  Future<void> _waitForSocketConnection() async {
+    final realtimeRepo = _realtimeRepository;
+    int attempts = 0;
+    const maxAttempts = 10;
+    const delay = Duration(milliseconds: 500);
+
+    while (attempts < maxAttempts) {
+      // Verifica se o socket está conectado
+      if (realtimeRepo.isConnected) {
+        log('✅ [CUBIT] WebSocket connected after $attempts attempts');
+        return;
+      }
+
+      log('⏳ [CUBIT] Waiting for WebSocket connection... attempt ${attempts + 1}');
+      await Future.delayed(delay);
+      attempts++;
     }
 
-    // 3. Busca as lojas via HTTP. O objetivo é apenas saber se o usuário tem lojas
-    // e qual era a última ativa, não para popular a UI.
-    final result = await _storeRepository.getStores();
-
-    await result.fold(
-          (failure) async {
-        log('❌ [CUBIT] Failed to load initial stores via HTTP: failure');
-        emit(const StoresManagerError(message: 'Não foi possível carregar suas lojas.'));
-        if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
-      },
-          (stores) async {
-        final validStores = stores.where((s) => s.store.core.id != null).toList();
-
-        if (validStores.isEmpty) {
-          log("🔵 [CUBIT] HTTP load complete: No stores found. Emitting StoresManagerEmpty.");
-          emit(const StoresManagerEmpty());
-          if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
-          return;
-        }
-
-        final firstStoreId = validStores.first.store.core.id!;
-        log("✅ [CUBIT] HTTP load complete. Active store will be ID: $firstStoreId.");
-        log("⏳ [CUBIT] Now waiting for the essential WebSocket data to arrive...");
-
-        // 4. Entra na sala da loja para começar a receber dados detalhados.
-        await _realtimeRepository.joinStoreRoom(firstStoreId);
-
-        // 5. AGUARDA O SINAL do Completer. Ele será completado por _onAdminStoresListReceived.
-        try {
-          await _initialLoadCompleter!.future.timeout(const Duration(seconds: 20));
-          log("✅ [CUBIT] Initial load signal received. The app can now proceed.");
-        } catch (e) {
-          log("⚠️ [CUBIT] Timeout! Essential WebSocket data did not arrive in time.");
-          if (state is! StoresManagerLoaded) {
-            emit(const StoresManagerError(message: 'Falha ao sincronizar com o servidor.'));
-          }
-        }
-      },
-    );
+    throw TimeoutException('WebSocket connection timeout after $maxAttempts attempts');
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   /// Helper para atualizar a loja ativa de forma segura e imutável.
   void _updateActiveStore(
@@ -163,49 +215,69 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     );
   }
 
+
+
+
+// ATUALIZE o método _startRealtimeListeners para ser mais defensivo:
   void _startRealtimeListeners() {
     // Cancel any previous subscriptions to avoid duplicates
     _cancelSubscriptions();
 
+    // Verifica se o cubit ainda está ativo antes de criar listeners
+    if (isClosed) {
+      log('[StoresManagerCubit] Tentativa de criar listeners em Cubit fechado. Abortando.');
+      return;
+    }
+
     // Listeners que não dependem de uma loja ativa
-    _adminStoresListSubscription = _realtimeRepository.onAdminStoresList.listen(_onAdminStoresListReceived);
-    _notificationSubscription = _realtimeRepository.onStoreNotification.listen(_onNotificationsReceived);
-    _connectivitySubscription = _realtimeRepository.onConnectivityChanged.listen(_onConnectivityChanged);
-    _stuckOrderAlertSubscription = _realtimeRepository.onStuckOrderAlert.listen(_onStuckOrderAlertReceived);
-    _conversationsSubscription = _realtimeRepository.onConversationsListUpdated.listen(_onConversationsListUpdated);
-    _realtimeRepository.onNewChatMessage.listen(_onNewChatMessageReceived);
-    _subscriptionErrorSubscription = _realtimeRepository.onSubscriptionError.listen(_onSubscriptionError);
+    _adminStoresListSubscription = _realtimeRepository.onAdminStoresList
+        .where((_) => _canProcessEvents)
+        .listen(_onAdminStoresListReceived);
 
+    _notificationSubscription = _realtimeRepository.onStoreNotification
+        .where((_) => _canProcessEvents)
+        .listen(_onNotificationsReceived);
 
+    _connectivitySubscription = _realtimeRepository.onConnectivityChanged
+        .where((_) => _canProcessEvents)
+        .listen(_onConnectivityChanged);
 
-    // ✅ BLINDANDO O LISTENER
-    _userHasNoStoresSubscription = _realtimeRepository.onUserHasNoStores.listen((_) {
-      if (isClosed) return;
+    _stuckOrderAlertSubscription = _realtimeRepository.onStuckOrderAlert
+        .where((_) => _canProcessEvents)
+        .listen(_onStuckOrderAlertReceived);
 
-      // Se o app ainda está carregando, ignore este evento.
-      // O fluxo principal (loadInitialData) decidirá se há lojas ou não.
+    _conversationsSubscription = _realtimeRepository.onConversationsListUpdated
+        .where((_) => _canProcessEvents)
+        .listen(_onConversationsListUpdated);
+
+    _realtimeRepository.onNewChatMessage
+        .where((_) => _canProcessEvents)
+        .listen(_onNewChatMessageReceived);
+
+    _subscriptionErrorSubscription = _realtimeRepository.onSubscriptionError
+        .where((_) => _canProcessEvents)
+        .listen(_onSubscriptionError);
+
+    _userHasNoStoresSubscription = _realtimeRepository.onUserHasNoStores
+        .where((_) => _canProcessEvents)
+        .listen((_) {
       if (state is StoresManagerLoading) {
         log("🔵 [CUBIT] 'user_has_no_stores' event received during initial load. Ignoring.");
         return;
       }
 
       log("🔵 [CUBIT] Event 'user_has_no_stores' received. Emitting StoresManagerEmpty.");
-      // Só emite Empty se o app já estava carregado (ex: o usuário deletou sua última loja)
       if (state is! StoresManagerEmpty) {
         emit(const StoresManagerEmpty());
       }
     });
 
     _listenToActiveStoreData();
-
-
-
-
-
-
-
-    _listenToActiveStoreData();
   }
+
+
+
+
 
   void _onSubscriptionError(Map<String, dynamic> errorPayload) {
     if (isClosed) return;
@@ -338,12 +410,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-
-
-
-
-
-
   void _onConnectivityChanged(ConnectivityStatus status) {
     if (state is StoresManagerLoaded) {
       final currentState = state as StoresManagerLoaded;
@@ -365,7 +431,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     _tablesSubscription?.cancel();
     _commandsSubscription?.cancel();
-
 
 
 
@@ -743,6 +808,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     }
   }
 
+  // ✅ 4. SUBSTITUA O MÉTODO INTEIRO PELA VERSÃO CORRIGIDA
   Future<void> updateStoreSettings(
       int storeId, {
         bool? deliveryEnabled,
@@ -755,37 +821,86 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
         String? kitchenPrinterDestination,
         String? barPrinterDestination,
       }) async {
-    try {
-      final result = await _realtimeRepository.updateStoreSettings(
-        storeId: storeId,
+    // Mantém a atualização otimista
+    StoreOperationConfig? originalConfig;
+    _updateActiveStore((_, activeStore) {
+      final currentConfig = activeStore.store.relations.storeOperationConfig;
+      if (currentConfig == null) return activeStore;
+      originalConfig = currentConfig; // Salva o estado original
 
-        deliveryEnabled:    deliveryEnabled,  // <-- Parâmetro renomeado
-        pickupEnabled:  pickupEnabled,     // <-- Parâmetro renomeado
-        tableEnabled:tableEnabled,
-        isStoreOpen: isStoreOpen,
-        autoAcceptOrders: autoAcceptOrders,
-        autoPrintOrders: autoPrintOrders,
-        mainPrinterDestination: mainPrinterDestination,
-        kitchenPrinterDestination: kitchenPrinterDestination,
-        barPrinterDestination: barPrinterDestination,
+      final updatedConfig = currentConfig.copyWith(
+        deliveryEnabled: deliveryEnabled ?? currentConfig.deliveryEnabled,
+        pickupEnabled: pickupEnabled ?? currentConfig.pickupEnabled,
+        tableEnabled: tableEnabled ?? currentConfig.tableEnabled,
+        isStoreOpen: isStoreOpen ?? currentConfig.isStoreOpen,
+        autoAcceptOrders: autoAcceptOrders ?? currentConfig.autoAcceptOrders,
+        autoPrintOrders: autoPrintOrders ?? currentConfig.autoPrintOrders,
+        mainPrinterDestination: mainPrinterDestination ?? currentConfig.mainPrinterDestination,
+        kitchenPrinterDestination: kitchenPrinterDestination ?? currentConfig.kitchenPrinterDestination,
+        barPrinterDestination: barPrinterDestination ?? currentConfig.barPrinterDestination,
+      );
+
+      final newRelations = activeStore.store.relations.copyWith(storeOperationConfig: updatedConfig);
+      return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
+    });
+
+    // Se não há configuração para atualizar, saia.
+    if (originalConfig == null) return;
+
+    // Cria o objeto de configuração com apenas os campos que mudaram
+    final configToUpdate = StoreOperationConfig(
+      isStoreOpen: isStoreOpen ?? originalConfig!.isStoreOpen,
+      autoAcceptOrders: autoAcceptOrders ?? originalConfig!.autoAcceptOrders,
+      autoPrintOrders: autoPrintOrders ?? originalConfig!.autoPrintOrders,
+      mainPrinterDestination: mainPrinterDestination ?? originalConfig!.mainPrinterDestination,
+      kitchenPrinterDestination: kitchenPrinterDestination ?? originalConfig!.kitchenPrinterDestination,
+      barPrinterDestination: barPrinterDestination ?? originalConfig!.barPrinterDestination,
+      deliveryEnabled: deliveryEnabled ?? originalConfig!.deliveryEnabled,
+      deliveryEstimatedMin: originalConfig!.deliveryEstimatedMin,
+      deliveryEstimatedMax: originalConfig!.deliveryEstimatedMax,
+      deliveryFee: originalConfig!.deliveryFee,
+      deliveryMinOrder: originalConfig!.deliveryMinOrder,
+      deliveryScope: originalConfig!.deliveryScope,
+      pickupEnabled: pickupEnabled ?? originalConfig!.pickupEnabled,
+      pickupEstimatedMin: originalConfig!.pickupEstimatedMin,
+      pickupEstimatedMax: originalConfig!.pickupEstimatedMax,
+      pickupInstructions: originalConfig!.pickupInstructions,
+      tableEnabled: tableEnabled ?? originalConfig!.tableEnabled,
+      tableEstimatedMin: originalConfig!.tableEstimatedMin,
+      tableEstimatedMax: originalConfig!.tableEstimatedMax,
+      tableInstructions: originalConfig!.tableInstructions,
+    );
+
+    try {
+      // Chama o repositório correto (HTTP)
+      final result = await _storeOperationConfigRepository.updateConfiguration(
+        storeId,
+        configToUpdate,
       );
 
       result.fold(
             (error) {
-          print(
-            '[StoresManagerCubit] Erro ao atualizar configurações da loja $storeId: $error',
-          );
+          log('❌ [CUBIT] Erro ao atualizar configurações da loja $storeId: $error');
+          // Em caso de erro, reverte a UI para o estado original
+          _updateActiveStore((_, activeStore) {
+            final newRelations = activeStore.store.relations.copyWith(storeOperationConfig: originalConfig);
+            return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
+          });
+          AppToasts.showError('Falha ao salvar as configurações.');
         },
-            (success) {
-          print(
-            '[StoresManagerCubit] Configurações da loja $storeId atualizadas com sucesso.',
-          );
+            (_) {
+          log('✅ [CUBIT] Configurações da loja $storeId atualizadas com sucesso via HTTP.');
+          // O backend enviará um evento 'store_updated' que atualizará a UI com os dados do banco,
+          // garantindo a consistência.
         },
       );
     } catch (e) {
-      print(
-        '[StoresManagerCubit] Erro inesperado ao atualizar configurações: $e',
-      );
+      log('❌ [CUBIT] Erro inesperado ao atualizar configurações: $e');
+      _updateActiveStore((_, activeStore) {
+        final newRelations = activeStore.store.relations.copyWith(storeOperationConfig: originalConfig);
+        return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
+      });
+      AppToasts.showError('Ocorreu um erro inesperado.');
     }
   }
 
@@ -1107,36 +1222,99 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
+
   void _cancelSubscriptions() {
+    log('[StoresManagerCubit] Cancelando todas as subscriptions...');
+
+    // Cancela cada subscription de forma segura
     _adminStoresListSubscription?.cancel();
-    _notificationSubscription?.cancel();
-    _connectivitySubscription?.cancel();
-    _storeDetailsSubscription?.cancel();
-    _dashboardDataSubscription?.cancel();
-    _financialsSubscription?.cancel();
-    _tablesSubscription?.cancel();
-    _commandsSubscription?.cancel();
-    _stuckOrderAlertSubscription?.cancel();
     _adminStoresListSubscription = null;
+
+    _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = null;
+
+    _storeDetailsSubscription?.cancel();
+    _storeDetailsSubscription = null;
+
+    _dashboardDataSubscription?.cancel();
+    _dashboardDataSubscription = null;
+
+    _financialsSubscription?.cancel();
+    _financialsSubscription = null;
+
+    _tablesSubscription?.cancel();
+    _tablesSubscription = null;
+
+    _commandsSubscription?.cancel();
+    _commandsSubscription = null;
+
+    _stuckOrderAlertSubscription?.cancel();
+    _stuckOrderAlertSubscription = null;
+
+    _conversationsSubscription?.cancel();
+    _conversationsSubscription = null;
+
     _subscriptionErrorSubscription?.cancel();
+    _subscriptionErrorSubscription = null;
+
     _userHasNoStoresSubscription?.cancel();
     _userHasNoStoresSubscription = null;
 
+    _fullMenuSubscription?.cancel();
+    _fullMenuSubscription = null;
+
+    log('[StoresManagerCubit] Todas as subscriptions canceladas.');
   }
+
 
 
   void resetState() {
-    log('[StoresManagerCubit] Resetando estado e cancelando listeners...');
+    log('[StoresManagerCubit] Iniciando reset completo do estado...');
+
+    // 1. Cancela todos os listeners PRIMEIRO (antes de limpar o repository)
     _cancelSubscriptions();
-    // Ao fazer logout, volte para o estado inicial, não para o vazio.
+
+    // 2. Reseta o estado do Cubit ANTES de fazer dispose do repository
     emit(const StoresManagerInitial());
+
+    // 3. Usa o novo método reset() ao invés de dispose()
+    // Isso mantém a conexão do socket mas limpa os dados
+    _realtimeRepository.reset();
+
+    // 4. Limpa o Completer se houver algum pendente
+    if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+      _initialLoadCompleter!.complete();
+    }
+    _initialLoadCompleter = null;
+
+    log('[StoresManagerCubit] Reset completo finalizado.');
   }
 
 
+// SUBSTITUA o método close por este:
   @override
   Future<void> close() {
-    log('[StoresManagerCubit] Fechando o Cubit e todos os listeners.');
+    log('[StoresManagerCubit] Fechando o Cubit permanentemente...');
+
+    // Cancela subscriptions
     _cancelSubscriptions();
+
+    // Completa qualquer Completer pendente
+    if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+      _initialLoadCompleter!.complete();
+    }
+
+    // Aqui SIM fazemos dispose completo do repository
+    // porque o Cubit está sendo destruído permanentemente
+    _realtimeRepository.dispose();
+
     return super.close();
   }
+
+// ADICIONE este método auxiliar para verificar se é seguro processar eventos:
+  bool get _canProcessEvents => !isClosed;
+
 }

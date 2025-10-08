@@ -320,7 +320,7 @@ class _EditDeliveryTimeBottomSheetState extends State<EditDeliveryTimeBottomShee
               ),
               Expanded(
                 child: Text(
-                  '$value',
+                  ' $value',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 16,
@@ -487,7 +487,7 @@ class _EditMinOrderBottomSheetState extends State<EditMinOrderBottomSheet> {
                       fontWeight: FontWeight.w600,
                     ),
                     decoration: const InputDecoration(
-                      prefixText: 'R\$ ',
+
                       prefixStyle: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

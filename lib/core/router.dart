@@ -13,6 +13,7 @@ import 'package:totem_pro_admin/pages/cash/cash_page.dart';
 import 'package:totem_pro_admin/pages/create_store/create_store_page.dart';
 
 import 'package:totem_pro_admin/pages/more/more_page.dart';
+
 import 'package:totem_pro_admin/pages/operation_configuration/operation_configuration_page.dart';
 
 import 'package:totem_pro_admin/pages/products/products_page.dart';
@@ -43,6 +44,9 @@ import '../pages/categories/create_category_page(delete).dart';
 
 import '../pages/chatbot/chatbot_page.dart';
 import '../pages/chatbot/cubit/chatbot_cubit.dart';
+import '../pages/clone_store_wizard/cubit/new_store_state.dart';
+import '../pages/clone_store_wizard/new_store_wizard.dart';
+import '../pages/clone_store_wizard/new_store_wizard_page.dart';
 import '../pages/coupons/coupons_page.dart';
 
 
@@ -95,6 +99,7 @@ import '../services/preference_service.dart';
 import '../services/print/print_manager.dart';
 import '../widgets/app_shell.dart';
 import 'enums/category_type.dart';
+import 'enums/wizard_type.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey =
 GlobalKey<NavigatorState>();
@@ -120,122 +125,81 @@ class AppRouter {
       GoRouterRefreshStream(storesManagerCubit.stream),
     ]),
 
-    redirect: (BuildContext context, GoRouterState state) async {
-      final location = state.uri.toString();
-      final authState = authCubit.state;
-      final storesState = storesManagerCubit.state;
 
-      final splashRoute = '/splash';
+    redirect: (BuildContext context, GoRouterState state) async {
+      // --- 1. SETUP INICIAL ---
+      final location = state.uri.toString();
+      final authState = context.read<AuthCubit>().state;
+      final storesState = context.read<StoresManagerCubit>().state;
+
       final authRoutes = ['/sign-in', '/sign-up', '/verify-email'];
       final isGoingToAuthRoute = authRoutes.any((r) => location.startsWith(r));
-      final isGoingToVerifyEmail = location.startsWith('/verify-email');
-      final isGoingToCreateStore = location.startsWith('/stores/new');
 
-      final preferenceService = getIt<PreferenceService>();
+      // --- 2. TRATAMENTO DE ESTADOS DE AUTENTICAÇÃO ---
 
-      debugPrint('🔄 REDIRECT: location=$location, authState=$authState, storesState=$storesState');
-
-      // ✅ CORREÇÃO 2: Trata o estado de erro de autenticação
-      if (authState is AuthError) {
-        // Se deu erro, manda para o login, a menos que já esteja lá.
-        return isGoingToAuthRoute ? null : '/sign-in';
-      }
-
-
-      // ✅ PASSO 1: LÓGICA PARA USUÁRIO DESLOGADO (A CORREÇÃO)
-      if (authState is AuthUnauthenticated) {
-        // Se o usuário está deslogado, ele só pode acessar as rotas de autenticação.
-        // Se ele tentar ir para qualquer outro lugar, será redirecionado para o login.
-        return isGoingToAuthRoute ? null : '/sign-in';
-      }
-
-      // ✅ 1. Estado de verificação necessário
-      if (authState is AuthNeedsVerification) {
-        if (isGoingToVerifyEmail) return null;
-        debugPrint('📧 Redirecting to verify email: ${authState.email}');
-        return '/verify-email?email=${Uri.encodeComponent(authState.email)}';
-      }
-
-      // ✅ CORREÇÃO 1: Refina a lógica de carregamento
-      if (authState is AuthInitial || authState is AuthLoading) {
-        // SÓ redireciona para o splash se NÃO estivermos numa tela de autenticação.
-        if (!isGoingToAuthRoute) {
-          debugPrint('⏳ App initializing - redirecting to splash');
-          return splashRoute;
+      // ESTADO 2.1: Carregamento inicial ou não autenticado.
+      if (authState is AuthInitial || authState is AuthLoading || authState is AuthUnauthenticated || authState is AuthError) {
+        // Se estiver em um estado "não logado", só pode acessar as rotas de autenticação.
+        if (!isGoingToAuthRoute && location != '/splash') {
+          print('👤 [REDIRECT] Não autenticado. Forçando /sign-in.');
+          return '/sign-in';
         }
-        // Se estivermos em /sign-in (ou /sign-up), não faz nada e deixa
-        // a própria tela mostrar o indicador de loading no botão.
-        debugPrint('⏳ User action in progress on auth route. No redirect.');
-        return null;
       }
 
+      // ESTADO 2.2: Precisa de verificação de e-mail.
+      else if (authState is AuthNeedsVerification) {
+        // Se precisa verificar, a única rota permitida é a de verificação.
+        if (!location.contains('/verify-email')) {
+          print('🔐 [REDIRECT] Verificação de e-mail necessária. Forçando /verify-email.');
+          // ✅ CORREÇÃO APLICADA: O acesso a `authState.email` agora é seguro.
+          return '/verify-email?email=${authState.email}';
+        }
+      }
 
-
-
-
-
-
-      if (authState is AuthAuthenticated) {
-        debugPrint('✅ Authenticated - checking stores state: $storesState');
-
-        if (storesState is StoresManagerInitial ||
-            storesState is StoresManagerLoading) {
-          debugPrint('🔄 Stores loading - redirecting to splash');
-          return location == splashRoute ? null : splashRoute;
+      // ESTADO 2.3: Totalmente autenticado.
+      else if (authState is AuthAuthenticated) {
+        // Se está autenticado, não pode voltar para as rotas de autenticação.
+        if (isGoingToAuthRoute) {
+          print('✅ [REDIRECT] Autenticado, mas em rota de auth. Redirecionando para a raiz.');
+          return '/hub';
         }
 
-        if (storesState is StoresManagerEmpty) {
-          debugPrint('🏪 No stores - redirecting to create store');
-          return isGoingToCreateStore ? null : '/stores/new';
+        // --- REGRAS DE ESTADO DA LOJA (só executam se autenticado) ---
+
+        // Se as lojas estão carregando, mantenha em uma tela de espera.
+        if (storesState is StoresManagerLoading && location != '/splash') {
+          print('⏳ [REDIRECT] Lojas carregando. Mantendo em /splash.');
+          return '/splash';
         }
 
+        // Se não tem lojas, force o fluxo de criação.
+        if (storesState is StoresManagerEmpty && !location.contains('/stores/new')) {
+          print('🛒 [REDIRECT] Nenhuma loja encontrada. Forçando criação.');
+          return '/stores/new/wizard';
+        }
+
+        // Se as lojas foram carregadas, verifique o setup.
         if (storesState is StoresManagerLoaded) {
-          debugPrint('📊 Stores loaded - checking final destination');
-
           final activeStore = storesState.activeStore;
+          if (activeStore != null) {
+            final isSetupComplete = activeStore.core.isSetupComplete;
+            final isGoingToWizard = location.contains('/wizard');
 
-
-          // Se a loja não está configurada, força o wizard.
-          if (activeStore != null && !activeStore.core.isSetupComplete) {
-            // ✅ INÍCIO DA CORREÇÃO
-
-            // Define as rotas que são "portas de entrada" para o setup.
-            // O usuário SEMPRE pode acessá-las.
-            final setupEntryRoutes = ['/wizard', '/stores/new', '/welcome'];
-
-            // Verifica se a localização atual é uma dessas rotas de entrada.
-            final isGoingToSetupEntry = setupEntryRoutes.any((route) => location.contains(route));
-
-            // Se o usuário está tentando ir para uma rota de setup, ou JÁ ESTÁ
-            // em uma rota detalhada da loja (ex: /categories/new), permita.
-            if (isGoingToSetupEntry || location.startsWith('/stores/${activeStore.core.id}/')) {
-              // Não faz nada, deixa o usuário navegar.
-            } else {
-              // Se ele não está em nenhuma rota de configuração, aí sim redirecionamos.
-              debugPrint('🛠️ Store not set up, redirecting to wizard.');
+            // A REGRA DE OURO: Se setup incompleto, force o wizard.
+            if (!isSetupComplete && !isGoingToWizard) {
+              print('🛠️ [REDIRECT] Loja não configurada. Forçando wizard.');
               return '/stores/${activeStore.core.id}/wizard';
             }
-            // ✅ FIM DA CORREÇÃO
-          }
-
-
-          // Lógica para sair da Splash Page (executa se o wizard não for necessário)
-          if (location == splashRoute) {
-            final shouldSkipHub = await preferenceService
-                .getSkipHubPreference();
-            final lastRoute = await preferenceService.getLastAccessedRoute();
-            debugPrint(
-                '🏠 Splash route - skipHub: $shouldSkipHub, lastRoute: $lastRoute');
-            return (shouldSkipHub && lastRoute != null) ? lastRoute : '/hub';
           }
         }
-
       }
 
-      // ✅ 5. Permite a navegação se nenhuma regra se aplicou
-      debugPrint('✅ No redirect needed');
+      // --- 3. NAVEGAÇÃO PERMITIDA ---
+      // Se nenhuma regra acima foi acionada, a navegação é válida.
+      print('👍 [REDIRECT] Navegação permitida para "$location".');
       return null;
     },
+
 
     errorPageBuilder:
         (context, state) =>
@@ -276,25 +240,6 @@ class AppRouter {
       ),
 
 
-      GoRoute(
-        path: '/stores/:storeId/wizard',
-        builder: (context, state) {
-          final storeId = int.parse(state.pathParameters['storeId']!);
-
-          // ✅ AQUI ESTÁ A MÁGICA!
-          // Usamos o BlocProvider para criar o StoreWizardCubit.
-          // Ele estará disponível para a StoreSetupWizardPage e todos os seus descendentes.
-          return BlocProvider<StoreWizardCubit>(
-            create: (context) => StoreWizardCubit(
-              storeId: storeId,
-              // Pegamos a instância global do StoresManagerCubit que já existe
-              storesManagerCubit: context.read<StoresManagerCubit>(),
-            ),
-            child: StoreSetupWizardPage(storeId: storeId),
-          );
-        },
-      ),
-
 
 
       GoRoute(
@@ -315,11 +260,32 @@ class AppRouter {
           );
         },
       ),
+
+
       GoRoute(
-        path: '/stores/new',
-        builder: (context, state) {
-          return const StoreSetupPage();
-        },
+          path: '/stores/new',
+          builder: (context, state) {
+            // A rota base '/stores/new' leva para a página de opções.
+            return const NewStoreOptionsPage();
+          },
+          routes: [
+
+            GoRoute(
+              path: 'clone',
+              builder: (context, state) {
+
+                return NewStoreWizardPage(mode: WizardMode.clone);
+              },
+            ),
+
+            GoRoute(
+              path: 'wizard',
+              builder: (context, state) {
+                // Esta rota corretamente renderiza seu wizard completo e antigo.
+                return const StoreSetupPage();
+              },
+            ),
+          ]
       ),
 
       GoRoute(
@@ -362,12 +328,27 @@ class AppRouter {
             return '/stores/$storeId/dashboard';
           }
 
-          // Para todas as outras sub-rotas (/products, /settings, etc.),
-          // não faça nada e deixe a navegação continuar.
+
           return null;
         },
 
         routes: [
+          GoRoute(
+            path: '/wizard',
+            builder: (context, state) {
+              final storeId = int.parse(state.pathParameters['storeId']!);
+
+              return BlocProvider<StoreWizardCubit>(
+                create: (context) => StoreWizardCubit(
+                  storeId: storeId,
+                  // Pegamos a instância global do StoresManagerCubit que já existe
+                  storesManagerCubit: context.read<StoresManagerCubit>(),
+                ),
+                child: StoreSetupWizardPage(storeId: storeId),
+              );
+            },
+          ),
+
 
 
           StatefulShellRoute.indexedStack(
@@ -492,54 +473,7 @@ class AppRouter {
                 ],
               ),
 
-              // CATEGORIAS
-              // ...
 
-              // StatefulShellBranch(
-              //   routes: [
-              //     GoRoute(
-              //       path: '/categories',
-              //       builder: (_, state) => CreateCategoryPage(
-              //         storeId: int.parse(state.pathParameters['storeId']!),
-              //         // category é nulo, ativando o modo de CRIAÇÃO.
-              //       ),
-              //       routes: [
-              //         GoRoute(
-              //           path: 'new',
-              //           builder: (_, state) => CreateCategoryPage(
-              //             storeId: int.parse(state.pathParameters['storeId']!),
-              //             // category é nulo, ativando o modo de CRIAÇÃO.
-              //           ),
-              //         ),
-              //         // Em core/router.dart
-              //         GoRoute(
-              //           path: ':id',
-              //           builder: (_, state) {
-              //             // ✅ INÍCIO DA SOLUÇÃO ROBUSTA
-              //             Category? category; // A variável agora é nulável
-              //
-              //             if (state.extra is Category) {
-              //               // Caso 1: O objeto já veio pronto.
-              //               category = state.extra as Category;
-              //             } else if (state.extra is Map<String, dynamic>) {
-              //               // Caso 2: O objeto veio como um Map.
-              //               category = Category.fromJson(state.extra as Map<String, dynamic>);
-              //             }
-              //             // Se state.extra for nulo, a variável 'category' permanecerá nula, o que está correto.
-              //             // ✅ FIM DA SOLUÇÃO ROBUSTA
-              //
-              //             return CreateCategoryPage(
-              //               storeId: int.parse(state.pathParameters['storeId']!),
-              //               category: category, // Passa a categoria (ou nulo) corretamente
-              //             );
-              //           },
-              //         ),
-              //       ],
-              //     ),
-              //   ],
-              // ),
-
-              // ...
               StatefulShellBranch(
                 routes: [
                   GoRoute(
@@ -708,7 +642,7 @@ class AppRouter {
 
                           )..initialize(initialConfig, initialMessages),
 
-                          child: ChatbotPage(storeId: int.parse(storeId)),
+                          child: ChatbotPage(storeId: int.parse(storeId), phoneStore: activeStore?.core.phone ?? "",),
                         ),
                       );
                     },
@@ -940,79 +874,79 @@ class AppRouter {
             // MESAS
           ),
 
-
-          GoRoute(
-            path: 'products/create',
-            name: 'product-create-wizard',
-            pageBuilder: (context, state) {
-              // ✅ INÍCIO DA CORREÇÃO ROBUSTA
-              late final Category
-              category; // Usamos 'late final' para garantir que será inicializada
-
-              if (state.extra is Category) {
-                // CASO 1: O objeto já é uma instância de Category (navegação interna).
-                // Simplesmente o usamos diretamente.
-                category = state.extra as Category;
-              } else if (state.extra is Map<String, dynamic>) {
-                // CASO 2: O objeto veio como um Map (ex: vindo de um deep link).
-                // Usamos o .fromJson para construí-lo.
-                category = Category.fromJson(
-                  state.extra as Map<String, dynamic>,
-                );
-              } else {
-                // CASO 3: Nenhum dado foi passado ou o tipo é inesperado.
-                // Lançamos uma exceção para deixar claro que a categoria é obrigatória aqui.
-                throw Exception(
-                  'A rota /products/create requer um objeto Category ou Map<String, dynamic> no parâmetro extra.',
-                );
-              }
-              // ✅ FIM DA CORREÇÃO ROBUSTA
-
-              // O resto da sua lógica para escolher a página continua igual e agora segura.
-              Widget pageToBuild;
-              if (category.type == CategoryType.CUSTOMIZABLE) {
-                pageToBuild = FlavorWizardPage(
-                  storeId: state.storeId,
-                  category: category,
-                );
-              } else {
-                pageToBuild = ProductWizardPage(
-                  storeId: state.storeId,
-                  category: category,
-                );
-              }
-
-              return NoTransitionPage(child: pageToBuild);
-            },
-          ),
-
-          // No seu arquivo de rotas
-          GoRoute(
-            path: 'products/:productId',
-            name: 'product-edit',
-            builder: (context, state) {
-              // Tenta pegar o produto do 'extra' para uma carga rápida
-              var product = state.extra as Product?;
-              final storeId = int.parse(state.pathParameters['storeId']!);
-              final productId = int.parse(
-                state.pathParameters['productId']!,
-              );
-
-              product ??= context.read<StoresManagerCubit>().getProductById(
-                productId,
-              );
-
-              if (product == null) {
-                return const Scaffold(
-                  body: Center(child: Text("Produto não encontrado!")),
-                );
-              }
-
-              // Se o produto existe, constrói a página normalmente.
-              return EditProductPage(storeId: storeId, product: product);
-            },
-          ),
-
+          //
+          // GoRoute(
+          //   path: 'products/create',
+          //   name: 'product-create-wizard',
+          //   pageBuilder: (context, state) {
+          //     // ✅ INÍCIO DA CORREÇÃO ROBUSTA
+          //     late final Category
+          //     category; // Usamos 'late final' para garantir que será inicializada
+          //
+          //     if (state.extra is Category) {
+          //       // CASO 1: O objeto já é uma instância de Category (navegação interna).
+          //       // Simplesmente o usamos diretamente.
+          //       category = state.extra as Category;
+          //     } else if (state.extra is Map<String, dynamic>) {
+          //       // CASO 2: O objeto veio como um Map (ex: vindo de um deep link).
+          //       // Usamos o .fromJson para construí-lo.
+          //       category = Category.fromJson(
+          //         state.extra as Map<String, dynamic>,
+          //       );
+          //     } else {
+          //       // CASO 3: Nenhum dado foi passado ou o tipo é inesperado.
+          //       // Lançamos uma exceção para deixar claro que a categoria é obrigatória aqui.
+          //       throw Exception(
+          //         'A rota /products/create requer um objeto Category ou Map<String, dynamic> no parâmetro extra.',
+          //       );
+          //     }
+          //     // ✅ FIM DA CORREÇÃO ROBUSTA
+          //
+          //     // O resto da sua lógica para escolher a página continua igual e agora segura.
+          //     Widget pageToBuild;
+          //     if (category.type == CategoryType.CUSTOMIZABLE) {
+          //       pageToBuild = FlavorWizardPage(
+          //         storeId: state.storeId,
+          //         category: category,
+          //       );
+          //     } else {
+          //       pageToBuild = ProductWizardPage(
+          //         storeId: state.storeId,
+          //         category: category,
+          //       );
+          //     }
+          //
+          //     return NoTransitionPage(child: pageToBuild);
+          //   },
+          // ),
+          //
+          // // No seu arquivo de rotas
+          // GoRoute(
+          //   path: 'products/:productId',
+          //   name: 'product-edit',
+          //   builder: (context, state) {
+          //     // Tenta pegar o produto do 'extra' para uma carga rápida
+          //     var product = state.extra as Product?;
+          //     final storeId = int.parse(state.pathParameters['storeId']!);
+          //     final productId = int.parse(
+          //       state.pathParameters['productId']!,
+          //     );
+          //
+          //     product ??= context.read<StoresManagerCubit>().getProductById(
+          //       productId,
+          //     );
+          //
+          //     if (product == null) {
+          //       return const Scaffold(
+          //         body: Center(child: Text("Produto não encontrado!")),
+          //       );
+          //     }
+          //
+          //     // Se o produto existe, constrói a página normalmente.
+          //     return EditProductPage(storeId: storeId, product: product);
+          //   },
+          // ),
+          //
 
           GoRoute(
             path: 'variants/:variantId',
@@ -1037,9 +971,7 @@ class AppRouter {
                 );
               }
 
-              // ✅ A CORREÇÃO É AQUI:
-              // Em vez de chamar a tela diretamente, chamamos o Wrapper.
-              // O Wrapper vai criar o BlocProvider e o VariantEditCubit para a tela.
+
               return NoTransitionPage(
                 key: ValueKey('variant-${variant.id}'),
                 child: VariantEditScreenWrapper(
@@ -1050,211 +982,158 @@ class AppRouter {
             },
           ),
 
-          GoRoute(
-            path: 'products/:productId/edit-flavor',
-            name: 'flavor-edit',
-            pageBuilder: (context, state) {
-              // --- Carregamento dos Dados ---
-              final storeId = int.parse(state.pathParameters['storeId']!);
-              final productId = int.parse(
-                state.pathParameters['productId']!,
-              );
-              final storesManagerCubit = context.read<StoresManagerCubit>();
-
-              // Plano A: Tenta pegar o produto do 'extra' para uma carga rápida
-              var partialProduct = state.extra as Product?;
-
-              // Plano B: Se o 'extra' for nulo (devido a um refresh, etc.),
-              // busca o produto na nossa fonte da verdade: o StoresManagerCubit!
-              partialProduct ??= storesManagerCubit.getProductById(
-                productId,
-              );
-
-
-              // 1. Se, mesmo após o Plano B, o produto não for encontrado, mostra erro.
-              if (partialProduct == null) {
-                return NoTransitionPage(
-                  child: Scaffold(
-                    appBar: AppBar(title: Text("Erro")),
-                    body: Center(
-                      child: Text(
-                        "Sabor com ID $productId não encontrado!",
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              // 2. Com o produto em mãos, busca a Categoria Pai COMPLETA.
-              Category? fullParentCategory;
-              if (partialProduct.categoryLinks.isNotEmpty) {
-                final categoryId =
-                    partialProduct.categoryLinks.first.categoryId;
-                fullParentCategory = storesManagerCubit.getCategoryById(
-                  categoryId,
-                );
-              }
-
-              // 3. Se a categoria pai não for encontrada, mostra erro.
-              if (fullParentCategory == null) {
-                return NoTransitionPage(
-                  child: Scaffold(
-                    appBar: AppBar(title: Text("Erro")),
-                    body: Center(
-                      child: Text(
-                        "Categoria pai do sabor não foi encontrada!",
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              // 4. Monta o objeto final para a tela de edição, garantindo que a
-              //    categoria aninhada dentro do produto seja a versão completa.
-              final productForEdition = partialProduct.copyWith(
-                categoryLinks: [
-                  partialProduct.categoryLinks.first.copyWith(
-                    category: fullParentCategory,
-                  ),
-                ],
-              );
-
-              // --- Construção da Página ---
-              // Se tudo deu certo, constrói a página com os dados completos e corretos.
-              return NoTransitionPage(
-                child: FlavorWizardPage(
-                  storeId: storeId,
-                  product: productForEdition,
-                  category: fullParentCategory,
-                ),
-              );
-            },
-          ),
-
           // GoRoute(
-          //   path: 'categories/new', // CRIAÇÃO DE CATEGORIA
-          //   name: 'category-new',
-          //   builder:
-          //       (_, state) =>
-          //       CreateCategoryPage(
-          //         storeId: int.parse(state.pathParameters['storeId']!),
-          //       ),
-          // ),
-          // GoRoute(
-          //   path: 'categories/:categoryId',
-          //   name: 'category-edit',
-          //   builder: (context, state) {
-          //     // --- Início da Lógica Robusta ---
-          //
-          //     // Passo 1: Obter IDs e o Cubit (continua igual)
-          //     final categoryId = int.parse(state.pathParameters['categoryId']!);
+          //   path: 'products/:productId/edit-flavor',
+          //   name: 'flavor-edit',
+          //   pageBuilder: (context, state) {
+          //     // --- Carregamento dos Dados ---
+          //     final storeId = int.parse(state.pathParameters['storeId']!);
+          //     final productId = int.parse(
+          //       state.pathParameters['productId']!,
+          //     );
           //     final storesManagerCubit = context.read<StoresManagerCubit>();
           //
-          //     // Passo 2: Tentar carregar a categoria do 'extra' de forma SEGURA
-          //     Category? category; // Começa como nulo
+          //     // Plano A: Tenta pegar o produto do 'extra' para uma carga rápida
+          //     var partialProduct = state.extra as Product?;
           //
-          //     if (state.extra is Category) {
-          //       // Caso 1: Veio como o objeto correto. Ótimo!
-          //       category = state.extra as Category;
-          //     } else if (state.extra is Map<String, dynamic>) {
-          //       // Caso 2: O tipo se perdeu e veio como um Map. Reconstruímos a partir do JSON.
-          //       category =
-          //           Category.fromJson(state.extra as Map<String, dynamic>);
-          //     }
+          //     // Plano B: Se o 'extra' for nulo (devido a um refresh, etc.),
+          //     // busca o produto na nossa fonte da verdade: o StoresManagerCubit!
+          //     partialProduct ??= storesManagerCubit.getProductById(
+          //       productId,
+          //     );
           //
-          //     // Passo 3: Plano B - se o 'extra' falhou ou era nulo, buscar no Cubit (continua igual)
-          //     category ??= storesManagerCubit.getCategoryById(categoryId);
           //
-          //     // Passo 4: Validação Final (continua igual)
-          //     if (category == null) {
-          //       return Scaffold(
-          //         appBar: AppBar(title: const Text("Erro")),
-          //         body: Center(child: Text(
-          //             "Categoria com ID $categoryId não encontrada!")),
+          //     // 1. Se, mesmo após o Plano B, o produto não for encontrado, mostra erro.
+          //     if (partialProduct == null) {
+          //       return NoTransitionPage(
+          //         child: Scaffold(
+          //           appBar: AppBar(title: Text("Erro")),
+          //           body: Center(
+          //             child: Text(
+          //               "Sabor com ID $productId não encontrado!",
+          //             ),
+          //           ),
+          //         ),
           //       );
           //     }
           //
-          //     // Passo 5: Construir a página com os dados garantidos (continua igual)
-          //     return CreateCategoryPage(
-          //       storeId: int.parse(state.pathParameters['storeId']!),
-          //       category: category,
+          //     // 2. Com o produto em mãos, busca a Categoria Pai COMPLETA.
+          //     Category? fullParentCategory;
+          //     if (partialProduct.categoryLinks.isNotEmpty) {
+          //       final categoryId =
+          //           partialProduct.categoryLinks.first.categoryId;
+          //       fullParentCategory = storesManagerCubit.getCategoryById(
+          //         categoryId,
+          //       );
+          //     }
+          //
+          //     // 3. Se a categoria pai não for encontrada, mostra erro.
+          //     if (fullParentCategory == null) {
+          //       return NoTransitionPage(
+          //         child: Scaffold(
+          //           appBar: AppBar(title: Text("Erro")),
+          //           body: Center(
+          //             child: Text(
+          //               "Categoria pai do sabor não foi encontrada!",
+          //             ),
+          //           ),
+          //         ),
+          //       );
+          //     }
+          //
+          //     // 4. Monta o objeto final para a tela de edição, garantindo que a
+          //     //    categoria aninhada dentro do produto seja a versão completa.
+          //     final productForEdition = partialProduct.copyWith(
+          //       categoryLinks: [
+          //         partialProduct.categoryLinks.first.copyWith(
+          //           category: fullParentCategory,
+          //         ),
+          //       ],
+          //     );
+          //
+          //     // --- Construção da Página ---
+          //     // Se tudo deu certo, constrói a página com os dados completos e corretos.
+          //     return NoTransitionPage(
+          //       child: FlavorWizardPage(
+          //         storeId: storeId,
+          //         product: productForEdition,
+          //         category: fullParentCategory,
+          //       ),
           //     );
           //   },
           // ),
-
-
+          //
+          //
           GoRoute(
-                path: 'orders',
-                pageBuilder:
-                    (_, state) =>
-                    NoTransitionPage(
-                      child: BlocBuilder<
-                          StoresManagerCubit,
-                          StoresManagerState
-                      >(
-                        builder: (context, storesState) {
-                          if (storesState is StoresManagerLoaded) {
-                            return BlocProvider<OrderCubit>(
-                              create:
-                                  (context) =>
-                                  OrderCubit(
-                                    realtimeRepository:
-                                    getIt<RealtimeRepository>(),
-                                    storesManagerCubit:
-                                    context
-                                        .read<StoresManagerCubit>(),
-                                    printManager: getIt<PrintManager>(),
-                                  ),
-                              child: OrdersPage(),
-                            );
-                          }
-
-                          return const Scaffold(
-                            body: Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                routes: [
-                  GoRoute(
-                    path: ':id',
-                    // Supondo que a rota pai seja '/stores/:storeId'
-                    name: 'order-details',
-                    builder: (context, state) {
-                      // 1. Tenta pegar o 'extra' como um mapa.
-                      final extra =
-                      state.extra as Map<String, dynamic>?;
-
-                      // 2. Extrai os objetos do mapa.
-                      final OrderDetails? order = extra?['order'];
-                      final Store? store = extra?['store'];
-
-                      // 3. Verifica se os dados foram recebidos.
-                      if (order != null && store != null) {
-                        // 4. Constrói a página com os dados completos.
-                        return OrderDetailsPageMobile(
-                          order: order,
-                          store: store,
+            path: 'orders',
+            pageBuilder:
+                (_, state) =>
+                NoTransitionPage(
+                  child: BlocBuilder<
+                      StoresManagerCubit,
+                      StoresManagerState
+                  >(
+                    builder: (context, storesState) {
+                      if (storesState is StoresManagerLoaded) {
+                        return BlocProvider<OrderCubit>(
+                          create:
+                              (context) =>
+                              OrderCubit(
+                                realtimeRepository:
+                                getIt<RealtimeRepository>(),
+                                storesManagerCubit:
+                                context
+                                    .read<StoresManagerCubit>(),
+                                printManager: getIt<PrintManager>(),
+                              ),
+                          child: OrdersPage(),
                         );
                       }
 
-                      // Fallback: Se a página for acessada sem os dados (ex: link direto),
-                      // mostra uma tela de erro ou de carregamento.
                       return const Scaffold(
                         body: Center(
-                          child: Text(
-                            "Erro: Não foi possível carregar os dados do pedido.",
-                          ),
+                          child: CircularProgressIndicator(),
                         ),
                       );
                     },
                   ),
-                ],
+                ),
+            routes: [
+              GoRoute(
+                path: ':id',
+                // Supondo que a rota pai seja '/stores/:storeId'
+                name: 'order-details',
+                builder: (context, state) {
+                  // 1. Tenta pegar o 'extra' como um mapa.
+                  final extra =
+                  state.extra as Map<String, dynamic>?;
+
+                  // 2. Extrai os objetos do mapa.
+                  final OrderDetails? order = extra?['order'];
+                  final Store? store = extra?['store'];
+
+                  // 3. Verifica se os dados foram recebidos.
+                  if (order != null && store != null) {
+                    // 4. Constrói a página com os dados completos.
+                    return OrderDetailsPageMobile(
+                      order: order,
+                      store: store,
+                    );
+                  }
+
+                  // Fallback: Se a página for acessada sem os dados (ex: link direto),
+                  // mostra uma tela de erro ou de carregamento.
+                  return const Scaffold(
+                    body: Center(
+                      child: Text(
+                        "Erro: Não foi possível carregar os dados do pedido.",
+                      ),
+                    ),
+                  );
+                },
               ),
-
-
+            ],
+          ),
 
 
 

@@ -15,14 +15,12 @@ class StoreWizardLoaded extends StoreWizardState {
   final StoreConfigStep currentStep;
   final Map<StoreConfigStep, bool> stepCompletionStatus;
   final bool isLoadingAction;
-  final StoreConfigStep? lastWorkStep;
 
   const StoreWizardLoaded({
     required this.store,
     required this.currentStep,
     required this.stepCompletionStatus,
     this.isLoadingAction = false,
-    this.lastWorkStep,
   });
 
   @override
@@ -31,7 +29,6 @@ class StoreWizardLoaded extends StoreWizardState {
     currentStep,
     stepCompletionStatus,
     isLoadingAction,
-    lastWorkStep,
   ];
 
   StoreWizardLoaded copyWith({
@@ -39,14 +36,12 @@ class StoreWizardLoaded extends StoreWizardState {
     StoreConfigStep? currentStep,
     Map<StoreConfigStep, bool>? stepCompletionStatus,
     bool? isLoadingAction,
-    StoreConfigStep? lastWorkStep,
   }) {
     return StoreWizardLoaded(
       store: store ?? this.store,
       currentStep: currentStep ?? this.currentStep,
       stepCompletionStatus: stepCompletionStatus ?? this.stepCompletionStatus,
       isLoadingAction: isLoadingAction ?? this.isLoadingAction,
-      lastWorkStep: lastWorkStep ?? this.lastWorkStep,
     );
   }
 }

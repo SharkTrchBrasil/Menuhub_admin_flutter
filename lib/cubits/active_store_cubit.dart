@@ -12,6 +12,10 @@ class ActiveStoreCubit extends Cubit<ActiveStoreState> {
         super(ActiveStoreInitial()) {
 
     _storeSubscription = _realtimeRepository.onActiveStoreUpdated.listen((store) {
+
+
+      if (isClosed) return;
+
       if (store != null) {
         emit(ActiveStoreLoaded(store));
       }

@@ -1,3 +1,4 @@
+// lib/models/coupon_rule.dart
 class CouponRule {
   CouponRule({
     required this.ruleType,
@@ -9,18 +10,15 @@ class CouponRule {
 
   factory CouponRule.fromJson(Map<String, dynamic> json) {
     return CouponRule(
-      // ✅ CORREÇÃO:
-      // Pega o valor de 'ruleType'. Se for nulo, usa uma string vazia '' como padrão.
+      // A chave no JSON do backend é 'ruleType'
       ruleType: json['ruleType'] as String? ?? '',
-
-      // ✅ BOA PRÁTICA: Adicionar a mesma segurança para o campo 'value'.
-      // Pega o valor de 'value'. Se for nulo, usa um mapa vazio {} como padrão.
       value: json['value'] as Map<String, dynamic>? ?? {},
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      // Enviamos para o backend como 'ruleType'
       'ruleType': ruleType,
       'value': value,
     };

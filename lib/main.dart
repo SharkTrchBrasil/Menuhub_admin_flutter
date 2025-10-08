@@ -12,6 +12,7 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/auth_cubit.dart';
 import 'package:totem_pro_admin/cubits/active_store_cubit.dart';
+import 'package:totem_pro_admin/cubits/auth_state.dart'; // 🔑 Importar o AuthState
 import 'package:totem_pro_admin/pages/chatpanel/widgets/chat_pop/chat_popup_manager.dart';
 import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart';
 import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
@@ -32,15 +33,12 @@ import 'package:totem_pro_admin/themes/ds_theme_switcher.dart';
 import 'core/utils/platform_utils.dart';
 import 'core/utils/sounds/sound_util.dart';
 
-// Removemos os imports de conectividade que não são mais necessários aqui
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: 'assets/env');
   await configureDependencies();
   await EasyLocalization.ensureInitialized();
   await SoundAlertUtil.initialize();
-  // ✅ 2. Execute a inicialização APENAS se for um dispositivo móvel
   if (isMobileDevice) {
     await NotificationService().initialize();
   }
@@ -66,20 +64,24 @@ class AppRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DrawerControllerProvider()),
         ChangeNotifierProvider(create: (_) => ColorNotifire()),
         ChangeNotifierProvider(create: (_) => DsThemeSwitcher()),
-
       ],
       child: MultiBlocProvider(
         providers: [
+          // AuthCubit já é um singleton, então `value` é correto.
+          BlocProvider.value(value: getIt<AuthCubit>()),
+          // ✅ *** CORREÇÃO ***
+          // Voltamos a usar `create` para o StoresManagerCubit.
+          // O `lazy: true` (padrão) garante que ele só será criado quando for usado pela primeira vez.
           BlocProvider(create: (context) => getIt<StoresManagerCubit>()),
-          BlocProvider(create: (context) => getIt<AuthCubit>()),
-          BlocProvider(create: (context) => getIt<OrderCubit>()),
-          BlocProvider(create: (context) => getIt<ActiveStoreCubit>()),
-          BlocProvider(create: (context) => getIt<CreateStoreCubit>()),
+
+          // Outros Cubits podem ser criados da mesma forma.
+          BlocProvider(create: (context) => getIt<OrderCubit>(), lazy: true),
+          BlocProvider(create: (context) => getIt<ActiveStoreCubit>(), lazy: true),
+          BlocProvider(create: (context) => getIt<CreateStoreCubit>(), lazy: true),
           BlocProvider(
-            create: (context) => TablesCubit(realtimeRepository: getIt<RealtimeRepository>()),),
-
-
-
+            create: (context) => TablesCubit(realtimeRepository: getIt<RealtimeRepository>()),
+            lazy: true,
+          ),
         ],
         child: const MyApp(),
       ),
@@ -87,7 +89,6 @@ class AppRoot extends StatelessWidget {
   }
 }
 
-// No arquivo main.dart - ATUALIZAR a classe MyApp
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -116,8 +117,15 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: context.localizationDelegates,
       routerConfig: getIt<GoRouter>(),
       builder: (context, child) {
-        return ChatPopupManager(
-          child: BotToastInit()(context, child),
+        return BlocBuilder<AuthCubit, AuthState>(
+          builder: (context, state) {
+            if (state is AuthAuthenticated) {
+              return ChatPopupManager(
+                child: BotToastInit()(context, child),
+              );
+            }
+            return BotToastInit()(context, child);
+          },
         );
       },
     );

@@ -104,7 +104,7 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
         }
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          padding:  EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isDesktop(context) ? 24: 14.0),
           child: SingleChildScrollView(
 
             child: Column(
@@ -114,7 +114,7 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
                   subtitle: 'Defina os modos de serviço, áreas e tempos da sua loja.',
                   actions: [
                     // Botão só aparece em desktop.
-                    if (!isMobile)
+
                       DsButton(
                         // ✅ CORREÇÃO DE TEXTO
                         label: 'Salvar configurações',

@@ -28,7 +28,7 @@ class ChatbotCubit extends Cubit<ChatbotState> {
     required this.storeId,
     required ChatbotRepository chatbotRepository,
     required RealtimeRepository realtimeRepository,
-    required StoresManagerCubit storesManagerCubit, // ✅ 2. ADICIONA AO CONSTRUTOR
+    required StoresManagerCubit storesManagerCubit,
   })  : _chatbotRepository = chatbotRepository,
         _realtimeRepository = realtimeRepository,
         _storesManagerCubit = storesManagerCubit,
@@ -50,7 +50,7 @@ class ChatbotCubit extends Cubit<ChatbotState> {
     });
   }
 
-  // ✅ 5. NOVO MÉTODO PARA OUVIR O STORES MANAGER CUBIT
+
   void _listenToStoresManager() {
     _storesManagerSubscription?.cancel();
     _storesManagerSubscription = _storesManagerCubit.stream.listen((storesState) {
@@ -85,7 +85,8 @@ class ChatbotCubit extends Cubit<ChatbotState> {
         emit(ChatbotConnected(config: config, messages: messages));
         break;
       case 'awaiting_qr':
-        emit(ChatbotAwaitingQr(qrCode: config.qrCode));
+      case 'awaiting_pairing_code': // ✅ NOVO CASO
+        emit(ChatbotAwaitingQr(qrCode: config.qrCode, pairingCode: config.pairingCode));
         break;
       case 'pending':
         emit(ChatbotLoading());
@@ -98,12 +99,17 @@ class ChatbotCubit extends Cubit<ChatbotState> {
     }
   }
 
-  Future<void> connectWhatsApp() async {
+  // ✅ MÉTODO ATUALIZADO
+  Future<void> connectWhatsApp({required String method, String? phoneNumber}) async {
     emit(ChatbotLoading());
-    final result = await _chatbotRepository.connectWhatsApp(storeId);
+    final result = await _chatbotRepository.connectWhatsApp(
+      storeId: storeId,
+      method: method,
+      phoneNumber: phoneNumber,
+    );
     result.fold(
           (failure) => emit(ChatbotError(failure.message)),
-          (_) => null,
+          (_) => null, // O sucesso é tratado pelo listener de tempo real que recebe o QR/Pairing code
     );
   }
 
@@ -115,6 +121,14 @@ class ChatbotCubit extends Cubit<ChatbotState> {
           (_) => null,
     );
   }
+
+
+  Future<void> cancelConnectionAttempt() async {
+    // A desconexão efetivamente cancela a tentativa de conexão (seja QR ou código)
+    await disconnectChatbot();
+    emit(ChatbotDisconnected()); // Volta para o estado desconectado
+  }
+
 
   Future<void> updateMessageContent(String messageKey, String newContent) async {
     if (state is! ChatbotConnected) return;
@@ -174,8 +188,40 @@ class ChatbotCubit extends Cubit<ChatbotState> {
     );
   }
 
+
+
+  Future<void> toggleChatbotActive(bool isActive) async {
+    if (state is! ChatbotConnected) return;
+
+    final currentState = state as ChatbotConnected;
+    final originalConfig = currentState.config;
+
+    // Otimistic UI: Atualiza a UI imediatamente
+    final newConfig = originalConfig.copyWith(isActive: isActive);
+    emit(currentState.copyWith(config: newConfig));
+
+    // Chama a API
+    final result = await _chatbotRepository.updateChatbotStatus(
+      storeId: storeId,
+      isActive: isActive,
+    );
+
+    // Em caso de falha, reverte a UI para o estado original
+    result.fold(
+          (failure) {
+        print('Falha ao atualizar status do chatbot: ${failure.message}');
+        emit(currentState.copyWith(config: originalConfig));
+      },
+          (_) => print('Status geral do chatbot salvo com sucesso!'),
+    );
+  }
+
   @override
   Future<void> close() {
+    // Se o estado atual for de espera (QR ou código), cancela a tentativa ao fechar o cubit
+    if (state is ChatbotAwaitingQr) {
+      cancelConnectionAttempt();
+    }
     _configSubscription?.cancel();
     _storesManagerSubscription?.cancel();
     return super.close();

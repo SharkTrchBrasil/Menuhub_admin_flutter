@@ -17,9 +17,10 @@ class ChatbotLoading extends ChatbotState {}
 
 class ChatbotAwaitingQr extends ChatbotState {
   final String? qrCode;
-  const ChatbotAwaitingQr({this.qrCode});
+  final String? pairingCode; // ✅ CAMPO ADICIONADO
+  const ChatbotAwaitingQr({this.qrCode, this.pairingCode}); // ✅ CONSTRUTOR ATUALIZADO
   @override
-  List<Object?> get props => [qrCode];
+  List<Object?> get props => [qrCode, pairingCode]; // ✅ PROP ATUALIZADA
 }
 
 // Estado quando está conectado com sucesso

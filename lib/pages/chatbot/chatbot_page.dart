@@ -12,7 +12,8 @@ import 'cubit/chatbot_state.dart';
 
 class ChatbotPage extends StatelessWidget {
   final int storeId;
-  const ChatbotPage({super.key, required this.storeId});
+  final String phoneStore;
+  const ChatbotPage({super.key, required this.storeId, required this.phoneStore});
 
   @override
   Widget build(BuildContext context) {
@@ -28,23 +29,16 @@ class ChatbotPage extends StatelessWidget {
       },
       child: BlocBuilder<ChatbotCubit, ChatbotState>(
         builder: (context, state) {
-          // --- LÓGICA CORRIGIDA AQUI ---
 
-          // 1. Se estiver conectado, mostra a tela principal.
           if (state is ChatbotConnected) {
             return ChatbotConnectedScreen(storeId: storeId); //
           }
 
-          // 2. Se for o estado inicial absoluto, mostra um loading central.
-          //    Isso acontece apenas uma vez, antes do primeiro estado real ser emitido.
           if (state is ChatbotInitial) {
             return const Center(child: DotLoading()); //
           }
 
-          // 3. PARA TODOS OS OUTROS ESTADOS (Loading/Pending, AwaitingQr, Disconnected, Error)
-          //    nós delegamos a responsabilidade para a tela ChatbotEmpty,
-          //    que é mais inteligente.
-          return ChatbotEmpty(storeId: storeId); //
+          return ChatbotEmpty(storeId: storeId, phoneStore: phoneStore,); //
         },
       ),
     );

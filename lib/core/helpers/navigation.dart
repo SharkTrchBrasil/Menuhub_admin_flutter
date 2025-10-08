@@ -1,155 +1,117 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+// Usei os ícones do Material para consistência, mas você pode usar Lucide se preferir.
+// import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class StoreNavigationHelper {
   final int storeId;
 
   StoreNavigationHelper(this.storeId);
 
-  static final List<MapEntry<RegExp, String>> _routePatterns = [
-    MapEntry(RegExp(r'^/stores/.*/home$'), 'Dashboard'),
-    MapEntry(RegExp(r'^/stores/.*/management'), 'Gestão'),
-    MapEntry(RegExp(r'^/stores/.*/sell'), 'Vendas'),
-    MapEntry(RegExp(r'^/stores/.*/suppliers'), 'Fornecedores'),
-    MapEntry(RegExp(r'^/stores/.*/orders'), 'Pedidos'),
-    MapEntry(RegExp(r'^/stores/.*/products/new$'), 'Criar produto'),
-    MapEntry(RegExp(r'^/stores/.*/products/[^/]+$'), 'Editar produto'),
-    MapEntry(RegExp(r'^/stores/.*/products$'), 'Produtos'),
-    MapEntry(RegExp(r'^/stores/.*/categories'), 'Categorias'),
-  ];
+  // Mapeamento centralizado de rotas para seus títulos e índices.
+  // Facilita a manutenção!
+  static final Map<String, ({int index, String title})> _routeConfig = {
+    '/dashboard': (index: 0, title: 'Início'),
+    '/orders': (index: 1, title: 'Pedidos'),
+    '/products': (index: 2, title: 'Cardápio'),
+    '/more': (index: 3, title: 'Mais Opções'),
+    // Adicione outras rotas principais aqui se necessário
+  };
 
-  // ✅ ADICIONE ESTE MÉTODO
+  /// Retorna o título da página com base na rota atual.
   String getTitleForPath(String path) {
-    if (path.endsWith('/dashboard')) {
-      return 'Dashboard';
-    }
-    if (path.endsWith('/products')) {
-      return 'Cardápio';
-    }
-    if (path.endsWith('/orders')) {
-      return 'Pedidos';
-    }
-    if (path.endsWith('/financial')) {
-      return 'Financeiro';
-    }
-    if (path.endsWith('/settings')) {
-      return 'Ajustes';
-    }
-    // Adicione outras rotas aqui...
-
-    return 'Totem Pro'; // Título padrão
-  }
-
-  /// Nome da página atual
-  String getCurrentTitle(String location) {
-    for (final entry in _routePatterns) {
-      if (entry.key.hasMatch(location)) {
-        return entry.value;
+    // Procura por uma correspondência exata primeiro.
+    for (var route in _routeConfig.keys) {
+      if (path.endsWith(route)) {
+        return _routeConfig[route]!.title;
       }
     }
-    return 'Página';
+
+    // Fallback para títulos de páginas de detalhes.
+    if (path.contains('/products/')) return 'Detalhes do Produto';
+    if (path.contains('/orders/')) return 'Detalhes do Pedido';
+    if (path.contains('/settings')) return 'Ajustes da Loja';
+    if (path.contains('/coupons')) return 'Promoções';
+
+    return 'PDVix'; // Título padrão.
   }
 
-  /// Índice atual da BottomNavigationBar
+  /// Pega o índice do item ativo na BottomNavigationBar.
   int getCurrentIndex(String location) {
-    if (location.startsWith('/stores/$storeId/orders')) return 0;
-    if (location.startsWith('/stores/$storeId/sell')) return 1;
-    if (location.startsWith('/stores/$storeId/products')) return 2;
-    if (location.startsWith('/stores/$storeId/users')) return 3;
- //   if (location.startsWith('/stores/$storeId/orders')) return 4;
-    return 4;
+    for (var route in _routeConfig.keys) {
+      // Usamos `startsWith` para que sub-rotas (ex: /orders/123) ainda selecionem o item pai.
+      if (location.startsWith('/stores/$storeId$route')) {
+        return _routeConfig[route]!.index;
+      }
+    }
+    // Se nenhuma rota principal corresponder, significa que estamos em uma sub-página
+    // de uma das seções. Vamos tentar encontrar a seção pai.
+    if (location.contains('/orders')) return 1;
+    if (location.contains('/products')) return 2;
+
+    // Se não encontrar, não seleciona nenhum item.
+    return 0; // Padrão para 'Início'
   }
 
-  /// Deve mostrar BottomNavigationBar?
+  /// Decide se a BottomNavigationBar deve ser exibida.
+  /// A lógica é: mostrar nas rotas principais e esconder nas de detalhes/configuração.
   bool shouldShowBottomBar(String location) {
-    final hidePatterns = [
-      RegExp(r'/coupons'),
-      RegExp(r'/categories'),
-      RegExp(r'/suppliers'),
-      RegExp(r'/settings'),
-      RegExp(r'/variants'),
-      RegExp(r'/integrations'),
-      RegExp(r'/new$'),
-      RegExp(r'/edit'),
-      RegExp(r'/payment-methods'),
-      RegExp(r'/cash'),
-      RegExp(r'/orders/'),
-      RegExp(r'/products/'),
-
-
+    // Rotas onde a barra DEVE aparecer.
+    final showPatterns = [
+      '/stores/$storeId/dashboard',
+      '/stores/$storeId/orders',
+      '/stores/$storeId/products',
+      '/stores/$storeId/more',
     ];
 
-    return !hidePatterns.any((pattern) => pattern.hasMatch(location));
+    // A barra aparece se a localização corresponder exatamente a uma das rotas acima.
+    return showPatterns.any((pattern) => location == pattern);
   }
 
-  bool shouldShowAppBarCode(String location) {
-    final hideAppBarPatterns = [
-      RegExp(r'/more'),
-      RegExp(r'/categories'),
-      RegExp(r'/suppliers'),
-      RegExp(r'/settings'),
-      RegExp(r'/new$'),
-      RegExp(r'/edit'),
-    ];
-
-    return !hideAppBarPatterns.any((pattern) => pattern.hasMatch(location));
-  }
-
-
-
-  /// Construtor da BottomNavigationBar
-  Widget buildBottomNavigationBar(BuildContext context, String location, GlobalKey<ScaffoldState> scaffoldKey) {
-
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
+  /// Constrói a BottomNavigationBar com a nova estrutura focada.
+  Widget buildBottomNavigationBar(BuildContext context, String location) {
     return BottomNavigationBar(
       currentIndex: getCurrentIndex(location),
       selectedItemColor: Theme.of(context).primaryColor,
-
+      unselectedItemColor: Colors.grey.shade600, // Cor para itens não selecionados
+      type: BottomNavigationBarType.fixed, // Garante que todos os itens apareçam
       showUnselectedLabels: true,
       onTap: (index) {
         switch (index) {
           case 0:
-            context.go('/stores/$storeId/orders');
+            context.go('/stores/$storeId/dashboard');
             break;
           case 1:
-            context.go('/stores/$storeId/sell');
+            context.go('/stores/$storeId/orders');
             break;
           case 2:
             context.go('/stores/$storeId/products');
             break;
           case 3:
-            context.go('/stores/$storeId/users');
-            break;
-          case 4:
-            context.go('/stores/$storeId/more');
+          // A aba "Mais" simplesmente abre o Drawer que você já tem!
+          // Para isso, seu AppShell precisa de uma GlobalKey<ScaffoldState>.
+          // Ex: scaffoldKey.currentState?.openEndDrawer(); ou openDrawer();
+            context.go('/stores/$storeId/more'); // Navega para a página "More"
             break;
         }
       },
-      items: [
-        const BottomNavigationBarItem(
-          icon: Icon(LucideIcons.package), // 📦 Pedidos
-          label: 'Pedidos',
-        ),
-        const BottomNavigationBarItem(
-          icon: Icon(LucideIcons.shoppingBag), // 💵 Vender
-          label: 'Vender',
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_rounded),
+          label: 'Início',
         ),
         BottomNavigationBarItem(
-          icon: Icon(LucideIcons.shoppingCart), // 🛒 Produtos
-          label: 'Produtos',
+          icon: Icon(Icons.receipt_long_rounded),
+          label: 'Pedidos',
         ),
-        const BottomNavigationBarItem(
-          icon: Icon(LucideIcons.users), // 👥 Clientes
-          label: 'Clientes',
+        BottomNavigationBarItem(
+          icon: Icon(Icons.menu_book_rounded),
+          label: 'Cardápio',
         ),
-        const BottomNavigationBarItem(
-          icon: Icon(LucideIcons.menu), // ☰ Mais
+        BottomNavigationBarItem(
+          icon: Icon(Icons.menu_rounded),
           label: 'Mais',
         ),
-
       ],
     );
   }

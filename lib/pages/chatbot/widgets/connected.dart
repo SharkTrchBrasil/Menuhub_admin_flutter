@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
 
+import '../../../models/store/store_chatbot_config.dart';
 import '../../../models/store/store_chatbot_message.dart';
 import '../../../widgets/ds_primary_button.dart';
 import '../cubit/chatbot_cubit.dart';
@@ -34,8 +35,6 @@ class _ChatbotConnectedScreenState extends State<ChatbotConnectedScreen> {
     super.dispose();
   }
 
-
-  // ✅ CORREÇÃO: A lógica do BottomSheet agora usa um Widget dedicado com um callback.
   void _openEditBottomSheet(StoreChatbotMessage message) {
     showModalBottomSheet(
       context: context,
@@ -66,15 +65,6 @@ class _ChatbotConnectedScreenState extends State<ChatbotConnectedScreen> {
   }
 
 
-
-
-
-
-
-
-
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,6 +78,9 @@ class _ChatbotConnectedScreenState extends State<ChatbotConnectedScreen> {
               ),
             );
           }
+
+          final config = state.config; // ✅ Pega a configuração do estado
+
 
           final chatbotMessages = state.messages;
           if (chatbotMessages.isEmpty) {
@@ -135,7 +128,7 @@ class _ChatbotConnectedScreenState extends State<ChatbotConnectedScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Header estilo iFood
-                  _buildHeader(isMobile),
+                  _buildHeader(isMobile, config),
                   const SizedBox(height: 24),
 
                   // Conteúdo principal
@@ -153,7 +146,10 @@ class _ChatbotConnectedScreenState extends State<ChatbotConnectedScreen> {
     );
   }
 
-  Widget _buildHeader(bool isMobile) {
+
+
+
+  Widget _buildHeader(bool isMobile, StoreChatbotConfig config) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -190,6 +186,15 @@ class _ChatbotConnectedScreenState extends State<ChatbotConnectedScreen> {
                 ],
               ),
             ),
+
+
+
+            const Spacer(), // Adiciona um espaçador para empurrar os botões para a direita
+
+            // ✅ NOVO WIDGET ADICIONADO AQUI
+            _buildActivationSwitch(config),
+            const SizedBox(width: 12),
+
             if (!isMobile) _buildDisconnectButton(),
           ],
         ),
@@ -200,6 +205,40 @@ class _ChatbotConnectedScreenState extends State<ChatbotConnectedScreen> {
       ],
     );
   }
+
+
+
+
+
+  Widget _buildActivationSwitch(StoreChatbotConfig config) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        children: [
+          Text(
+            'Chatbot Ativo',
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Switch(
+            value: config.isActive,
+            onChanged: (newValue) {
+              context.read<ChatbotCubit>().toggleChatbotActive(newValue);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildDisconnectButton() {
     return SizedBox(

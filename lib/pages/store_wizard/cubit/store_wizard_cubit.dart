@@ -24,6 +24,7 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
   final StoresManagerCubit _storesManagerCubit;
   final int storeId;
   late final StreamSubscription _storesManagerSubscription;
+  bool _hasReceivedInitialData = false;
 
   final profileKey = GlobalKey<StoreProfilePageState>();
   final hoursKey = GlobalKey<OpeningHoursPageState>();
@@ -34,12 +35,15 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     required StoresManagerCubit storesManagerCubit,
   })  : _storesManagerCubit = storesManagerCubit,
         super(StoreWizardInitial()) {
-    // ✅ LÓGICA DE INICIALIZAÇÃO MOVIDA PARA O CONSTRUTOR
     _initialize();
-
-    // A escuta de eventos continua, mas agora só para atualizações em background
     _storesManagerSubscription =
         _storesManagerCubit.stream.listen(_onStoresManagerUpdated);
+  }
+
+  @override
+  Future<void> close() {
+    _storesManagerSubscription.cancel();
+    return super.close();
   }
 
   void _initialize() {
@@ -47,24 +51,13 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     if (managerState is StoresManagerLoaded) {
       final storeWithRole = managerState.stores[storeId];
       if (storeWithRole != null) {
-        final store = storeWithRole.store;
-        final statusMap = <StoreConfigStep, bool>{};
-        for (var step in StoreConfigStep.values) {
-          statusMap[step] = _isStepCompleted(step, store);
+        if (_hasCompleteData(storeWithRole.store)) {
+          _hasReceivedInitialData = true;
+          _updateStateFromStore(storeWithRole.store, isInitialLoad: true);
+        } else {
+          print('⏳ Aguardando dados completos via WebSocket...');
+          emit(StoreWizardLoading());
         }
-
-        // Esta é a lógica que tínhamos perdido: encontrar a primeira etapa pendente.
-        // Agora ela roda APENAS na inicialização.
-        StoreConfigStep firstPendingStep = StoreConfigStep.values.firstWhere(
-              (step) => !statusMap[step]!,
-          orElse: () => StoreConfigStep.finish,
-        );
-
-        emit(StoreWizardLoaded(
-          store: store,
-          currentStep: firstPendingStep,
-          stepCompletionStatus: statusMap,
-        ));
       } else {
         emit(StoreWizardError("A loja com ID $storeId não foi encontrada."));
       }
@@ -73,52 +66,147 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     }
   }
 
-  // ✅ NOVA FUNÇÃO APENAS PARA ATUALIZAÇÕES
+  bool _hasCompleteData(Store store) {
+    final hasPaymentMethods = store.relations.paymentMethodGroups != null;
+    final hasCategories = store.relations.categories != null;
+    final hasCities = store.relations.cities != null;
+
+    print('📦 Verificando dados completos:');
+    print('   - Pagamentos: $hasPaymentMethods (${store.relations.paymentMethodGroups?.length ?? 'null'} grupos)');
+    print('   - Categorias: $hasCategories (${store.relations.categories?.length ?? 'null'} categorias)');
+    print('   - Cidades: $hasCities (${store.relations.cities?.length ?? 'null'} cidades)');
+
+    return hasPaymentMethods && hasCategories && hasCities;
+  }
+
   void _onStoresManagerUpdated(StoresManagerState managerState) {
-    final currentState = state;
-    if (managerState is StoresManagerLoaded && currentState is StoreWizardLoaded) {
+    if (managerState is StoresManagerLoaded) {
       final storeWithRole = managerState.stores[storeId];
       if (storeWithRole != null) {
-        final newStoreData = storeWithRole.store;
-        final newStatusMap = <StoreConfigStep, bool>{};
-        for (var step in StoreConfigStep.values) {
-          newStatusMap[step] = _isStepCompleted(step, newStoreData);
+        if (!_hasReceivedInitialData && _hasCompleteData(storeWithRole.store)) {
+          print('🎉 Dados completos recebidos via WebSocket! Inicializando wizard...');
+          _hasReceivedInitialData = true;
+          _updateStateFromStore(storeWithRole.store, isInitialLoad: true);
+        } else if (_hasReceivedInitialData) {
+          _updateStateFromStore(storeWithRole.store, isInitialLoad: false);
         }
-
-        // Apenas atualiza os dados, NUNCA a etapa atual.
-        emit(currentState.copyWith(
-          store: newStoreData,
-          stepCompletionStatus: newStatusMap,
-        ));
       }
     }
   }
 
-  // ... (O resto do arquivo continua exatamente como na sua versão)
-
   bool _isStepCompleted(StoreConfigStep step, Store store) {
     switch (step) {
       case StoreConfigStep.profile:
+      // ✅ ALTERAÇÃO: Adicionada a verificação da imagem (file_key)
         return store.core.name.isNotEmpty &&
-            (store.core.urlSlug?.isNotEmpty ?? false) &&
-            (store.core.phone?.isNotEmpty ?? false);
+            (store.core.phone?.isNotEmpty ?? false) &&
+            (store.address?.street?.isNotEmpty ?? false) &&
+            (store.media?.image?.hasImage ?? false);
+
+
 
       case StoreConfigStep.paymentMethods:
         return store.relations.paymentMethodGroups
             .expand((group) => group.methods)
             .any((method) => method.activation?.isActive ?? false);
-
       case StoreConfigStep.deliveryArea:
         return store.relations.cities?.isNotEmpty ?? false;
-
       case StoreConfigStep.openingHours:
         return store.relations.hours.isNotEmpty;
-
       case StoreConfigStep.productCatalog:
         return store.relations.categories.isNotEmpty;
-
       case StoreConfigStep.finish:
         return store.core.isSetupComplete;
+    }
+  }
+
+  StoreConfigStep _findFirstPendingStep(Store store) {
+    final stepsInOrder = [
+      StoreConfigStep.profile,
+      StoreConfigStep.paymentMethods,
+      StoreConfigStep.deliveryArea,
+      StoreConfigStep.openingHours,
+      StoreConfigStep.productCatalog,
+    ];
+
+    print('🔍 Buscando primeira etapa pendente:');
+
+    for (final step in stepsInOrder) {
+      final isCompleted = _isStepCompleted(step, store);
+      print('   - $step: $isCompleted');
+
+      if (!isCompleted) {
+        print('🎯 PRIMEIRA ETAPA PENDENTE ENCONTRADA: $step');
+        return step;
+      }
+    }
+
+    print('✅ Todas as etapas estão completas, indo para FINISH');
+    return StoreConfigStep.finish;
+  }
+
+  void _updateStateFromStore(Store store, {required bool isInitialLoad}) {
+    final newStatusMap = <StoreConfigStep, bool>{};
+    for (var step in StoreConfigStep.values) {
+      newStatusMap[step] = _isStepCompleted(step, store);
+    }
+
+    final currentState = state;
+
+    if (isInitialLoad || currentState is! StoreWizardLoaded) {
+      final firstPendingStep = _findFirstPendingStep(store);
+
+      print('🚀 CONFIGURANDO WIZARD:');
+      print('   - Store: ${store.core.name} (ID: ${store.core.id})');
+      print('   - Primeira etapa: $firstPendingStep');
+      print('   - Status: Profile=${newStatusMap[StoreConfigStep.profile]}, '
+          'Payments=${newStatusMap[StoreConfigStep.paymentMethods]}, '
+          'Delivery=${newStatusMap[StoreConfigStep.deliveryArea]}, '
+          'Hours=${newStatusMap[StoreConfigStep.openingHours]}, '
+          'Catalog=${newStatusMap[StoreConfigStep.productCatalog]}');
+
+      emit(StoreWizardLoaded(
+        store: store,
+        currentStep: firstPendingStep,
+        stepCompletionStatus: newStatusMap,
+      ));
+    } else {
+      emit(currentState.copyWith(
+        store: store,
+        stepCompletionStatus: newStatusMap,
+      ));
+    }
+  }
+
+  // Este método agora chama o método `validate` da página do passo atual.
+  bool _validateCurrentStep(StoreWizardLoaded state) {
+    switch (state.currentStep) {
+      case StoreConfigStep.profile:
+      // Chama a validação do Form dentro de StoreProfilePage
+        return profileKey.currentState?.validateForm() ?? false;
+
+    // Adicione a lógica para outros passos aqui, se eles tiverem formulários
+    // case StoreConfigStep.openingHours:
+    //   return hoursKey.currentState?.validateForm() ?? false;
+
+    // Para passos sem formulário, podemos usar a lógica antiga
+      case StoreConfigStep.paymentMethods:
+        final isValid = _isStepCompleted(StoreConfigStep.paymentMethods, state.store);
+        if (!isValid) AppToasts.showError("Selecione ao menos um método de pagamento.");
+        return isValid;
+
+      case StoreConfigStep.deliveryArea:
+        final isValid = _isStepCompleted(StoreConfigStep.deliveryArea, state.store);
+        if (!isValid) AppToasts.showError("Configure ao menos uma área de entrega.");
+        return isValid;
+
+      case StoreConfigStep.productCatalog:
+        final isValid = _isStepCompleted(StoreConfigStep.productCatalog, state.store);
+        if (!isValid) AppToasts.showError("Cadastre ao menos um produto.");
+        return isValid;
+
+      default:
+        return true; // Passos como 'finish' são sempre válidos para avançar
     }
   }
 
@@ -126,53 +214,57 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     final currentState = state;
     if (currentState is! StoreWizardLoaded) return;
 
+    // ✅ 3. LÓGICA DE VALIDAÇÃO DELEGADA PARA A PÁGINA
+    bool isStepValid = _validateCurrentStep(currentState);
+
+    // Se o passo atual não for válido, simplesmente retorne.
+    // A própria página já terá mostrado os erros nos campos.
+    if (!isStepValid) {
+      return;
+    }
+
     emit(currentState.copyWith(isLoadingAction: true));
 
-    bool canAdvance = await _validateCurrentStep(currentState);
-
-    if (canAdvance) {
-      final newStatusMap =
-      Map<StoreConfigStep, bool>.from(currentState.stepCompletionStatus);
-      newStatusMap[currentState.currentStep] = true;
-
-      final currentIndex = currentState.currentStep.index;
-      final nextStep = (currentIndex + 1 < StoreConfigStep.values.length)
-          ? StoreConfigStep.values[currentIndex + 1]
-          : StoreConfigStep.finish;
-
-      StoreConfigStep? newLastWorkStep = currentState.lastWorkStep;
-
-      if (nextStep != StoreConfigStep.finish) {
-        newLastWorkStep = nextStep;
-      }
-
-      emit(currentState.copyWith(
-        currentStep: nextStep,
-        stepCompletionStatus: newStatusMap,
-        isLoadingAction: false,
-        lastWorkStep: newLastWorkStep,
-      ));
-    } else {
+    bool didSave = await _saveCurrentStep(currentState);
+    if (!didSave) {
       emit(currentState.copyWith(isLoadingAction: false));
+      return;
     }
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    final updatedState = state;
+    if (updatedState is! StoreWizardLoaded) {
+      emit(currentState.copyWith(isLoadingAction: false));
+      return;
+    }
+
+    final currentIndex = updatedState.currentStep.index;
+    final nextStep = (currentIndex + 1 < StoreConfigStep.values.length)
+        ? StoreConfigStep.values[currentIndex + 1]
+        : StoreConfigStep.finish;
+
+    emit(updatedState.copyWith(
+      currentStep: nextStep,
+      isLoadingAction: false,
+    ));
   }
 
-  Future<bool> _validateCurrentStep(StoreWizardLoaded currentState) async {
+
+
+
+
+
+  Future<bool> _saveCurrentStep(StoreWizardLoaded currentState) async {
     switch (currentState.currentStep) {
       case StoreConfigStep.profile:
         final hasChanges = profileKey.currentState?.hasChanges() ?? false;
-        return hasChanges
-            ? (await profileKey.currentState?.save() ?? false)
-            : true;
-      case StoreConfigStep.openingHours:
-        return await hoursKey.currentState?.save() ?? false;
-      case StoreConfigStep.productCatalog:
-        final hasContent = await catalogKey.currentState?.hasContent() ?? false;
-        if (!hasContent) {
-          AppToasts.showError(
-              "Você precisa adicionar pelo menos uma categoria e um produto.");
+        if (hasChanges) {
+          return await profileKey.currentState?.save() ?? false;
         }
-        return hasContent;
+        return true;
+      case StoreConfigStep.openingHours:
+        return await hoursKey.currentState?.save() ?? true;
       default:
         return true;
     }
@@ -180,18 +272,9 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
 
   void goToPreviousStep() {
     final currentState = state;
-    if (currentState is! StoreWizardLoaded) return;
-    if (currentState.currentStep.index == 0) return;
+    if (currentState is! StoreWizardLoaded || currentState.currentStep.index == 0) return;
 
-    StoreConfigStep previousStep;
-    final currentStep = currentState.currentStep;
-
-    if (currentStep == StoreConfigStep.finish) {
-      previousStep = currentState.lastWorkStep ?? StoreConfigStep.productCatalog;
-    } else {
-      previousStep = StoreConfigStep.values[currentStep.index - 1];
-    }
-
+    final previousStep = StoreConfigStep.values[currentState.currentStep.index - 1];
     emit(currentState.copyWith(currentStep: previousStep));
   }
 
@@ -199,11 +282,20 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     final currentState = state;
     if (currentState is! StoreWizardLoaded) return;
 
-    if (step.index <= currentState.currentStep.index ||
-        (currentState.stepCompletionStatus[step] ?? false)) {
+    final currentStepIndex = currentState.currentStep.index;
+    final targetStepIndex = step.index;
+
+    // ✅ ALTERAÇÃO: Permite navegar para qualquer etapa anterior,
+    // independentemente do status de "concluído".
+    if (targetStepIndex < currentStepIndex) {
       emit(currentState.copyWith(currentStep: step));
-    } else {
-      AppToasts.showInfo("Por favor, complete as etapas anteriores primeiro.");
+    }
+    // Mantém a lógica para etapas futuras: só pode ir se já estiver concluída.
+    else if (currentState.stepCompletionStatus[step] ?? false) {
+      emit(currentState.copyWith(currentStep: step));
+    }
+    else {
+      AppToasts.showInfo("Complete as etapas anteriores primeiro.");
     }
   }
 
@@ -212,8 +304,8 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     if (currentState is! StoreWizardLoaded) return;
 
     emit(currentState.copyWith(isLoadingAction: true));
-    final result = await getIt<StoreRepository>().completeStoreSetup(storeId);
 
+    final result = await getIt<StoreRepository>().completeStoreSetup(storeId);
     result.fold(
           (failure) {
         AppToasts.showError(failure.message);
@@ -221,7 +313,7 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
       },
           (_) {
         AppToasts.showSuccess('Configuração concluída! Bem-vindo(a)!');
-        context.go('/stores/$storeId/splash');
+        context.go('/stores/$storeId/dashboard');
       },
     );
   }
@@ -236,11 +328,5 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
 
   Future<void> updateHour(StoreHour oldHour, EditShiftResult result) async {
     await _storesManagerCubit.updateHour(storeId, oldHour, result);
-  }
-
-  @override
-  Future<void> close() {
-    _storesManagerSubscription.cancel();
-    return super.close();
   }
 }

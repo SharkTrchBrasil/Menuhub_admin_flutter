@@ -42,6 +42,7 @@ import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart'
 import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
 import 'package:totem_pro_admin/pages/splash/splash_page_cubit.dart';
 
+import '../pages/clone_store_wizard/cubit/new_store_cubit.dart';
 import '../repositories/analytics_repository.dart';
 import '../repositories/chat_repository.dart';
 import '../repositories/table_repository.dart';
@@ -52,6 +53,72 @@ import '../services/preference_service.dart';
 
 final getIt = GetIt.instance;
 final apiUrl = dotenv.env['API_URL'];
+
+// ✨ NOVO: Função para registrar dependências do escopo do usuário
+void registerUserScopeSingletons() {
+  if (!getIt.isRegistered<RealtimeRepository>()) {
+    getIt.registerSingleton<RealtimeRepository>(RealtimeRepository());
+  }
+
+  // ✅ StoresManagerCubit é registrado em configureDependencies agora.
+  // Apenas garantimos que ele existe aqui, se necessário.
+  if (!getIt.isRegistered<StoresManagerCubit>()) {
+    getIt.registerLazySingleton<StoresManagerCubit>(
+          () => StoresManagerCubit(
+        paymentRepository: getIt<PaymentMethodRepository>(),
+        productRepository: getIt<ProductRepository>(),
+        storeRepository: getIt<StoreRepository>(),
+        realtimeRepository: getIt<RealtimeRepository>(),
+        storeOperationConfigRepository: getIt<StoreOperationConfigRepository>(),
+      ),
+    );
+  }
+
+  if (!getIt.isRegistered<ActiveStoreCubit>()) {
+    getIt.registerSingleton<ActiveStoreCubit>(
+        ActiveStoreCubit(realtimeRepository: getIt<RealtimeRepository>()));
+  }
+
+  if (!getIt.isRegistered<PrintingService>()) {
+    getIt.registerSingleton<PrintingService>(
+      PrintingService(
+        realtimeRepo: getIt<RealtimeRepository>(),
+        printManager: getIt<PrintManager>(),
+        storesManagerCubit: getIt<StoresManagerCubit>(),
+      ),
+    );
+  }
+}
+
+// ✨ NOVO: Função para desregistrar dependências do escopo do usuário
+Future<void> unregisterUserScopeSingletons() async {
+  // O desregistro deve ocorrer na ordem inversa da dependência para evitar erros
+  if (getIt.isRegistered<PrintingService>()) {
+    await getIt.get<PrintingService>().dispose();
+    await getIt.unregister<PrintingService>();
+  }
+
+  if (getIt.isRegistered<ActiveStoreCubit>()) {
+    await getIt.get<ActiveStoreCubit>().close();
+    await getIt.unregister<ActiveStoreCubit>();
+  }
+
+  if (getIt.isRegistered<StoresManagerCubit>()) {
+    // O método close() do StoresManagerCubit já chama o dispose() do RealtimeRepository
+    await getIt.get<StoresManagerCubit>().close();
+    await getIt.unregister<StoresManagerCubit>();
+  }
+
+  // O RealtimeRepository é descartado pelo StoresManagerCubit, mas removemos o registro aqui
+  if (getIt.isRegistered<RealtimeRepository>()) {
+    // Garantia extra de que o dispose foi chamado, caso o StoresManagerCubit não exista.
+    if(!getIt.get<RealtimeRepository>().isDisposed){
+      getIt.get<RealtimeRepository>().dispose();
+    }
+    await getIt.unregister<RealtimeRepository>();
+  }
+}
+
 
 Future<void> configureDependencies() async {
   // --- 1. DEPENDÊNCIAS EXTERNAS E CONFIGURAÇÕES ---
@@ -70,21 +137,14 @@ Future<void> configureDependencies() async {
   // Singletons (compartilhados e vivem para sempre)
   getIt.registerSingleton(AuthRepository(getIt(), getIt()));
   getIt.registerSingleton(StoreRepository(getIt()));
+  getIt.registerLazySingleton<RealtimeRepository>(() => RealtimeRepository());
 
   getIt.registerLazySingleton<ConnectivityService>(() => ConnectivityService());
   getIt.registerLazySingleton(() => PreferenceService());
   getIt.registerLazySingleton(() => ChatVisibilityService());
-  getIt.registerLazySingleton<RealtimeRepository>(
-        () => RealtimeRepository(),
-  );
+  getIt.registerLazySingleton<TableRepository>(() => TableRepository());
+  getIt.registerLazySingleton<ChatRepository>(() => ChatRepository(getIt()));
 
-  getIt.registerLazySingleton<TableRepository>(
-        () => TableRepository(),
-  );
-
-  getIt.registerLazySingleton<ChatRepository>(
-        () => ChatRepository(getIt()),
-  );
   // Factories (criados toda vez que são pedidos)
   getIt.registerFactory(() => CategoryRepository(getIt()));
   getIt.registerFactory(() => ProductRepository(getIt()));
@@ -99,40 +159,37 @@ Future<void> configureDependencies() async {
   getIt.registerFactory(() => BannerRepository(getIt()));
   getIt.registerFactory(() => OrderRepository(getIt()));
   getIt.registerFactory(() => AnalyticsRepository(getIt()));
-
+  // ✅ ADICIONE ESTE REGISTRO PARA O NOVO CUBIT
+  getIt.registerFactory<NewStoreCubit>(
+        () => NewStoreCubit(
+      getIt<StoreRepository>(),
+    ),
+  );
 
   // --- 3. SERVIÇOS (Dependem dos Repositórios) ---
   getIt.registerSingleton<AuthService>(
     AuthService(
       authRepository: getIt<AuthRepository>(),
       storeRepository: getIt<StoreRepository>(),
-
     ),
   );
 
   // --- 4. CUBITS (Dependem dos Repositórios e Serviços) ---
+  getIt.registerSingleton<AuthCubit>(AuthCubit(authService: getIt<AuthService>()));
+  getIt.registerSingleton<SplashPageCubit>(SplashPageCubit());
 
 
-  getIt.registerSingleton<StoresManagerCubit>(
-    StoresManagerCubit(
-      paymentRepository:getIt<PaymentMethodRepository>(),
-      productRepository:getIt<ProductRepository>(),
+  getIt.registerLazySingleton<StoresManagerCubit>(
+        () => StoresManagerCubit(
+      paymentRepository: getIt<PaymentMethodRepository>(),
+      productRepository: getIt<ProductRepository>(),
       storeRepository: getIt<StoreRepository>(),
-      realtimeRepository: getIt<RealtimeRepository>(),
-
+      realtimeRepository: getIt<RealtimeRepository>(), storeOperationConfigRepository: getIt<StoreOperationConfigRepository>(),
     ),
   );
 
 
-  getIt.registerSingleton<AuthCubit>(AuthCubit(authService: getIt<AuthService>(),
-    storesManagerCubit: getIt<StoresManagerCubit>(),));
-
-
-  getIt.registerSingleton<ActiveStoreCubit>(ActiveStoreCubit(realtimeRepository: getIt<RealtimeRepository>()));
-  getIt.registerSingleton<SplashPageCubit>(SplashPageCubit());
-
-
-  // --- 6. SISTEMA DE IMPRESSÃO (Ordem correta) ---
+  // --- 5. SISTEMA DE IMPRESSÃO (Ordem correta) ---
   getIt.registerSingleton<DeviceSettingsService>(DeviceSettingsService(getIt<SharedPreferences>()));
   getIt.registerSingleton<PrinterMappingService>(PrinterMappingService(getIt<SharedPreferences>()));
   getIt.registerSingleton<PrintLayoutService>(PrintLayoutService());
@@ -144,16 +201,6 @@ Future<void> configureDependencies() async {
     printManager: getIt<PrintManager>(),
   ));
 
-  // Serviços que dependem dos Cubits e precisam ser inicializados.
-  getIt.registerSingleton<PrintingService>(
-    PrintingService(
-      // ✅ Usa o getter do AuthService para pegar a instância ATIVA
-      realtimeRepo:getIt<RealtimeRepository>(),
-      printManager: getIt<PrintManager>(),
-      storesManagerCubit: getIt<StoresManagerCubit>(),
-    ),
-  );
-
 
   // Adicione o registro do seu cubit
   getIt.registerFactory<CreateStoreCubit>(
@@ -163,15 +210,14 @@ Future<void> configureDependencies() async {
       getIt<UserRepository>(),
       getIt<AuthCubit>(),
       getIt<StoresManagerCubit>(),
-
-
     ),
   );
 
   // 1. Crie a instância do AppRouter, injetando os Cubits que acabamos de registrar.
   final appRouter = AppRouter(
-    authCubit: getIt<AuthCubit>(),
-    storesManagerCubit: getIt<StoresManagerCubit>(),
+      authCubit: getIt<AuthCubit>(),
+      // Agora é seguro pegar o StoresManagerCubit aqui
+      storesManagerCubit: getIt<StoresManagerCubit>()
   );
 
   getIt.registerLazySingleton<GoRouter>(() => appRouter.router);

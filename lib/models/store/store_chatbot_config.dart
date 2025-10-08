@@ -1,28 +1,48 @@
-// lib/models/store_chatbot_config.dart
+import 'package:equatable/equatable.dart';
 
-import 'dart:developer';
-
-class StoreChatbotConfig {
+class StoreChatbotConfig extends Equatable {
   final String? whatsappName;
   final String? connectionStatus;
-  final String? qrCode; // ✅ CAMPO ADICIONADO
+  final String? qrCode;
+  final String? pairingCode;
+  final bool isActive;
 
-  StoreChatbotConfig({
+  const StoreChatbotConfig({
     this.whatsappName,
     this.connectionStatus,
-    this.qrCode, // ✅ CAMPO ADICIONADO
+    this.qrCode,
+    this.pairingCode,
+    required this.isActive,
   });
 
-
-
-// store_chatbot_config.dart - Corrigir o nome do campo
   factory StoreChatbotConfig.fromJson(Map<String, dynamic> json) {
-    // Tentar ambos os nomes de campo para compatibilidade
-    final qrCodeValue = json['qrCode'] ?? json['last_qr_code'];
     return StoreChatbotConfig(
       whatsappName: json['whatsapp_name'],
       connectionStatus: json['connection_status'],
-      qrCode: qrCodeValue,
+      qrCode: json['qrCode'] ?? json['last_qr_code'],
+      pairingCode: json['pairingCode'] ?? json['last_connection_code'],
+      isActive: json['is_active'] ?? false,
     );
   }
+
+  // ✅ MÉTODO COPYWITH ADICIONADO
+  StoreChatbotConfig copyWith({
+    String? whatsappName,
+    String? connectionStatus,
+    String? qrCode,
+    String? pairingCode,
+    bool? isActive,
+  }) {
+    return StoreChatbotConfig(
+      whatsappName: whatsappName ?? this.whatsappName,
+      connectionStatus: connectionStatus ?? this.connectionStatus,
+      qrCode: qrCode ?? this.qrCode,
+      pairingCode: pairingCode ?? this.pairingCode,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+
+
+  @override
+  List<Object?> get props => [whatsappName, connectionStatus, qrCode, pairingCode, isActive];
 }

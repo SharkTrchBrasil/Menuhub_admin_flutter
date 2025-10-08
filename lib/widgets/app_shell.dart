@@ -140,7 +140,7 @@ class AppShell extends StatelessWidget {
       ),
 
       bottomNavigationBar: navHelper.shouldShowBottomBar(currentPath)
-          ? navHelper.buildBottomNavigationBar(context, currentPath, GlobalKey<ScaffoldState>())
+          ? navHelper.buildBottomNavigationBar(context, currentPath)
           : null,
     );
   }

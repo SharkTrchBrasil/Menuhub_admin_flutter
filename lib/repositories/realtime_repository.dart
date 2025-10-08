@@ -64,11 +64,13 @@ class RealtimeRepository {
 
   IO.Socket? _socket;
   final AuthRepository _authRepository = GetIt.I<AuthRepository>();
-  bool _isReconnecting = false; // Flag para evitar múltiplas tentativas
+
   int? _lastJoinedStoreId;
   bool _isDisposed = false;
+  bool _isDisposing = false;
+  bool get isConnected => _socket?.connected == true;
 
-  String? _lastUsedAdminToken;
+  bool get isDisposed => _isDisposed;
 
   final _connectionStatusController = BehaviorSubject<bool>.seeded(false);
   final _storeNotificationController = BehaviorSubject<Map<int, int>>.seeded({});
@@ -202,7 +204,7 @@ class RealtimeRepository {
 
 
   Future<void> initialize(String adminToken) async {
-    _lastUsedAdminToken = adminToken; // Armazena o token para reconexão
+// Armazena o token para reconexão
     if (_socket != null) {
       log('[Socket] Conexão existente encontrada. Desconectando para reiniciar...');
       _socket!.dispose(); // Usa dispose para limpar tudo
@@ -224,143 +226,217 @@ class RealtimeRepository {
     _socket!.connect();
   }
 
-  void _registerSocketListeners() {
 
+
+
+
+  void _registerSocketListeners() {
     if (_socket == null) return;
 
     _socket!.clearListeners(); // Garante que não haja listeners duplicados
 
     _socket!.onConnect((_) {
-      if (_isDisposed) return;
+      // Verifica AMBAS as flags antes de processar
+      if (_isDisposed || _isDisposing) return;
+
       log('[Socket] ✅ Conectado com sucesso! ID: ${_socket!.id}');
-      // ✅ ALTERAÇÃO: Ao conectar, entramos no modo de SINCRONIZAÇÃO
       _connectivityStatusController.add(ConnectivityStatus.synchronizing);
 
       if (_lastJoinedStoreId != null) {
         log('[Socket] Reconectado. Reentrando automaticamente na sala da loja $_lastJoinedStoreId...');
-        // Adiciona um .catchError para lidar com falhas na reconexão
         joinStoreRoom(_lastJoinedStoreId!).catchError((e) {
           log('❌ Falha ao reentrar na sala $_lastJoinedStoreId após reconexão: $e');
-          // Você pode tentar novamente após um tempo ou notificar o usuário
         });
       }
     });
 
-
     _socket!.onDisconnect((reason) {
-      if (_isDisposed) return;
-      log('[Socket] 🔌 Desconectado: $reason');
-      _connectivityStatusController.add(ConnectivityStatus.disconnected);
+      if (_isDisposed || _isDisposing) return;
 
-      // ✅ CORREÇÃO PRINCIPAL: Limpe o controle de salas ao desconectar
+      log('[Socket] 🔌 Desconectado: $reason');
+
+      // Só atualiza o status se não estivermos fazendo dispose
+      if (!_connectivityStatusController.isClosed) {
+        _connectivityStatusController.add(ConnectivityStatus.disconnected);
+      }
+
       _joinedStores.clear();
       _joiningInProgress.clear();
       log('[Socket] Controle de salas limpo devido à desconexão.');
     });
 
-
-
     _socket!.on('reconnect_attempt', (_) {
-      if (_isDisposed) return;
+      if (_isDisposed || _isDisposing) return;
+
       log('[Socket] ⏳ Tentando reconectar...');
-      _connectivityStatusController.add(ConnectivityStatus.reconnecting);
+      if (!_connectivityStatusController.isClosed) {
+        _connectivityStatusController.add(ConnectivityStatus.reconnecting);
+      }
     });
 
     _socket!.on('connect_error', (data) {
-      if (_isDisposed) return;
+      if (_isDisposed || _isDisposing) return;
+
       log('[Socket] ❌ Erro de conexão: $data');
       _handleConnectionAuthError();
     });
 
     _socket!.on('error', (data) {
-      if (_isDisposed) return;
+      if (_isDisposed || _isDisposing) return;
+
       log('[Socket] ❌ Erro geral do socket: $data');
       if (data.toString().contains('Authentication error')) {
         _handleConnectionAuthError();
       }
     });
 
-
-
-    // Listeners de Dados
-    _socket!.on('new_order_notification', _handleNewOrderNotification);
-
-
-    _socket!.on('chatbot_config_updated', _handleChatbotConfigUpdated);
-
-
+    // Listeners de Dados - todos devem verificar as flags
     _socket!.on('admin_stores_list', (data) {
+      // Verificação dupla para evitar problemas durante dispose
+      if (_isDisposed || _isDisposing) {
+        log('🔴 Ignorando evento admin_stores_list - Repository em processo de dispose');
+        return;
+      }
+
       log('✅ Evento recebido: admin_stores_list');
       try {
-        // Validação robusta do payload
         if (data is Map<String, dynamic> && data['stores'] is List) {
           final storesData = data['stores'] as List;
 
-          // Se a lista estiver vazia, emita uma lista vazia.
           if (storesData.isEmpty) {
             log('🔵 [RealtimeRepository] Payload de "admin_stores_list" continha uma lista de lojas vazia.');
-            _adminStoresListController.add([]);
+            // Verifica novamente antes de adicionar ao stream
+            if (!_adminStoresListController.isClosed && !_isDisposing) {
+              _adminStoresListController.add([]);
+            }
             return;
           }
 
-          // Mapeia os dados para a lista de objetos, com tratamento de erro individual.
           final storesList = storesData.map<StoreWithRole?>((json) {
             try {
               return StoreWithRole.fromJson(json as Map<String, dynamic>);
             } catch (e) {
               log('❌ Erro ao fazer parse de um item da loja em "admin_stores_list": $e');
-              return null; // Retorna nulo se um item específico falhar
+              return null;
             }
-          }).whereType<StoreWithRole>().toList(); // Filtra quaisquer nulos que possam ter ocorrido
+          }).whereType<StoreWithRole>().toList();
 
-          log('✅ [RealtimeRepository] Lista de lojas processada com ${storesList.length} item(ns). Emitindo para o stream.');
-          _adminStoresListController.add(storesList);
+          log('✅ [RealtimeRepository] Lista de lojas processada com ${storesList.length} item(ns).');
 
+          // Última verificação antes de emitir
+          if (!_adminStoresListController.isClosed && !_isDisposing && !_isDisposed) {
+            _adminStoresListController.add(storesList);
+          }
         } else {
-          // Se o payload não tiver o formato esperado, loga o erro mas não quebra o app.
           log('⚠️ [RealtimeRepository] Payload de "admin_stores_list" com formato inesperado: $data');
-          // Opcional: emitir uma lista vazia se preferir
-          // _adminStoresListController.add([]);
         }
       } catch (e, st) {
         log('❌ Erro geral ao processar o evento "admin_stores_list"', error: e, stackTrace: st);
       }
     });
 
+    // Aplique a mesma proteção para TODOS os outros listeners
+    _socket!.on('new_order_notification', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleNewOrderNotification(data);
+    });
 
-    // ADICIONE ESTE NOVO LISTENER
+    _socket!.on('chatbot_config_updated', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleChatbotConfigUpdated(data);
+    });
+
     _socket!.on('stuck_order_alert', (data) {
+      if (_isDisposed || _isDisposing) return;
       log('🚨 Evento recebido: stuck_order_alert com dados: $data');
-      if (data is Map<String, dynamic>) {
+      if (data is Map<String, dynamic> && !_stuckOrderAlertController.isClosed) {
         _stuckOrderAlertController.add(data);
       }
     });
 
-    _socket!.on('store_details_updated', _handleStoreDetailsUpdated);
-    _socket!.on('dashboard_data_updated', _handleDashboardDataUpdated);
-
-    _socket!.on('products_updated', _handleProductsUpdated);
-    _socket!.on('orders_initial', _handleOrdersInitial);
-    _socket!.on('order_updated', _handleOrderUpdated);
-    _socket!.on('tables_and_commands', _handleTablesAndCommands);
-     _socket!.on('payables_data_updated', _handlePayablesDataUpdated);
-     _socket!.on('new_print_jobs_available', _handleNewPrintJobsAvailable);
-
-    _socket!.on('financials_updated', _handleFinancialsUpdated);
-
-    _socket!.on('new_chat_message', _handleNewChatMessage);
-    _socket!.on('conversations_initial', _handleConversationsInitial);
-
-    _socket!.on('subscription_error', _handleSubscriptionError);
-
-    _socket!.on('user_has_no_stores', (data) {
-      log('🔵 Evento recebido: user_has_no_stores - Usuário não possui lojas');
-      _userHasNoStoresController.add(null);
+    _socket!.on('store_details_updated', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleStoreDetailsUpdated(data);
     });
 
+    _socket!.on('dashboard_data_updated', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleDashboardDataUpdated(data);
+    });
 
+    _socket!.on('products_updated', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleProductsUpdated(data);
+    });
 
+    _socket!.on('orders_initial', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleOrdersInitial(data);
+    });
+
+    _socket!.on('order_updated', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleOrderUpdated(data);
+    });
+
+    _socket!.on('tables_and_commands', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleTablesAndCommands(data);
+    });
+
+    _socket!.on('payables_data_updated', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handlePayablesDataUpdated(data);
+    });
+
+    _socket!.on('new_print_jobs_available', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleNewPrintJobsAvailable(data);
+    });
+
+    _socket!.on('financials_updated', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleFinancialsUpdated(data);
+    });
+
+    _socket!.on('new_chat_message', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleNewChatMessage(data);
+    });
+
+    _socket!.on('conversations_initial', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleConversationsInitial(data);
+    });
+
+    _socket!.on('subscription_error', (data) {
+      if (_isDisposed || _isDisposing) return;
+      _handleSubscriptionError(data);
+    });
+
+    _socket!.on('user_has_no_stores', (data) {
+      if (_isDisposed || _isDisposing) return;
+      log('🔵 Evento recebido: user_has_no_stores - Usuário não possui lojas');
+      if (!_userHasNoStoresController.isClosed) {
+        _userHasNoStoresController.add(null);
+      }
+    });
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // ✅ 4. CRIE O MÉTODO HANDLER
   void _handleSubscriptionError(dynamic data) {
@@ -376,6 +452,10 @@ class RealtimeRepository {
 
 
   void _handleNewChatMessage(dynamic data) {
+
+    // ✅ VERIFICAÇÃO ADICIONADA
+    if (_isDisposed || _isDisposing) return;
+
     log('✅ Evento recebido: new_chat_message');
     try {
       final message = ChatbotMessage.fromJson(data as Map<String, dynamic>);
@@ -387,6 +467,8 @@ class RealtimeRepository {
 
   // 4. Adicione a nova função handler
   void _handleConversationsInitial(dynamic data) {
+    if (_isDisposed || _isDisposing) return;
+
     log('✅ Evento recebido: conversations_initial');
     try {
       final conversations = (data as List)
@@ -401,7 +483,9 @@ class RealtimeRepository {
 
 
   void _handleChatbotConfigUpdated(dynamic data) {
-    // ✅ PONTO DE PROVA A
+    if (_isDisposed || _isDisposing) return;
+
+
     log("🕵️‍♂️ PONTO A: DADO BRUTO RECEBIDO DO SOCKET:\n$data");
     try {
       final config = StoreChatbotConfig.fromJson(data as Map<String, dynamic>);
@@ -432,7 +516,10 @@ class RealtimeRepository {
   }
 
   void _handleNewOrderNotification(dynamic data) {
-    // ✅ LOG ADICIONADO
+    if (_isDisposed || _isDisposing) return;
+
+
+
     log('✅ Evento recebido: new_order_notification');
     try {
 
@@ -462,10 +549,13 @@ class RealtimeRepository {
 
 
   void _handleStoreDetailsUpdated(dynamic data) {
+    if (_isDisposed || _isDisposing) return;
+
+
     // ✅ PASSO 1: IMPRIMIR OS DADOS BRUTOS QUE CHEGAM DO BACKEND
     print('--- 🕵️ PONTO DE DEBUG A: DADOS BRUTOS DO SOCKET (store_details_updated) ---');
     var jsonEncoder = const JsonEncoder.withIndent('  '); // Formata o JSON
-    print(jsonEncoder.convert(data));
+    //  print(jsonEncoder.convert(data));
     print('-------------------------------------------------------------------------');
 
     try {
@@ -500,9 +590,11 @@ class RealtimeRepository {
   }
 
   void _handleDashboardDataUpdated(dynamic data) {
+
+    if (_isDisposed || _isDisposing) return;
     log('✅ Evento recebido: dashboard_data_updated');
 
-   // print(data);
+    // print(data);
     try {
       // Simplesmente repassamos o mapa de dados
       _dashboardDataController.add(data as Map<String, dynamic>);
@@ -514,6 +606,9 @@ class RealtimeRepository {
 
   // ✅ 2. SUBSTITUA SEU MÉTODO _handleProductsUpdated INTEIRO POR ESTE
   void _handleProductsUpdated(dynamic data) {
+    if (_isDisposed || _isDisposing) return;
+
+
     log('✅ Evento recebido: products_updated (payload completo)');
     try {
       if (data is! Map || !data.containsKey('store_id')) return;
@@ -562,6 +657,9 @@ class RealtimeRepository {
 
 
   void _handleOrdersInitial(dynamic data) {
+    if (_isDisposed || _isDisposing) return;
+
+
     // ✅ LOG ADICIONADO
     log('✅ Evento recebido: orders_initial');
     try {
@@ -575,6 +673,9 @@ class RealtimeRepository {
   }
 
   void _handleOrderUpdated(dynamic data) {
+    if (_isDisposed || _isDisposing) return;
+
+
     // ✅ LOG ADICIONADO
     log('✅ Evento recebido: order_updated');
     try {
@@ -604,7 +705,10 @@ class RealtimeRepository {
   }
 
   void _handleTablesAndCommands(dynamic data) {
-    // ✅ LOG ADICIONADO
+    if (_isDisposed || _isDisposing) return;
+
+
+
     log('✅ Evento recebido: tables_and_commands');
     try {
       if (data is! Map || !data.containsKey('store_id')) return;
@@ -620,7 +724,9 @@ class RealtimeRepository {
   }
 
   void _handleNewPrintJobsAvailable(dynamic data) {
-    // ✅ LOG ADICIONADO E AJUSTADO
+    if (_isDisposed || _isDisposing) return;
+
+
     log('✅ Evento recebido: new_print_jobs_available');
     try {
       final payload = data is List ? data[1] : data; // Lida com o formato do seu socket
@@ -641,6 +747,9 @@ class RealtimeRepository {
   }
 
   void _handlePayablesDataUpdated(dynamic data) {
+    if (_isDisposed || _isDisposing) return;
+
+
     log('✅ Evento recebido: payables_data_updated');
     try {
       // Usamos o nosso modelo Dart para converter o JSON em um objeto tipado
@@ -653,6 +762,10 @@ class RealtimeRepository {
 
 
   void _handleFinancialsUpdated(dynamic data) {
+    if (_isDisposed || _isDisposing) return;
+
+
+
     log('✅ Evento recebido: financials_updated');
     try {
       final payload = data as Map<String, dynamic>;
@@ -679,17 +792,28 @@ class RealtimeRepository {
   }
 
 
-// Em: repositories/realtime_repository.dart
 
   Future<void> joinStoreRoom(int storeId) async {
     _lastJoinedStoreId = storeId;
 
+    // ✅ CORREÇÃO REFORÇADA: Aguarda conexão mais robustamente
     if (_socket == null || !_socket!.connected) {
-      log('[Socket] Conexão indisponível. A tentativa de entrar na sala $storeId ocorrerá na reconexão.');
-      return;
+      log('[Socket] Conexão indisponível. Aguardando conexão...');
+
+      // Aguarda até 5 segundos pela conexão
+      int attempts = 0;
+      while (attempts < 10 && (_socket == null || !_socket!.connected)) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        attempts++;
+      }
+
+      if (_socket == null || !_socket!.connected) {
+        log('[Socket] ❌ Não foi possível estabelecer conexão para entrar na sala $storeId');
+        throw Exception('Conexão WebSocket indisponível');
+      }
     }
 
-    // Controle para não entrar na sala múltiplas vezes
+    // Resto do método permanece igual...
     if (_joinedStores.contains(storeId) || _joiningInProgress.contains(storeId)) {
       log('[Socket] Já está na sala $storeId ou a entrada está em andamento. Ignorando.');
       return;
@@ -699,12 +823,10 @@ class RealtimeRepository {
     log('[Socket] Tentando entrar na sala da loja $storeId...');
 
     try {
-      // Limpa as notificações da loja antes de entrar
       clearNotificationsForStore(storeId);
 
       final completer = Completer<void>();
 
-      // ⚠️ ATENÇÃO: Verifique se o nome do evento no seu backend é 'join_admin_store_room'
       _socket!.emitWithAck('join_store_room', {'store_id': storeId},
           ack: ([response]) {
             if (response is Map && response['error'] != null) {
@@ -715,22 +837,20 @@ class RealtimeRepository {
             }
           });
 
-      // Espera pela confirmação do servidor por até 10 segundos
       await completer.future.timeout(const Duration(seconds: 10));
 
-      // Se chegou até aqui, a entrada foi bem-sucedida
       _joinedStores.add(storeId);
       log('[Socket] ✅ Entrada na sala da loja $storeId confirmada.');
 
     } catch (e) {
       log('[Socket] ❌ Falha ao entrar na sala $storeId: $e');
-      // Se falhar, re-lança o erro para que a camada superior possa tratar se necessário
       rethrow;
     } finally {
-      // Garante que a flag de "entrando" seja removida, mesmo se der erro
       _joiningInProgress.remove(storeId);
     }
   }
+
+
 
 
 
@@ -772,50 +892,8 @@ class RealtimeRepository {
 
 
 
-// Assumindo que este código está no seu RealtimeRepository
-
-  Future<Either<String, Map<String, dynamic>>> updateStoreSettings({
-    required int storeId,
-    // Para consistência, vamos usar os mesmos nomes que definimos no Cubit
-    bool? deliveryEnabled,      // <-- Parâmetro renomeado
-    bool? pickupEnabled,        // <-- Parâmetro renomeado
-    bool? tableEnabled,         // <-- Parâmetro renomeado
-    bool? isStoreOpen,
-    bool? autoAcceptOrders,
-    bool? autoPrintOrders,
-    String? mainPrinterDestination,
-    String? kitchenPrinterDestination,
-    String? barPrinterDestination,
-  }) {
-    final data = <String, dynamic>{
-      'store_id': storeId,
-      // Agora, usamos os nomes de campo que o backend Python espera
-      if (deliveryEnabled != null) 'delivery_enabled': deliveryEnabled, // <-- Chave corrigida
-      if (pickupEnabled != null) 'pickup_enabled': pickupEnabled,       // <-- Chave corrigida
-      if (tableEnabled != null) 'table_enabled': tableEnabled,         // <-- Chave corrigida
-      if (isStoreOpen != null) 'is_store_open': isStoreOpen,
-      if (autoAcceptOrders != null) 'auto_accept_orders': autoAcceptOrders,
-      if (autoPrintOrders != null) 'auto_print_orders': autoPrintOrders,
-
-      // Para campos de texto, é melhor enviar nulo se eles forem nulos,
-      // para que o backend possa limpá-los se necessário.
-      'main_printer_destination': mainPrinterDestination,
-      'kitchen_printer_destination': kitchenPrinterDestination,
-      'bar_printer_destination': barPrinterDestination,
-    };
-
-    // Remove chaves com valores nulos, exceto para os destinos de impressora que queremos poder limpar.
-    data.removeWhere((key, value) {
-      // Mantém as chaves da impressora mesmo que o valor seja nulo.
-      if (key.contains('_printer_destination')) return false;
-      // Remove outras chaves se o valor for nulo.
-      return value == null;
-    });
-
-
-    return _emitWithAck('update_operation_config', data); // <-- O nome do evento também deve ser verificado
-  }
-
+  // ✅ MÉTODO REMOVIDO
+  // O método updateStoreSettings foi removido daqui.
 
 
   /// Wrapper genérico para emitir eventos com ACK e tratar erros.
@@ -878,35 +956,108 @@ class RealtimeRepository {
 
 
 
-
-
+// SUBSTITUA o método dispose completo por este:
   void dispose() {
-    log('[RealtimeRepository] Disposando recursos...');
+    log('[RealtimeRepository] Iniciando processo de dispose...');
 
-    _productsStreams.values.forEach((s) => s.close());
-    _variantsStreams.values.forEach((s) => s.close());
-    _categoriesStreams.values.forEach((s) => s.close());
-    _ordersStreams.values.forEach((s) => s.close());
-    _tablesStreams.values.forEach((s) => s.close());
-    _commandsStreams.values.forEach((s) => s.close());
-    _chatbotConfigController.close();
-    _payablesDashboardController.close();
-    _activeStoreController.close();
-    _productsStreams.clear();
-    _ordersStreams.clear();
-    _tablesStreams.clear();
-    _commandsStreams.clear();
-    _financialsController.close();
-    _adminStoresListController.close();
-    _storeNotificationController.close();
-    _connectionStatusController.close();
-    _stuckOrderAlertController.close();
-    _orderNotificationController.close();
-    _newPrintJobsController.close();
-    _deviceConnectivitySubscription?.cancel();
-    _userHasNoStoresController.close();
-    _adminStoresListController.close();
-    _socket?.dispose();
-    log('[RealtimeRepository] Todos os streams e o socket foram fechados');
+    // 1. Define flag de disposing PRIMEIRO
+    _isDisposing = true;
+
+    // 2. Aguarda um microtask para garantir que eventos em processamento terminem
+    Future.microtask(() {
+      // 3. Desconecta e limpa o socket ANTES de fechar os streams
+      if (_socket != null) {
+        _socket!.clearListeners(); // Remove listeners IMEDIATAMENTE
+        _socket!.disconnect();
+        _socket!.dispose();
+        _socket = null;
+      }
+
+      // 4. Cancela subscription de conectividade
+      _deviceConnectivitySubscription?.cancel();
+      _deviceConnectivitySubscription = null;
+
+      // 5. Agora fecha todos os streams de forma segura
+      _safeCloseStream(_productsStreams.values);
+      _safeCloseStream(_variantsStreams.values);
+      _safeCloseStream(_categoriesStreams.values);
+      _safeCloseStream(_ordersStreams.values);
+      _safeCloseStream(_tablesStreams.values);
+      _safeCloseStream(_commandsStreams.values);
+      _safeCloseStream(_fullMenuStreams.values);
+
+      // Fecha os controllers principais
+      _safeClose(_chatbotConfigController);
+      _safeClose(_payablesDashboardController);
+      _safeClose(_activeStoreController);
+      _safeClose(_financialsController);
+      _safeClose(_adminStoresListController);
+      _safeClose(_storeNotificationController);
+      _safeClose(_connectionStatusController);
+      _safeClose(_connectivityStatusController);
+      _safeClose(_stuckOrderAlertController);
+      _safeClose(_orderNotificationController);
+      _safeClose(_newPrintJobsController);
+      _safeClose(_newChatMessageController);
+      _safeClose(_conversationsListController);
+      _safeClose(_subscriptionErrorController);
+      _safeClose(_userHasNoStoresController);
+      _safeClose(_storeDetailsController);
+      _safeClose(_dashboardDataController);
+
+      // 6. Limpa estruturas de dados
+      _productsStreams.clear();
+      _ordersStreams.clear();
+      _tablesStreams.clear();
+      _commandsStreams.clear();
+      _fullMenuStreams.clear();
+      _variantsStreams.clear();
+      _categoriesStreams.clear();
+      _joinedStores.clear();
+      _joiningInProgress.clear();
+      _lastJoinedStoreId = null;
+
+      // 7. Marca como completamente disposed
+      _isDisposed = true;
+      _isDisposing = false;
+
+      log('[RealtimeRepository] Dispose completo.');
+    });
+  }
+
+
+// Métodos auxiliares para fechamento seguro
+  void _safeClose(StreamController controller) {
+    if (!controller.isClosed) {
+      controller.close();
+    }
+  }
+
+  void _safeCloseStream(Iterable<StreamController> controllers) {
+    for (var controller in controllers) {
+      _safeClose(controller);
+    }
+  }
+
+  // Adicione este método para reset sem dispose completo
+  void reset() {
+    log('[RealtimeRepository] Executando reset...');
+
+    // Limpa estados mas mantém a conexão
+    _joinedStores.clear();
+    _joiningInProgress.clear();
+    _lastJoinedStoreId = null;
+
+    // Limpa notificações
+    if (!_storeNotificationController.isClosed) {
+      _storeNotificationController.add({});
+    }
+
+    // Reseta conversations
+    if (!_conversationsListController.isClosed) {
+      _conversationsListController.add([]);
+    }
+
+    log('[RealtimeRepository] Reset concluído.');
   }
 }

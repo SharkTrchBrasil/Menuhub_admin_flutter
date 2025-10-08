@@ -10,18 +10,10 @@ import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
 
 import '../core/di.dart';
+
 class AuthService {
   final AuthRepository _authRepository;
   final StoreRepository _storeRepository;
-
-  RealtimeRepository? _realtimeRepository;
-
-  RealtimeRepository get realtimeRepository {
-    if (_realtimeRepository == null) {
-      throw Exception("RealtimeRepository não foi inicializado.");
-    }
-    return _realtimeRepository!;
-  }
 
   AuthService({
     required AuthRepository authRepository,
@@ -50,17 +42,11 @@ class AuthService {
     );
   }
 
-  // ✅ _fetchStoresAndUpdateState foi renomeado para _postAuthenticationSetup
+
   Future<Either<SignInError, TotemAuthAndStores>> _postAuthenticationSetup() async {
     final user = _authRepository.user;
     final accessToken = _authRepository.accessToken;
     if (user == null || accessToken == null) return const Left(SignInError.unknown);
-
-
-    _realtimeRepository = getIt<RealtimeRepository>();
-    await _realtimeRepository!.initialize(accessToken);
-
-
 
 
     final storesResult = await _storeRepository.getStores();
@@ -76,16 +62,10 @@ class AuthService {
     );
   }
 
-
   Future<void> logout() async {
-    print('[AuthService] Executando logout...');
-      _realtimeRepository?.dispose();
-
     await _authRepository.logout();
     print('[AuthService] Logout completo.');
   }
-
-
 
   Future<Either<SignUpError, void>> signUp({
     required String name,
@@ -113,18 +93,12 @@ class AuthService {
     }
   }
 
-  // 👇 ADICIONE ESTE NOVO MÉTODO AQUI 👇
   Future<Either<CodeError, void>> verifyCode({
     required String email,
     required String code,
   }) {
-    // O serviço simplesmente delega a chamada para o repositório correto.
     return _authRepository.verifyCode(email: email, code: code);
   }
-
-
-
-  // --- Métodos de Cadastro (sem alterações) ---
 
   SignUpError _handleSignUpError(dynamic error) {
     if (error is SocketException || error is TimeoutException) {
@@ -132,6 +106,4 @@ class AuthService {
     }
     return SignUpError.unknown;
   }
-
 }
-

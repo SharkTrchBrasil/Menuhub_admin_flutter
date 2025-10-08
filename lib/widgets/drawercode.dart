@@ -3,13 +3,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../controller/inbox_controller.dart';
+import '../core/helpers/sidepanel.dart';
 import '../core/menu_app_controller.dart';
 import '../cubits/auth_cubit.dart';
 import '../cubits/auth_state.dart';
 import '../cubits/store_manager_cubit.dart';
-import '../cubits/store_manager_state.dart'; // This is your DrawerControllerProvider
+import '../cubits/store_manager_state.dart';
+import '../models/store/store.dart';
+
+import 'store_switcher_panel.dart'; // Importe o StoreSwitcherPanel
 
 class DrawerCode extends StatefulWidget {
   final int storeId;
@@ -23,34 +28,37 @@ class DrawerCode extends StatefulWidget {
 class _DrawerCodeState extends State<DrawerCode> {
   InboxController inboxController = Get.put(InboxController());
 
-  final double _collapsedWidth = 72.0; // Largura do mini-drawer (ícone + texto)
-  final double _expandedWidth = 260.0; // Largura do drawer expandido
+  final double _collapsedWidth = 72.0;
+  final double _expandedWidth = 260.0;
+  bool _isLoggingOut = false;
 
-
-
+  // Método para abrir o painel de troca de lojas
+  void _openStoreSwitcherPanel(BuildContext context) {
+    showResponsiveSidePanel(
+      context,
+      const StoreSwitcherPanel(), // Use o widget StoreSwitcherPanel
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 1. A lógica do estado de expansão do drawer continua a mesma.
     final drawerController = context.watch<DrawerControllerProvider>();
     final bool isExpanded = drawerController.isExpanded;
 
-    // 2. ✅ AQUI COMEÇA A GRANDE MUDANÇA: Usamos o BlocBuilder para obter os dados da loja.
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, storesState) {
-        // 3. Mostra um estado de carregamento enquanto os dados da loja não chegam.
         if (storesState is! StoresManagerLoaded) {
-          return Drawer(child: const Center(child: CircularProgressIndicator()));
+          return Drawer(
+            child: const Center(child: CircularProgressIndicator()),
+          );
         }
         final activeStore = storesState.activeStore;
         if (activeStore == null) {
-          return Drawer(child: const Center(child: Text('Erro: Loja não encontrada.')));
+          return Drawer(
+            child: const Center(child: Text('Erro: Loja não encontrada.')),
+          );
         }
 
-        // 4. ✅ A FONTE DA VERDADE CORRETA para o status da loja.
-        final isSetupComplete = activeStore.core.isSetupComplete;
-
-        // 5. O resto da sua UI é construído DENTRO do builder, agora com os dados corretos.
         return GetBuilder<InboxController>(
           builder: (inboxController) {
             return AnimatedContainer(
@@ -60,49 +68,30 @@ class _DrawerCodeState extends State<DrawerCode> {
                 backgroundColor: Colors.white,
                 child: Column(
                   children: [
-                    // ✅ CABEÇALHO: Adicionado aqui para garantir que sempre apareça.
-                    Padding(
-                      padding: isExpanded
-                          ? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0)
-                          : const EdgeInsets.symmetric(vertical: 20.0),
-                      child: InkWell(
-                        onTap: () => drawerController.toggle(),
-                        child: Row(
-                          mainAxisAlignment: isExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
-                          children: [
-                            Image.asset('assets/images/Symbol.png', height: 30, width: 30),
-                            if (isExpanded) ...[
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'PDVix',
-                                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    fontFamily: 'Jost-SemiBold',
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+                    // CABEÇALHO COM INFORMAÇÕES DA LOJA
+                    _buildStoreHeader(
+                      context,
+                      isExpanded,
+                      activeStore,
+                      drawerController,
                     ),
 
-                    // ✅ LISTA DE ITENS: Agora dentro de um Expanded para evitar overflow.
+                    // LISTA DE ITENS
                     Expanded(
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (!isSetupComplete && isExpanded) ...[
-                              _buildSetupWarning(context),
-                              const Divider(),
-                            ],
-                            ..._buildMenuItemsFromData(
-                              isSetupComplete: isSetupComplete,
-                              isExpanded: isExpanded,
-                            ),
+                            ..._buildMenuItemsFromData(isExpanded: isExpanded),
+
+                            const SizedBox(height: 20),
+
+                            // TROCAR DE LOJA - MODIFICADO
+                            _buildStoreSwitcherMenuItem(context, isExpanded),
+                            const SizedBox(height: 8),
+
+                            // BOTÃO DE LOGOUT
+                            _buildLogoutButton(context, isExpanded),
                           ],
                         ),
                       ),
@@ -116,265 +105,500 @@ class _DrawerCodeState extends State<DrawerCode> {
       },
     );
   }
-  // --- AUXILIARY METHODS ---
-// Adicione este método dentro da sua classe _DrawerCodeState
 
+  // Widget específico para o item "Trocar de Loja"
+  Widget _buildStoreSwitcherMenuItem(BuildContext context, bool isExpanded) {
+    final Color defaultIconColor = Theme.of(context).listTileTheme.iconColor ??
+        Theme.of(context).iconTheme.color ??
+        Colors.grey;
+    final Color defaultTextColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
 
+    return InkWell(
+      onTap: () => _openStoreSwitcherPanel(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: isExpanded ? 48 : 55,
+        width: isExpanded ? double.infinity : 60,
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: isExpanded
+            ? Row(
+          children: [
+            const SizedBox(width: 8),
+            Icon(Icons.swap_horiz_rounded, size: 20, color: defaultIconColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Trocar de Loja",
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: defaultTextColor,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        )
+            : Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Icon(Icons.swap_horiz_rounded, size: 20, color: defaultIconColor),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Trocar",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: defaultTextColor,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
+  // Resto do código permanece igual...
+  Widget _buildStoreHeader(
+      BuildContext context,
+      bool isExpanded,
+      Store store,
+      DrawerControllerProvider drawerController,
+      ) {
+    final hasImage = store.media?.image?.url != null &&
+        store.media!.image!.url!.isNotEmpty;
+
+    return Padding(
+      padding: isExpanded
+          ? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0)
+          : const EdgeInsets.symmetric(vertical: 20.0),
+      child: InkWell(
+        onTap: () {
+          context.go('/hub');
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: isExpanded
+            ? Row(
+          children: [
+            // Avatar da Loja
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                border: Border.all(
+                  color: Theme.of(context).primaryColor.withOpacity(0.2),
+                  width: 2,
+                ),
+              ),
+              child: ClipOval(
+                child: hasImage
+                    ? CachedNetworkImage(
+                  imageUrl: store.media!.image!.url!,
+                  fit: BoxFit.cover,
+                  errorWidget: (context, url, error) =>
+                      _buildDefaultStoreIcon(context),
+                )
+                    : _buildDefaultStoreIcon(context),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Informações da Loja
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    store.core.name,
+                    style:
+                    Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: store.core.isActive
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      store.core.isActive ? 'Ativa' : 'Inativa',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: store.core.isActive
+                            ? Colors.green
+                            : Colors.grey,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Ícone de toggle do drawer
+            IconButton(
+              onPressed: () => drawerController.toggle(),
+              icon: Icon(
+                Icons.menu,
+                color: Colors.grey[600],
+                size: 20,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        )
+            : Column(
+          children: [
+            // Avatar da Loja (modo collapsed)
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                border: Border.all(
+                  color: Theme.of(context).primaryColor.withOpacity(0.2),
+                  width: 1.5,
+                ),
+              ),
+              child: ClipOval(
+                child: hasImage
+                    ? CachedNetworkImage(
+                  imageUrl: store.media!.image!.url!,
+                  fit: BoxFit.cover,
+                  errorWidget: (context, url, error) =>
+                      _buildDefaultStoreIcon(context, size: 20),
+                )
+                    : _buildDefaultStoreIcon(context, size: 20),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Status badge (modo collapsed)
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: store.core.isActive ? Colors.green : Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDefaultStoreIcon(BuildContext context, {double size = 24}) {
+    return Icon(
+      Icons.store_mall_directory_outlined,
+      size: size,
+      color: Theme.of(context).primaryColor,
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context, bool isExpanded) {
+    return InkWell(
+      onTap: _isLoggingOut ? null : () => _handleLogout(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: isExpanded ? 48 : 55,
+        width: isExpanded ? double.infinity : 60,
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+
+        child: _isLoggingOut
+            ? Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+            ),
+          ),
+        )
+            : isExpanded
+            ? Row(
+          children: [
+            const SizedBox(width: 8),
+            Icon(
+              Icons.logout_rounded,
+              size: 20,
+              color: Colors.red,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Sair",
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: Colors.red,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        )
+            : Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Icon(
+                  Icons.logout_rounded,
+                  size: 20,
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(height: 4),
+              if (!isExpanded)
+                Text(
+                  "Sair",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.red,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Método robusto para lidar com logout sem problemas de async gaps
+  Future<void> _handleLogout(BuildContext context) async {
+    if (_isLoggingOut) return;
+
+    setState(() {
+      _isLoggingOut = true;
+    });
+
+    try {
+      // Captura o Scaffold antes de qualquer operação assíncrona
+      final scaffoldState = Scaffold.of(context);
+
+      // Fecha o drawer se estiver aberto
+      if (scaffoldState.isDrawerOpen) {
+        Navigator.of(context).pop();
+      }
+
+      // Aguarda um breve momento para o drawer fechar
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // Captura as dependências necessárias ANTES do logout
+      if (!mounted) return;
+      final authCubit = context.read<AuthCubit>();
+      final router = GoRouter.of(context);
+
+      // Executa o logout
+      await authCubit.logout();
+
+      // Verifica se o widget ainda está montado antes de navegar
+      if (!mounted) return;
+
+      // Navega para a tela de login
+      router.go('/sign-in');
+    } catch (e) {
+      // Tratamento de erro robusto
+      debugPrint('Erro durante logout: $e');
+
+      if (!mounted) return;
+
+      // Mostra mensagem de erro ao usuário
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao fazer logout. Tente novamente.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoggingOut = false;
+        });
+      }
+    }
+  }
 
   final List<Map<String, dynamic>> _menuData = [
-    {'type': 'section', 'title': 'Dashboard', 'requiresSetup': true, 'index': 0},
+    {'type': 'section', 'title': 'Dashboard', 'index': 0},
     {
       'type': 'item',
-      'title': 'Inicio(ok)',
+      'title': 'Inicio',
       'route': '/dashboard',
       'index': 0,
       'iconPath': 'assets/images/package.png',
-      'requiresSetup': true,
     },
     {
       'type': 'item',
-      'title': 'Pedidos(ok)',
+      'title': 'Pedidos',
       'route': '/orders',
       'index': 1,
       'iconPath': 'assets/images/package.png',
-      'requiresSetup': true,
     },
-
     {
       'type': 'item',
-      'title': 'Desempenho(ok)',
+      'title': 'Desempenho',
       'route': '/performance',
       'index': 2,
       'iconPath': 'assets/images/package.png',
-      'requiresSetup': true,
     },
-    {
-      'type': 'item',
-      'title': 'Financeiro',
-      'route': '/payables',
-      'index': 3,
-      'iconPath': 'assets/images/package.png',
-      'requiresSetup': true,
-    },
-
+    // {
+    //   'type': 'item',
+    //   'title': 'Financeiro',
+    //   'route': '/payables',
+    //   'index': 3,
+    //   'iconPath': 'assets/images/package.png',
+    // },
     {'type': 'spacer'},
-
-
     {
       'type': 'item',
       'title': 'Cardápios',
       'route': '/products',
       'index': 4,
       'iconPath': 'assets/images/package.png',
-      'requiresSetup': true,
     },
-
     {
       'type': 'item',
       'title': 'Promoções',
       'route': '/coupons',
       'index': 5,
       'iconPath': 'assets/images/6.png',
-      'requiresSetup': true,
     },
-    // Descomente se precisar
-    // {
-    //   'type': 'item',
-    //   'title': 'Banners',
-    //   'route': '/banners',
-    //   'index': 6,
-    //   'iconPath': 'assets/images/6.png',
-    //   'requiresSetup': true,
-    // },
-    // {
-    //   'type': 'item',
-    //   'title': 'Catálogo Online',
-    //   'route': '/catalog',
-    //   'index': 7,
-    //   'iconPath': 'assets/images/package.png',
-    //   'requiresSetup': true,
-    // },
-    // {
-    //   'type': 'item',
-    //   'title': 'Totem',
-    //   'route': '/totems',
-    //   'index': 8,
-    //   'iconPath': 'assets/images/package.png',
-    //   'requiresSetup': true,
-    // },
-
     {'type': 'spacer'},
-
-    {'type': 'section', 'title': 'Configuração da Loja', 'requiresSetup': false, 'index': 10},
+    {'type': 'section', 'title': 'Configuração da Loja', 'index': 10},
     {
       'type': 'item',
-      'title': 'Minha loja(ok)',
+      'title': 'Minha loja',
       'route': '/settings',
       'index': 9,
       'iconPath': 'assets/images/33.png',
-      'requiresSetup': false,
     },
     {
       'type': 'item',
-      'title': 'Horários(ok)',
+      'title': 'Horários',
       'route': '/settings/hours',
       'index': 10,
       'iconPath': 'assets/images/calendar-edit.png',
-      'requiresSetup': false,
     },
     {
       'type': 'item',
-      'title': 'Forma de Pagamento(ok)',
+      'title': 'Forma de Pagamento',
       'route': '/payment-methods',
       'index': 11,
       'iconPath': 'assets/images/coins.png',
-      'requiresSetup': false,
     },
     {
       'type': 'item',
-      'title': 'Configurações de Entrega(ok)',
+      'title': 'Configurações de Entrega',
       'route': '/settings/shipping',
       'index': 12,
       'iconPath': 'assets/images/box.png',
-      'requiresSetup': false,
     },
     {
       'type': 'item',
-      'title': 'Cidades e Bairros(ok)',
+      'title': 'Cidades e Bairros',
       'route': '/settings/locations',
       'index': 13,
       'iconPath': 'assets/images/location-pin.png',
-      'requiresSetup': false,
     },
-    // Descomente se precisar
-    // {
-    //   'type': 'item',
-    //   'title': 'Chatbot',
-    //   'route': '/chatbot',
-    //   'index': 14,
-    //   'iconPath': 'assets/images/location-pin.png',
-    //   'requiresSetup': false,
-    // },
-
     {'type': 'spacer'},
-
-    {'type': 'section', 'title': 'Estoque', 'requiresSetup': true, 'index': 17},
+    {'type': 'section', 'title': 'Estoque', 'index': 17},
     {
       'type': 'item',
       'title': 'Estoque',
       'route': '/inventory',
       'index': 15,
       'iconPath': 'assets/images/database.png',
-      'requiresSetup': true,
     },
-
+    // {'type': 'spacer'},
+    // {'type': 'section', 'title': 'Financeiro', 'index': 18},
     {'type': 'spacer'},
-
-    {'type': 'section', 'title': 'Financeiro', 'requiresSetup': true, 'index': 18},
-
-
-    // {
-    //   'type': 'item',
-    //   'title': 'Relatórios',
-    //   'route': '/reports',
-    //   'index': 16,
-    //   'iconPath': 'assets/images/chart-trend-up1.png',
-    //   'requiresSetup': true,
-    // },
-
-    {'type': 'spacer'},
-
-    {'type': 'section', 'title': 'Sistema', 'requiresSetup': true, 'index': 21},
-
+    {'type': 'section', 'title': 'Sistema', 'index': 21},
     {
       'type': 'item',
-      'title': 'Analise(ok)',
-      'route': '/analytics',
+      'title': 'Chatbot',
+      'route': '/chatbot',
       'index': 17,
       'iconPath': 'assets/images/user.png',
-      'requiresSetup': false,
     },
     {
       'type': 'item',
-      'title': 'Planos(ok)',
-      'route': '/billing',
+      'title': 'Planos',
+      'route': '/plans',
       'index': 18,
       'iconPath': 'assets/images/rocket-launch.png',
-      'requiresSetup': true,
     },
   ];
 
-
   List<Widget> _buildMenuItemsFromData({
-    required bool isSetupComplete,
     required bool isExpanded,
   }) {
     final List<Widget> menuWidgets = [];
 
     for (final itemData in _menuData) {
-      // MUDANÇA 1: Lemos o tipo do item PRIMEIRO.
       final String type = itemData['type'] as String;
 
-      // MUDANÇA 2: Se for um 'spacer', nós o adicionamos e pulamos para a próxima iteração do loop.
-      // Isso evita que o código tente ler 'requiresSetup' para um spacer.
       if (type == 'spacer') {
         menuWidgets.add(const SizedBox(height: 20));
         continue;
       }
 
-      // MUDANÇA 3: Agora que sabemos que não é um spacer, podemos ler 'requiresSetup' com segurança.
-      final bool isRequired = itemData['requiresSetup'] as bool;
-
-      // A LÓGICA PRINCIPAL: Pula o item se ele requer setup e o setup não está completo.
-      if (isRequired && !isSetupComplete) {
-        continue;
-      }
-
-      // A lógica do switch permanece a mesma, mas agora não precisa mais do case 'spacer'.
       switch (type) {
         case 'section':
           if (isExpanded) {
             menuWidgets.add(_buildSectionTitle(
               itemData['title'] as String,
-              // A lógica de 'selected' precisa ser ajustada se você quiser que os títulos se destaquem
               selected: false,
             ));
           }
           break;
         case 'item':
+          final String? iconPath = itemData['iconPath'] as String?;
+          final String title = itemData['title'] as String;
+          final String route = itemData['route'] as String;
+          final int index = itemData['index'] as int;
+
           menuWidgets.add(_buildMenuItem(
             context: context,
-            title: itemData['title'] as String,
-            route: '/stores/${widget.storeId}${itemData['route']}',
-            index: itemData['index'] as int,
-            iconPath: itemData['iconPath'] as String,
+            title: title,
+            route: '/stores/${widget.storeId}$route',
+            index: index,
+            iconPath: iconPath ?? 'assets/images/package.png',
             isExpanded: isExpanded,
           ));
           break;
       }
     }
     return menuWidgets;
-  }
-
-  Widget _buildSetupWarning(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-       // color: Theme.of(context).primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.3)),
-      ),
-      child: const Text(
-        'Conclua a configuração para liberar todas as funções da sua loja.',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
-      ),
-    );
   }
 
   Widget _buildSectionTitle(String title, {required bool selected}) {
@@ -385,10 +609,9 @@ class _DrawerCodeState extends State<DrawerCode> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 13,
-          color:
-              selected
-                  ? Theme.of(context).primaryColor
-                  : Theme.of(context).textTheme.bodyLarge?.color,
+          color: selected
+              ? Theme.of(context).primaryColor
+              : Theme.of(context).textTheme.bodyLarge?.color,
         ),
       ),
     );
@@ -401,23 +624,24 @@ class _DrawerCodeState extends State<DrawerCode> {
     required int index,
     required String iconPath,
     required bool isExpanded,
+    IconData? customIcon,
   }) {
     final isSelected = inboxController.pageselecter == index;
     final Color primaryColor = Theme.of(context).primaryColor;
     final Color defaultIconColor =
         Theme.of(context).listTileTheme.iconColor ??
-        Theme.of(context).iconTheme.color!;
+            Theme.of(context).iconTheme.color ??
+            Colors.grey;
     final Color defaultTextColor =
-        Theme.of(context).textTheme.bodyLarge!.color!;
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
 
     final Color iconColor = isSelected ? primaryColor : defaultIconColor;
     final Color textColor = isSelected ? primaryColor : defaultTextColor;
     final Color backgroundColor =
-        isSelected ? primaryColor.withOpacity(0.1) : Colors.transparent;
-    final Border? border =
-        isSelected
-            ? Border.all(color: primaryColor.withOpacity(0.3), width: 1.0)
-            : null;
+    isSelected ? primaryColor.withOpacity(0.1) : Colors.transparent;
+    final Border? border = isSelected
+        ? Border.all(color: primaryColor.withOpacity(0.3), width: 1.0)
+        : null;
 
     return InkWell(
       onTap: () {
@@ -434,83 +658,97 @@ class _DrawerCodeState extends State<DrawerCode> {
           borderRadius: BorderRadius.circular(8),
           border: isExpanded ? null : border,
         ),
-        child:
-            isExpanded
-                ? Row(
-                  children: [
-                    const SizedBox(width: 8),
-                    Image.asset(
-                      iconPath,
-                      height: 20,
-                      width: 20,
-                      color: iconColor,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color:
-                              defaultTextColor, // Consider using textColor here for consistency
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                )
-                : Stack(
-                  children: [
-                    if (isSelected)
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 2.0,
-                          decoration: BoxDecoration(
-                            color: primaryColor,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(8),
-                              bottomLeft: Radius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Image.asset(
-                              iconPath,
-                              height: 20,
-                              width: 20,
-                              color: iconColor,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          if (!isSelected) // Only show text if not selected in collapsed view (as selected has the bar)
-                            Text(
-                              title,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color:
-                                    defaultTextColor, // Consider using textColor here for consistency
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
+        child: isExpanded
+            ? Row(
+          children: [
+            const SizedBox(width: 8),
+            customIcon != null
+                ? Icon(customIcon, size: 20, color: iconColor)
+                : _buildIcon(iconPath, iconColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: textColor,
                 ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        )
+            : Stack(
+          children: [
+            if (isSelected)
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 2.0,
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      bottomLeft: Radius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: customIcon != null
+                        ? Icon(customIcon, size: 20, color: iconColor)
+                        : _buildIcon(iconPath, iconColor),
+                  ),
+                  const SizedBox(height: 4),
+                  if (!isSelected)
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: defaultTextColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
-}
 
+  Widget _buildIcon(String iconPath, Color color) {
+    try {
+      return Image.asset(
+        iconPath,
+        height: 20,
+        width: 20,
+        color: color,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            Icons.error_outline,
+            size: 20,
+            color: color,
+          );
+        },
+      );
+    } catch (e) {
+      return Icon(
+        Icons.error_outline,
+        size: 20,
+        color: color,
+      );
+    }
+  }
+}

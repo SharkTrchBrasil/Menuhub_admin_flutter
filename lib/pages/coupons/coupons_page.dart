@@ -11,10 +11,8 @@ import 'package:totem_pro_admin/services/dialog_service.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/widgets/fixed_header.dart';
 
-
 import '../../widgets/ds_primary_button.dart';
 import '../base/BasePage.dart';
-
 
 class CouponsPage extends StatefulWidget {
   const CouponsPage({super.key, required this.storeId});
@@ -31,59 +29,73 @@ class _CouponsPageState extends State<CouponsPage> {
   void initState() {
     super.initState();
 
-
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-
+        // Initialization code if needed
       }
     });
   }
 
-
   @override
   void dispose() {
-
-
-
     super.dispose();
   }
 
   void _onAddOrEdit({Coupon? coupon}) {
-
-
-
     final route = coupon == null
         ? '/stores/${widget.storeId}/coupons/new'
         : '/stores/${widget.storeId}/coupons/${coupon.id}';
 
-    // ✅ ADICIONE ESTE PRINT
     if (coupon != null) {
       print('--- 3. Navegando para a tela de edição ---');
       print('Passando cupom via extra com ${coupon.rules.length} regras.');
-      // print('Dados completos do cupom: ${coupon.toJson()}'); // Descomente para ver tudo
     }
 
     context.go(route, extra: coupon);
   }
 
-
   @override
   Widget build(BuildContext context) {
-    // ✅ PASSO 4: O build agora retorna apenas o conteúdo, sem BasePage/Scaffold
     return ResponsiveBuilder(
-      mobileBuilder: (context, constraints) => _buildCouponsGrid(context, crossAxisCount: 1),
-     // tabletBuilder: (context, constraints) => _buildDesktopLayout(context, 2),
-      desktopBuilder: (context, constraints) => _buildDesktopLayout(context, 3),
+      mobileBuilder: (context, constraints) => _buildMobileLayout(context),
+      desktopBuilder: (context, constraints) => _buildDesktopLayout(context),
     );
   }
 
-  // Layout do Desktop: inclui o FixedHeader
-  Widget _buildDesktopLayout(BuildContext context, int crossAxisCount) {
+  // Layout Mobile: Lista vertical simples
+  Widget _buildMobileLayout(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24.0,
+      padding: const EdgeInsets.symmetric(horizontal: 14.0),
+      child: Column(
+        children: [
+          // Header para mobile
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: FixedHeader(
+              showActionsOnMobile: true,
+              title: 'Minhas promoções',
+              subtitle: 'Gerencie suas promoções.',
+              actions: [
+                DsButton(
+                  label: 'Criar cupom',
+                  style: DsButtonStyle.secondary,
+                  onPressed: () => _onAddOrEdit,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _buildCouponsList(context),
+          ),
+        ],
       ),
+    );
+  }
+
+  // Layout do Desktop: inclui o FixedHeader completo
+  Widget _buildDesktopLayout(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
         children: [
           FixedHeader(
@@ -97,15 +109,15 @@ class _CouponsPageState extends State<CouponsPage> {
             ],
           ),
           Expanded(
-            child: _buildCouponsGrid(context, crossAxisCount: crossAxisCount),
+            child: _buildCouponsList(context),
           ),
         ],
       ),
     );
   }
 
-  // A grade de cupons, que é o conteúdo principal e comum
-  Widget _buildCouponsGrid(BuildContext context, {required int crossAxisCount}) {
+  // Lista de cupons (comum para mobile e desktop)
+  Widget _buildCouponsList(BuildContext context) {
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, state) {
         if (state is StoresManagerInitial || state is StoresManagerLoading) {
@@ -115,39 +127,29 @@ class _CouponsPageState extends State<CouponsPage> {
           return Center(child: Text(state.message));
         }
         if (state is StoresManagerLoaded) {
-          // Acessa os cupons do estado
           final coupons = state.activeStore?.relations.coupons ?? [];
 
           if (coupons.isEmpty) {
             return const Center(child: Text('Nenhum cupom cadastrado.'));
           }
-          // ✅ ADICIONE ESTE PRINT
-          print('--- 2. Dentro do BlocBuilder da CouponsPage ---');
-          print('O build recebeu ${coupons.length} cupons do estado do Cubit.');
 
-
-
-
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(24.0),
+          return ListView.builder(
+          //  padding: const EdgeInsets.all(16.0),
             itemCount: coupons.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              mainAxisExtent: 200,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
             itemBuilder: (context, index) {
               final coupon = coupons[index];
-              return _CouponCard(
-                coupon: coupon,
-                dateFormat: _dateFormat, storeId: state.activeStoreId,
-                onEdit: (coupon) {
-                print(coupon);
-                  _onAddOrEdit(coupon: coupon);
-                },
-
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0, top: 12),
+                child: _CouponListItem(
+                  coupon: coupon,
+                  dateFormat: _dateFormat,
+                  storeId: state.activeStoreId,
+                  onEdit: (coupon) {
+                    print(coupon);
+                    _onAddOrEdit(coupon: coupon);
+                  },
+                  isMobile: ResponsiveBuilder.isMobile(context),
+                ),
               );
             },
           );
@@ -158,19 +160,21 @@ class _CouponsPageState extends State<CouponsPage> {
   }
 }
 
-/// Widget para o card individual do cupom.
-class _CouponCard extends StatelessWidget {
-  const _CouponCard({
+/// Widget para o item individual da lista de cupons
+class _CouponListItem extends StatelessWidget {
+  const _CouponListItem({
     required this.coupon,
     required this.storeId,
     required this.dateFormat,
     required this.onEdit,
+    required this.isMobile,
   });
 
   final Coupon coupon;
   final int storeId;
   final DateFormat dateFormat;
   final void Function(Coupon) onEdit;
+  final bool isMobile;
 
   String _formatDiscount(Coupon coupon) {
     if (coupon.discountType == 'PERCENTAGE') {
@@ -185,121 +189,228 @@ class _CouponCard extends StatelessWidget {
     return '';
   }
 
-  Color _generateCouponBackground(int id, bool isDark) {
-    final colors = isDark
-        ? [
-      Color(0xFF004D40),
-      Color(0xFF3E2723),
-      Color(0xFF1A237E),
-      Color(0xFF4A148C),
-      Color(0xFF880E4F)
-    ]
-        : [
-      Color(0xFFE0F7FA),
-      Color(0xFFFFF9C4),
-      Color(0xFFD1C4E9),
-      Color(0xFFE1F5FE),
-      Color(0xFFFFCDD2)
-    ];
-    return colors[id % colors.length];
-  }
-
-
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme
-        .of(context)
-        .brightness == Brightness.dark;
-    final backgroundColor = coupon.isActive
-        ? _generateCouponBackground(coupon.id!, isDark)
-        : (isDark ? Color(0xFF7F1D1D) : Color(0xFFFEE2E2));
-
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: backgroundColor,
+        color: Colors.white,
+        border: Border.all(color: Colors.black, width: 1.0),
+        borderRadius: BorderRadius.circular(8.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 2.0,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
+      child: isMobile ? _buildMobileItem(context) : _buildDesktopItem(context),
+    );
+  }
+
+  // Layout para mobile - mais compacto
+  Widget _buildMobileItem(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Cabeçalho com código e status
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _formatDiscount(coupon),
-                style: Theme
-                    .of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(
+                      coupon.code,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    if (coupon.isActive)
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 18),
+                        padding: const EdgeInsets.only(left: 8.0),
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: coupon.code));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Código copiado!')),
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: coupon.isActive ? Colors.green.shade50 : Colors.red.shade50,
+                  border: Border.all(
+                    color: coupon.isActive ? Colors.green.shade200 : Colors.red.shade200,
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  coupon.isActive ? 'ATIVO' : 'INATIVO',
+                  style: TextStyle(
+                    color: coupon.isActive ? Colors.green.shade700 : Colors.red.shade700,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Desconto e descrição
+          Text(
+            _formatDiscount(coupon),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.green.shade700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            coupon.description,
+            style: Theme.of(context).textTheme.bodyMedium,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          // Data e botão de editar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (coupon.endDate != null)
+                Text(
+                  'Válido até: ${dateFormat.format(coupon.endDate!)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
+                ),
               IconButton(
+                icon: const Icon(Icons.edit, size: 18),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
-                icon: const Icon(Icons.edit, size: 20),
-                tooltip: 'Editar cupom',
                 onPressed: () => onEdit(coupon),
               ),
             ],
           ),
-          Text(
-            coupon.description,
-            style: Theme
-                .of(context)
-                .textTheme
-                .bodyMedium,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    coupon.code,
-                    style: Theme
-                        .of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(
+        ],
+      ),
+    );
+  }
+
+  // Layout para desktop - mais detalhado
+  Widget _buildDesktopItem(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        children: [
+          // Informações principais
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      coupon.code,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5
+                        letterSpacing: 1.5,
+                      ),
                     ),
-                  ),
-                  if(coupon.isActive)
-                    IconButton(
-                      icon: const Icon(Icons.copy, size: 18),
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: coupon.code));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Código copiado!')),
-                        );
-                      },
-                    ),
-                ],
-              ),
-              if (coupon.endDate != null)
-                Text(
-                  'Válido até: ${dateFormat.format(coupon.endDate!)}',
-                  style: Theme
-                      .of(context)
-                      .textTheme
-                      .bodySmall,
+                    if (coupon.isActive)
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 18),
+                        padding: const EdgeInsets.only(left: 8.0),
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: coupon.code));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Código copiado!')),
+                          );
+                        },
+                      ),
+                  ],
                 ),
-            ],
-          ),
-          Text(
-            coupon.isActive ? 'ATIVO' : 'INATIVO',
-            style: TextStyle(
-              color: coupon.isActive ? Colors.green.shade700 : Colors.red
-                  .shade700,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.1,
+                const SizedBox(height: 4),
+                Text(
+                  coupon.description,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
+          ),
+          // Tipo de desconto
+          Expanded(
+            flex: 1,
+            child: Text(
+              _formatDiscount(coupon),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade700,
+              ),
+            ),
+          ),
+          // Data de validade
+          Expanded(
+            flex: 1,
+            child: coupon.endDate != null
+                ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Válido até:',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                Text(
+                  dateFormat.format(coupon.endDate!),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            )
+                : const Text('Sem data limite'),
+          ),
+          // Status
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: coupon.isActive ? Colors.green.shade50 : Colors.red.shade50,
+                border: Border.all(
+                  color: coupon.isActive ? Colors.green.shade200 : Colors.red.shade200,
+                ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                coupon.isActive ? 'ATIVO' : 'INATIVO',
+                style: TextStyle(
+                  color: coupon.isActive ? Colors.green.shade700 : Colors.red.shade700,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.1,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          // Ações
+          IconButton(
+            icon: const Icon(Icons.edit, size: 20),
+            tooltip: 'Editar cupom',
+            onPressed: () => onEdit(coupon),
           ),
         ],
       ),

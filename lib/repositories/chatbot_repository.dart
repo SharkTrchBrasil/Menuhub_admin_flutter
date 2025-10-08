@@ -12,10 +12,26 @@ class ChatbotRepository {
 
   final Dio _dio;
 
-  /// Solicita a conexão com o WhatsApp
-  Future<Either<Failure, void>> connectWhatsApp(int storeId) async {
+
+  // ✅ MÉTODO ATUALIZADO
+  Future<Either<Failure, void>> connectWhatsApp({
+    required int storeId,
+    required String method,
+    String? phoneNumber, // phoneNumber agora é opcional
+  }) async {
     try {
-      await _dio.post('/stores/$storeId/chatbot-config/connect');
+      // Monta o payload dinamicamente
+      final Map<String, dynamic> payload = {
+        'method': method,
+      };
+      if (phoneNumber != null) {
+        payload['phone_number'] = phoneNumber;
+      }
+
+      await _dio.post(
+        '/stores/$storeId/chatbot-config/connect',
+        data: payload, // Envia o payload completo
+      );
       return const Right(null);
     } on DioException catch (e) {
       debugPrint('connectWhatsApp error: $e');
@@ -26,10 +42,10 @@ class ChatbotRepository {
     }
   }
 
-  /// Solicita a desconexão do WhatsApp
+
   Future<Either<Failure, void>> disconnectChatbot(int storeId) async {
     try {
-      await _dio.post('/stores/$storeId/chatbot-config/disconnect');
+      await _dio.delete('/stores/$storeId/chatbot-config/disconnect');
       return const Right(null);
     } catch (e) {
       debugPrint('disconnectChatbot error: $e');
@@ -37,8 +53,8 @@ class ChatbotRepository {
     }
   }
 
-  /// Atualiza uma mensagem específica do chatbot.
-  /// Pode atualizar o conteúdo, o status de ativação, ou ambos.
+
+
   Future<Either<Failure, void>> updateMessage({
     required int storeId,
     required String messageKey,
@@ -57,7 +73,7 @@ class ChatbotRepository {
         return const Right(null);
       }
 
-      // ✅ ROTA CORRIGIDA: Apontando para 'chatbot-config' para alinhar com a API Python.
+
       await _dio.patch(
         '/stores/$storeId/chatbot-config/$messageKey',
         data: payload,
@@ -73,6 +89,26 @@ class ChatbotRepository {
   }
 
 
-
+  Future<Either<Failure, void>> updateChatbotStatus({
+    required int storeId,
+    required bool isActive,
+  }) async {
+    try {
+      // Este endpoint está na raiz da API do Node, não sob /stores/{id}
+      await _dio.post(
+        '/chatbot/update-status',
+        data: {
+          'storeId': storeId,
+          'isActive': isActive,
+        },
+      );
+      return const Right(null);
+    } on DioException catch (e) {
+      final errorMsg = e.response?.data?['detail'] ?? 'Falha ao atualizar o status do chatbot.';
+      return Left(Failure(errorMsg));
+    } catch (e) {
+      return Left(Failure('Ocorreu um erro inesperado.'));
+    }
+  }
 
 }

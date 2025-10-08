@@ -42,15 +42,18 @@ class _EditCouponPageState extends State<EditCouponPage> {
   final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = true;
+  bool _isSaving = false;
   String? _errorMessage;
 
-  late TextEditingController _codeController;
-  late TextEditingController _descriptionController;
-  late TextEditingController _discountValueController;
-  late TextEditingController _maxDiscountController;
-  late TextEditingController _minOrderController;
-  late TextEditingController _maxUsesController;
-  late TextEditingController _maxUsesPerCustomerController;
+  // Removemos os controllers já que AppTextField gerencia internamente
+  // Mantemos apenas os valores atuais
+  String _code = '';
+  String _description = '';
+  String _discountValue = '';
+  String _maxDiscount = '';
+  String _minOrder = '';
+  String _maxUses = '';
+  String _maxUsesPerCustomer = '';
 
   // Valores para os campos que não são de texto
   String _discountType = 'PERCENTAGE';
@@ -62,51 +65,39 @@ class _EditCouponPageState extends State<EditCouponPage> {
   @override
   void initState() {
     super.initState();
-    // Pega o cupom inicial (pode ser o do 'extra' ou nulo se for criação)
     final initialCoupon = widget.coupon;
 
-    print(initialCoupon);
-    // --- LÓGICA DE INICIALIZAÇÃO DIRETA ---
-
-    // 1. Inicializa as variáveis de estado
     _discountType = initialCoupon?.discountType ?? 'PERCENTAGE';
     _startDate = initialCoupon?.startDate ?? DateTime.now();
     _endDate = initialCoupon?.endDate ?? DateTime.now().add(const Duration(days: 30));
     _isActive = initialCoupon?.isActive ?? true;
     _isForFirstOrder = initialCoupon?.isForFirstOrder ?? false;
 
-    // 2. Inicializa os CONTROLLERS JÁ COM OS VALORES
-    _codeController = TextEditingController(text: initialCoupon?.code ?? '');
-    _descriptionController = TextEditingController(text: initialCoupon?.description ?? '');
-    _maxUsesController = TextEditingController(text: initialCoupon?.maxUsesTotal?.toString() ?? '');
-    _maxUsesPerCustomerController = TextEditingController(text: initialCoupon?.maxUsesPerCustomer?.toString() ?? '');
+    // Inicializa os valores dos campos de texto
+    _code = initialCoupon?.code ?? '';
+    _description = initialCoupon?.description ?? '';
+    _maxUses = initialCoupon?.maxUsesTotal?.toString() ?? '';
+    _maxUsesPerCustomer = initialCoupon?.maxUsesPerCustomer?.toString() ?? '';
 
-    // Lógica para valores monetários (centavos para R$)
     final initialMaxDiscount = initialCoupon?.maxDiscountAmount;
-    _maxDiscountController = TextEditingController(
-        text: initialMaxDiscount != null ? (initialMaxDiscount / 100).toStringAsFixed(2) : ''
-    );
+    _maxDiscount = initialMaxDiscount != null ? (initialMaxDiscount / 100).toStringAsFixed(2) : '';
 
     final initialMinOrder = initialCoupon?.minOrderValue;
-    _minOrderController = TextEditingController(
-        text: initialMinOrder != null ? (initialMinOrder / 100).toStringAsFixed(2) : ''
-    );
+    _minOrder = initialMinOrder != null ? (initialMinOrder / 100).toStringAsFixed(2) : '';
 
-    // Lógica especial para o valor do desconto (depende do tipo)
-    String discountValueText = '';
+    // Lógica especial para o valor do desconto
     if (initialCoupon != null) {
       if (initialCoupon.discountType == 'PERCENTAGE') {
-        discountValueText = initialCoupon.discountValue.toInt().toString();
-      } else { // FIXED_AMOUNT
-        discountValueText = (initialCoupon.discountValue / 100).toStringAsFixed(2);
+        _discountValue = initialCoupon.discountValue.toInt().toString();
+      } else {
+        _discountValue = (initialCoupon.discountValue / 100).toStringAsFixed(2);
       }
+    } else {
+      _discountValue = '';
     }
-    _discountValueController = TextEditingController(text: discountValueText);
 
-    // Agora, carrega os dados (isso só vai rodar a API se o 'extra' não vier)
     _loadInitialData();
   }
-
 
   Future<void> _loadInitialData() async {
     Coupon? initialCoupon;
@@ -118,15 +109,6 @@ class _EditCouponPageState extends State<EditCouponPage> {
       result.fold(
             (error) => _errorMessage = 'Não foi possível carregar o cupom.',
             (couponData) => initialCoupon = couponData,
-      );
-    } else {
-      initialCoupon = Coupon(
-        code: '',
-        description: '',
-        discountType: 'PERCENTAGE',
-        discountValue: 0,
-        startDate: DateTime.now(),
-        endDate: DateTime.now().add(const Duration(days: 30)),
       );
     }
 
@@ -141,118 +123,311 @@ class _EditCouponPageState extends State<EditCouponPage> {
   }
 
   void _populateForm(Coupon coupon) {
-    _codeController.text = coupon.code;
-    _descriptionController.text = coupon.description;
-    _discountType = coupon.discountType;
-    _startDate = coupon.startDate ?? DateTime.now();
-    _endDate = coupon.endDate ?? DateTime.now().add(const Duration(days: 30));
-    _isActive = coupon.isActive;
-    _maxDiscountController.text = coupon.maxDiscountAmount != null ? (coupon.maxDiscountAmount! / 100).toStringAsFixed(2) : '';
+    setState(() {
+      _code = coupon.code;
+      _description = coupon.description;
+      _discountType = coupon.discountType;
+      _startDate = coupon.startDate ?? DateTime.now();
+      _endDate = coupon.endDate ?? DateTime.now().add(const Duration(days: 30));
+      _isActive = coupon.isActive;
+      _maxDiscount = coupon.maxDiscountAmount != null ? (coupon.maxDiscountAmount! / 100).toStringAsFixed(2) : '';
 
-    if (coupon.discountType == 'PERCENTAGE') {
-      _discountValueController.text = coupon.discountValue.toInt().toString();
-    } else { // FIXED_AMOUNT
-      _discountValueController.text = (coupon.discountValue / 100).toStringAsFixed(2);
-    }
+      if (coupon.discountType == 'PERCENTAGE') {
+        _discountValue = coupon.discountValue.toInt().toString();
+      } else {
+        _discountValue = (coupon.discountValue / 100).toStringAsFixed(2);
+      }
 
-    // Popula as regras
-    _isForFirstOrder = coupon.isForFirstOrder;
-    _minOrderController.text = coupon.minOrderValue != null ? (coupon.minOrderValue! / 100).toStringAsFixed(2) : '';
-    _maxUsesController.text = coupon.maxUsesTotal?.toString() ?? '';
-    _maxUsesPerCustomerController.text = coupon.maxUsesPerCustomer?.toString() ?? '';
+      _isForFirstOrder = coupon.isForFirstOrder;
+      _minOrder = coupon.minOrderValue != null ? (coupon.minOrderValue! / 100).toStringAsFixed(2) : '';
+      _maxUses = coupon.maxUsesTotal?.toString() ?? '';
+      _maxUsesPerCustomer = coupon.maxUsesPerCustomer?.toString() ?? '';
+    });
   }
 
-  @override
-  void dispose() {
-    _codeController.dispose();
-    _descriptionController.dispose();
-    _discountValueController.dispose();
-    _maxDiscountController.dispose();
-    _minOrderController.dispose();
-    _maxUsesController.dispose();
-    _maxUsesPerCustomerController.dispose();
-    super.dispose();
+  // Validações robustas
+  String? _validateCode(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Código do cupom é obrigatório';
+    }
+    if (value.length < 3) {
+      return 'Código deve ter pelo menos 3 caracteres';
+    }
+    if (!RegExp(r'^[A-Z0-9_\-]+$').hasMatch(value)) {
+      return 'Use apenas letras maiúsculas, números, hífen ou underline';
+    }
+    return null;
+  }
+
+  String? _validateDescription(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Descrição é obrigatória';
+    }
+    if (value.length < 5) {
+      return 'Descrição deve ter pelo menos 5 caracteres';
+    }
+    return null;
+  }
+
+  String? _validateDiscountValue(String? value) {
+    if (_discountType != 'FREE_DELIVERY') {
+      if (value == null || value.isEmpty) {
+        return 'Valor do desconto é obrigatório';
+      }
+
+      if (_discountType == 'PERCENTAGE') {
+        final percent = int.tryParse(value);
+        if (percent == null || percent <= 0) {
+          return 'Percentual deve ser maior que 0';
+        }
+        if (percent > 100) {
+          return 'Percentual não pode ser maior que 100%';
+        }
+      } else {
+        final amount = UtilBrasilFields.converterMoedaParaDouble(value);
+        if (amount <= 0) {
+          return 'Valor deve ser maior que R\$ 0,00';
+        }
+      }
+    }
+    return null;
+  }
+
+  String? _validateMaxDiscount(String? value) {
+    if (_discountType == 'PERCENTAGE' && value != null && value.isNotEmpty) {
+      final maxDiscount = UtilBrasilFields.converterMoedaParaDouble(value);
+      if (maxDiscount <= 0) {
+        return 'Valor máximo deve ser maior que R\$ 0,00';
+      }
+    }
+    return null;
+  }
+
+  String? _validateMinOrder(String? value) {
+    if (value != null && value.isNotEmpty) {
+      final minOrder = UtilBrasilFields.converterMoedaParaDouble(value);
+      if (minOrder <= 0) {
+        return 'Pedido mínimo deve ser maior que R\$ 0,00';
+      }
+    }
+    return null;
+  }
+
+  String? _validateMaxUses(String? value) {
+    if (value != null && value.isNotEmpty) {
+      final maxUses = int.tryParse(value);
+      if (maxUses == null || maxUses <= 0) {
+        return 'Limite deve ser maior que 0';
+      }
+    }
+    return null;
+  }
+
+  String? _validateMaxUsesPerCustomer(String? value) {
+    if (value != null && value.isNotEmpty) {
+      final maxUses = int.tryParse(value);
+      if (maxUses == null || maxUses <= 0) {
+        return 'Limite deve ser maior que 0';
+      }
+    }
+    return null;
+  }
+
+  String? _validateDates() {
+    if (_startDate.isAfter(_endDate)) {
+      return 'Data de início não pode ser após a data de fim';
+    }
+    if (_endDate.isBefore(DateTime.now())) {
+      return 'Data de fim não pode ser no passado';
+    }
+    return null;
+  }
+
+  // Métodos para atualizar os valores dos campos
+  void _onCodeChanged(String? value) {
+    if (value != null) {
+      setState(() {
+        _code = value;
+      });
+    }
+  }
+
+  void _onDescriptionChanged(String? value) {
+    if (value != null) {
+      setState(() {
+        _description = value;
+      });
+    }
+  }
+
+  void _onDiscountValueChanged(String? value) {
+    if (value != null) {
+      setState(() {
+        _discountValue = value;
+      });
+    }
+  }
+
+  void _onMaxDiscountChanged(String? value) {
+    if (value != null) {
+      setState(() {
+        _maxDiscount = value;
+      });
+    }
+  }
+
+  void _onMinOrderChanged(String? value) {
+    if (value != null) {
+      setState(() {
+        _minOrder = value;
+      });
+    }
+  }
+
+  void _onMaxUsesChanged(String? value) {
+    if (value != null) {
+      setState(() {
+        _maxUses = value;
+      });
+    }
+  }
+
+  void _onMaxUsesPerCustomerChanged(String? value) {
+    if (value != null) {
+      setState(() {
+        _maxUsesPerCustomer = value;
+      });
+    }
   }
 
   Future<void> _onSave() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    // Constrói a lista de regras a partir dos campos do formulário
-    final List<CouponRule> rules = [];
-    if (_isForFirstOrder) {
-      rules.add(CouponRule(ruleType: 'FIRST_ORDER', value: {}));
+    if (!_formKey.currentState!.validate()) {
+      _showValidationError('Por favor, corrija os erros antes de salvar');
+      return;
     }
 
-    final minOrderValueText = _minOrderController.text;
-    if (minOrderValueText.isNotEmpty) {
-      final minOrderValue = UtilBrasilFields.converterMoedaParaDouble(minOrderValueText) * 100;
-      if (minOrderValue > 0) {
-        rules.add(CouponRule(ruleType: 'MIN_SUBTOTAL', value: {'value': minOrderValue.toInt()}));
+    // Validação adicional das datas
+    final dateError = _validateDates();
+    if (dateError != null) {
+      _showValidationError(dateError);
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final List<CouponRule> rules = [];
+      if (_isForFirstOrder) {
+        rules.add(CouponRule(ruleType: 'FIRST_ORDER', value: {}));
+      }
+
+      final minOrderValueText = _minOrder;
+      if (minOrderValueText.isNotEmpty) {
+        final minOrderValue = UtilBrasilFields.converterMoedaParaDouble(minOrderValueText) * 100;
+        if (minOrderValue > 0) {
+          rules.add(CouponRule(ruleType: 'MIN_SUBTOTAL', value: {'value': minOrderValue.toInt()}));
+        }
+      }
+
+      final maxUses = int.tryParse(_maxUses);
+      if (maxUses != null && maxUses > 0) {
+        rules.add(CouponRule(ruleType: 'MAX_USES_TOTAL', value: {'limit': maxUses}));
+      }
+
+      final maxUsesPerCustomer = int.tryParse(_maxUsesPerCustomer);
+      if (maxUsesPerCustomer != null && maxUsesPerCustomer > 0) {
+        rules.add(CouponRule(ruleType: 'MAX_USES_PER_CUSTOMER', value: {'limit': maxUsesPerCustomer}));
+      }
+
+      double discountValue;
+      if (_discountType == 'PERCENTAGE') {
+        discountValue = (int.tryParse(_discountValue) ?? 0).toDouble();
+      } else if (_discountType == 'FIXED_AMOUNT') {
+        discountValue = UtilBrasilFields.converterMoedaParaDouble(_discountValue) * 100;
+      } else {
+        discountValue = 0;
+      }
+
+      int? maxDiscountAmount;
+      final maxDiscountText = _maxDiscount;
+      if (maxDiscountText.isNotEmpty) {
+        maxDiscountAmount = (UtilBrasilFields.converterMoedaParaDouble(maxDiscountText) * 100).round();
+      }
+
+      final couponToSave = Coupon(
+        id: widget.id,
+        code: _code.toUpperCase().trim(),
+        description: _description.trim(),
+        discountType: _discountType,
+        discountValue: discountValue,
+        maxDiscountAmount: maxDiscountAmount,
+        startDate: _startDate,
+        endDate: _endDate,
+        isActive: _isActive,
+        rules: rules,
+      );
+
+      final result = await getIt<CouponRepository>().saveCoupon(widget.storeId, couponToSave);
+
+      if (mounted) {
+        result.fold(
+              (error) {
+            final message = error == CouponError.codeAlreadyExists
+                ? 'Este código de cupom já está em uso.'
+                : 'Erro ao salvar cupom. Tente novamente.';
+            _showError(message);
+          },
+              (savedCoupon) {
+            _showSuccess('Cupom salvo com sucesso!');
+            Future.delayed(const Duration(milliseconds: 1500), () {
+              if (mounted) {
+                context.pop(true);
+              }
+            });
+          },
+        );
+      }
+    } catch (e) {
+      _showError('Erro inesperado: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
       }
     }
+  }
 
-    final maxUses = int.tryParse(_maxUsesController.text);
-    if (maxUses != null && maxUses > 0) {
-      rules.add(CouponRule(ruleType: 'MAX_USES_TOTAL', value: {'limit': maxUses}));
-    }
-
-    final maxUsesPerCustomer = int.tryParse(_maxUsesPerCustomerController.text);
-    if (maxUsesPerCustomer != null && maxUsesPerCustomer > 0) {
-      rules.add(CouponRule(ruleType: 'MAX_USES_PER_CUSTOMER', value: {'limit': maxUsesPerCustomer}));
-    }
-
-    // Constrói o objeto Coupon para salvar
-    double discountValue;
-    if (_discountType == 'PERCENTAGE') {
-      discountValue = (int.tryParse(_discountValueController.text) ?? 0).toDouble();
-    } else {
-      discountValue = UtilBrasilFields.converterMoedaParaDouble(_discountValueController.text) * 100;
-    }
-
-    int? maxDiscountAmount;
-    final maxDiscountText = _maxDiscountController.text;
-    if (maxDiscountText.isNotEmpty) {
-      maxDiscountAmount = (UtilBrasilFields.converterMoedaParaDouble(maxDiscountText) * 100).round();
-    }
-
-    final couponToSave = Coupon(
-      id: widget.id,
-      code: _codeController.text.toUpperCase(),
-      description: _descriptionController.text,
-      discountType: _discountType,
-      discountValue: discountValue,
-      maxDiscountAmount: maxDiscountAmount,
-      startDate: _startDate,
-      endDate: _endDate,
-      isActive: _isActive,
-      rules: rules,
+  void _showValidationError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 3),
+      ),
     );
+  }
 
-    final result = await getIt<CouponRepository>().saveCoupon(widget.storeId, couponToSave);
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
-    if (mounted) {
-      result.fold(
-            (error) {
-          final message = error == CouponError.codeAlreadyExists
-              ? 'Este código de cupom já está em uso.'
-              : 'Ocorreu um erro desconhecido.';
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(message), backgroundColor: Colors.red)
-          );
-        },
-            (savedCoupon) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Cupom salvo com sucesso!'), backgroundColor: Colors.green)
-          );
-          // Aguarda um pouco antes de navegar para garantir que o snackbar seja mostrado
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            if (mounted) {
-              context.pop(true); // Retorna 'true' para indicar sucesso
-            }
-          });
-        },
-      );
-    }
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -274,24 +449,38 @@ class _EditCouponPageState extends State<EditCouponPage> {
   Widget _buildMobileLayout(String title) {
     return Column(
       children: [
-
         Expanded(
           child: _CouponForm(
             formKey: _formKey,
-            codeController: _codeController,
-            descriptionController: _descriptionController,
+            // Passamos os valores atuais e callbacks para atualização
+            codeValue: _code,
+            descriptionValue: _description,
+            discountValue: _discountValue,
+            maxDiscountValue: _maxDiscount,
+            minOrderValue: _minOrder,
+            maxUsesValue: _maxUses,
+            maxUsesPerCustomerValue: _maxUsesPerCustomer,
             discountType: _discountType,
-            discountValueController: _discountValueController,
-            maxDiscountController: _maxDiscountController,
-            minOrderController: _minOrderController,
-            maxUsesController: _maxUsesController,
-            maxUsesPerCustomerController: _maxUsesPerCustomerController,
             startDate: _startDate,
             endDate: _endDate,
             isActive: _isActive,
             isForFirstOrder: _isForFirstOrder,
+            onCodeChanged: _onCodeChanged,
+            onDescriptionChanged: _onDescriptionChanged,
+            onDiscountValueChanged: _onDiscountValueChanged,
+            onMaxDiscountChanged: _onMaxDiscountChanged,
+            onMinOrderChanged: _onMinOrderChanged,
+            onMaxUsesChanged: _onMaxUsesChanged,
+            onMaxUsesPerCustomerChanged: _onMaxUsesPerCustomerChanged,
             onStateChanged: (updates) => setState(() => _applyUpdates(updates)),
             isMobile: true,
+            validateCode: _validateCode,
+            validateDescription: _validateDescription,
+            validateDiscountValue: _validateDiscountValue,
+            validateMaxDiscount: _validateMaxDiscount,
+            validateMinOrder: _validateMinOrder,
+            validateMaxUses: _validateMaxUses,
+            validateMaxUsesPerCustomer: _validateMaxUsesPerCustomer,
           ),
         ),
         Padding(
@@ -300,13 +489,16 @@ class _EditCouponPageState extends State<EditCouponPage> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => context.pop(),
+                  onPressed: _isSaving ? null : () => context.pop(),
                   child: const Text('Cancelar'),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: DsButton(label: 'Salvar', onPressed: _onSave),
+                child: DsButton(
+                  label: _isSaving ? 'Salvando...' : 'Salvar',
+                  onPressed: _isSaving ? null : _onSave,
+                ),
               ),
             ],
           ),
@@ -327,33 +519,48 @@ class _EditCouponPageState extends State<EditCouponPage> {
             actions: [
               DsButton(
                 style: DsButtonStyle.secondary,
-                onPressed: () => context.pop(),
-                label:
-                'Cancelar',
+                onPressed: _isSaving ? null : () => context.pop(),
+                label: 'Cancelar',
               ),
               const SizedBox(width: 16),
-              DsButton(label: 'Salvar', onPressed: _onSave),
+              DsButton(
+                label: _isSaving ? 'Salvando...' : 'Salvar',
+                onPressed: _isSaving ? null : _onSave,
+              ),
             ],
           ),
-
-          SizedBox(height: 24,),
+          const SizedBox(height: 24),
           Expanded(
             child: _CouponForm(
               formKey: _formKey,
-              codeController: _codeController,
-              descriptionController: _descriptionController,
+              codeValue: _code,
+              descriptionValue: _description,
+              discountValue: _discountValue,
+              maxDiscountValue: _maxDiscount,
+              minOrderValue: _minOrder,
+              maxUsesValue: _maxUses,
+              maxUsesPerCustomerValue: _maxUsesPerCustomer,
               discountType: _discountType,
-              discountValueController: _discountValueController,
-              maxDiscountController: _maxDiscountController,
-              minOrderController: _minOrderController,
-              maxUsesController: _maxUsesController,
-              maxUsesPerCustomerController: _maxUsesPerCustomerController,
               startDate: _startDate,
               endDate: _endDate,
               isActive: _isActive,
               isForFirstOrder: _isForFirstOrder,
+              onCodeChanged: _onCodeChanged,
+              onDescriptionChanged: _onDescriptionChanged,
+              onDiscountValueChanged: _onDiscountValueChanged,
+              onMaxDiscountChanged: _onMaxDiscountChanged,
+              onMinOrderChanged: _onMinOrderChanged,
+              onMaxUsesChanged: _onMaxUsesChanged,
+              onMaxUsesPerCustomerChanged: _onMaxUsesPerCustomerChanged,
               onStateChanged: (updates) => setState(() => _applyUpdates(updates)),
               isMobile: false,
+              validateCode: _validateCode,
+              validateDescription: _validateDescription,
+              validateDiscountValue: _validateDiscountValue,
+              validateMaxDiscount: _validateMaxDiscount,
+              validateMinOrder: _validateMinOrder,
+              validateMaxUses: _validateMaxUses,
+              validateMaxUsesPerCustomer: _validateMaxUsesPerCustomer,
             ),
           ),
         ],
@@ -361,17 +568,16 @@ class _EditCouponPageState extends State<EditCouponPage> {
     );
   }
 
-
   void _applyUpdates(Map<String, dynamic> updates) {
     setState(() {
       if (updates.containsKey('discountType')) {
         _discountType = updates['discountType'];
+        // Limpa o valor do desconto quando o tipo muda
+        _discountValue = '';
       }
-
       if (updates.containsKey('startDate') && updates['startDate'] != null) {
         _startDate = updates['startDate'];
       }
-
       if (updates.containsKey('endDate') && updates['endDate'] != null) {
         _endDate = updates['endDate'];
       }
@@ -383,45 +589,70 @@ class _EditCouponPageState extends State<EditCouponPage> {
       }
     });
   }
-
-
-
 }
 
 class _CouponForm extends StatelessWidget {
   const _CouponForm({
     required this.formKey,
-    required this.codeController,
-    required this.descriptionController,
+    required this.codeValue,
+    required this.descriptionValue,
     required this.discountType,
-    required this.discountValueController,
-    required this.maxDiscountController,
-    required this.minOrderController,
-    required this.maxUsesController,
-    required this.maxUsesPerCustomerController,
+    required this.discountValue,
+    required this.maxDiscountValue,
+    required this.minOrderValue,
+    required this.maxUsesValue,
+    required this.maxUsesPerCustomerValue,
     required this.startDate,
     required this.endDate,
     required this.isActive,
     required this.isForFirstOrder,
+    required this.onCodeChanged,
+    required this.onDescriptionChanged,
+    required this.onDiscountValueChanged,
+    required this.onMaxDiscountChanged,
+    required this.onMinOrderChanged,
+    required this.onMaxUsesChanged,
+    required this.onMaxUsesPerCustomerChanged,
     required this.onStateChanged,
     required this.isMobile,
+    required this.validateCode,
+    required this.validateDescription,
+    required this.validateDiscountValue,
+    required this.validateMaxDiscount,
+    required this.validateMinOrder,
+    required this.validateMaxUses,
+    required this.validateMaxUsesPerCustomer,
   });
 
   final GlobalKey<FormState> formKey;
-  final TextEditingController codeController;
-  final TextEditingController descriptionController;
+  final String codeValue;
+  final String descriptionValue;
   final String discountType;
-  final TextEditingController discountValueController;
-  final TextEditingController maxDiscountController;
-  final TextEditingController minOrderController;
-  final TextEditingController maxUsesController;
-  final TextEditingController maxUsesPerCustomerController;
+  final String discountValue;
+  final String maxDiscountValue;
+  final String minOrderValue;
+  final String maxUsesValue;
+  final String maxUsesPerCustomerValue;
   final DateTime startDate;
   final DateTime endDate;
   final bool isActive;
   final bool isForFirstOrder;
+  final ValueChanged<String?> onCodeChanged;
+  final ValueChanged<String?> onDescriptionChanged;
+  final ValueChanged<String?> onDiscountValueChanged;
+  final ValueChanged<String?> onMaxDiscountChanged;
+  final ValueChanged<String?> onMinOrderChanged;
+  final ValueChanged<String?> onMaxUsesChanged;
+  final ValueChanged<String?> onMaxUsesPerCustomerChanged;
   final ValueChanged<Map<String, dynamic>> onStateChanged;
   final bool isMobile;
+  final String? Function(String?)? validateCode;
+  final String? Function(String?)? validateDescription;
+  final String? Function(String?)? validateDiscountValue;
+  final String? Function(String?)? validateMaxDiscount;
+  final String? Function(String?)? validateMinOrder;
+  final String? Function(String?)? validateMaxUses;
+  final String? Function(String?)? validateMaxUsesPerCustomer;
 
   @override
   Widget build(BuildContext context) {
@@ -450,7 +681,6 @@ class _CouponForm extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Primeira linha: Informações básicas
             _buildSectionTitle('Informações Básicas'),
             const SizedBox(height: 16),
             Row(
@@ -460,15 +690,16 @@ class _CouponForm extends StatelessWidget {
                   child: Column(
                     children: [
                       AppTextField(
-                     //   controller: codeController,
-                        title: 'Código',
+                        initialValue: codeValue,
+                        title: 'Código *',
                         hint: 'EX: BEMVINDO10',
-                        validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                        validator: validateCode,
+                        onChanged: onCodeChanged,
                         formatters: [UpperCaseTextFormatter()],
                       ),
                       const SizedBox(height: 16),
                       AppDateTimeFormField(
-                        title: 'Data de Início',
+                        title: 'Data de Início *',
                         initialValue: startDate,
                         onChanged: (date) => onStateChanged({'startDate': date}),
                       ),
@@ -480,14 +711,15 @@ class _CouponForm extends StatelessWidget {
                   child: Column(
                     children: [
                       AppTextField(
-                      //  controller: descriptionController,
-                        title: 'Descrição',
+                        initialValue: descriptionValue,
+                        title: 'Descrição *',
                         hint: 'Ex: Cupom de 10% para novos clientes',
-
+                        validator: validateDescription,
+                        onChanged: onDescriptionChanged,
                       ),
                       const SizedBox(height: 16),
                       AppDateTimeFormField(
-                        title: 'Data de Fim',
+                        title: 'Data de Fim *',
                         initialValue: endDate,
                         onChanged: (date) => onStateChanged({'endDate': date}),
                       ),
@@ -498,7 +730,6 @@ class _CouponForm extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // Segunda linha: Ação do cupom
             _buildSectionTitle('Ação do Cupom'),
             const SizedBox(height: 16),
             Row(
@@ -509,15 +740,17 @@ class _CouponForm extends StatelessWidget {
                     children: [
                       DropdownButtonFormField<String>(
                         value: discountType,
-                        decoration: const InputDecoration(labelText: 'Tipo de Desconto'),
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de Desconto *',
+                          border: OutlineInputBorder(),
+                        ),
                         items: [
                           const DropdownMenuItem(value: 'PERCENTAGE', child: Text('Percentual (%)')),
-                          DropdownMenuItem(value: 'FIXED_AMOUNT', child: Text('Valor Fixo (R\$)')),
+                          const DropdownMenuItem(value: 'FIXED_AMOUNT', child: Text('Valor Fixo (R\$)')),
                           const DropdownMenuItem(value: 'FREE_DELIVERY', child: Text('Frete Grátis')),
                         ],
                         onChanged: (value) {
                           if (value != null) {
-                            discountValueController.clear();
                             onStateChanged({'discountType': value});
                           }
                         },
@@ -525,14 +758,15 @@ class _CouponForm extends StatelessWidget {
                       const SizedBox(height: 16),
                       if (discountType != 'FREE_DELIVERY')
                         AppTextField(
-                         // controller: discountValueController,
-                          title: discountType == 'PERCENTAGE' ? 'Percentual (%)' : 'Valor do Desconto (R\$)',
+                          initialValue: discountValue,
+                          title: discountType == 'PERCENTAGE' ? 'Percentual (%) *' : 'Valor do Desconto (R\$) *',
                           hint: discountType == 'PERCENTAGE' ? 'Ex: 15' : 'Ex: 10,00',
                           keyboardType: TextInputType.number,
+                          validator: validateDiscountValue,
+                          onChanged: onDiscountValueChanged,
                           formatters: discountType == 'PERCENTAGE'
                               ? [FilteringTextInputFormatter.digitsOnly]
                               : [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
-                          validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
                         ),
                     ],
                   ),
@@ -541,10 +775,12 @@ class _CouponForm extends StatelessWidget {
                 if (discountType == 'PERCENTAGE')
                   Expanded(
                     child: AppTextField(
-                    //  controller: maxDiscountController,
+                      initialValue: maxDiscountValue,
                       title: 'Valor Máximo do Desconto (R\$) (Opcional)',
                       hint: 'Ex: 20,00',
                       keyboardType: TextInputType.number,
+                      validator: validateMaxDiscount,
+                      onChanged: onMaxDiscountChanged,
                       formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
                     ),
                   ),
@@ -552,7 +788,6 @@ class _CouponForm extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // Terceira linha: Regras e condições
             _buildSectionTitle('Regras e Condições'),
             const SizedBox(height: 16),
             Row(
@@ -562,19 +797,23 @@ class _CouponForm extends StatelessWidget {
                   child: Column(
                     children: [
                       AppTextField(
-                       //   controller: minOrderController,
-                          title: 'Pedido Mínimo (R\$) (Opcional)',
-                          hint: 'Ex: 50,00',
-                          keyboardType: TextInputType.number,
-                          formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)]
+                        initialValue: minOrderValue,
+                        title: 'Pedido Mínimo (R\$) (Opcional)',
+                        hint: 'Ex: 50,00',
+                        keyboardType: TextInputType.number,
+                        validator: validateMinOrder,
+                        onChanged: onMinOrderChanged,
+                        formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
                       ),
                       const SizedBox(height: 16),
                       AppTextField(
-                        //  controller: maxUsesController,
-                          title: 'Limite de Usos Totais (Opcional)',
-                          hint: 'Ex: 1000',
-                          keyboardType: TextInputType.number,
-                          formatters: [FilteringTextInputFormatter.digitsOnly]
+                        initialValue: maxUsesValue,
+                        title: 'Limite de Usos Totais (Opcional)',
+                        hint: 'Ex: 1000',
+                        keyboardType: TextInputType.number,
+                        validator: validateMaxUses,
+                        onChanged: onMaxUsesChanged,
+                        formatters: [FilteringTextInputFormatter.digitsOnly],
                       ),
                     ],
                   ),
@@ -584,11 +823,13 @@ class _CouponForm extends StatelessWidget {
                   child: Column(
                     children: [
                       AppTextField(
-                        //  controller: maxUsesPerCustomerController,
-                          title: 'Limite de Usos por Cliente (Opcional)',
-                          hint: 'Ex: 1',
-                          keyboardType: TextInputType.number,
-                          formatters: [FilteringTextInputFormatter.digitsOnly]
+                        initialValue: maxUsesPerCustomerValue,
+                        title: 'Limite de Usos por Cliente (Opcional)',
+                        hint: 'Ex: 1',
+                        keyboardType: TextInputType.number,
+                        validator: validateMaxUsesPerCustomer,
+                        onChanged: onMaxUsesPerCustomerChanged,
+                        formatters: [FilteringTextInputFormatter.digitsOnly],
                       ),
                       const SizedBox(height: 16),
                       SwitchListTile(
@@ -606,6 +847,8 @@ class _CouponForm extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            _buildRequiredFieldsNote(),
           ],
         ),
       ),
@@ -614,49 +857,51 @@ class _CouponForm extends StatelessWidget {
 
   List<Widget> _buildFormFields() {
     return [
-      // Informações Básicas
       _buildSectionTitle('Informações Básicas'),
       AppTextField(
-     //   controller: codeController,
-        title: 'Código',
+        initialValue: codeValue,
+        title: 'Código *',
         hint: 'EX: BEMVINDO10',
-        validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+        validator: validateCode,
+        onChanged: onCodeChanged,
         formatters: [UpperCaseTextFormatter()],
       ),
       const SizedBox(height: 16),
       AppTextField(
-      //  controller: descriptionController,
-        title: 'Descrição',
+        initialValue: descriptionValue,
+        title: 'Descrição *',
         hint: 'Ex: Cupom de 10% para novos clientes',
-        validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+        validator: validateDescription,
+        onChanged: onDescriptionChanged,
       ),
       const SizedBox(height: 16),
       AppDateTimeFormField(
-        title: 'Data de Início',
+        title: 'Data de Início *',
         initialValue: startDate,
         onChanged: (date) => onStateChanged({'startDate': date}),
       ),
       const SizedBox(height: 16),
       AppDateTimeFormField(
-        title: 'Data de Fim',
+        title: 'Data de Fim *',
         initialValue: endDate,
         onChanged: (date) => onStateChanged({'endDate': date}),
       ),
       const SizedBox(height: 32),
 
-      // Ação do Cupom
       _buildSectionTitle('Ação do Cupom'),
       DropdownButtonFormField<String>(
         value: discountType,
-        decoration: const InputDecoration(labelText: 'Tipo de Desconto'),
+        decoration: const InputDecoration(
+          labelText: 'Tipo de Desconto *',
+          border: OutlineInputBorder(),
+        ),
         items: [
           const DropdownMenuItem(value: 'PERCENTAGE', child: Text('Percentual (%)')),
-          DropdownMenuItem(value: 'FIXED_AMOUNT', child: Text('Valor Fixo (R\$)')),
+          const DropdownMenuItem(value: 'FIXED_AMOUNT', child: Text('Valor Fixo (R\$)')),
           const DropdownMenuItem(value: 'FREE_DELIVERY', child: Text('Frete Grátis')),
         ],
         onChanged: (value) {
           if (value != null) {
-            discountValueController.clear();
             onStateChanged({'discountType': value});
           }
         },
@@ -664,51 +909,59 @@ class _CouponForm extends StatelessWidget {
       const SizedBox(height: 16),
       if (discountType != 'FREE_DELIVERY')
         AppTextField(
-       //   controller: discountValueController,
-          title: discountType == 'PERCENTAGE' ? 'Percentual (%)' : 'Valor do Desconto (R\$)',
+          initialValue: discountValue,
+          title: discountType == 'PERCENTAGE' ? 'Percentual (%) *' : 'Valor do Desconto (R\$) *',
           hint: discountType == 'PERCENTAGE' ? 'Ex: 15' : 'Ex: 10,00',
           keyboardType: TextInputType.number,
+          validator: validateDiscountValue,
+          onChanged: onDiscountValueChanged,
           formatters: discountType == 'PERCENTAGE'
               ? [FilteringTextInputFormatter.digitsOnly]
               : [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
-          validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
         ),
       if (discountType == 'PERCENTAGE') ...[
         const SizedBox(height: 16),
         AppTextField(
-         // controller: maxDiscountController,
+          initialValue: maxDiscountValue,
           title: 'Valor Máximo do Desconto (R\$) (Opcional)',
           hint: 'Ex: 20,00',
           keyboardType: TextInputType.number,
+          validator: validateMaxDiscount,
+          onChanged: onMaxDiscountChanged,
           formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
         ),
       ],
       const SizedBox(height: 32),
 
-      // Regras e Condições
       _buildSectionTitle('Regras e Condições'),
       AppTextField(
-       //   controller: minOrderController,
-          title: 'Pedido Mínimo (R\$) (Opcional)',
-          hint: 'Ex: 50,00',
-          keyboardType: TextInputType.number,
-          formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)]
+        initialValue: minOrderValue,
+        title: 'Pedido Mínimo (R\$) (Opcional)',
+        hint: 'Ex: 50,00',
+        keyboardType: TextInputType.number,
+        validator: validateMinOrder,
+        onChanged: onMinOrderChanged,
+        formatters: [FilteringTextInputFormatter.digitsOnly, CentavosInputFormatter(moeda: true)],
       ),
       const SizedBox(height: 16),
       AppTextField(
-       //   controller: maxUsesController,
-          title: 'Limite de Usos Totais (Opcional)',
-          hint: 'Ex: 1000',
-          keyboardType: TextInputType.number,
-          formatters: [FilteringTextInputFormatter.digitsOnly]
+        initialValue: maxUsesValue,
+        title: 'Limite de Usos Totais (Opcional)',
+        hint: 'Ex: 1000',
+        keyboardType: TextInputType.number,
+        validator: validateMaxUses,
+        onChanged: onMaxUsesChanged,
+        formatters: [FilteringTextInputFormatter.digitsOnly],
       ),
       const SizedBox(height: 16),
       AppTextField(
-        //  controller: maxUsesPerCustomerController,
-          title: 'Limite de Usos por Cliente (Opcional)',
-          hint: 'Ex: 1',
-          keyboardType: TextInputType.number,
-          formatters: [FilteringTextInputFormatter.digitsOnly]
+        initialValue: maxUsesPerCustomerValue,
+        title: 'Limite de Usos por Cliente (Opcional)',
+        hint: 'Ex: 1',
+        keyboardType: TextInputType.number,
+        validator: validateMaxUsesPerCustomer,
+        onChanged: onMaxUsesPerCustomerChanged,
+        formatters: [FilteringTextInputFormatter.digitsOnly],
       ),
       const SizedBox(height: 16),
       SwitchListTile(
@@ -721,6 +974,7 @@ class _CouponForm extends StatelessWidget {
         value: isActive,
         onChanged: (value) => onStateChanged({'isActive': value}),
       ),
+      _buildRequiredFieldsNote(),
     ];
   }
 
@@ -733,9 +987,22 @@ class _CouponForm extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildRequiredFieldsNote() {
+    return const Padding(
+      padding: EdgeInsets.only(top: 16.0),
+      child: Text(
+        '* Campos obrigatórios',
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.grey,
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+    );
+  }
 }
 
-// Helper para formatar o código do cupom em maiúsculas
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {

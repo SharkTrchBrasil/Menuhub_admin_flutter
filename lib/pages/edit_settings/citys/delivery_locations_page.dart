@@ -14,6 +14,7 @@ import 'package:totem_pro_admin/widgets/fixed_header.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 import '../../../core/di.dart';
 import '../../../core/helpers/sidepanel.dart';
+import '../../../core/responsive_builder.dart';
 import '../../../repositories/store_repository.dart';
 import '../../../services/dialog_service.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
@@ -100,7 +101,10 @@ class _CityNeighborhoodPageState extends State<CityNeighborhoodPage> {
             return _buildEmptyState();
           }
 
-          return _buildLoadedState(allCities);
+          return Padding(
+            padding:  EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isDesktop(context) ? 24: 14.0),
+            child: _buildLoadedState(allCities),
+          );
         },
       ),
 
@@ -139,7 +143,7 @@ class _CityNeighborhoodPageState extends State<CityNeighborhoodPage> {
 
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
               child: FixedHeader(
                 showActionsOnMobile: true,
                 title: 'Locais de Entrega',
