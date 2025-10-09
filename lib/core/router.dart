@@ -452,7 +452,48 @@ class AppRouter {
                 ],
               ),
 
+// Dentro do StatefulShellRoute, adicionar a branch para orders
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: 'orders',
+                    pageBuilder: (_, state) => NoTransitionPage(
+                      child: BlocProvider<OrderCubit>(
+                        create: (context) => OrderCubit(
+                          realtimeRepository: getIt<RealtimeRepository>(),
+                          storesManagerCubit: context.read<StoresManagerCubit>(),
+                          printManager: getIt<PrintManager>(),
+                        ),
+                        child: OrdersPage(),
+                      ),
+                    ),
+                    routes: [
+                      GoRoute(
+                        path: ':id',
+                        name: 'order-details',
+                        builder: (context, state) {
+                          final extra = state.extra as Map<String, dynamic>?;
+                          final OrderDetails? order = extra?['order'];
+                          final Store? store = extra?['store'];
 
+                          if (order != null && store != null) {
+                            return OrderDetailsPageMobile(
+                              order: order,
+                              store: store,
+                            );
+                          }
+
+                          return const Scaffold(
+                            body: Center(
+                              child: Text("Erro: Não foi possível carregar os dados do pedido."),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
 
               // PRODUTOS
               StatefulShellBranch(
@@ -1064,76 +1105,76 @@ class AppRouter {
           // ),
           //
           //
-          GoRoute(
-            path: 'orders',
-            pageBuilder:
-                (_, state) =>
-                NoTransitionPage(
-                  child: BlocBuilder<
-                      StoresManagerCubit,
-                      StoresManagerState
-                  >(
-                    builder: (context, storesState) {
-                      if (storesState is StoresManagerLoaded) {
-                        return BlocProvider<OrderCubit>(
-                          create:
-                              (context) =>
-                              OrderCubit(
-                                realtimeRepository:
-                                getIt<RealtimeRepository>(),
-                                storesManagerCubit:
-                                context
-                                    .read<StoresManagerCubit>(),
-                                printManager: getIt<PrintManager>(),
-                              ),
-                          child: OrdersPage(),
-                        );
-                      }
-
-                      return const Scaffold(
-                        body: Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-            routes: [
-              GoRoute(
-                path: ':id',
-                // Supondo que a rota pai seja '/stores/:storeId'
-                name: 'order-details',
-                builder: (context, state) {
-                  // 1. Tenta pegar o 'extra' como um mapa.
-                  final extra =
-                  state.extra as Map<String, dynamic>?;
-
-                  // 2. Extrai os objetos do mapa.
-                  final OrderDetails? order = extra?['order'];
-                  final Store? store = extra?['store'];
-
-                  // 3. Verifica se os dados foram recebidos.
-                  if (order != null && store != null) {
-                    // 4. Constrói a página com os dados completos.
-                    return OrderDetailsPageMobile(
-                      order: order,
-                      store: store,
-                    );
-                  }
-
-                  // Fallback: Se a página for acessada sem os dados (ex: link direto),
-                  // mostra uma tela de erro ou de carregamento.
-                  return const Scaffold(
-                    body: Center(
-                      child: Text(
-                        "Erro: Não foi possível carregar os dados do pedido.",
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+          // GoRoute(
+          //   path: 'orders',
+          //   pageBuilder:
+          //       (_, state) =>
+          //       NoTransitionPage(
+          //         child: BlocBuilder<
+          //             StoresManagerCubit,
+          //             StoresManagerState
+          //         >(
+          //           builder: (context, storesState) {
+          //             if (storesState is StoresManagerLoaded) {
+          //               return BlocProvider<OrderCubit>(
+          //                 create:
+          //                     (context) =>
+          //                     OrderCubit(
+          //                       realtimeRepository:
+          //                       getIt<RealtimeRepository>(),
+          //                       storesManagerCubit:
+          //                       context
+          //                           .read<StoresManagerCubit>(),
+          //                       printManager: getIt<PrintManager>(),
+          //                     ),
+          //                 child: OrdersPage(),
+          //               );
+          //             }
+          //
+          //             return const Scaffold(
+          //               body: Center(
+          //                 child: CircularProgressIndicator(),
+          //               ),
+          //             );
+          //           },
+          //         ),
+          //       ),
+          //   routes: [
+          //     GoRoute(
+          //       path: ':id',
+          //       // Supondo que a rota pai seja '/stores/:storeId'
+          //       name: 'order-details',
+          //       builder: (context, state) {
+          //         // 1. Tenta pegar o 'extra' como um mapa.
+          //         final extra =
+          //         state.extra as Map<String, dynamic>?;
+          //
+          //         // 2. Extrai os objetos do mapa.
+          //         final OrderDetails? order = extra?['order'];
+          //         final Store? store = extra?['store'];
+          //
+          //         // 3. Verifica se os dados foram recebidos.
+          //         if (order != null && store != null) {
+          //           // 4. Constrói a página com os dados completos.
+          //           return OrderDetailsPageMobile(
+          //             order: order,
+          //             store: store,
+          //           );
+          //         }
+          //
+          //         // Fallback: Se a página for acessada sem os dados (ex: link direto),
+          //         // mostra uma tela de erro ou de carregamento.
+          //         return const Scaffold(
+          //           body: Center(
+          //             child: Text(
+          //               "Erro: Não foi possível carregar os dados do pedido.",
+          //             ),
+          //           ),
+          //         );
+          //       },
+          //     ),
+          //   ],
+          // ),
 
 
 

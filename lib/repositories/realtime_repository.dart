@@ -27,6 +27,7 @@ import '../models/print_job.dart';
 import '../models/products/prodcut_category_links.dart';
 import '../models/products/product.dart';
 import '../models/receivable_category.dart';
+import '../models/saloon.dart';
 import '../models/store/store.dart';
 import '../models/store/store_chatbot_config.dart';
 import '../models/store/store_payable.dart';
@@ -78,8 +79,7 @@ class RealtimeRepository {
   final _activeStoreController = BehaviorSubject<Store?>.seeded(null);
   final _productsStreams = <int, BehaviorSubject<List<Product>>>{};
   final _ordersStreams = <int, BehaviorSubject<List<OrderDetails>>>{};
-  final _tablesStreams = <int, BehaviorSubject<List<Table>>>{};
-  final _commandsStreams = <int, BehaviorSubject<List<Command>>>{};
+
   final _adminStoresListController = BehaviorSubject<List<StoreWithRole>>.seeded([]);
   final _newPrintJobsController = StreamController<PrintJobPayload>.broadcast();
   final _storeDetailsController = BehaviorSubject<Store?>();
@@ -109,20 +109,7 @@ class RealtimeRepository {
   final _subscriptionErrorController = StreamController<Map<String, dynamic>>.broadcast();
 
   final _userHasNoStoresController = StreamController<void>.broadcast();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  final _saloonsStreams = <int, BehaviorSubject<List<Saloon>>>{};
 
 
   Stream<FullMenuData> listenToFullMenu(int storeId) =>
@@ -139,9 +126,11 @@ class RealtimeRepository {
   Stream<Map<String, dynamic>?> get onDashboardDataUpdated => _dashboardDataController.stream;
   Stream<PrintJobPayload> get onNewPrintJobsAvailable => _newPrintJobsController.stream;
   Stream<List<Product>> listenToProducts(int storeId) => _productsStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
+
   Stream<List<OrderDetails>> listenToOrders(int storeId) => _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
-  Stream<List<Table>> listenToTables(int storeId) => _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
-  Stream<List<Command>> listenToCommands(int storeId) => _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
+
+
+
   Stream<PayablesDashboardMetrics?> get onPayablesDashboardUpdated => _payablesDashboardController.stream;
   Stream<FinancialsData?> get onFinancialsUpdated => _financialsController.stream;
   Stream<ConnectivityStatus> get onConnectivityChanged => _connectivityStatusController.stream;
@@ -156,6 +145,10 @@ class RealtimeRepository {
   Stream<Map<String, dynamic>> get onSubscriptionError => _subscriptionErrorController.stream;
   Stream<void> get onUserHasNoStores => _userHasNoStoresController.stream;
 
+
+// Adicione no getter de streams
+  Stream<List<Saloon>> listenToSaloons(int storeId) =>
+      _saloonsStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])).stream;
 
 
 
@@ -707,22 +700,32 @@ class RealtimeRepository {
   void _handleTablesAndCommands(dynamic data) {
     if (_isDisposed || _isDisposing) return;
 
-
-
-    log('✅ Evento recebido: tables_and_commands');
+    log('✅ Evento recebido: tables_and_commands_updated (com nova estrutura hierárquica)');
     try {
+      // 1. Validação básica do payload
       if (data is! Map || !data.containsKey('store_id')) return;
       final storeId = data['store_id'] as int;
-      final tables = (data['tables'] as List? ?? []).map((e) => Table.fromJson(e)).toList();
-      final commands = (data['commands'] as List? ?? []).map((e) => Command.fromJson(e)).toList();
 
-      _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(tables);
-      _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(commands);
+      // 2. A MUDANÇA PRINCIPAL: Processamos APENAS a lista de 'saloons'
+      // Seus models já sabem como decodificar as mesas e comandas aninhadas.
+      final saloons = (data['saloons'] as List? ?? [])
+          .map((e) => Saloon.fromJson(e))
+          .toList();
+
+      // 3. Emitimos a lista completa e estruturada de salões para o stream correto.
+      // O Cubit agora receberá a árvore de dados completa por aqui.
+      _saloonsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(saloons);
+
+      // 4. ❗ REMOVIDO: Não precisamos mais emitir para os streams de mesas e comandas
+      // _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(tables);
+      // _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(commands);
+
+      log('✅ Estrutura de ${saloons.length} salões (com mesas e comandas) emitida para o Cubit.');
+
     } catch (e, st) {
-      log('[Socket] ❌ Erro em tables_and_commands', error: e, stackTrace: st);
+      log('[Socket] ❌ Erro em _handleTablesAndCommands', error: e, stackTrace: st);
     }
   }
-
   void _handleNewPrintJobsAvailable(dynamic data) {
     if (_isDisposed || _isDisposing) return;
 
@@ -982,8 +985,7 @@ class RealtimeRepository {
       _safeCloseStream(_variantsStreams.values);
       _safeCloseStream(_categoriesStreams.values);
       _safeCloseStream(_ordersStreams.values);
-      _safeCloseStream(_tablesStreams.values);
-      _safeCloseStream(_commandsStreams.values);
+
       _safeCloseStream(_fullMenuStreams.values);
 
       // Fecha os controllers principais
@@ -1008,8 +1010,6 @@ class RealtimeRepository {
       // 6. Limpa estruturas de dados
       _productsStreams.clear();
       _ordersStreams.clear();
-      _tablesStreams.clear();
-      _commandsStreams.clear();
       _fullMenuStreams.clear();
       _variantsStreams.clear();
       _categoriesStreams.clear();

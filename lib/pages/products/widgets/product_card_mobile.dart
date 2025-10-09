@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_image.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_panel.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
 import '../../../core/di.dart';
 import '../../../core/enums/category_type.dart';
 import '../../../core/enums/product_status.dart';
 
+import '../../../core/helpers/sidepanel.dart';
 import '../../../models/products/product.dart';
 import '../../../repositories/product_repository.dart';
 import '../../../services/dialog_service.dart';
+import '../../product_flavors/flavor_edit_panel.dart';
 
 class ProductCardMobile extends StatefulWidget {
   final Product product;
@@ -34,6 +37,38 @@ class ProductCardMobile extends StatefulWidget {
 
 class _ProductCardMobileState extends State<ProductCardMobile> {
   bool _isUpdating = false; // ✅ Estado para controlar loading
+
+  void _openEditPanel({required bool isCustomizable}) {
+    // Fecha o BottomSheet que está aberto
+    Navigator.of(context).pop();
+
+    // Lógica para decidir qual painel abrir
+    final Widget panelToOpen = isCustomizable
+        ? FlavorEditPanel(
+      // ATENÇÃO: O FlavorEditPanel espera uma `parentCategory`.
+      // Estou passando a primeira categoria do produto.
+      // Se a lógica for mais complexa, este ponto pode precisar de ajuste.
+      parentCategory: widget.product.categoryLinks.first.category!,
+      storeId: widget.storeId,
+      product: widget.product,
+      onSaveSuccess: () {
+        Navigator.of(context).pop(); // Fecha o painel
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    )
+        : ProductEditPanel(
+      storeId: widget.storeId,
+      product: widget.product,
+      onSaveSuccess: () {
+        Navigator.of(context).pop(); // Fecha o painel
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    );
+
+    // Abre o painel lateral
+    showResponsiveSidePanel(context, panelToOpen);
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -329,22 +364,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                 _ActionButtonItem(
                   icon: Icons.visibility,
                   text: 'Ver detalhes',
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    if (isCustomizable) {
-                      context.pushNamed(
-                        'flavor-edit',
-                        pathParameters: {'storeId': '${widget.storeId}', 'productId': '${widget.product.id}'},
-                        extra: widget.product,
-                      );
-                    } else {
-                      context.pushNamed(
-                        'product-edit',
-                        pathParameters: {'storeId': '${widget.storeId}', 'productId': '${widget.product.id}'},
-                        extra: widget.product,
-                      );
-                    }
-                  },
+                  onTap: () => _openEditPanel(isCustomizable: isCustomizable),
                 ),
                 _ActionButtonItem(
                   icon: isActive ? Icons.pause : Icons.play_arrow,

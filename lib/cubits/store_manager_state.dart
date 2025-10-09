@@ -59,12 +59,15 @@ class StoresManagerLoaded extends StoresManagerState {
 
   });
 
+
+
+
+
+
   @override
   Store? get activeStore => stores[activeStoreId]?.store;
 
-  // ✅ CORREÇÃO ADICIONADA AQUI
-  /// Retorna o objeto completo [StoreWithRole], que inclui a loja e a permissão (role).
-  /// Este é o getter que o Cubit deve usar para suas operações internas.
+
   StoreWithRole? get activeStoreWithRole => stores[activeStoreId];
 
   DashboardData? get dashboardData => activeStore?.relations.dashboardData;
@@ -118,4 +121,20 @@ class StoresManagerError extends StoresManagerState {
 
   @override
   List<Object?> get props => [message];
+}
+
+
+class StoresManagerSynchronizing extends StoresManagerState {
+  final Map<int, StoreWithRole> stores;
+  final int activeStoreId;
+
+  const StoresManagerSynchronizing({
+    required this.stores,
+    required this.activeStoreId,
+  });
+
+  StoreWithRole? get activeStoreWithRole => stores[activeStoreId];
+
+  @override
+  List<Object?> get props => [stores, activeStoreId];
 }

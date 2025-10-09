@@ -14,7 +14,7 @@ import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
 import '../models/store/store.dart';
 
-import 'store_switcher_panel.dart'; // Importe o StoreSwitcherPanel
+import 'store_switcher_panel.dart';
 
 class DrawerCode extends StatefulWidget {
   final int storeId;
@@ -32,11 +32,10 @@ class _DrawerCodeState extends State<DrawerCode> {
   final double _expandedWidth = 260.0;
   bool _isLoggingOut = false;
 
-  // Método para abrir o painel de troca de lojas
   void _openStoreSwitcherPanel(BuildContext context) {
     showResponsiveSidePanel(
       context,
-      const StoreSwitcherPanel(), // Use o widget StoreSwitcherPanel
+      const StoreSwitcherPanel(),
     );
   }
 
@@ -44,6 +43,7 @@ class _DrawerCodeState extends State<DrawerCode> {
   Widget build(BuildContext context) {
     final drawerController = context.watch<DrawerControllerProvider>();
     final bool isExpanded = drawerController.isExpanded;
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
 
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, storesState) {
@@ -68,7 +68,10 @@ class _DrawerCodeState extends State<DrawerCode> {
                 backgroundColor: Colors.white,
                 child: Column(
                   children: [
-                    // CABEÇALHO COM INFORMAÇÕES DA LOJA
+                    // ✅ ADICIONANDO MARGIN NO TOPO PARA MOBILE
+                    SizedBox(height: isMobile ? 16 : 0),
+
+                    // CABEÇALHO COM INFORMAÇÕES DA LOJA - AGORA TOGGLE O DRAWER
                     _buildStoreHeader(
                       context,
                       isExpanded,
@@ -86,7 +89,7 @@ class _DrawerCodeState extends State<DrawerCode> {
 
                             const SizedBox(height: 20),
 
-                            // TROCAR DE LOJA - MODIFICADO
+                            // TROCAR DE LOJA
                             _buildStoreSwitcherMenuItem(context, isExpanded),
                             const SizedBox(height: 8),
 
@@ -106,70 +109,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     );
   }
 
-  // Widget específico para o item "Trocar de Loja"
-  Widget _buildStoreSwitcherMenuItem(BuildContext context, bool isExpanded) {
-    final Color defaultIconColor = Theme.of(context).listTileTheme.iconColor ??
-        Theme.of(context).iconTheme.color ??
-        Colors.grey;
-    final Color defaultTextColor =
-        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
-
-    return InkWell(
-      onTap: () => _openStoreSwitcherPanel(context),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        height: isExpanded ? 48 : 55,
-        width: isExpanded ? double.infinity : 60,
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: isExpanded
-            ? Row(
-          children: [
-            const SizedBox(width: 8),
-            Icon(Icons.swap_horiz_rounded, size: 20, color: defaultIconColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                "Trocar de Loja",
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: defaultTextColor,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        )
-            : Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Icon(Icons.swap_horiz_rounded, size: 20, color: defaultIconColor),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Trocar",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: defaultTextColor,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Resto do código permanece igual...
+  // ✅ MODIFICADO: AGORA O HEADER TOGGLE O DRAWER
   Widget _buildStoreHeader(
       BuildContext context,
       bool isExpanded,
@@ -184,9 +124,8 @@ class _DrawerCodeState extends State<DrawerCode> {
           ? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0)
           : const EdgeInsets.symmetric(vertical: 20.0),
       child: InkWell(
-        onTap: () {
-          context.go('/hub');
-        },
+        // ✅ ALTERADO: Agora toggle o drawer ao invés de navegar para o hub
+        onTap: () => drawerController.toggle(),
         borderRadius: BorderRadius.circular(12),
         child: isExpanded
             ? Row(
@@ -222,8 +161,10 @@ class _DrawerCodeState extends State<DrawerCode> {
                 children: [
                   Text(
                     store.core.name,
-                    style:
-                    Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
                     ),
@@ -310,11 +251,77 @@ class _DrawerCodeState extends State<DrawerCode> {
     );
   }
 
+  // Resto do código permanece igual...
   Widget _buildDefaultStoreIcon(BuildContext context, {double size = 24}) {
     return Icon(
       Icons.store_mall_directory_outlined,
       size: size,
       color: Theme.of(context).primaryColor,
+    );
+  }
+
+  Widget _buildStoreSwitcherMenuItem(BuildContext context, bool isExpanded) {
+    final Color defaultIconColor =
+        Theme.of(context).listTileTheme.iconColor ??
+            Theme.of(context).iconTheme.color ??
+            Colors.grey;
+    final Color defaultTextColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+
+    return InkWell(
+      onTap: () => _openStoreSwitcherPanel(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: isExpanded ? 48 : 55,
+        width: isExpanded ? double.infinity : 60,
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: isExpanded
+            ? Row(
+          children: [
+            const SizedBox(width: 8),
+            Icon(Icons.swap_horiz_rounded,
+                size: 20, color: defaultIconColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Trocar de Loja",
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: defaultTextColor,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        )
+            : Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Icon(Icons.swap_horiz_rounded,
+                    size: 20, color: defaultIconColor),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Trocar",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: defaultTextColor,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -326,7 +333,6 @@ class _DrawerCodeState extends State<DrawerCode> {
         height: isExpanded ? 48 : 55,
         width: isExpanded ? double.infinity : 60,
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-
         child: _isLoggingOut
             ? Center(
           child: SizedBox(
@@ -392,7 +398,6 @@ class _DrawerCodeState extends State<DrawerCode> {
     );
   }
 
-  /// Método robusto para lidar com logout sem problemas de async gaps
   Future<void> _handleLogout(BuildContext context) async {
     if (_isLoggingOut) return;
 
@@ -401,37 +406,28 @@ class _DrawerCodeState extends State<DrawerCode> {
     });
 
     try {
-      // Captura o Scaffold antes de qualquer operação assíncrona
       final scaffoldState = Scaffold.of(context);
 
-      // Fecha o drawer se estiver aberto
       if (scaffoldState.isDrawerOpen) {
         Navigator.of(context).pop();
       }
 
-      // Aguarda um breve momento para o drawer fechar
       await Future.delayed(const Duration(milliseconds: 200));
 
-      // Captura as dependências necessárias ANTES do logout
       if (!mounted) return;
       final authCubit = context.read<AuthCubit>();
       final router = GoRouter.of(context);
 
-      // Executa o logout
       await authCubit.logout();
 
-      // Verifica se o widget ainda está montado antes de navegar
       if (!mounted) return;
 
-      // Navega para a tela de login
       router.go('/sign-in');
     } catch (e) {
-      // Tratamento de erro robusto
       debugPrint('Erro durante logout: $e');
 
       if (!mounted) return;
 
-      // Mostra mensagem de erro ao usuário
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erro ao fazer logout. Tente novamente.'),
@@ -471,13 +467,6 @@ class _DrawerCodeState extends State<DrawerCode> {
       'index': 2,
       'iconPath': 'assets/images/package.png',
     },
-    // {
-    //   'type': 'item',
-    //   'title': 'Financeiro',
-    //   'route': '/payables',
-    //   'index': 3,
-    //   'iconPath': 'assets/images/package.png',
-    // },
     {'type': 'spacer'},
     {
       'type': 'item',
@@ -539,8 +528,6 @@ class _DrawerCodeState extends State<DrawerCode> {
       'index': 15,
       'iconPath': 'assets/images/database.png',
     },
-    // {'type': 'spacer'},
-    // {'type': 'section', 'title': 'Financeiro', 'index': 18},
     {'type': 'spacer'},
     {'type': 'section', 'title': 'Sistema', 'index': 21},
     {

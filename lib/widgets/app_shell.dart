@@ -1,27 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:provider/provider.dart';
 import 'package:totem_pro_admin/core/helpers/navigation.dart';
-
 import 'package:totem_pro_admin/widgets/appbarcode.dart';
 import 'package:totem_pro_admin/widgets/drawercode.dart';
 import 'package:totem_pro_admin/widgets/persistent_notification_toast..dart';
 import 'package:totem_pro_admin/widgets/subscription_blocked_view.dart';
-
-
-
 import '../core/enums/connectivity_status.dart';
 import '../core/responsive_builder.dart';
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
 import 'connectivity_banner.dart';
+import 'dot_loading.dart'; // Supondo que você tenha um widget de loading customizado
+
+class AppScaffoldKey extends ChangeNotifier {
+  final GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
+}
 
 class AppShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
   final int storeId;
+  final AppScaffoldKey _scaffoldKey = AppScaffoldKey();
 
-  const AppShell({
+  AppShell({
     super.key,
     required this.navigationShell,
     required this.storeId,
@@ -29,43 +31,80 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 2. ENVOLVA TUDO EM UM BLOCBUILDER PARA VERIFICAR A ASSINATURA
-    return BlocBuilder<StoresManagerCubit, StoresManagerState>(
-      // Otimização: só reconstrói se o objeto de assinatura mudar
-      buildWhen: (previous, current) {
-        final prevSub = (previous is StoresManagerLoaded) ? previous.activeStore?.relations.subscription : null;
-        final currSub = (current is StoresManagerLoaded) ? current.activeStore?.relations.subscription : null;
-        return prevSub != currSub;
-      },
-      builder: (context, state) {
-        if (state is StoresManagerLoaded) {
-          final subscription = state.activeStore?.relations.subscription;
-
-          // ✅ 3. A LÓGICA PRINCIPAL: VERIFICA SE ESTÁ BLOQUEADO
-          if (subscription != null && subscription.isBlocked) {
-            return SubscriptionBlockedView(
-              subscription: subscription,
-              storeId: storeId,
+    return ChangeNotifierProvider.value(
+      value: _scaffoldKey,
+      // ✅ O BlocBuilder agora ouve todas as mudanças de estado para um fluxo correto.
+      child: BlocBuilder<StoresManagerCubit, StoresManagerState>(
+        // REMOVIDO: O `buildWhen` foi removido para garantir que a UI
+        // reaja a todas as transições de estado (Loading -> Sync -> Loaded).
+        builder: (context, state) {
+          // ===================================================================
+          // ETAPA 1: Tratar os estados de carregamento e sincronização.
+          // ===================================================================
+          if (state is StoresManagerLoading || state is StoresManagerSynchronizing) {
+            return const Scaffold(
+              body: Center(
+                child: DotLoading(), // Ou CircularProgressIndicator()
+              ),
             );
           }
-        }
 
-        // Se não estiver bloqueado ou se o estado ainda não estiver carregado, mostra o layout normal.
-        return ResponsiveBuilder(
-          mobileBuilder: (context, constraints) => _buildMobileLayout(context),
-          desktopBuilder: (context, constraints) => _buildDesktopLayout(context),
-        );
-      },
+          // ===================================================================
+          // ETAPA 2: Tratar os estados de falha (erro ou sem lojas).
+          // ===================================================================
+          if (state is StoresManagerError) {
+            return Scaffold(
+              body: Center(child: Text("Erro ao carregar dados: ${state.message}")),
+            );
+          }
+
+          if (state is StoresManagerEmpty) {
+            // TODO: Criar uma tela mais elaborada para quando o usuário não tem lojas.
+            return const Scaffold(
+              body: Center(child: Text("Nenhuma loja encontrada para sua conta.")),
+            );
+          }
+
+          // ===================================================================
+          // ETAPA 3: Tratar o estado de sucesso (StoresManagerLoaded).
+          // A partir daqui, temos certeza que os dados estão completos.
+          // ===================================================================
+          if (state is StoresManagerLoaded) {
+            final subscription = state.activeStore?.relations.subscription;
+
+            // A verificação de assinatura bloqueada agora é segura e não piscará.
+            if (subscription != null && subscription.isBlocked) {
+              return SubscriptionBlockedView(
+                subscription: subscription,
+                storeId: storeId,
+              );
+            }
+
+            // Se tudo estiver OK, renderiza o layout principal da aplicação.
+            return ResponsiveBuilder(
+              mobileBuilder: (context, constraints) => _buildMobileLayout(context),
+              desktopBuilder: (context, constraints) => _buildDesktopLayout(context),
+            );
+          }
+
+          // Fallback de segurança, não deve ser alcançado.
+          return const Scaffold(
+            body: Center(
+              child: Text("Ocorreu um estado inesperado. Por favor, reinicie."),
+            ),
+          );
+        },
+      ),
     );
   }
 
-  // Layout para telas grandes (Desktop/Web)
+  // O restante dos seus métodos de build (_buildDesktopLayout, _buildMobileLayout, etc.)
+  // permanecem exatamente os mesmos, pois a lógica deles já está correta.
+
   Widget _buildDesktopLayout(BuildContext context) {
     return Scaffold(
-      // ✅ 2. O CORPO AGORA É UMA STACK PARA PERMITIR A SOBREPOSIÇÃO
       body: Stack(
         children: [
-          // O conteúdo principal (que você já tinha)
           Column(
             children: [
               Expanded(
@@ -86,8 +125,6 @@ class AppShell extends StatelessWidget {
               _buildConnectivityBanner(),
             ],
           ),
-
-          // ✅ 3. BANNER ADICIONADO AQUI, POSICIONADO SOBRE O CONTEÚDO
           const Positioned(
             bottom: 20,
             right: 20,
@@ -98,39 +135,30 @@ class AppShell extends StatelessWidget {
     );
   }
 
-  // Layout para telas pequenas (Mobile/Tablet)
   Widget _buildMobileLayout(BuildContext context) {
     final navHelper = StoreNavigationHelper(storeId);
     final currentPath = GoRouterState.of(context).uri.toString();
+    final isOrdersRoute = currentPath.contains('/orders');
 
     return Scaffold(
-      appBar: AppBar(
+      key: _scaffoldKey.key,
+      appBar: isOrdersRoute ? null : AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
         title: Text(
           navHelper.getTitleForPath(currentPath),
           style: const TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.black54),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
       ),
       drawer: DrawerCode(storeId: storeId),
-      // ✅ 4. O CORPO DO MOBILE TAMBÉM VIRA UMA STACK
       body: Stack(
         children: [
-          // O conteúdo principal (que você já tinha)
           Column(
             children: [
               Expanded(child: navigationShell),
               _buildConnectivityBanner(),
             ],
           ),
-
-          // ✅ 5. BANNER ADICIONADO AQUI TAMBÉM
           const Positioned(
             bottom: 20,
             right: 20,
@@ -138,26 +166,27 @@ class AppShell extends StatelessWidget {
           ),
         ],
       ),
-
-      bottomNavigationBar: navHelper.shouldShowBottomBar(currentPath)
+      bottomNavigationBar: isOrdersRoute ? null : (navHelper.shouldShowBottomBar(currentPath)
           ? navHelper.buildBottomNavigationBar(context, currentPath)
-          : null,
+          : null),
     );
   }
 
   Widget _buildConnectivityBanner() {
     return BlocSelector<StoresManagerCubit, StoresManagerState, ConnectivityStatus>(
       selector: (state) {
-        return state is StoresManagerLoaded
-            ? state.connectivityStatus
-            : ConnectivityStatus.connected;
+        // Agora o banner de conectividade também funciona durante a sincronização.
+        if (state is StoresManagerLoaded) {
+          return state.connectivityStatus;
+        }
+        // Retorna 'conectado' por padrão se o estado ainda não estiver carregado.
+        return ConnectivityStatus.connected;
       },
       builder: (context, status) {
-
         if (status == ConnectivityStatus.connected) {
-          return const SizedBox.shrink(); // Não mostra nada se estiver conectado
+          return const SizedBox.shrink();
         }
-        return const ConnectivityBanner(); // Mostra para 'disconnected' ou 'reconnecting'
+        return const ConnectivityBanner();
       },
     );
   }

@@ -17,14 +17,14 @@ import '../../product-wizard/steps/step4_categories.dart';
 
 class ProductCreationPanel extends StatelessWidget {
   final int storeId;
-  final Category category;
+  final Category? category;
   final VoidCallback onSaveSuccess;
   final VoidCallback onCancel;
 
   const ProductCreationPanel({
     super.key,
     required this.storeId,
-    required this.category,
+    this.category,
     required this.onSaveSuccess,
     required this.onCancel,
   });
@@ -34,13 +34,15 @@ class ProductCreationPanel extends StatelessWidget {
     return BlocProvider(
       create: (context) {
         final cubit = ProductWizardCubit(storeId: storeId);
-        final initialLink = ProductCategoryLink(
-          category: category,
-          categoryId: category.id!,
-          price: cubit.state.productInCreation.price ?? 0,
-          product: cubit.state.productInCreation,
-        );
-        cubit.addCategoryLink(initialLink);
+        if (category != null) {
+          final initialLink = ProductCategoryLink(
+            category: category!,
+            categoryId: category!.id!,
+            price: cubit.state.productInCreation.price ?? 0,
+            product: cubit.state.productInCreation,
+          );
+          cubit.addCategoryLink(initialLink);
+        }
         return cubit;
       },
       child: BlocListener<ProductWizardCubit, ProductWizardState>(
@@ -179,7 +181,7 @@ class _ProductWizardViewForPanelState extends State<ProductWizardViewForPanel> {
                   ),
                 ),
 
-                const SizedBox(width: 16,),
+              const SizedBox(width: 16,),
 
 
               Flexible(
@@ -194,7 +196,7 @@ class _ProductWizardViewForPanelState extends State<ProductWizardViewForPanel> {
                     }
                   },
                   isLoading: state.submissionStatus == FormStatus.loading,
-                 label : (isLastStep ? 'Criar Produto' : 'Continuar'),
+                  label : (isLastStep ? 'Criar Produto' : 'Continuar'),
                 ),
               ),
             ],

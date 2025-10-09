@@ -7,11 +7,12 @@ import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/responsive_order_view.dart';
 
 import '../../../core/enums/order_view.dart';
+import '../../../widgets/app_shell.dart';
 import '../cubit/order_page_state.dart';
-import '../store_settings.dart';
-import 'management_switcher.dart';
-import 'operational_shortcuts.dart';
-import 'order_search_delegate.dart';
+import '../settings/orders_settings.dart';
+import '../widgets/management_switcher.dart';
+import '../widgets/operational_shortcuts.dart';
+import '../widgets/order_search_delegate.dart';
 
 class MobileOrderLayout extends StatefulWidget {
   final void Function(BuildContext, OrderDetails) onOpenOrderDetailsPage;
@@ -124,10 +125,7 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-        ),
+
         title: const AppBarModeSwitcher(),
         actions: [
           IconButton(icon: const Icon(Icons.search), onPressed: _showSearch),

@@ -40,7 +40,7 @@ class _AppBarCodeState extends State<AppBarCode> {
             return constraints.maxWidth < 800
                 ? appbarr(isphon: true,size: constraints.maxWidth)
                 : PreferredSize(
-              preferredSize: const Size.fromHeight(115),
+              preferredSize: const Size.fromHeight(60),
               child: appbarr(isphon: false,size: constraints.maxWidth),
             );
           });
@@ -52,8 +52,8 @@ class _AppBarCodeState extends State<AppBarCode> {
 
     return AppBar(
       automaticallyImplyLeading: false,
-      toolbarHeight: isphon ? 52 : 115,
-      backgroundColor: notifire.getBgColor,
+toolbarHeight: isphon ? 60 : 112,
+      backgroundColor: Colors.white,
       elevation: 0,
       actions: [
         isphon? PopupMenuButton(

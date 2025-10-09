@@ -13,6 +13,7 @@ import 'package:totem_pro_admin/core/di.dart';
 
 
 import '../../../core/helpers/sidepanel.dart';
+import '../../../core/responsive_builder.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
 import '../../../models/holiday.dart';
@@ -149,41 +150,44 @@ class OpeningHoursPageState extends State<OpeningHoursPage> with TickerProviderS
         : [_buildSchedulesView(openingHours), ScheduledPausesView(onAddPause: _showAddPauseDialog), HolidaysView(onConfigureHoliday: _showHolidayPauseDialog)];
 
     return Scaffold(
-      body: Center(
-        child: NestedScrollView(
-          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-            return <Widget>[
-              SliverToBoxAdapter(
-                child: FixedHeader(
-                  showActionsOnMobile: true,
-                  title: 'Horário de funcionamento',
-                  subtitle: 'Escolha os dias e horários que sua loja receberá pedidos.',
-                  actions: [
-                    DsButton(
-                      label: 'Cadastrar horário',
-                      style: DsButtonStyle.secondary,
-                      onPressed: () => _showAddShiftDialog(),
-                    ),
-                  ],
-                ),
-              ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SliverTabBarDelegate(
-                  TabBar(
-                    controller: _tabController,
-                    // ✅ 2. AJUSTES NA TABBAR
-                    isScrollable: true, // Permite que o alinhamento 'start' funcione corretamente
-                    tabAlignment: TabAlignment.start, // Alinha as abas à esquerda
-                    tabs: tabs,
+      body: Padding(
+        padding:  EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isDesktop(context) ? 24: 14.0),
+        child: Center(
+          child: NestedScrollView(
+            headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+              return <Widget>[
+                SliverToBoxAdapter(
+                  child: FixedHeader(
+                    showActionsOnMobile: true,
+                    title: 'Horário de funcionamento',
+                    subtitle: 'Escolha os dias e horários que sua loja receberá pedidos.',
+                    actions: [
+                      DsButton(
+                        label: 'Cadastrar horário',
+                        style: DsButtonStyle.secondary,
+                        onPressed: () => _showAddShiftDialog(),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ];
-          },
-          body: TabBarView(
-            controller: _tabController,
-            children: tabViews,
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SliverTabBarDelegate(
+                    TabBar(
+                      controller: _tabController,
+                      // ✅ 2. AJUSTES NA TABBAR
+                      isScrollable: true, // Permite que o alinhamento 'start' funcione corretamente
+                      tabAlignment: TabAlignment.start, // Alinha as abas à esquerda
+                      tabs: tabs,
+                    ),
+                  ),
+                ),
+              ];
+            },
+            body: TabBarView(
+              controller: _tabController,
+              children: tabViews,
+            ),
           ),
         ),
       ),
@@ -201,7 +205,7 @@ class OpeningHoursPageState extends State<OpeningHoursPage> with TickerProviderS
 
     // O ListView garante que o conteúdo possa rolar, resolvendo o overflow.
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 24, ),
       children: [
         _buildPopulatedScheduleState(openingHours),
       ],

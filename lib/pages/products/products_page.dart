@@ -8,6 +8,7 @@ import 'package:totem_pro_admin/pages/categories/category_panel.dart';
 // ✅ 1. IMPORT DO FILTER_BAR NECESSÁRIO AQUI AGORA
 import 'package:totem_pro_admin/pages/products/widgets/filter_bar.dart';
 import 'package:totem_pro_admin/pages/products/widgets/cardapy_tab.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_creation_panel.dart';
 import 'package:totem_pro_admin/pages/products/widgets/sliver_persistent_header_delegate.dart';
 import 'package:totem_pro_admin/pages/variants/tabs/complement_tab.dart';
 import 'package:totem_pro_admin/pages/products/widgets/page_tab.dart';
@@ -96,35 +97,40 @@ class CategoryProductPageState extends State<CategoryProductPage>
     showResponsiveSidePanel( // Supondo que você tenha uma função assim
       context,
       CategoryPanel(
-        storeId: widget.storeId,
-        // Não passa categoria, indicando que é uma criação
-        onSaveSuccess: () {
-          Navigator.of(context).pop(); // Fecha o painel
+          storeId: widget.storeId,
+          // Não passa categoria, indicando que é uma criação
+          onSaveSuccess: () {
+            Navigator.of(context).pop(); // Fecha o painel
 
-        }
+          }
       ),
     );
   }
 
 
 
+  void _openAddItemPanel() {
 
-  void _navigateToCreateProduct() {
-    print("Navegar para criação de produto");
-  }
 
-  void _handlePrimaryAction() {
-    switch (_currentTabIndex) {
-      case 0: _navigateToCreateCategory(); break;
-      case 1: _navigateToCreateProduct(); break;
-      case 2:
-        context.pushNamed(
-          'variant-edit',
-          pathParameters: {'storeId': widget.storeId.toString(), 'variantId': 'new'},
+    final Widget panelToOpen =
+    ProductCreationPanel(
+      storeId: widget.storeId,
+      onSaveSuccess: () {
+        Navigator.of(context).pop(); // Fecha o painel
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Produto criado com sucesso!"), backgroundColor: Colors.green),
         );
-        break;
-    }
+
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    );
+
+    // Abre o painel escolhido
+    showResponsiveSidePanel(context, panelToOpen);
   }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -152,103 +158,106 @@ class CategoryProductPageState extends State<CategoryProductPage>
               final allProducts = state.activeStore?.relations.products ?? [];
 
               // ✅ 4. REMOVIDO O PADDING EXTERNO
-              return NestedScrollView(
-                headerSliverBuilder: (context, innerBoxIsScrolled) {
-                  return [
-                    SliverToBoxAdapter(
-                      child: FixedHeader(
-                        showActionsOnMobile: true,
+              return Padding(
+                padding: EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isDesktop(context) ? 24: 14.0),
+                child: NestedScrollView(
+                  headerSliverBuilder: (context, innerBoxIsScrolled) {
+                    return [
+                      SliverToBoxAdapter(
+                        child: FixedHeader(
+                          showActionsOnMobile: true,
 
-                        title: 'Cardápio e Produtos',
-                        subtitle: 'Gerencie suas categorias, produtos e complementos.',
-                        actions: [
-                          if(!ResponsiveBuilder.isDesktop(context))
-                          DsButton(
+                          title: 'Cardápio e Produtos',
+                          subtitle: 'Gerencie suas categorias, produtos e complementos.',
+                          actions: [
+                            if(!ResponsiveBuilder.isDesktop(context))
+                              DsButton(
 
-                            label: 'Adicionar',
-                            style: DsButtonStyle.secondary,
-                            onPressed: _handlePrimaryAction,
-                          )
+                                label: 'Adicionar',
+                                style: DsButtonStyle.secondary,
+                                onPressed: _openAddItemPanel,
+                              )
 
 
-                        ],
-                      ),
-                    ),
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: SliverPersistentHeaderDelegateWrapper(
-                        minHeight: 28,
-                        maxHeight: 28,
-                        child: Container(
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          child: PageTabBar(
-                            controller: _tabController,
-                            isInWizard: widget.isInWizard,
-                          ),
+                          ],
                         ),
                       ),
-                    ),
-                    // ✅ 5. FILTERBAR MOVIDO PARA CÁ, COMO UM SLIVER PINNED
-                    if (_currentTabIndex == 0 && allCategories.isNotEmpty)
                       SliverPersistentHeader(
                         pinned: true,
                         delegate: SliverPersistentHeaderDelegateWrapper(
-                          minHeight: 100,
-                          maxHeight: 100,
+                          minHeight: 28,
+                          maxHeight: 28,
                           child: Container(
                             color: Theme.of(context).scaffoldBackgroundColor,
-                            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 1.0),
-                            child: FilterBar(
-                              searchController: _searchController,
-                              categories: allCategories,
-                              selectedValue: _selectedCategory,
-                              onAddCategory: _navigateToCreateCategory,
-                              onReorder: (reordered) { /* TODO */ },
-                              onCategoryChanged: (category) {
-                                setState(() => _selectedCategory = category);
-                              },
+                            child: PageTabBar(
+                              controller: _tabController,
+                              isInWizard: widget.isInWizard,
                             ),
                           ),
                         ),
                       ),
-                  ];
-                },
-                body: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // ✅ 6. PASSANDO OS DADOS DO FILTRO PARA A TELA FILHA
-                    MenuContentTab(
-                      allCategories: allCategories,
-                      storeId: widget.storeId,
-                      allProducts: allProducts,
-                      searchText: _searchController.text,
-                      selectedCategory: _selectedCategory,
-                      onNavigateToAddCategory: _navigateToCreateCategory,
-                    ),
-                    if (!widget.isInWizard)
-                      ProductListTab(
-                        storeId: widget.storeId,
-                        products: allProducts,
+                      // ✅ 5. FILTERBAR MOVIDO PARA CÁ, COMO UM SLIVER PINNED
+                      if (_currentTabIndex == 0 && allCategories.isNotEmpty)
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: SliverPersistentHeaderDelegateWrapper(
+                            minHeight: 100,
+                            maxHeight: 100,
+                            child: Container(
+                              color: Theme.of(context).scaffoldBackgroundColor,
+                              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 1.0),
+                              child: FilterBar(
+                                searchController: _searchController,
+                                categories: allCategories,
+                                selectedValue: _selectedCategory,
+                                onAddCategory: _navigateToCreateCategory,
+                                onReorder: (reordered) { /* TODO */ },
+                                onCategoryChanged: (category) {
+                                  setState(() => _selectedCategory = category);
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                    ];
+                  },
+                  body: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // ✅ 6. PASSANDO OS DADOS DO FILTRO PARA A TELA FILHA
+                      MenuContentTab(
                         allCategories: allCategories,
-                        onAddProduct: _navigateToCreateProduct,
+                        storeId: widget.storeId,
+                        allProducts: allProducts,
+                        searchText: _searchController.text,
+                        selectedCategory: _selectedCategory,
+                        onNavigateToAddCategory: _navigateToCreateCategory,
                       ),
-                    if (!widget.isInWizard)
-                      BlocProvider<VariantsTabCubit>(
-                        create: (context) {
-                          //... (lógica do BlocProvider inalterada)
-                          final allMasterVariants = state.activeStore?.relations.variants ?? [];
-                          final usedVariantIds = allProducts.expand((p) => p.variantLinks ?? []).map((l) => l.variant.id).toSet();
-                          final linkedVariants = allMasterVariants.where((v) => usedVariantIds.contains(v.id)).toList();
-                          linkedVariants.sort((a, b) => a.name.compareTo(b.name));
-                          return VariantsTabCubit(
-                            initialVariants: linkedVariants,
-                            productRepository: getIt<ProductRepository>(),
-                            storeId: widget.storeId,
-                          );
-                        },
-                        child: VariantsTab(storeId: widget.storeId),
-                      ),
-                  ],
+                      if (!widget.isInWizard)
+                        ProductListTab(
+                          storeId: widget.storeId,
+                          products: allProducts,
+                          allCategories: allCategories,
+                          onAddProduct: _openAddItemPanel,
+                        ),
+                      if (!widget.isInWizard)
+                        BlocProvider<VariantsTabCubit>(
+                          create: (context) {
+                            //... (lógica do BlocProvider inalterada)
+                            final allMasterVariants = state.activeStore?.relations.variants ?? [];
+                            final usedVariantIds = allProducts.expand((p) => p.variantLinks ?? []).map((l) => l.variant.id).toSet();
+                            final linkedVariants = allMasterVariants.where((v) => usedVariantIds.contains(v.id)).toList();
+                            linkedVariants.sort((a, b) => a.name.compareTo(b.name));
+                            return VariantsTabCubit(
+                              initialVariants: linkedVariants,
+                              productRepository: getIt<ProductRepository>(),
+                              storeId: widget.storeId,
+                            );
+                          },
+                          child: VariantsTab(storeId: widget.storeId),
+                        ),
+                    ],
+                  ),
                 ),
               );
             },

@@ -1,42 +1,38 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:totem_pro_admin/repositories/realtime_repository.dart'; // 👈 Importe o repositório
+import 'package:totem_pro_admin/repositories/realtime_repository.dart'; // Import the repository
 import 'tables_state.dart';
-import 'dart:async'; // Para StreamSubscription
+import 'dart:async'; // For StreamSubscription
+import '../../../models/table.dart'; // Import TableModel
 
 class TablesCubit extends Cubit<TablesState> {
-  // ✅ PASSO 1: Declare o repositório e a inscrição
+  // Declare the repository and subscription
   final RealtimeRepository _realtimeRepository;
-  StreamSubscription? _tablesSubscription;
-  StreamSubscription? _commandsSubscription;
+  StreamSubscription? _saloonsSubscription;
 
-  // ✅ PASSO 2: Exija o repositório no construtor
+  // Require the repository in the constructor
   TablesCubit({required RealtimeRepository realtimeRepository})
       : _realtimeRepository = realtimeRepository,
         super(TablesInitial());
 
-  // Você precisará de um método para iniciar a escuta,
-  // que será chamado a partir da UI
-  void listenToTables(int storeId) {
-    _tablesSubscription?.cancel();
-    _tablesSubscription = _realtimeRepository.listenToTables(storeId).listen((tables) {
-      // Aqui você pode combinar com as comandas se quiser, ou apenas emitir as mesas
-      // Por enquanto, vamos apenas emitir as mesas para a UI
-      // TODO: Crie seu modelo `TableDetails` que combina mesas e comandas
-      // emit(TablesLoaded(tables));
-    });
-
-    // Opcional: ouvir comandas também
-    _commandsSubscription?.cancel();
-    _commandsSubscription = _realtimeRepository.listenToCommands(storeId).listen((commands) {
-      // Lógica para combinar com as mesas
+  // Method to start listening, called from the UI
+  void listenToSaloons(int storeId) {
+    _saloonsSubscription?.cancel();
+    _saloonsSubscription = _realtimeRepository.listenToSaloons(storeId).listen((saloons) {
+      // Flatten all tables from saloons into a Map<int, TableModel>
+      final Map<int, TableModel> allTables = {};
+      for (final saloon in saloons) {
+        for (final table in saloon.tables) {
+          allTables[table.id] = table;
+        }
+      }
+      emit(TablesLoaded(allTables));
     });
   }
 
-  // ✅ PASSO 3: Lembre-se de limpar as inscrições ao fechar o cubit
+  // Clean up subscriptions when closing the cubit
   @override
   Future<void> close() {
-    _tablesSubscription?.cancel();
-    _commandsSubscription?.cancel();
+    _saloonsSubscription?.cancel();
     return super.close();
   }
 }

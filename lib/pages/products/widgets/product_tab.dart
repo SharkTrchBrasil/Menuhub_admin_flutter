@@ -215,7 +215,7 @@ class _ProductListTabState extends State<ProductListTab> {
 
     // ✅ ALTURA DINÂMICA: A altura do header fixo muda se há itens selecionados
     final bool hasSelection = _selectedProductIds.isNotEmpty;
-    final double persistentHeaderHeight = hasSelection ? 128.0 : 70.0;
+    final double persistentHeaderHeight = hasSelection ? 128.0 : 120.0;
 
     // ✅ ESTRUTURA PRINCIPAL ALTERADA PARA CUSTOMSCROLLVIEW
     return CustomScrollView(

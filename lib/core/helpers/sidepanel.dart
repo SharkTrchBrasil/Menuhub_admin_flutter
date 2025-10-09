@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 /// Exibe um painel de forma responsiva e retorna um valor quando fechado.
 /// - Em telas largas (desktop), mostra um painel lateral deslizando da direita.
 /// - Em telas estreitas (mobile), mostra um modal de tela cheia deslizando de baixo.
+
 Future<T?> showResponsiveSidePanel<T>(BuildContext context, Widget panel) {
   final screenWidth = MediaQuery.of(context).size.width;
   const double mobileBreakpoint = 700.0;
   final bool isMobile = screenWidth < mobileBreakpoint;
 
-  return Navigator.of(context).push<T>(
+  // Usa o rootNavigator no mobile para sobrepor AppBar e BottomNav
+  return Navigator.of(context, rootNavigator: isMobile).push<T>(
     PageRouteBuilder(
       opaque: false,
       barrierColor: Colors.black.withOpacity(0.5),
@@ -38,7 +40,7 @@ Future<T?> showResponsiveSidePanel<T>(BuildContext context, Widget panel) {
   );
 }
 
-/// Helper para o layout de PAINEL LATERAL (Desktop)
+
 class _SidePanelContainer extends StatelessWidget {
   final Widget child;
 
@@ -51,47 +53,42 @@ class _SidePanelContainer extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     // Calcula a largura como 50% da tela, com limites mínimos e máximos
-    double calculatedWidth = screenWidth * 0.5;
+    double calculatedWidth = screenWidth * 0.4;
     const double minWidth = 400.0;
-    const double maxWidth = 800.0;
+    const double maxWidth = 600.0;
     double width = calculatedWidth.clamp(minWidth, maxWidth);
 
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Material(
-        elevation: 16.0,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(12),
-          bottomLeft: Radius.circular(12),
-        ),
-        child: SizedBox(
-          width: width,
-          height: double.infinity,
-          child: Scaffold(
-            backgroundColor: Colors.white,
-            appBar: AppBar(
-              automaticallyImplyLeading: false, // Remove a seta de voltar
-              title: const Text(
-                'Editar',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                ),
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.close, size: 24),
-                  onPressed: () => Navigator.of(context).pop(),
-                  tooltip: 'Fechar',
-                ),
-              ],
-              elevation: 0,
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
+    return SizedBox(
+
+      width: width,
+      height: double.infinity,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+
+          automaticallyImplyLeading: false, // Remove a seta de voltar
+          title: const Text(
+            '',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
             ),
-            body: child, // Conteúdo passado como parâmetro
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18.0),
+              child: IconButton(
+                icon: const Icon(Icons.close, size: 24, color: Colors.red,),
+                onPressed: () => context.pop(),
+                tooltip: 'Fechar',
+              ),
+            ),
+          ],
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.white,
         ),
+        body: child, // Conteúdo passado como parâmetro
       ),
     );
   }
@@ -105,31 +102,33 @@ class _FullScreenMobileWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          automaticallyImplyLeading: false, // Remove a seta de voltar
-          title: const Text(
-            '',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 18,
-            ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+
+        automaticallyImplyLeading: false, // Remove a seta de voltar
+        title: const Text(
+          '',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
           ),
-          actions: [
-            IconButton(
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18.0),
+            child: IconButton(
               icon: const Icon(Icons.close, size: 24, color: Colors.red,),
               onPressed: () => context.pop(),
               tooltip: 'Fechar',
             ),
-          ],
-          elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-        ),
-        body: child, // Conteúdo passado como parâmetro
+          ),
+        ],
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
+      body: child, // Conteúdo passado como parâmetro
     );
   }
 }

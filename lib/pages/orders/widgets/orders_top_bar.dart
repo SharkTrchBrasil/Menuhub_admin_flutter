@@ -12,6 +12,7 @@ import 'package:totem_pro_admin/services/print/printer_settings.dart';
 import '../../../core/helpers/sidepanel.dart';
 import '../../chatpanel/widgets/chat_central_panel.dart';
 import '../../table/widgets/create_table_dialog.dart';
+import 'desktoptoolbar.dart';
 
 class OrdersTopBar extends StatelessWidget {
   final String? selectedTabKey;
@@ -64,12 +65,14 @@ class OrdersTopBar extends StatelessWidget {
 
               const Spacer(),
 
-              // Botões de Ação (Impressora, etc.)
-              _buildPrinterButton(context, storeState, activeStoreId),
+              DesktopToolbar(activeStore: storeState.activeStore,),
 
-              const SizedBox(width: 16),
+              // Botões de Ação (Impressora, etc.)
+            //  _buildPrinterButton(context, storeState, activeStoreId),
+
+            //  const SizedBox(width: 16),
               // ✅ BOTÃO AGORA É DINÂMICO
-              _buildPrimaryActionButton(context, selectedTabKey),
+             // _buildPrimaryActionButton(context, selectedTabKey),
             ],
           ),
         );

@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_image.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_panel.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
 import '../../../core/di.dart';
 import '../../../core/enums/category_type.dart';
 import '../../../core/enums/product_status.dart';
 
+import '../../../core/helpers/sidepanel.dart';
 import '../../../models/products/product.dart';
 import '../../../repositories/product_repository.dart';
 import '../../../services/dialog_service.dart';
+import '../../product_flavors/flavor_edit_panel.dart';
 
 class ProductCardDesktop extends StatefulWidget {
   final Product product;
@@ -33,6 +36,37 @@ class ProductCardDesktop extends StatefulWidget {
 }
 
 class _ProductCardDesktopState extends State<ProductCardDesktop> {
+
+  void _openEditPanel({required bool isCustomizable}) {
+    // Lógica para decidir qual painel abrir
+    final Widget panelToOpen = isCustomizable
+        ? FlavorEditPanel(
+      // ATENÇÃO: O FlavorEditPanel espera uma `parentCategory`.
+      // Estou passando a primeira categoria do produto.
+      // Se a lógica for mais complexa, este ponto pode precisar de ajuste.
+      parentCategory: widget.product.categoryLinks.first.category!,
+      storeId: widget.storeId,
+      product: widget.product,
+      onSaveSuccess: () {
+        Navigator.of(context).pop(); // Fecha o painel
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    )
+        : ProductEditPanel(
+      storeId: widget.storeId,
+      product: widget.product,
+      onSaveSuccess: () {
+        Navigator.of(context).pop(); // Fecha o painel
+      },
+      onCancel: () => Navigator.of(context).pop(),
+    );
+
+    // Abre o painel lateral
+    showResponsiveSidePanel(context, panelToOpen);
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
     // ✅ LÓGICA CENTRALIZADA AQUI (igual à versão mobile)
@@ -113,6 +147,7 @@ class _ProductCardDesktopState extends State<ProductCardDesktop> {
                 isActive: isActive,
                 isCustomizable: isCustomizable,
                 onToggle: widget.onStatusToggle,
+                onEdit: () => _openEditPanel(isCustomizable: isCustomizable),
               ),
             ),
           ],
@@ -227,6 +262,8 @@ class _DesktopActions extends StatelessWidget {
   final bool isActive;
   final bool isCustomizable;
   final VoidCallback onToggle;
+  final VoidCallback onEdit; // Novo callback
+
 
   const _DesktopActions({
     required this.product,
@@ -234,6 +271,7 @@ class _DesktopActions extends StatelessWidget {
     required this.isActive,
     required this.isCustomizable,
     required this.onToggle,
+    required this.onEdit,
   });
 
   @override
@@ -255,19 +293,7 @@ class _DesktopActions extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.edit, size: 20),
           color: Colors.grey,
-          onPressed: () {
-            if (isCustomizable) {
-              context.push(
-                '/stores/$storeId/products/${product.id}/edit-flavor',
-                extra: product,
-              );
-            } else {
-              context.push(
-                '/stores/$storeId/products/${product.id}',
-                extra: product,
-              );
-            }
-          },
+          onPressed: onEdit,
           tooltip: 'Editar produto',
         ),
 
@@ -307,4 +333,14 @@ class _DesktopActions extends StatelessWidget {
       }
     });
   }
+
+
+
+
+
+
+
+
+
+
 }

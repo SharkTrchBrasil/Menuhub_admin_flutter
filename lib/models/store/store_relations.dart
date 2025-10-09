@@ -30,6 +30,7 @@ import '../dashboard_data.dart';
 import '../dashboard_insight.dart';
 import '../products/product.dart';
 import '../products/product_analytics_data.dart';
+import '../saloon.dart';
 import '../subscription.dart';
 import '../table.dart';
 
@@ -61,8 +62,8 @@ class StoreRelations {
   final List<StoreReceivable> receivables;
   final List<ReceivableCategory> receivableCategories;
 
-  final List<Table> tables;
-  final List<Command> commands;
+
+  final List<Saloon> saloons;
 
   final List<StoreChatbotMessage> chatbotMessages;
   final StoreChatbotConfig? chatbotConfig;
@@ -91,8 +92,8 @@ class StoreRelations {
     this.payableCategories = const [],
     this.receivables = const [],
     this.receivableCategories = const [],
-    this.tables = const [],
-    this.commands = const [],
+
+    this.saloons = const [],
     this.chatbotMessages = const [],
     this.chatbotConfig,
     this.billingPreview,
@@ -119,12 +120,10 @@ class StoreRelations {
           ?.map((e) => StoreNeighborhood.fromJson(e as Map<String, dynamic>))
           .toList(),
 
-      // ✅ ================== A CORREÇÃO ESTÁ AQUI ==================
-      // Trocamos 'subscription' por 'active_subscription' para corresponder ao payload do backend.
+
       subscription: json['active_subscription'] != null && json['active_subscription'] is Map<String, dynamic>
           ? Subscription.fromJson(json['active_subscription'])
           : null,
-      // ================== FIM DA CORREÇÃO ==================
 
       categories: (json['categories'] as List<dynamic>? ?? [])
           .map((e) => Category.fromJson(e as Map<String, dynamic>))
@@ -172,11 +171,9 @@ class StoreRelations {
       receivableCategories: (json['receivable_categories'] as List<dynamic>? ?? [])
           .map((c) => ReceivableCategory.fromJson(c as Map<String, dynamic>))
           .toList(),
-      tables: (json['tables'] as List<dynamic>? ?? [])
-          .map((t) => Table.fromJson(t as Map<String, dynamic>))
-          .toList(),
-      commands: (json['commands'] as List<dynamic>? ?? [])
-          .map((c) => Command.fromJson(c as Map<String, dynamic>))
+
+      saloons: (json['saloons'] as List<dynamic>? ?? [])
+          .map((s) => Saloon.fromJson(s as Map<String, dynamic>))
           .toList(),
       chatbotMessages: (json['chatbot_messages'] as List<dynamic>? ?? [])
           .map((e) => StoreChatbotMessage.fromJson(e as Map<String, dynamic>))
@@ -186,7 +183,7 @@ class StoreRelations {
           : null,
       billingPreview: json['billing_preview'] != null
           ? BillingPreview.fromJson(json['billing_preview'])
-          : null, // ✅ Adicione aqui
+          : null,
     );
   }
 
@@ -213,8 +210,8 @@ class StoreRelations {
     List<PayableCategory>? payableCategories,
     List<StoreReceivable>? receivables,
     List<ReceivableCategory>? receivableCategories,
-    List<Table>? tables,
-    List<Command>? commands,
+
+    List<Saloon>? saloons,
     List<StoreChatbotMessage>? chatbotMessages,
     StoreChatbotConfig? chatbotConfig,
     BillingPreview? billingPreview,
@@ -242,8 +239,8 @@ class StoreRelations {
         payableCategories: payableCategories ?? this.payableCategories,
         receivables: receivables ?? this.receivables,
         receivableCategories: receivableCategories ?? this.receivableCategories,
-        tables: tables ?? this.tables,
-        commands: commands ?? this.commands,
+
+        saloons: saloons ?? this.saloons,
         chatbotMessages: chatbotMessages ?? this.chatbotMessages,
         chatbotConfig: chatbotConfig ?? this.chatbotConfig,
       billingPreview: billingPreview ?? this.billingPreview
