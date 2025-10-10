@@ -59,6 +59,7 @@ class Product extends Equatable implements SelectableItem {
   final String? fileKey;
 
   final String? videoUrl;
+  final int? views;
 
 
   final List<ImageModel> images;
@@ -105,6 +106,7 @@ class Product extends Equatable implements SelectableItem {
    this.videoUrl,
    this.images = const [],
     this.videoFile,
+    this.views
 
 
   });
@@ -182,6 +184,7 @@ class Product extends Equatable implements SelectableItem {
 
 
       videoFile: videoUrl != null ? ImageModel(url: videoUrl, isVideo: true) : null,
+      views: json['views'] ?? 0,
 
 
 
@@ -229,6 +232,7 @@ class Product extends Equatable implements SelectableItem {
     List<ImageModel>? images,
     ImageModel? videoFile,
     bool? removeVideo, // Usamos um flag para a intenção de remover
+    int? views,
   }) {
     return Product(
       id: id ?? this.id,
@@ -271,6 +275,7 @@ class Product extends Equatable implements SelectableItem {
       // ✅ LÓGICA CORRIGIDA E FINAL
       videoUrl: removeVideo == true ? null : videoUrl ?? this.videoUrl,
       videoFile: removeVideo == true ? null : videoFile ?? this.videoFile,
+      views: views ?? this.views
     );
   }
 

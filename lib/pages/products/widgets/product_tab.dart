@@ -12,10 +12,10 @@ import '../../../core/enums/bulk_action_type.dart';
 import '../../../core/responsive_builder.dart';
 import '../../../models/products/product.dart';
 import '../../../widgets/fixed_header.dart';
+import '../../../widgets/fixed_header_small.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
 import '../../categories_bulk/BulkCategoryPage.dart';
 import '../cubit/products_cubit.dart';
-
 
 // Enum para as opções de ordenação
 enum SortOption { nameAsc, nameDesc, priceAsc, priceDesc }
@@ -34,7 +34,7 @@ class ProductListTab extends StatefulWidget {
     required this.products,
     required this.allCategories,
     required this.onAddProduct,
-    required this.storeId
+    required this.storeId,
   });
 
   @override
@@ -64,8 +64,6 @@ class _ProductListTabState extends State<ProductListTab> {
     super.dispose();
   }
 
-
-
   void _sortProducts(List<Product> products) {
     products.sort((a, b) {
       switch (_sortOption) {
@@ -74,14 +72,17 @@ class _ProductListTabState extends State<ProductListTab> {
         case SortOption.nameDesc:
           return b.name.toLowerCase().compareTo(a.name.toLowerCase());
 
-
         case SortOption.priceAsc:
-        // Se o preço for nulo, consideramos como infinito para que vá para o final.
-          return (a.price ?? double.infinity).compareTo(b.price ?? double.infinity);
+          // Se o preço for nulo, consideramos como infinito para que vá para o final.
+          return (a.price ?? double.infinity).compareTo(
+            b.price ?? double.infinity,
+          );
 
         case SortOption.priceDesc:
-        // A mesma lógica, mas com a ordem invertida.
-          return (b.price ?? double.infinity).compareTo(a.price ?? double.infinity);
+          // A mesma lógica, mas com a ordem invertida.
+          return (b.price ?? double.infinity).compareTo(
+            a.price ?? double.infinity,
+          );
       }
     });
   }
@@ -99,7 +100,8 @@ class _ProductListTabState extends State<ProductListTab> {
   void _toggleSelectAll(List<Product> visibleProducts) {
     setState(() {
       final allVisibleIds = visibleProducts.map((p) => p.id!).toSet();
-      if (_selectedProductIds.containsAll(allVisibleIds) && _selectedProductIds.isNotEmpty) {
+      if (_selectedProductIds.containsAll(allVisibleIds) &&
+          _selectedProductIds.isNotEmpty) {
         _selectedProductIds.clear();
       } else {
         _selectedProductIds.addAll(allVisibleIds);
@@ -107,67 +109,77 @@ class _ProductListTabState extends State<ProductListTab> {
     });
   }
 
-
-
-
-
-
   void _showFilterBottomSheet() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Ordenar por', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            RadioListTile<SortOption>(
-              title: const Text('Nome A-Z'),
-              value: SortOption.nameAsc,
-              groupValue: _sortOption,
-              onChanged: (v) => setState(() { _sortOption = v!; Navigator.pop(context); }),
+      builder:
+          (context) => Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ordenar por',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                RadioListTile<SortOption>(
+                  title: const Text('Nome A-Z'),
+                  value: SortOption.nameAsc,
+                  groupValue: _sortOption,
+                  onChanged:
+                      (v) => setState(() {
+                        _sortOption = v!;
+                        Navigator.pop(context);
+                      }),
+                ),
+                RadioListTile<SortOption>(
+                  title: const Text('Nome Z-A'),
+                  value: SortOption.nameDesc,
+                  groupValue: _sortOption,
+                  onChanged:
+                      (v) => setState(() {
+                        _sortOption = v!;
+                        Navigator.pop(context);
+                      }),
+                ),
+                RadioListTile<SortOption>(
+                  title: const Text('Menor Preço'),
+                  value: SortOption.priceAsc,
+                  groupValue: _sortOption,
+                  onChanged:
+                      (v) => setState(() {
+                        _sortOption = v!;
+                        Navigator.pop(context);
+                      }),
+                ),
+                RadioListTile<SortOption>(
+                  title: const Text('Maior Preço'),
+                  value: SortOption.priceDesc,
+                  groupValue: _sortOption,
+                  onChanged:
+                      (v) => setState(() {
+                        _sortOption = v!;
+                        Navigator.pop(context);
+                      }),
+                ),
+              ],
             ),
-            RadioListTile<SortOption>(
-              title: const Text('Nome Z-A'),
-              value: SortOption.nameDesc,
-              groupValue: _sortOption,
-              onChanged: (v) => setState(() { _sortOption = v!; Navigator.pop(context); }),
-            ),
-            RadioListTile<SortOption>(
-              title: const Text('Menor Preço'),
-              value: SortOption.priceAsc,
-              groupValue: _sortOption,
-              onChanged: (v) => setState(() { _sortOption = v!; Navigator.pop(context); }),
-            ),
-            RadioListTile<SortOption>(
-              title: const Text('Maior Preço'),
-              value: SortOption.priceDesc,
-              groupValue: _sortOption,
-              onChanged: (v) => setState(() { _sortOption = v!; Navigator.pop(context); }),
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
-
-
-
   void _showAddToCategoryWizard(List<Product> selectedProducts) {
-
     showResponsiveSidePanelGroup(
       context,
       panel: BulkAddToCategoryWizard(
         storeId: widget.storeId,
         selectedProducts: selectedProducts,
-        allCategories: widget.allCategories, actionType: BulkActionType.move,
+        allCategories: widget.allCategories,
+        actionType: BulkActionType.move,
       ),
     );
   }
-
-
 
   void _showConfirmationDialog({
     required String title,
@@ -178,31 +190,32 @@ class _ProductListTabState extends State<ProductListTab> {
   }) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(content),
-        actions: [
-          TextButton(
-            child: const Text('Cancelar'),
-            onPressed: () => Navigator.of(ctx).pop(),
+      builder:
+          (ctx) => AlertDialog(
+            title: Text(title),
+            content: Text(content),
+            actions: [
+              TextButton(
+                child: const Text('Cancelar'),
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor:
+                      isDestructive
+                          ? Colors.red
+                          : Theme.of(context).primaryColor,
+                ),
+                onPressed: () {
+                  onConfirm();
+                  Navigator.of(ctx).pop();
+                },
+                child: Text(confirmText),
+              ),
+            ],
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: isDestructive ? Colors.red : Theme.of(context).primaryColor,
-            ),
-            onPressed: () {
-              onConfirm();
-              Navigator.of(ctx).pop();
-            },
-            child: Text(confirmText),
-          ),
-        ],
-      ),
     );
   }
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -212,24 +225,19 @@ class _ProductListTabState extends State<ProductListTab> {
     _sortProducts(filteredProducts);
 
     final isAllSelected = _selectedProductIds.length == filteredProducts.length && filteredProducts.isNotEmpty;
-
-    // ✅ ALTURA DINÂMICA: A altura do header fixo muda se há itens selecionados
     final bool hasSelection = _selectedProductIds.isNotEmpty;
     final double persistentHeaderHeight = hasSelection ? 128.0 : 120.0;
 
-    // ✅ ESTRUTURA PRINCIPAL ALTERADA PARA CUSTOMSCROLLVIEW
+    // ✅ ESTRUTURA CORRIGIDA: APENAS OS FILTROS FICAM PINNED
     return CustomScrollView(
       key: const PageStorageKey('product_list_view_scroll'),
       slivers: [
-
-    if(ResponsiveBuilder.isDesktop(context))
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-            child: FixedHeader(
-              title: 'Produtos (${widget.products.length})',
-              subtitle:
-              'Adicione, pause ou ative os produtos.',
+        // ✅ FIXEDHEADERSMALL - DEVE ROLAR PARA CIMA (NÃO PINNED)
+        if(ResponsiveBuilder.isDesktop(context))
+          SliverToBoxAdapter(
+            child: FixedHeaderSmall(
+              title: 'Produtos do seu cardápio (${widget.products.length})',
+              subtitle: 'Adicione, pause ou ative os produtos.',
               actions: [
                 DsButton(
                   label: 'Adicionar produto',
@@ -238,17 +246,14 @@ class _ProductListTabState extends State<ProductListTab> {
               ],
             ),
           ),
-        ),
 
-
-        // Filtros que ficam FIXOS no topo
+        // ✅ FILTROS - FICAM FIXOS NO TOPO (PINNED)
         SliverPersistentHeader(
-          pinned: true,
+          pinned: true, // 🔥 APENAS ESTE FICA PINNED
           delegate: SliverFilterBarDelegateProduct(
-            height: persistentHeaderHeight, // Altura para acomodar os filtros e a barra de seleção
+            height: persistentHeaderHeight,
             child: Column(
               children: [
-
                 Container(
                   color: Colors.white,
                   child: ProductFilters(
@@ -260,8 +265,6 @@ class _ProductListTabState extends State<ProductListTab> {
                     onFilterTap: _showFilterBottomSheet,
                   ),
                 ),
-
-
                 TableHeader(
                   selectedCount: _selectedProductIds.length,
                   isAllSelected: isAllSelected,
@@ -271,74 +274,55 @@ class _ProductListTabState extends State<ProductListTab> {
                     content: 'Tem certeza que deseja pausar os ${_selectedProductIds.length} produtos selecionados?',
                     confirmText: 'Pausar produtos',
                     onConfirm: () {
-
                       context.read<StoresManagerCubit>().pauseProducts(_selectedProductIds.toList());
-                      // ✅ Limpa a seleção após a confirmação
                       setState(() => _selectedProductIds.clear());
                     },
                   ),
-
                   onActivate: () => _showConfirmationDialog(
                     title: 'Ativar produtos',
                     content: 'Tem certeza que deseja ativar os ${_selectedProductIds.length} produtos selecionados?',
                     confirmText: 'Ativar produtos',
-    onConfirm: () {
-    context.read<StoresManagerCubit>().activateProducts(_selectedProductIds.toList());
-    // ✅ Limpa a seleção após a confirmação
-    setState(() => _selectedProductIds.clear());
-    },
-    ),
-
-
-
-                  onRemove: () => _showConfirmationDialog(
-                    title: 'Arquivar produtos', // ✅ Texto alterado
-                    content: 'Os produtos arquivados não aparecerão no seu cardápio, mas poderão ser restaurados. Deseja arquivar os ${_selectedProductIds.length} produtos selecionados?', // ✅ Texto alterado
-                    confirmText: 'Sim, Arquivar', // ✅ Texto alterado
-                    isDestructive: false, // Arquivar não é tão destrutivo, pode ser `false`
-
                     onConfirm: () {
-                      context.read<StoresManagerCubit>().archiveProducts(_selectedProductIds.toList());
-                      // ✅ Limpa a seleção após a confirmação
+                      context.read<StoresManagerCubit>().activateProducts(_selectedProductIds.toList());
                       setState(() => _selectedProductIds.clear());
                     },
-
-
+                  ),
+                  onRemove: () => _showConfirmationDialog(
+                    title: 'Arquivar produtos',
+                    content: 'Os produtos arquivados não aparecerão no seu cardápio, mas poderão ser restaurados. Deseja arquivar os ${_selectedProductIds.length} produtos selecionados?',
+                    confirmText: 'Sim, Arquivar',
+                    isDestructive: false,
+                    onConfirm: () {
+                      context.read<StoresManagerCubit>().archiveProducts(_selectedProductIds.toList());
+                      setState(() => _selectedProductIds.clear());
+                    },
                   ),
                   onAddToCategory: () {
-                    // 1. Filtra a lista principal de produtos para pegar os objetos completos dos IDs selecionados
                     final selectedProducts = widget.products
                         .where((p) => _selectedProductIds.contains(p.id))
                         .toList();
-
-                    // 2. Chama o wizard, agora passando a lista correta de Product
                     _showAddToCategoryWizard(selectedProducts);
                     setState(() => _selectedProductIds.clear());
                   },
-
                 ),
-               // const Divider(height: 1, thickness: 1),
               ],
             ),
           ),
         ),
 
-        // Conteúdo da lista (Grid de cards)
+        // ✅ CONTEÚDO DA LISTA
         if (filteredProducts.isEmpty)
           SliverFillRemaining(
             child: NoResultsState(),
           )
         else
-
-        // ✅ CÓDIGO CORRIGIDO (com SliverList)
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(2, 16, 2, 80),
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                     (context, index) {
                   final product = filteredProducts[index];
                   final isSelected = _selectedProductIds.contains(product.id);
-                  // Adicionamos um Padding para criar o espaçamento vertical
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12.0),
                     child: ProductCardItem(
@@ -350,7 +334,6 @@ class _ProductListTabState extends State<ProductListTab> {
                         }
                       },
                       storeId: widget.storeId,
-                      // Passamos uma função que chama o método do CUBIT.
                       onStatusToggle: () {
                         context.read<ProductsCubit>().toggleProductStatus(widget.storeId, product);
                       },
@@ -363,28 +346,12 @@ class _ProductListTabState extends State<ProductListTab> {
           ),
       ],
     );
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   }
-}
 
+
+
+
+}
 
 class NoResultsState extends StatelessWidget {
   const NoResultsState();
@@ -415,4 +382,3 @@ class NoResultsState extends StatelessWidget {
     );
   }
 }
-

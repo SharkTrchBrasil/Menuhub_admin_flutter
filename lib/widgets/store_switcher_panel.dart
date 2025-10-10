@@ -13,10 +13,11 @@ class StoreSwitcherPanel extends StatelessWidget {
   const StoreSwitcherPanel({super.key});
 
   void _navigateToStore(BuildContext context, Store store) {
+    final storeId = store.core.id!;
     // 1. Troca a loja ativa no cubit
-    context.read<StoresManagerCubit>().changeActiveStore(store.core.id!);
-    // 2. Navega para o novo hub da loja selecionada
-    context.go('/stores/hub');
+    context.read<StoresManagerCubit>().changeActiveStore(storeId);
+    // 2. Navega para o dashboard da nova loja selecionada
+    context.go('/stores/$storeId/dashboard');
     // 3. Fecha o painel lateral
     Navigator.of(context).pop();
   }

@@ -13,11 +13,11 @@ import '../../../models/products/product.dart';
 import '../../../widgets/ds_primary_button.dart';
 import '../cubit/category_link_cubit.dart';
 
-class CategoryLinkWizardex extends StatelessWidget {
+class CategoryLinkWizard extends StatelessWidget {
   final Product product;
   final List<Category> allCategories;
 
-  const CategoryLinkWizardex({
+  const CategoryLinkWizard({
     super.key,
     required this.product,
     required this.allCategories,
@@ -78,7 +78,7 @@ class _CategoryLinkWizardViewState extends State<_CategoryLinkWizardView> {
             physics: const NeverScrollableScrollPhysics(),
             children: [
               _Step1SelectCategory(
-                allCategories: (context.findAncestorWidgetOfExactType<CategoryLinkWizardex>())!.allCategories,
+                allCategories: (context.findAncestorWidgetOfExactType<CategoryLinkWizard>())!.allCategories,
                 product: state.linkData.product!,
               ),
               _Step2SetPriceAndDetails(link: state.linkData),

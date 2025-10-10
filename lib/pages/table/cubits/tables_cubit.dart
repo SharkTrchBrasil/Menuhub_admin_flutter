@@ -1,8 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart'; // Import the repository
+import '../../../models/tables/table.dart';
 import 'tables_state.dart';
 import 'dart:async'; // For StreamSubscription
-import '../../../models/table.dart'; // Import TableModel
+
 
 class TablesCubit extends Cubit<TablesState> {
   // Declare the repository and subscription

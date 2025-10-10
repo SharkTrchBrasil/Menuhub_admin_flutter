@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-class FixedHeader extends StatelessWidget {
+class FixedHeaderSmall extends StatelessWidget {
   final String title;
   final String? subtitle;
   final List<Widget>? actions;
   final bool showActionsOnMobile; // ✅ flag adicionada
 
-  const FixedHeader({
+  const FixedHeaderSmall({
     super.key,
     required this.title,
     this.subtitle,
@@ -16,11 +16,12 @@ class FixedHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     final theme = Theme.of(context);
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    final titleFontSize = isMobile ? 18.0 : 20.0;
-    final subtitleFontSize = isMobile ? 12.0 : 14.0;
+    final titleFontSize = isMobile ? 18.0 : 26.0;
+    final subtitleFontSize = isMobile ? 14.0 : 16.0;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -43,7 +44,7 @@ class FixedHeader extends StatelessWidget {
               Text(
                 title,
                 style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   fontSize: titleFontSize,
                 ),
               ),

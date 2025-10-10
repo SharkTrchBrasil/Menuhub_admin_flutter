@@ -47,10 +47,7 @@ class StoreProfilePageState extends State<StoreProfilePage> {
   final formKey = GlobalKey<FormState>();
 
   bool validateForm() {
-    // O método `validate()` do FormState faz o trabalho pesado:
-    // 1. Executa o `validator` de cada campo.
-    // 2. Mostra as mensagens de erro abaixo dos campos inválidos.
-    // 3. Retorna `true` se tudo estiver OK, `false` caso contrário.
+
     return formKey.currentState?.validate() ?? false;
   }
 

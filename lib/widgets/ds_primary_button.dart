@@ -97,6 +97,8 @@ class DsButton extends StatelessWidget {
     this.padding,
     this.minimumSize,
     this.requiresConnection = true,
+    this.maxWidth, // ✅ NOVO: Limitar largura máxima
+    this.constrained = false, // ✅ NOVO: Controlar se deve limitar largura
   }) : assert(label != null || child != null,
   'É necessário fornecer ou uma "label" ou um "child".');
 
@@ -115,6 +117,8 @@ class DsButton extends StatelessWidget {
   final EdgeInsets? padding;
   final Size? minimumSize;
   final bool requiresConnection;
+  final double? maxWidth; // ✅ NOVO: Largura máxima
+  final bool constrained; // ✅ NOVO: Se deve limitar a largura
 
   Color _getEffectiveBackgroundColor(Set<MaterialState> states, ColorScheme colorScheme) {
     if (states.contains(MaterialState.disabled)) {
@@ -161,13 +165,9 @@ class DsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 4. A LÓGICA PRINCIPAL AGORA É ENVOLVIDA PELO BLOCSELECTOR
     return BlocSelector<StoresManagerCubit, StoresManagerState, bool>(
-      // O seletor retorna 'true' se estiver conectado.
       selector: (state) {
-        // Se o botão não requer conexão, ele é sempre considerado "conectado" para fins de lógica.
         if (!requiresConnection) return true;
-
         return state is StoresManagerLoaded &&
             state.connectivityStatus == ConnectivityStatus.connected;
       },
@@ -175,17 +175,20 @@ class DsButton extends StatelessWidget {
         final colorScheme = Theme.of(context).colorScheme;
         final textStyle = const TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
 
-        // ✅ 5. DETERMINA O ESTADO FINAL DO onPresed
-        // O botão é desabilitado se (isLoading for true) OU (se ele requer conexão e não está conectado).
         final bool isEffectivelyDisabled = isLoading || !isConnected;
         final VoidCallback? finalOnPressed = isEffectivelyDisabled ? null : onPressed;
 
         final baseStyle = ButtonStyle(
-          // ... (o resto do seu `baseStyle` continua o mesmo)
           padding: MaterialStateProperty.all<EdgeInsets>(
             padding ?? const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           ),
-          maximumSize: MaterialStateProperty.all(minimumSize ?? const Size(190, 42)),
+          minimumSize: MaterialStateProperty.all(minimumSize ?? const Size(80, 48)),
+          maximumSize: MaterialStateProperty.all(
+            // ✅ CORREÇÃO: Define tamanho máximo baseado no constrained
+            constrained && maxWidth != null
+                ? Size(maxWidth!, minimumSize?.height ?? 48)
+                : Size(double.infinity, minimumSize?.height ?? 48),
+          ),
           alignment: Alignment.center,
           shape: MaterialStateProperty.all<RoundedRectangleBorder>(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -206,39 +209,51 @@ class DsButton extends StatelessWidget {
               textStyle: textStyle.copyWith(
                 color: _getEffectiveForegroundColor({}, colorScheme),
               ),
+              constrained: constrained, // ✅ Passa a flag para o conteúdo
             );
 
         final finalChild = isLoading
             ? _ThreeDotsLoading(dotsColor: loadingDotsColor ?? _getEffectiveForegroundColor({}, colorScheme))
             : buttonContent;
 
-        switch (style) {
-          case DsButtonStyle.secondary:
-            return OutlinedButton(
-              onPressed: finalOnPressed, // ✅ Usa o onPressed final
-              style: baseStyle.copyWith(
-                side: MaterialStateProperty.all(
-                  BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 0.5),
+        // ✅ WRAPPER para limitar largura quando necessário
+        Widget buildButton() {
+          switch (style) {
+            case DsButtonStyle.secondary:
+              return OutlinedButton(
+                onPressed: finalOnPressed,
+                style: baseStyle.copyWith(
+                  side: MaterialStateProperty.all(
+                    BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 0.5),
+                  ),
                 ),
-              ),
-              child: finalChild,
-            );
+                child: finalChild,
+              );
 
-          case DsButtonStyle.custom:
-          case DsButtonStyle.primary:
-          default:
-            return ElevatedButton(
-              onPressed: finalOnPressed, // ✅ Usa o onPressed final
-              style: baseStyle.copyWith(
-                side: style == DsButtonStyle.custom
-                    ? MaterialStateProperty.all(
-                  BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 0.5),
-                )
-                    : null,
-              ),
-              child: finalChild,
-            );
+            case DsButtonStyle.custom:
+            case DsButtonStyle.primary:
+            default:
+              return ElevatedButton(
+                onPressed: finalOnPressed,
+                style: baseStyle.copyWith(
+                  side: style == DsButtonStyle.custom
+                      ? MaterialStateProperty.all(
+                    BorderSide(color: _getEffectiveBorderColor(colorScheme), width: 0.5),
+                  )
+                      : null,
+                ),
+                child: finalChild,
+              );
+          }
         }
+
+        // ✅ Aplica constrain adicional se necessário
+        return constrained && maxWidth != null
+            ? ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth!),
+          child: buildButton(),
+        )
+            : buildButton();
       },
     );
   }
@@ -250,69 +265,85 @@ class _ResponsiveButtonContent extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.textStyle,
+    this.constrained = false, // ✅ NOVO: Controla comportamento
   });
 
   final IconData? icon;
   final String label;
   final TextStyle textStyle;
+  final bool constrained; // ✅ NOVO
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool useVerticalLayout = (icon != null && constraints.maxWidth < 150);
+    // ✅ CORREÇÃO: Comportamento diferente baseado no constrained
+    if (constrained) {
+      // Modo constrained: layout horizontal fixo com texto limitado
+      return Row(
+        mainAxisSize: MainAxisSize.min, // ✅ Importante: não expandir
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 18, color: textStyle.color),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              style: textStyle,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      );
+    } else {
+      // Modo normal: layout responsivo
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final bool useVerticalLayout = (icon != null && constraints.maxWidth < 150);
 
-        Widget content;
-
-        if (useVerticalLayout) {
-          content = Row(
-
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Flexible(child: Icon(icon, size: 20, color: textStyle.color)),
-                const SizedBox(height: 4),
-              ],
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  style: textStyle,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
+          if (useVerticalLayout) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 20, color: textStyle.color),
+                  const SizedBox(height: 4),
+                ],
+                Flexible(
+                  child: Text(
+                    label,
+                    style: textStyle,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
                 ),
-              ),
-            ],
-          );
-        } else {
-          content = Row(
-
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 18, color: textStyle.color),
-                const SizedBox(width: 8),
               ],
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  style: textStyle,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
+            );
+          } else {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: textStyle.color),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Text(
+                    label,
+                    style: textStyle,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
-              ),
-            ],
-          );
-        }
-
-        // ✅ CORREÇÃO: Usar Center em vez de IntrinsicWidth com stepHeight: 0
-        return Center(
-          child: content,
-        );
-      },
-    );
+              ],
+            );
+          }
+        },
+      );
+    }
   }
 }

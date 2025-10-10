@@ -131,6 +131,7 @@ class CategoryProductPageState extends State<CategoryProductPage>
 
 
 
+// ... imports e código anterior ...
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +158,6 @@ class CategoryProductPageState extends State<CategoryProductPage>
               final allCategories = state.activeStore?.relations.categories ?? [];
               final allProducts = state.activeStore?.relations.products ?? [];
 
-              // ✅ 4. REMOVIDO O PADDING EXTERNO
               return Padding(
                 padding: EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isDesktop(context) ? 24: 14.0),
                 child: NestedScrollView(
@@ -166,33 +166,26 @@ class CategoryProductPageState extends State<CategoryProductPage>
                       SliverToBoxAdapter(
                         child: FixedHeader(
                           showActionsOnMobile: true,
-
-                          title: 'Cardápio e Produtos',
+                          title: 'Cardápio',
                           subtitle: 'Gerencie suas categorias, produtos e complementos.',
                           actions: [
                             if(!ResponsiveBuilder.isDesktop(context))
                               DsButton(
-
                                 label: 'Adicionar',
                                 style: DsButtonStyle.secondary,
                                 onPressed: _openAddItemPanel,
                               )
-
-
                           ],
                         ),
                       ),
                       SliverPersistentHeader(
-                        pinned: true,
+                     //   pinned: true,
                         delegate: SliverPersistentHeaderDelegateWrapper(
                           minHeight: 28,
                           maxHeight: 28,
-                          child: Container(
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                            child: PageTabBar(
-                              controller: _tabController,
-                              isInWizard: widget.isInWizard,
-                            ),
+                          child: PageTabBar(
+                            controller: _tabController,
+                            isInWizard: widget.isInWizard,
                           ),
                         ),
                       ),
@@ -204,7 +197,7 @@ class CategoryProductPageState extends State<CategoryProductPage>
                             minHeight: 100,
                             maxHeight: 100,
                             child: Container(
-                              color: Theme.of(context).scaffoldBackgroundColor,
+                              color: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 1.0),
                               child: FilterBar(
                                 searchController: _searchController,
@@ -221,41 +214,55 @@ class CategoryProductPageState extends State<CategoryProductPage>
                         ),
                     ];
                   },
-                  body: TabBarView(
-                    controller: _tabController,
+                  body: Column(
                     children: [
-                      // ✅ 6. PASSANDO OS DADOS DO FILTRO PARA A TELA FILHA
-                      MenuContentTab(
-                        allCategories: allCategories,
-                        storeId: widget.storeId,
-                        allProducts: allProducts,
-                        searchText: _searchController.text,
-                        selectedCategory: _selectedCategory,
-                        onNavigateToAddCategory: _navigateToCreateCategory,
-                      ),
-                      if (!widget.isInWizard)
-                        ProductListTab(
-                          storeId: widget.storeId,
-                          products: allProducts,
-                          allCategories: allCategories,
-                          onAddProduct: _openAddItemPanel,
+                      // ✅ DIVIDER QUE ROLA JUNTO COM O CONTEÚDO
+                      if (_currentTabIndex == 0 && allCategories.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 18.0),
+                          child: Container(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            child: const Divider(height: 1),
+                          ),
                         ),
-                      if (!widget.isInWizard)
-                        BlocProvider<VariantsTabCubit>(
-                          create: (context) {
-                            //... (lógica do BlocProvider inalterada)
-                            final allMasterVariants = state.activeStore?.relations.variants ?? [];
-                            final usedVariantIds = allProducts.expand((p) => p.variantLinks ?? []).map((l) => l.variant.id).toSet();
-                            final linkedVariants = allMasterVariants.where((v) => usedVariantIds.contains(v.id)).toList();
-                            linkedVariants.sort((a, b) => a.name.compareTo(b.name));
-                            return VariantsTabCubit(
-                              initialVariants: linkedVariants,
-                              productRepository: getIt<ProductRepository>(),
+                      // ✅ CONTEÚDO DAS TABS
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            MenuContentTab(
+                              allCategories: allCategories,
                               storeId: widget.storeId,
-                            );
-                          },
-                          child: VariantsTab(storeId: widget.storeId),
+                              allProducts: allProducts,
+                              searchText: _searchController.text,
+                              selectedCategory: _selectedCategory,
+                              onNavigateToAddCategory: _navigateToCreateCategory,
+                            ),
+                            if (!widget.isInWizard)
+                              ProductListTab(
+                                storeId: widget.storeId,
+                                products: allProducts,
+                                allCategories: allCategories,
+                                onAddProduct: _openAddItemPanel,
+                              ),
+                            if (!widget.isInWizard)
+                              BlocProvider<VariantsTabCubit>(
+                                create: (context) {
+                                  final allMasterVariants = state.activeStore?.relations.variants ?? [];
+                                  final usedVariantIds = allProducts.expand((p) => p.variantLinks ?? []).map((l) => l.variant.id).toSet();
+                                  final linkedVariants = allMasterVariants.where((v) => usedVariantIds.contains(v.id)).toList();
+                                  linkedVariants.sort((a, b) => a.name.compareTo(b.name));
+                                  return VariantsTabCubit(
+                                    initialVariants: linkedVariants,
+                                    productRepository: getIt<ProductRepository>(),
+                                    storeId: widget.storeId,
+                                  );
+                                },
+                                child: VariantsTab(storeId: widget.storeId),
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -266,4 +273,6 @@ class CategoryProductPageState extends State<CategoryProductPage>
       ),
     );
   }
+
+
 }

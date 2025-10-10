@@ -15,7 +15,7 @@ import '../core/utils/variant_helper.dart';
 import '../models/category.dart';
 import '../models/chatbot_conversation.dart';
 import '../models/chatbot_message.dart';
-import '../models/command.dart';
+
 import '../models/customer_analytics_data.dart';
 import '../models/dashboard_data.dart';
 import '../models/dashboard_insight.dart';
@@ -25,14 +25,15 @@ import '../models/peak_hours.dart';
 
 import '../models/products/product.dart';
 import '../models/products/product_analytics_data.dart';
-import '../models/saloon.dart';
+
 import '../models/store/store.dart';
 
 import '../models/store/store_city.dart';
 import '../models/store/store_hour.dart';
 import '../models/store/store_operation_config.dart';
 import '../models/subscription.dart';
-import '../models/table.dart';
+
+import '../models/tables/saloon.dart';
 import '../models/variant.dart';
 import '../pages/edit_settings/hours/widgets/add_shift_dialog.dart';
 import '../pages/edit_settings/hours/widgets/edit_shift_dialog.dart';

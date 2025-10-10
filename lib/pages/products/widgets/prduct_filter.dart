@@ -23,13 +23,7 @@ class ProductFilters extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         bool isMobile = constraints.maxWidth < 700;
-        return Padding(
-          padding: EdgeInsets.symmetric(
-              horizontal: ResponsiveBuilder.isMobile(context) ? 14 : 24.0,
-              vertical: 8
-          ),
-          child: isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
-        );
+        return isMobile ? _buildMobileLayout() : _buildDesktopLayout();
       },
     );
   }
@@ -39,6 +33,7 @@ class ProductFilters extends StatelessWidget {
       children: [
         Expanded(child: _buildSearchField()),
         const SizedBox(width: 16),
+        Expanded(child: SizedBox.shrink()),
         _buildSortDropdown(),
       ],
     );
@@ -103,7 +98,7 @@ class ProductFilters extends StatelessWidget {
         value: sortOption,
         underline: const SizedBox.shrink(),
         items: const [
-          DropdownMenuItem(value: SortOption.nameAsc, child: Text("Nome A-Z")),
+          DropdownMenuItem(value: SortOption.nameAsc, child: Text("Ordenar por Nome A-Z")),
           DropdownMenuItem(value: SortOption.nameDesc, child: Text("Nome Z-A")),
           DropdownMenuItem(value: SortOption.priceAsc, child: Text("Menor Preço")),
           DropdownMenuItem(value: SortOption.priceDesc, child: Text("Maior Preço")),

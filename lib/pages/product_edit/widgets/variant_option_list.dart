@@ -27,20 +27,6 @@ class VariantOptionsList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-
-              DsButton(
-                style: DsButtonStyle.secondary,
-
-                label: "Adicionar",
-                onPressed: onAddOption,
-              ),
-            ],
-          ),
-
-
 
           const SizedBox(height: 16),
           if (options.isEmpty)

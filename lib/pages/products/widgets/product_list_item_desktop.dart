@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_image.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_panel.dart';
 
 
@@ -210,7 +211,14 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
             child: Row(
               children: [
                 const SizedBox(width: 10),
-                _buildDefaultImage(isAvailableInThisCategory),
+
+                ProductImage(
+
+                  imageUrl: (widget.product.images.isNotEmpty) ? widget.product.images.first.url : null,
+
+
+                ),
+             //   _buildDefaultImage(isAvailableInThisCategory),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

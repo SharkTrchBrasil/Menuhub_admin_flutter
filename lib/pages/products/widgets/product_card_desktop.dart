@@ -69,7 +69,6 @@ class _ProductCardDesktopState extends State<ProductCardDesktop> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ LÓGICA CENTRALIZADA AQUI (igual à versão mobile)
     final bool isActive = widget.product.status == ProductStatus.ACTIVE;
     final bool hasCategory = widget.product.categoryLinks.isNotEmpty;
     final bool isCustomizable = hasCategory &&
@@ -78,69 +77,75 @@ class _ProductCardDesktopState extends State<ProductCardDesktop> {
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? Colors.white : const Color(0xFFFFF8EB),
-          border: Border.all(
-            color: widget.isSelected
-                ? Theme.of(context).primaryColor
-                : const Color(0xFFEBEBEB),
-            width: 1,
-          ),
+          color: isActive ? Colors.white : Color(0xFFF5F5F5),
         ),
         child: Row(
           children: [
-            // Checkbox de seleção
+            // Checkbox de seleção - MESMA LARGURA DO HEADER
             SizedBox(
-              width: 60,
+              width: 30, // ✅ MESMO VALOR DO HEADER
               child: Checkbox(
                 value: widget.isSelected,
                 onChanged: (_) => widget.onTap(),
                 activeColor: Theme.of(context).primaryColor,
               ),
             ),
+            const SizedBox(width: 16), // ✅ MESMO ESPAÇAMENTO DO HEADER
 
-            // Imagem do produto
-            SizedBox(
-              width: 100,
-              child: ProductImage(
-
-                imageUrl: (widget.product.images.isNotEmpty) ? widget.product.images.first.url : null,
-
-
-              ),
+            // Imagem do produto - FIXO (não tem no header)
+            ProductImage(
+              imageUrl: (widget.product.images.isNotEmpty) ? widget.product.images.first.url : null,
             ),
+            const SizedBox(width: 16),
 
-            // Informações do produto
+            // Informações do produto - MESMO FLEX DO HEADER
             Expanded(
-              flex: 3,
+              flex: 3, // ✅ ALTERADO DE 1 PARA 3 (igual ao header)
               child: _ProductInfoDesktop(
                 product: widget.product,
                 isActive: isActive,
               ),
             ),
 
-            // Classificação (simplificado - você pode adaptar conforme sua necessidade)
+            // Disponível em (categorias) - MESMO FLEX DO HEADER
             Expanded(
-              flex: 1,
+              flex: 1, // ✅ MANTIDO 1 (igual ao header)
               child: Text(
-                hasCategory ? 'Categorizado' : 'Sem categoria',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              ),
-            ),
-
-            // Disponível em (categorias)
-            Expanded(
-              flex: 1,
-              child: Text(
-                '${widget.product.categoryLinks.length} ${widget.product.categoryLinks.length == 1 ? "categoria" : "categorias"}',
+                '${widget.product.categoryLinks.first.category?.name}',
                 style: const TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.start,
               ),
             ),
 
-            // Ações
+            Expanded(
+              flex: 1,
+              child: Text(
+                widget.product.controlStock
+                    ? '${widget.product.stockQuantity}'
+                    : 'Desabilitado', // ou o texto que você quiser quando for false
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.green, // opcional: cor diferente para "Ilimitado"
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            // Vendas - MESMO FLEX DO HEADER
+            Expanded(
+              flex: 1, // ✅ MANTIDO 1 (igual ao header)
+              child: Text(
+                '${widget.product.soldCount}',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                textAlign: TextAlign.center, // ✅ ADICIONADO ALINHAMENTO CENTRAL
+              ),
+            ),
+
+            // Ações - MESMA LARGURA DO HEADER
             SizedBox(
-              width: 120,
+              width: 140, // ✅ MESMA LARGURA DO HEADER
               child: _DesktopActions(
                 product: widget.product,
                 storeId: widget.storeId,
@@ -155,11 +160,10 @@ class _ProductCardDesktopState extends State<ProductCardDesktop> {
       ),
     );
   }
-
-
-
-
 }
+
+
+
 
 class _ProductInfoDesktop extends StatelessWidget {
   final Product product;
@@ -230,27 +234,27 @@ class _ProductInfoDesktop extends StatelessWidget {
           ),
         ],
 
-        // Informações adicionais (vendidos, estoque)
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Text(
-              'VENDIDOS: ${product.soldCount}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Text(
-              product.controlStock ? 'ESTOQUE: ${product.stockQuantity}' : 'ESTOQUE: Ilimitado',
-              style: TextStyle(
-                fontSize: 12,
-                color: product.controlStock ? Colors.grey : Colors.green,
-              ),
-            ),
-          ],
-        ),
+        // // Informações adicionais (vendidos, estoque)
+        // const SizedBox(height: 8),
+        // Row(
+        //   children: [
+        //     Text(
+        //       'VENDIDOS: ${product.soldCount}',
+        //       style: const TextStyle(
+        //         fontSize: 12,
+        //         color: Colors.grey,
+        //       ),
+        //     ),
+        //     const SizedBox(width: 16),
+        //     Text(
+        //       product.controlStock ? 'ESTOQUE: ${product.stockQuantity}' : 'ESTOQUE: Ilimitado',
+        //       style: TextStyle(
+        //         fontSize: 12,
+        //         color: product.controlStock ? Colors.grey : Colors.green,
+        //       ),
+        //     ),
+        //   ],
+        // ),
       ],
     );
   }

@@ -1,7 +1,8 @@
 // logic/tables/tables_state.dart
 import 'package:equatable/equatable.dart';
 
-import '../../../models/table.dart'; // Ensure this imports TableModel
+import '../../../models/tables/table.dart';
+
 
 abstract class TablesState extends Equatable {
   const TablesState();

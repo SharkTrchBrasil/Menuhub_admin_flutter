@@ -14,8 +14,8 @@ class ProductImage extends StatelessWidget {
   const ProductImage({
     super.key,
     required this.imageUrl, // Recebe a URL em vez do objeto product
-    this.width = 56.0,   // Ajustei para um tamanho de lista padrão
-    this.height = 56.0,
+    this.width = 70.0,   // Ajustei para um tamanho de lista padrão
+    this.height = 70.0,
     this.iconSize = 32.0,
   });
 

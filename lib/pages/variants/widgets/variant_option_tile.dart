@@ -183,15 +183,10 @@ class _VariantOptionTileState extends State<VariantOptionTile> {
     return Material(
       color: Colors.white,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(vertical: 8.0,),
         decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
         child: Row(
           children: [
-            ReorderableDragStartListener(
-              index: widget.index,
-              child: const MouseRegion(cursor: SystemMouseCursors.grab, child: Icon(Icons.drag_indicator)),
-            ),
-            const SizedBox(width: 16),
             SizedBox(width: 75, child: _buildImageSection()),
             const SizedBox(width: 12),
             Expanded(flex: 3, child: _buildNameField()),

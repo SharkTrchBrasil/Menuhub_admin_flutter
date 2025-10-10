@@ -334,7 +334,7 @@ class AppRouter {
 
         routes: [
           GoRoute(
-            path: '/wizard',
+            path: 'wizard',
             builder: (context, state) {
               final storeId = int.parse(state.pathParameters['storeId']!);
 

@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-import 'package:totem_pro_admin/models/saloon.dart';
-import 'package:totem_pro_admin/models/table.dart';
+
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
+import '../../models/tables/saloon.dart';
+import '../../models/tables/table.dart';
 import 'widgets/create_table_dialog.dart';
 
 class SaloonsAndTablesPanel extends StatefulWidget {

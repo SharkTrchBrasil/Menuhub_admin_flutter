@@ -38,7 +38,6 @@ class TableHeader extends StatelessWidget {
     }
   }
 
-  // ✅ CABEÇALHO DA TABELA PARA DESKTOP
   Widget _buildDesktopHeaderRow(BuildContext context) {
     final headerTextStyle = TextStyle(
       color: Colors.grey.shade600,
@@ -47,57 +46,60 @@ class TableHeader extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 1)),
-        color: Colors.grey.shade50,
+          color: Colors.white
       ),
       child: Row(
         children: [
-          // Checkbox de seleção
+          // Checkbox de seleção - MESMA LARGURA DO CARD
           SizedBox(
-            width: 40,
+            width: 30, // ✅ MESMO VALOR DO CARD
             child: Checkbox(
               value: isAllSelected,
               onChanged: (_) => onSelectAll(),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
+          const SizedBox(width: 16), // ✅ MESMO ESPAÇAMENTO DO CARD
 
-          // Coluna "Produto"
+          // Coluna "Produto" - MESMO FLEX DO CARD
           Expanded(
-            flex: 4,
+            flex: 3, // ✅ ALTERADO DE 2 PARA 3 (igual ao card)
             child: Text('PRODUTO', style: headerTextStyle),
           ),
 
-          // Coluna "Categoria"
+          // Coluna "Categoria" - MESMO FLEX DO CARD
           Expanded(
-            flex: 2,
+            flex: 1, // ✅ MANTIDO 1 (igual ao card)
             child: Text('CATEGORIA', style: headerTextStyle),
           ),
 
-          // Coluna "Visualizações"
+          // Coluna "Visualizações" - MESMO FLEX DO CARD
           Expanded(
-            flex: 1,
-            child: Text('VISUALIZAÇÕES',
+            flex: 1, // ✅ MANTIDO 1 (igual ao card)
+            child: Text(
+              'ESTOQUE',
               style: headerTextStyle,
               textAlign: TextAlign.center,
             ),
           ),
 
-          // Coluna "Vendas"
+          // Coluna "Vendas" - MESMO FLEX DO CARD
           Expanded(
-            flex: 1,
-            child: Text('VENDAS',
+            flex: 1, // ✅ MANTIDO 1 (igual ao card)
+            child: Text(
+              'VENDAS',
               style: headerTextStyle,
               textAlign: TextAlign.center,
             ),
           ),
 
-          // Coluna "Ações"
+          // Coluna "Ações" - MESMA LARGURA DO CARD
           SizedBox(
-            width: 100,
-            child: Text('AÇÕES',
+            width: 140, // ✅ MESMA LARGURA DO CARD
+            child: Text(
+              'AÇÕES',
               style: headerTextStyle,
               textAlign: TextAlign.center,
             ),
@@ -114,7 +116,7 @@ class TableHeader extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 6 : 16,
+     //   horizontal: isMobile ? 6 : 16,
         vertical: isMobile ? 2 : 12,
       ),
       color: Colors.white,
@@ -123,10 +125,13 @@ class TableHeader extends StatelessWidget {
           // Checkbox e contador
           Row(
             children: [
-              Checkbox(
-                value: isAllSelected,
-                onChanged: (_) => onSelectAll(),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              SizedBox(
+                width: 30,
+                child: Checkbox(
+                  value: isAllSelected,
+                  onChanged: (_) => onSelectAll(),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ),
               if (!isMobile) ...[
                 const SizedBox(width: 8),
@@ -142,7 +147,7 @@ class TableHeader extends StatelessWidget {
             ],
           ),
 
-          const Spacer(),
+       //   const Spacer(),
 
           // Ações - Layout responsivo
           if (isMobile) _buildMobileActions(context) else _buildDesktopActions(context),

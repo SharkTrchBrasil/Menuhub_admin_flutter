@@ -36,6 +36,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     showResponsiveSidePanel(
       context,
       const StoreSwitcherPanel(),
+      useHalfScreenOnDesktop: true
     );
   }
 
@@ -109,7 +110,6 @@ class _DrawerCodeState extends State<DrawerCode> {
     );
   }
 
-  // ✅ MODIFICADO: AGORA O HEADER TOGGLE O DRAWER
   Widget _buildStoreHeader(
       BuildContext context,
       bool isExpanded,
@@ -124,7 +124,6 @@ class _DrawerCodeState extends State<DrawerCode> {
           ? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0)
           : const EdgeInsets.symmetric(vertical: 20.0),
       child: InkWell(
-        // ✅ ALTERADO: Agora toggle o drawer ao invés de navegar para o hub
         onTap: () => drawerController.toggle(),
         borderRadius: BorderRadius.circular(12),
         child: isExpanded
@@ -155,7 +154,7 @@ class _DrawerCodeState extends State<DrawerCode> {
             ),
             const SizedBox(width: 12),
             // Informações da Loja
-            Expanded(
+            Expanded( // ✅ IMPORTANTE: Expanded para evitar overflow
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -210,7 +209,7 @@ class _DrawerCodeState extends State<DrawerCode> {
             ),
           ],
         )
-            : Column(
+            : Column( // ✅ Modo recolhido - usa Column ao invés de Row
           children: [
             // Avatar da Loja (modo collapsed)
             Container(

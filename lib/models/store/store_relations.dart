@@ -23,16 +23,17 @@ import 'package:totem_pro_admin/models/variant.dart';
 
 import '../billing_preview.dart';
 import '../category.dart';
-import '../command.dart';
+
 import '../coupon.dart';
 import '../customer_analytics_data.dart';
 import '../dashboard_data.dart';
 import '../dashboard_insight.dart';
 import '../products/product.dart';
 import '../products/product_analytics_data.dart';
-import '../saloon.dart';
+
 import '../subscription.dart';
-import '../table.dart';
+
+import '../tables/saloon.dart';
 
 
 

@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 
 import 'package:totem_pro_admin/pages/products/widgets/product_actions_shhet.dart';
+import 'package:totem_pro_admin/pages/products/widgets/product_image.dart';
 
 
 import '../../../core/di.dart';
@@ -60,7 +61,15 @@ class _ProductListItemMobileState extends State<ProductListItemMobile> {
             child: Row(
               children: [
                 const SizedBox(width: 10),
-                _buildDefaultImage(isAvailableInThisCategory),
+
+                ProductImage(
+
+                  imageUrl: (widget.product.images.isNotEmpty) ? widget.product.images.first.url : null,
+
+
+                ),
+
+             //   _buildDefaultImage(isAvailableInThisCategory),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

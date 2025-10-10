@@ -8,11 +8,11 @@ import 'package:rxdart/rxdart.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 
-import 'package:totem_pro_admin/models/command.dart';
+
 import 'package:totem_pro_admin/models/order_details.dart';
 
 import 'package:totem_pro_admin/models/store/store_with_role.dart';
-import 'package:totem_pro_admin/models/table.dart';
+
 
 
 import '../core/enums/connectivity_status.dart';
@@ -27,7 +27,7 @@ import '../models/print_job.dart';
 import '../models/products/prodcut_category_links.dart';
 import '../models/products/product.dart';
 import '../models/receivable_category.dart';
-import '../models/saloon.dart';
+
 import '../models/store/store.dart';
 import '../models/store/store_chatbot_config.dart';
 import '../models/store/store_payable.dart';
@@ -35,6 +35,7 @@ import '../models/store/store_receivable.dart';
 
 import '../models/supplier.dart';
 
+import '../models/tables/saloon.dart';
 import '../models/variant.dart';
 import '../services/connectivity_service.dart';
 import 'auth_repository.dart'; // Para ter acesso ao TotemAuth
@@ -865,6 +866,10 @@ class RealtimeRepository {
       _lastJoinedStoreId = null;
     }
     _socket!.emit('leave_store_room', {'store_id': storeId});
+
+    // ✅ CORREÇÃO: Remova a loja do conjunto de salas ativas.
+    _joinedStores.remove(storeId);
+
     log('[Socket] Saiu da sala da loja $storeId');
   }
 

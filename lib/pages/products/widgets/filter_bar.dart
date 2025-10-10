@@ -98,10 +98,9 @@ class _FilterBarState extends State<FilterBar> {
     final isMobile = ResponsiveBuilder.isMobile(context);
 
     return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: 16.0,
-
-      ),
+      // padding: EdgeInsets.symmetric(
+      //   vertical: 16.0,
+      // ),
       child: isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
     );
   }
@@ -114,44 +113,24 @@ class _FilterBarState extends State<FilterBar> {
           flex: 2,
           child: _buildSearchField(),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: 16),
+
         Expanded(
-          flex: 1,
+          flex: 2,
           child: _buildCategoryDropdown(),
         ),
-        const SizedBox(width: 16),
 
-
-
+        Expanded(child: const SizedBox(width: 16)),
         Expanded(
           child: DsButton(
             onPressed: widget.onAddCategory,
-
             label: 'Adicionar Categoria',
-
-
             style: DsButtonStyle.custom,
-            backgroundColor: Colors.white,      // Fundo branco
-            foregroundColor: Colors.black,      // Texto preto
-            borderColor: Colors.black
-
-            ,
-
-
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black,
+            borderColor: Colors.black,
           ),
         ),
-
-   //     const SizedBox(width: 16),
-        // IconButton(
-        //   onPressed: () {},
-        //   icon: const Icon(Icons.copy_outlined),
-        //   tooltip: 'Replicar cardápio',
-        // ),
-        // IconButton(
-        //   onPressed: () => _showReorderDialog(context, false),
-        //   icon: const Icon(Icons.sort),
-        //   tooltip: 'Reordenar',
-        // ),
       ],
     );
   }
@@ -171,62 +150,34 @@ class _FilterBarState extends State<FilterBar> {
             ),
           ],
         ),
-        // const SizedBox(height: 12),
-        // Row(
-        //   children: [
-        //     Expanded(
-        //       child: DsButton(
-        //         onPressed: widget.onAddCategory,
-        //         label: 'Adicionar Categoria',
-        //       //  isSmall: true,
-        //       ),
-        //     ),
-        //     const SizedBox(width: 8),
-        //     IconButton(
-        //       onPressed: () => _showReorderDialog(context, true),
-        //       icon: const Icon(Icons.sort),
-        //       tooltip: 'Reordenar',
-        //     ),
-        //     IconButton(
-        //       onPressed: () {},
-        //       icon: const Icon(Icons.copy_outlined),
-        //       tooltip: 'Replicar',
-        //     ),
-        //   ],
-        // ),
-        // if (widget.selectedValue != null) ...[
-        //   const SizedBox(height: 12),
-        //   Chip(
-        //     label: Text(widget.selectedValue!.name),
-        //     onDeleted: () => widget.onCategoryChanged(null),
-        //     backgroundColor: Colors.blue.shade50,
-        //   ),
-        // ],
       ],
     );
   }
 
   Widget _buildSearchField() {
-    return TextField(
-      controller: widget.searchController,
-      decoration: InputDecoration(
-        hintText: 'Buscar um item',
-        prefixIcon: const Icon(Icons.search, size: 20),
-        filled: true,
-        fillColor: Colors.grey.shade50,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 1.0),
+    return Container(
+      height: 40, // Mesma altura do dropdown
+      child: TextField(
+        controller: widget.searchController,
+        decoration: InputDecoration(
+          hintText: 'Buscar um item',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          filled: true,
+          fillColor: Colors.white,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          border: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.black, width: 1),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
         ),
       ),
     );
@@ -234,11 +185,15 @@ class _FilterBarState extends State<FilterBar> {
 
   Widget _buildCategoryDropdown() {
     return Container(
-      height: 40,
+      height: 40, // Mesma altura do search field
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Colors.white, // Fundo branco igual ao search field
         borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(
+          color: Colors.grey.shade400, // Borda cinza igual ao search field
+          width: 1.0,
+        ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<Category?>(
@@ -248,16 +203,10 @@ class _FilterBarState extends State<FilterBar> {
           icon: const Icon(Icons.keyboard_arrow_down),
           style: Theme.of(context).textTheme.bodyMedium,
           items: [
-            // 🔹 Adiciona a opção "Todas as categorias"
             const DropdownMenuItem<Category?>(
               value: null,
-              child: Text(
-                'Todas',
-
-
-              ),
+              child: Text('Todas'),
             ),
-            // 🔹 Depois lista as categorias normais
             ...widget.categories.map((Category category) {
               return DropdownMenuItem<Category?>(
                 value: category,
@@ -271,10 +220,6 @@ class _FilterBarState extends State<FilterBar> {
       ),
     );
   }
-
-
-
-
 }
 
 class _ReorderCategoriesDialog extends StatefulWidget {

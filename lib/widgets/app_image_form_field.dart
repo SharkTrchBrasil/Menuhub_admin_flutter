@@ -1,5 +1,3 @@
-// lib/widgets/app_image_form_field.dart
-
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
@@ -12,12 +10,16 @@ class AppImageFormField extends StatefulWidget {
   final String title;
   final ImageModel? initialValue;
   final ValueChanged<ImageModel?> onChanged;
+  final double? size;
+  final bool showTitle;
 
   const AppImageFormField({
     super.key,
     required this.title,
     this.initialValue,
     required this.onChanged,
+    this.size,
+    this.showTitle = true,
   });
 
   @override
@@ -71,16 +73,37 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
     widget.onChanged(null);
   }
 
+  double get _imageSize {
+    // Tamanho responsivo baseado na largura da tela
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    if (widget.size != null) return widget.size!;
+
+    if (screenWidth < 480) { // Mobile pequeno
+      return 80.0;
+    } else if (screenWidth < 768) { // Mobile grande/Tablet pequeno
+      return 90.0;
+    } else { // Desktop
+      return 100.0;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min, // IMPORTANTE: Evita overflow
       children: [
-        Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 8),
+        if (widget.showTitle) ...[
+          Text(
+            widget.title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+        ],
         SizedBox(
-          width: 100,
-          height: 100,
+          width: _imageSize,
+          height: _imageSize,
           child: _currentImage == null ||
               (_currentImage!.file == null &&
                   (_currentImage!.url == null || _currentImage!.url!.isEmpty))
@@ -92,10 +115,9 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
   }
 
   Widget _buildAddButton() {
-    const double size = 100.0;
     return SizedBox(
-      width: size,
-      height: size,
+      width: _imageSize,
+      height: _imageSize,
       child: InkWell(
         onTap: _pickAndCropImage,
         borderRadius: BorderRadius.circular(8),
@@ -105,17 +127,20 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
           ),
-          child: const Icon(Icons.add_a_photo_outlined, size: 40, color: Colors.grey),
+          child: Icon(
+              Icons.add_a_photo_outlined,
+              size: _imageSize * 0.4, // Ícone proporcional
+              color: Colors.grey
+          ),
         ),
       ),
     );
   }
 
   Widget _buildImageThumbnail() {
-    const double size = 100.0;
     return SizedBox(
-      width: size,
-      height: size,
+      width: _imageSize,
+      height: _imageSize,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -130,10 +155,18 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
             right: 4,
             child: InkWell(
               onTap: _removeImage,
+              borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                child: const Icon(Icons.close, color: Colors.white, size: 16),
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle
+                ),
+                child: Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: _imageSize * 0.16, // Ícone proporcional
+                ),
               ),
             ),
           ),
@@ -143,9 +176,7 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
   }
 
   Widget _buildImageWidget(ImageModel image) {
-    // ✅ CORREÇÃO PRINCIPAL: Verificar se o XFile contém dados em memória
     if (image.file != null) {
-      // Se for web, usar Image.network com dados base64
       if (kIsWeb) {
         return FutureBuilder<Uint8List>(
           future: image.file!.readAsBytes(),
@@ -161,9 +192,7 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
           },
         );
       } else {
-        // Para mobile/desktop, verificar se é um arquivo temporário em memória
         try {
-          // Tenta ler como arquivo primeiro
           if (File(image.file!.path).existsSync()) {
             return Image.file(
               File(image.file!.path),
@@ -171,7 +200,6 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
               errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
             );
           } else {
-            // Se o caminho não existe, pode ser um arquivo em memória
             return FutureBuilder<Uint8List>(
               future: image.file!.readAsBytes(),
               builder: (context, snapshot) {
@@ -187,7 +215,6 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
             );
           }
         } catch (e) {
-          // Fallback: tentar ler como bytes
           return FutureBuilder<Uint8List>(
             future: image.file!.readAsBytes(),
             builder: (context, snapshot) {
@@ -205,7 +232,6 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
       }
     }
 
-    // 2. Se não houver arquivo local, tenta a URL da internet
     if (image.url != null && image.url!.isNotEmpty) {
       return Image.network(
         image.url!,
@@ -218,16 +244,18 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
       );
     }
 
-    // 3. Fallback: placeholder de erro/vazio
     return _buildErrorPlaceholder();
   }
 
-  // ✅ Widgets auxiliares para estados de carregamento e erro
   Widget _buildLoadingPlaceholder() {
     return Container(
       color: Colors.grey.shade200,
-      child: const Center(
-        child: CircularProgressIndicator(strokeWidth: 2),
+      child: Center(
+        child: SizedBox(
+          width: _imageSize * 0.3,
+          height: _imageSize * 0.3,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
       ),
     );
   }
@@ -235,7 +263,11 @@ class _AppImageFormFieldState extends State<AppImageFormField> {
   Widget _buildErrorPlaceholder() {
     return Container(
       color: Colors.grey.shade200,
-      child: const Icon(Icons.broken_image, color: Colors.grey),
+      child: Icon(
+        Icons.broken_image,
+        color: Colors.grey,
+        size: _imageSize * 0.4,
+      ),
     );
   }
 }
