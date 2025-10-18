@@ -1,4 +1,4 @@
-// ARQUIVO: cubit/printer_settings_cubit.dart (Corrigido)
+// ARQUIVO: cubit/printer_settings_cubit.dart
 
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -7,17 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:printing/printing.dart';
 import 'package:permission_handler/permission_handler.dart';
-// ✅ Recomendação: Adicione esta dependência no seu pubspec.yaml para usar o 'firstWhereOrNull'
-// pubspec.yaml -> dependencies:
-//   collection: ^1.18.0
 import 'package:collection/collection.dart';
-
-
 
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
 
 import '../../../models/store/store_operation_config.dart';
+import '../../../pages/operation_configuration/cubit/operation_config_cubit.dart';
 import '../constants/print_destinations.dart';
 import '../device_settings_service.dart';
 
@@ -41,21 +37,17 @@ class PrinterSettingsState {
     this.autoPrintOrders = false,
   });
 
-  // ✅ Helper melhorado para encontrar uma impressora pelo ID de forma segura
   dynamic getPrinterById(String? printerId) {
     if (printerId == null) return null;
-    // 'firstWhereOrNull' do pacote 'collection' é a forma mais moderna e segura
     return availablePrinters.firstWhereOrNull(
           (p) => (p is BluetoothInfo ? p.macAdress : (p as Printer).url) == printerId,
     );
   }
 
-
   PrinterSettingsState copyWith({
     bool? isLoading,
     String? errorMessage,
     List<dynamic>? availablePrinters,
-    // Usaremos os parâmetros forceNull para garantir que o null seja aplicado
     bool forceNullMain = false,
     bool forceNullKitchen = false,
     bool forceNullBar = false,
@@ -78,11 +70,16 @@ class PrinterSettingsState {
 
 class PrinterSettingsCubit extends Cubit<PrinterSettingsState> {
   final StoresManagerCubit _storesManagerCubit;
+  final OperationConfigCubit _operationConfigCubit; // ✅ ADICIONAR ESTE CAMPO
   final DeviceSettingsService _deviceSettingsService;
 
-  PrinterSettingsCubit(this._storesManagerCubit, this._deviceSettingsService) : super(const PrinterSettingsState());
+  // ✅ ATUALIZAR O CONSTRUTOR
+  PrinterSettingsCubit(
+      this._storesManagerCubit,
+      this._operationConfigCubit, // ✅ ADICIONAR ESTE PARÂMETRO
+      this._deviceSettingsService,
+      ) : super(const PrinterSettingsState());
 
-  // 'initialize' continua igual
   Future<void> initialize() async {
     emit(state.copyWith(isLoading: true));
     try {
@@ -109,14 +106,24 @@ class PrinterSettingsCubit extends Cubit<PrinterSettingsState> {
     }
   }
 
-  // 'updateAutoPrint' continua similar
+  // ✅ ATUALIZADO: Agora usa o OperationConfigCubit
   Future<void> updateAutoPrint(bool newValue, int storeId) async {
-    // Para consistência, vamos usar a mesma lógica de atualização local
     emit(state.copyWith(autoPrintOrders: newValue));
-    await _storesManagerCubit.updateStoreSettings(storeId, autoPrintOrders: newValue);
+
+    final storeState = _storesManagerCubit.state;
+    if (storeState is StoresManagerLoaded) {
+      final currentConfig = storeState.stores[storeId]?.store.relations.storeOperationConfig;
+      if (currentConfig != null) {
+        await _operationConfigCubit.updatePartialSettings(
+          storeId,
+          currentConfig,
+          autoPrintOrders: newValue,
+        );
+      }
+    }
   }
 
-// 🔄 ATUALIZADO: Agora gerencia o estado do servidor E o local
+  // ✅ ATUALIZADO: Agora usa o OperationConfigCubit
   Future<void> setPrinterForDestination({
     required int storeId,
     required String destination,
@@ -124,20 +131,29 @@ class PrinterSettingsCubit extends Cubit<PrinterSettingsState> {
   }) async {
     emit(state.copyWith(isLoading: true));
     try {
+      final storeState = _storesManagerCubit.state;
+      if (storeState is! StoresManagerLoaded) {
+        throw Exception('Store state not loaded');
+      }
+
+      final currentConfig = storeState.stores[storeId]?.store.relations.storeOperationConfig;
+      if (currentConfig == null) {
+        throw Exception('Store configuration not found');
+      }
+
       // 1. Atualiza o servidor
-      await _storesManagerCubit.updateStoreSettings(
+      await _operationConfigCubit.updatePartialSettings(
         storeId,
-        // ✅ Usa as constantes para a comparação
-        mainPrinterDestination: destination == PrintDestinations.counter ? printerId : state.mainPrinterId,
-        kitchenPrinterDestination: destination == PrintDestinations.kitchen ? printerId : state.kitchenPrinterId,
-        barPrinterDestination: destination == PrintDestinations.bar ? printerId : state.barPrinterId,
+        currentConfig,
+        mainPrinterDestination: destination == PrintDestinations.counter ? printerId : currentConfig.mainPrinterDestination,
+        kitchenPrinterDestination: destination == PrintDestinations.kitchen ? printerId : currentConfig.kitchenPrinterDestination,
+        barPrinterDestination: destination == PrintDestinations.bar ? printerId : currentConfig.barPrinterDestination,
       );
 
       // 2. Atualiza a configuração LOCAL do dispositivo
       await _deviceSettingsService.addPrinterDestinationForPrinter(printerId, destination);
 
       // 3. Atualiza a UI
-      // ✅ Usa as constantes para a comparação
       if (destination == PrintDestinations.counter) {
         emit(state.copyWith(isLoading: false, mainPrinterId: printerId));
       } else if (destination == PrintDestinations.kitchen) {
@@ -145,35 +161,42 @@ class PrinterSettingsCubit extends Cubit<PrinterSettingsState> {
       } else if (destination == PrintDestinations.bar) {
         emit(state.copyWith(isLoading: false, barPrinterId: printerId));
       }
-
-    } catch(e) {
+    } catch (e) {
       emit(state.copyWith(isLoading: false, errorMessage: "Falha ao definir impressora."));
       await initialize();
     }
   }
 
-// 🔄 ATUALIZADO: Agora gerencia o estado do servidor E o local
+  // ✅ ATUALIZADO: Agora usa o OperationConfigCubit
   Future<void> clearPrinterForDestination({
     required int storeId,
     required String destination,
   }) async {
     emit(state.copyWith(isLoading: true));
 
-    // Precisamos saber qual printer ID está sendo removido para limpar a configuração local
     String? printerIdToRemove;
-    // ✅ Usa as constantes para a comparação
     if (destination == PrintDestinations.counter) printerIdToRemove = state.mainPrinterId;
     if (destination == PrintDestinations.kitchen) printerIdToRemove = state.kitchenPrinterId;
     if (destination == PrintDestinations.bar) printerIdToRemove = state.barPrinterId;
 
     try {
+      final storeState = _storesManagerCubit.state;
+      if (storeState is! StoresManagerLoaded) {
+        throw Exception('Store state not loaded');
+      }
+
+      final currentConfig = storeState.stores[storeId]?.store.relations.storeOperationConfig;
+      if (currentConfig == null) {
+        throw Exception('Store configuration not found');
+      }
+
       // 1. Atualiza o servidor
-      await _storesManagerCubit.updateStoreSettings(
+      await _operationConfigCubit.updatePartialSettings(
         storeId,
-        // ✅ Usa as constantes para a comparação
-        mainPrinterDestination: destination == PrintDestinations.counter ? null : state.mainPrinterId,
-        kitchenPrinterDestination: destination == PrintDestinations.kitchen ? null : state.kitchenPrinterId,
-        barPrinterDestination: destination == PrintDestinations.bar ? null : state.barPrinterId,
+        currentConfig,
+        mainPrinterDestination: destination == PrintDestinations.counter ? null : currentConfig.mainPrinterDestination,
+        kitchenPrinterDestination: destination == PrintDestinations.kitchen ? null : currentConfig.kitchenPrinterDestination,
+        barPrinterDestination: destination == PrintDestinations.bar ? null : currentConfig.barPrinterDestination,
       );
 
       // 2. Limpa a configuração LOCAL do dispositivo
@@ -182,7 +205,6 @@ class PrinterSettingsCubit extends Cubit<PrinterSettingsState> {
       }
 
       // 3. Atualiza a UI
-      // ✅ Usa as constantes para a comparação
       if (destination == PrintDestinations.counter) {
         emit(state.copyWith(isLoading: false, forceNullMain: true));
       } else if (destination == PrintDestinations.kitchen) {
@@ -190,17 +212,16 @@ class PrinterSettingsCubit extends Cubit<PrinterSettingsState> {
       } else if (destination == PrintDestinations.bar) {
         emit(state.copyWith(isLoading: false, forceNullBar: true));
       }
-
-    } catch(e) {
+    } catch (e) {
       emit(state.copyWith(isLoading: false, errorMessage: "Falha ao limpar impressora."));
       await initialize();
     }
   }
 
-  // Funções de busca de impressoras (sem alteração)
   Future<List<BluetoothInfo>> _fetchBluetoothPrinters() async {
     if (kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux) return [];
-    if (!await Permission.bluetoothScan.request().isGranted || !await Permission.bluetoothConnect.request().isGranted) return [];
+    if (!await Permission.bluetoothScan.request().isGranted ||
+        !await Permission.bluetoothConnect.request().isGranted) return [];
     return PrintBluetoothThermal.pairedBluetooths;
   }
 

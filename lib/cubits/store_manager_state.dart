@@ -8,6 +8,7 @@ import '../core/enums/connectivity_status.dart';
 import '../models/chatbot_conversation.dart';
 import '../models/dashboard_data.dart';
 import '../models/holiday.dart';
+import '../models/tables/command.dart';
 
 abstract class StoresManagerState extends Equatable {
   const StoresManagerState();
@@ -42,6 +43,7 @@ class StoresManagerLoaded extends StoresManagerState {
   final ConnectivityStatus connectivityStatus;
   final Set<int> stuckOrderIds;
   final List<ChatbotConversation> conversations;
+  final List<Command> standaloneCommands;
 
 
 
@@ -56,6 +58,7 @@ class StoresManagerLoaded extends StoresManagerState {
     this.connectivityStatus = ConnectivityStatus.connected,
     this.stuckOrderIds = const {},
     this.conversations = const [],
+    this.standaloneCommands = const [],
 
   });
 
@@ -83,6 +86,7 @@ class StoresManagerLoaded extends StoresManagerState {
     ConnectivityStatus? connectivityStatus,
     Set<int>? stuckOrderIds,
     List<ChatbotConversation>? conversations,
+    List<Command>? standaloneCommands,
 
   }) {
     return StoresManagerLoaded(
@@ -96,6 +100,7 @@ class StoresManagerLoaded extends StoresManagerState {
       connectivityStatus: connectivityStatus ?? this.connectivityStatus,
       stuckOrderIds: stuckOrderIds ?? this.stuckOrderIds,
       conversations: conversations ?? this.conversations,
+      standaloneCommands: standaloneCommands ?? this.standaloneCommands,
 
     );
   }
@@ -111,6 +116,7 @@ class StoresManagerLoaded extends StoresManagerState {
     lastUpdate,
     connectivityStatus,
     conversations,
+    standaloneCommands,
 
   ];
 }

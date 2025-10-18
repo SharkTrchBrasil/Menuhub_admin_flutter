@@ -1,7 +1,13 @@
+// Em: widgets/store_settings_side_panel.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
+
+import 'package:totem_pro_admin/models/store/store_operation_config.dart';
+
+import '../../operation_configuration/cubit/operation_config_cubit.dart';
 
 class StoreSettingsSidePanel extends StatelessWidget {
   final int storeId;
@@ -21,14 +27,18 @@ class StoreSettingsSidePanel extends StatelessWidget {
         color: Theme.of(context).scaffoldBackgroundColor,
         elevation: 16,
         shadowColor: Colors.black.withOpacity(0.2),
-        borderRadius: isMobile ? null : const BorderRadius.only(
+        borderRadius: isMobile
+            ? null
+            : const BorderRadius.only(
           topLeft: Radius.circular(20),
           bottomLeft: Radius.circular(20),
         ),
         child: Container(
           width: panelWidth,
           height: MediaQuery.of(context).size.height,
-          decoration: isMobile ? null : BoxDecoration(
+          decoration: isMobile
+              ? null
+              : BoxDecoration(
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(20),
               bottomLeft: Radius.circular(20),
@@ -41,15 +51,9 @@ class StoreSettingsSidePanel extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-
     return Column(
       children: [
-        // Header
         _buildHeader(context),
-
-        // Content
         Expanded(
           child: BlocBuilder<StoresManagerCubit, StoresManagerState>(
             builder: (context, state) {
@@ -99,7 +103,11 @@ class StoreSettingsSidePanel extends StatelessWidget {
               Text(
                 'Gerencie as operações da loja',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
+                  color: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.color
+                      ?.withOpacity(0.6),
                 ),
               ),
             ],
@@ -107,11 +115,9 @@ class StoreSettingsSidePanel extends StatelessWidget {
           IconButton(
             icon: Container(
               padding: const EdgeInsets.all(4),
-
-              child: Icon(
+              child: const Icon(
                 Icons.close,
                 size: 20,
-
               ),
             ),
             onPressed: () => Navigator.of(context).pop(),
@@ -121,23 +127,30 @@ class StoreSettingsSidePanel extends StatelessWidget {
     );
   }
 
-
-
-  Widget _buildSettingsList(BuildContext context, dynamic settings, int storeId) {
+  Widget _buildSettingsList(
+      BuildContext context,
+      StoreOperationConfig settings, // ✅ Tipagem correta
+      int storeId,
+      ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: ListView(
         physics: const BouncingScrollPhysics(),
         children: [
           _buildSectionHeader('Operações da Loja', context),
+
+          // ✅ CORREÇÃO: Passa os parâmetros corretos
           _buildSettingItem(
             context: context,
             title: 'Fechar temporariamente',
             description: 'Interrompe completamente o funcionamento da loja',
             icon: Icons.store_mall_directory_outlined,
             value: !settings.isStoreOpen,
-            onChanged: (_) => context.read<StoresManagerCubit>()
-                .updateStoreSettings(storeId, isStoreOpen: !settings.isStoreOpen),
+            onChanged: (_) => context.read<OperationConfigCubit>().updatePartialSettings(
+              storeId,
+              settings, // ✅ Passa a configuração atual
+              isStoreOpen: !settings.isStoreOpen, // ✅ Inverte apenas este campo
+            ),
             isCritical: true,
           ),
 
@@ -148,8 +161,11 @@ class StoreSettingsSidePanel extends StatelessWidget {
             description: 'Desativa a opção de entrega para novos pedidos',
             icon: Icons.delivery_dining_outlined,
             value: !settings.deliveryEnabled,
-            onChanged: (_) => context.read<StoresManagerCubit>()
-                .updateStoreSettings(storeId, deliveryEnabled: !settings.deliveryEnabled),
+            onChanged: (_) => context.read<OperationConfigCubit>().updatePartialSettings(
+              storeId,
+              settings,
+              deliveryEnabled: !settings.deliveryEnabled,
+            ),
           ),
           _buildSettingItem(
             context: context,
@@ -157,8 +173,11 @@ class StoreSettingsSidePanel extends StatelessWidget {
             description: 'Desativa a opção de retirada no local',
             icon: Icons.shopping_bag_outlined,
             value: !settings.pickupEnabled,
-            onChanged: (_) => context.read<StoresManagerCubit>()
-                .updateStoreSettings(storeId, pickupEnabled: !settings.pickupEnabled),
+            onChanged: (_) => context.read<OperationConfigCubit>().updatePartialSettings(
+              storeId,
+              settings,
+              pickupEnabled: !settings.pickupEnabled,
+            ),
           ),
           _buildSettingItem(
             context: context,
@@ -166,8 +185,11 @@ class StoreSettingsSidePanel extends StatelessWidget {
             description: 'Desativa o recebimento de pedidos feitos na mesa',
             icon: Icons.restaurant_menu_outlined,
             value: !settings.tableEnabled,
-            onChanged: (_) => context.read<StoresManagerCubit>()
-                .updateStoreSettings(storeId, tableEnabled: !settings.tableEnabled),
+            onChanged: (_) => context.read<OperationConfigCubit>().updatePartialSettings(
+              storeId,
+              settings,
+              tableEnabled: !settings.tableEnabled,
+            ),
           ),
 
           _buildSectionHeader('Automação', context),
@@ -177,8 +199,11 @@ class StoreSettingsSidePanel extends StatelessWidget {
             description: "Novos pedidos mudam para 'Em preparo' sem ação manual",
             icon: Icons.auto_awesome_motion_outlined,
             value: settings.autoAcceptOrders,
-            onChanged: (_) => context.read<StoresManagerCubit>()
-                .updateStoreSettings(storeId, autoAcceptOrders: !settings.autoAcceptOrders),
+            onChanged: (_) => context.read<OperationConfigCubit>().updatePartialSettings(
+              storeId,
+              settings,
+              autoAcceptOrders: !settings.autoAcceptOrders,
+            ),
           ),
           _buildSettingItem(
             context: context,
@@ -186,15 +211,16 @@ class StoreSettingsSidePanel extends StatelessWidget {
             description: 'Envia novos pedidos para a impressora principal',
             icon: Icons.print_outlined,
             value: settings.autoPrintOrders,
-            onChanged: (_) => context.read<StoresManagerCubit>()
-                .updateStoreSettings(storeId, autoPrintOrders: !settings.autoPrintOrders),
+            onChanged: (_) => context.read<OperationConfigCubit>().updatePartialSettings(
+              storeId,
+              settings,
+              autoPrintOrders: !settings.autoPrintOrders,
+            ),
           ),
         ],
       ),
     );
   }
-
-
 
   Widget _buildSectionHeader(String title, BuildContext context) {
     return Padding(
@@ -203,7 +229,11 @@ class StoreSettingsSidePanel extends StatelessWidget {
         title,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
           fontWeight: FontWeight.w600,
-          color: Theme.of(context).textTheme.titleSmall?.color?.withOpacity(0.8),
+          color: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.color
+              ?.withOpacity(0.8),
           letterSpacing: 0.5,
         ),
       ),
@@ -256,7 +286,6 @@ class StoreSettingsSidePanel extends StatelessWidget {
           title,
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w500,
-
           ),
         ),
         subtitle: Padding(
@@ -264,7 +293,6 @@ class StoreSettingsSidePanel extends StatelessWidget {
           child: Text(
             description,
             style: theme.textTheme.bodySmall?.copyWith(
-
               height: 1.4,
             ),
           ),
@@ -274,8 +302,6 @@ class StoreSettingsSidePanel extends StatelessWidget {
           child: Switch(
             value: value,
             onChanged: onChanged,
-
-
           ),
         ),
         minLeadingWidth: 0,

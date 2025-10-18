@@ -3,10 +3,10 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:bloc/bloc.dart';
-import 'package:rxdart/rxdart.dart';
+
 import 'package:totem_pro_admin/models/store/store_with_role.dart';
 import 'package:totem_pro_admin/repositories/realtime_repository.dart';
-import 'package:totem_pro_admin/repositories/store_operation_config_repository.dart';
+
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 
@@ -29,66 +29,60 @@ import '../models/products/product_analytics_data.dart';
 import '../models/store/store.dart';
 
 import '../models/store/store_city.dart';
-import '../models/store/store_hour.dart';
-import '../models/store/store_operation_config.dart';
-import '../models/subscription.dart';
 
+import '../models/subscription/subscription.dart';
+
+import '../models/tables/command.dart';
 import '../models/tables/saloon.dart';
 import '../models/variant.dart';
-import '../pages/edit_settings/hours/widgets/add_shift_dialog.dart';
-import '../pages/edit_settings/hours/widgets/edit_shift_dialog.dart';
+
 import '../repositories/payment_method_repository.dart';
-import '../repositories/product_repository.dart';
+
 import '../widgets/app_toasts.dart' as AppToasts;
-import 'auth_cubit.dart';
+
 
 class StoresManagerCubit extends Cubit<StoresManagerState> {
   final StoreRepository _storeRepository;
   final RealtimeRepository _realtimeRepository;
 
   final PaymentMethodRepository _paymentRepository;
-  final ProductRepository _productRepository; //
-  // ✅ 1. Adicione o novo repositório
-  final StoreOperationConfigRepository _storeOperationConfigRepository;
+
 
   StreamSubscription? _adminStoresListSubscription;
   StreamSubscription? _notificationSubscription;
-
-
-  StreamSubscription? _storeDetailsSubscription;
-  StreamSubscription? _dashboardDataSubscription;
-  StreamSubscription? _financialsSubscription;
   StreamSubscription? _connectivitySubscription;
-  StreamSubscription? _fullMenuSubscription;
-
-
-  StreamSubscription? _tablesSubscription;
-  StreamSubscription? _commandsSubscription;
-  StreamSubscription?  _saloonsSubscription;
-
-// 1. Adicione uma nova StreamSubscription no topo da classe
   StreamSubscription? _stuckOrderAlertSubscription;
   StreamSubscription? _conversationsSubscription;
-  StreamSubscription? _subscriptionErrorSubscription; // ✅ 1. Adicione a nova subscription
+  StreamSubscription? _subscriptionErrorSubscription;
   StreamSubscription? _userHasNoStoresSubscription;
+
+  StreamSubscription? _activeStoreDataSubscription;
 
 
   Completer<void>? _initialLoadCompleter;
+
+  Map<int, StreamSubscription> _menuSubscriptions = {};
+  Map<int, StreamSubscription> _detailsSubscriptions = {};
+  Map<int, StreamSubscription> _dashboardSubscriptions = {};
+  Map<int, StreamSubscription> _financialsSubscriptions = {};
+  Map<int, StreamSubscription> _saloonsSubscriptions = {};
+  Map<int, StreamSubscription> _standaloneCommandsSubscriptions = {};
+
+// ✅ ADICIONE ESTA LINHA
+  List<Command>? _pendingStandaloneCommands;
+
 
 
   StoresManagerCubit({
     required StoreRepository storeRepository,
     required RealtimeRepository realtimeRepository,
     required PaymentMethodRepository paymentRepository,
-    required ProductRepository productRepository,
-    // ✅ 2. Injete o novo repositório no construtor
-    required StoreOperationConfigRepository storeOperationConfigRepository,
-  }) : _storeRepository = storeRepository,
+
+  })
+      : _storeRepository = storeRepository,
         _realtimeRepository = realtimeRepository,
         _paymentRepository = paymentRepository,
-        _productRepository = productRepository,
-  // ✅ 3. Atribua a variável da classe
-        _storeOperationConfigRepository = storeOperationConfigRepository,
+
 
         super(const StoresManagerInitial()) {}
 
@@ -97,65 +91,84 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-
   Future<void> loadInitialData() async {
-    // Previne múltiplas execuções.
-    if (state is StoresManagerLoading || state is StoresManagerSynchronizing) return;
+    if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+      log('[CUBIT] loadInitialData já está em andamento. Aguardando...');
+      return _initialLoadCompleter!.future;
+    }
+    if (state is StoresManagerLoading || state is StoresManagerSynchronizing) {
+      log('[CUBIT] loadInitialData chamado, mas o estado já é Loading/Synchronizing.');
+      return _initialLoadCompleter?.future;
+    }
+
+    _initialLoadCompleter = Completer<void>();
 
     log('[CUBIT] Orchestrating initial data load...');
     emit(const StoresManagerLoading());
 
     try {
-      // 1. Garante que o socket esteja pronto.
       await _waitForSocketConnection();
 
-      // 2. Inicia os listeners para não perder nenhum evento.
       if (_adminStoresListSubscription == null) {
         _startRealtimeListeners();
       }
 
-      // 3. Busca a lista inicial de lojas via HTTP.
+      // 1. Busca os dados básicos de TODAS as lojas via HTTP
       final result = await _storeRepository.getStores();
 
       await result.fold(
             (failure) {
-          log('❌ [CUBIT] Failed to load initial stores via HTTP: {failure.message}');
+          log('❌ [CUBIT] Failed to load initial stores via HTTP: ');
           emit(const StoresManagerError(message: 'Não foi possível carregar suas lojas.'));
+          if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
         },
             (stores) async {
           final validStores = stores.where((s) => s.store.core.id != null).toList();
 
           if (validStores.isEmpty) {
-            log("🔵 [CUBIT] HTTP load complete: No stores found. Emitting StoresManagerEmpty.");
+            log("🔵 [CUBIT] No stores found. Emitting StoresManagerEmpty.");
             emit(const StoresManagerEmpty());
+            if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
             return;
           }
 
-          // 4. Prepara para a sincronização.
-          final firstStoreId = validStores.first.store.core.id!;
+          // 2. Cria o mapa com os dados básicos (já incluem subscription!)
           final storesMap = {for (var s in validStores) s.store.core.id!: s};
+          final firstStoreId = validStores.first.store.core.id!;
 
-          log("✅ [CUBIT] HTTP load complete. Emitting StoresManagerSynchronizing for store ID: $firstStoreId.");
+          log("✅ [CUBIT] HTTP load complete with ${validStores.length} stores.");
+          log("📋 [CUBIT] Todas as lojas têm dados básicos (nome, endereço, subscription).");
+          log("🔄 [CUBIT] Iniciando carregamento dos dados operacionais da loja $firstStoreId...");
 
-          // 5. Emite o estado de sincronização. A UI mostrará o loading.
+          // 3. Emite um estado temporário com dados básicos
           emit(StoresManagerSynchronizing(
             stores: storesMap,
             activeStoreId: firstStoreId,
           ));
 
-          // 6. Entra na sala da loja para receber os dados detalhados.
-          // O listener `_onFullMenuUpdated` será o responsável por emitir `StoresManagerLoaded`.
+          // 4. Entra na sala da PRIMEIRA loja para carregar dados operacionais
           await _realtimeRepository.joinStoreRoom(firstStoreId);
-          log("✅ [CUBIT] Joined WebSocket room for store ID: $firstStoreId. Waiting for full data sync...");
+          log("✅ [CUBIT] Joined WebSocket room for store ID: $firstStoreId. Aguardando dados operacionais...");
+
+          // 5. O completer será finalizado quando _onFullMenuUpdated for chamado
+          // (isso já está implementado corretamente)
         },
       );
-    } catch (e) {
-      log('❌ [CUBIT] Critical error during initial data load: $e');
+    } catch (e, st) {
+      log('❌ [CUBIT] Critical error during initial data load: $e', stackTrace: st);
       emit(const StoresManagerError(message: 'Falha na conexão com o servidor. Tente novamente.'));
+      if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+        _initialLoadCompleter!.completeError(e, st);
+      }
     }
+
+    return _initialLoadCompleter!.future;
   }
 
-// ✅ NOVO MÉTODO: Aguarda conexão WebSocket
+
+
+
+
   Future<void> _waitForSocketConnection() async {
     final realtimeRepo = _realtimeRepository;
     int attempts = 0;
@@ -176,19 +189,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     throw TimeoutException('WebSocket connection timeout after $maxAttempts attempts');
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -216,16 +216,15 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-// ATUALIZE o método _startRealtimeListeners para ser mais defensivo:
   void _startRealtimeListeners() {
-    // Cancel any previous subscriptions to avoid duplicates
-    _cancelSubscriptions();
+    // ❌ REMOVA ESTA LINHA (ela cancela listeners que ainda não foram criados)
+    // _cancelSubscriptions();
 
-    // Verifica se o cubit ainda está ativo antes de criar listeners
     if (isClosed) {
       log('[StoresManagerCubit] Tentativa de criar listeners em Cubit fechado. Abortando.');
       return;
     }
+    log('[CUBIT] Iniciando listeners de tempo real...');
 
     // Listeners que não dependem de uma loja ativa
     _adminStoresListSubscription = _realtimeRepository.onAdminStoresList
@@ -259,8 +258,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     _userHasNoStoresSubscription = _realtimeRepository.onUserHasNoStores
         .where((_) => _canProcessEvents)
         .listen((_) {
-      if (state is StoresManagerLoading) {
-        log("🔵 [CUBIT] 'user_has_no_stores' event received during initial load. Ignoring.");
+      if (state is StoresManagerLoading || state is StoresManagerSynchronizing) {
+        log("🔵 [CUBIT] 'user_has_no_stores' event received during load. Finalizing.");
+        emit(const StoresManagerEmpty());
+        if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+          _initialLoadCompleter!.complete();
+        }
         return;
       }
 
@@ -272,9 +275,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     _listenToActiveStoreData();
   }
-
-
-
 
 
   void _onSubscriptionError(Map<String, dynamic> errorPayload) {
@@ -419,62 +419,130 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     }
   }
 
-// Em: cubits/store_manager_cubit.dart
+
 
   void _listenToActiveStoreData() {
-    // Cancela todas as inscrições antigas para evitar duplicatas
-    _storeDetailsSubscription?.cancel();
-    _dashboardDataSubscription?.cancel();
-    _financialsSubscription?.cancel();
-    _fullMenuSubscription?.cancel();
-    _saloonsSubscription?.cancel();
+    _activeStoreDataSubscription?.cancel();
 
-    // ✅ CORREÇÃO CRÍTICA AQUI:
-    // Agora criamos um stream que reage a QUALQUER estado que tenha um 'activeStoreId'.
-    // Usamos `where` para filtrar os estados e `map` para extrair o ID.
-    final activeStoreIdStream = stream.where((state) {
-      // Só nos interessam estados que têm uma loja ativa
-      return state is StoresManagerLoaded || state is StoresManagerSynchronizing;
-    }).map((state) {
-      // Extrai o ID da loja ativa, não importa o tipo do estado
-      if (state is StoresManagerLoaded) {
-        return state.activeStoreId;
-      }
-      if (state is StoresManagerSynchronizing) {
-        return state.activeStoreId;
-      }
-      return -1; // Valor sentinela, nunca deve acontecer por causa do 'where'
-    }).distinct(); // distinct() garante que não vamos nos reinscrever para o mesmo ID
-
-    // O resto do código permanece o mesmo, mas agora ele funcionará corretamente.
-
-    // Usa o stream do ID da loja para ligar/desligar os listeners de dados
-    _storeDetailsSubscription = activeStoreIdStream
-        .switchMap((_) => _realtimeRepository.onStoreDetailsUpdated)
-        .listen(_onStoreDetailsUpdated);
-
-    _dashboardDataSubscription = activeStoreIdStream
-        .switchMap((_) => _realtimeRepository.onDashboardDataUpdated)
-        .listen(_onDashboardDataUpdated);
-
-    _financialsSubscription = activeStoreIdStream
-        .switchMap((_) => _realtimeRepository.onFinancialsUpdated)
-        .listen(_onFinancialsDataReceived);
-
-    _fullMenuSubscription = activeStoreIdStream
-        .switchMap((storeId) {
-      log("🔄 [CUBIT] Trocando inscrição do MENU COMPLETO para a loja ID: $storeId");
-      return _realtimeRepository.listenToFullMenu(storeId);
+    _activeStoreDataSubscription = stream
+        .where((state) => state is StoresManagerLoaded || state is StoresManagerSynchronizing)
+        .map((state) {
+      if (state is StoresManagerLoaded) return state.activeStoreId;
+      if (state is StoresManagerSynchronizing) return state.activeStoreId;
+      return -1;
     })
-        .listen(_onFullMenuUpdated);
+        .distinct()
+        .listen((storeId) {
+      if (isClosed) return;
 
-    _saloonsSubscription = activeStoreIdStream
-        .switchMap((storeId) => _realtimeRepository.listenToSaloons(storeId))
-        .listen(_onSaloonsUpdated);
+      // ✅ CORREÇÃO: Cancela listeners ANTES de criar novos
+      _cancelStoreSpecificListeners();
+
+      if (storeId == -1) {
+        log("🔄 [CUBIT] Nenhuma loja ativa. Nenhum listener de dados ativo.");
+        return;
+      }
+
+      log("🔄 [CUBIT] Trocando listeners de dados para a loja ID: $storeId");
+
+      // ✅ AGUARDA um microtask ANTES de criar os listeners
+      Future.microtask(() {
+        if (isClosed) return;
+
+        log("🎧 [CUBIT] Criando listeners para loja $storeId...");
+
+        // Cria listeners individuais para a nova loja
+        _menuSubscriptions[storeId] = _realtimeRepository.listenToFullMenu(storeId).listen((data) {
+          if (isClosed) return;
+          log("🎯 [CUBIT] FullMenuData recebido do stream para loja $storeId! Processando...");
+          _onFullMenuUpdated(data);
+        }, onError: (e, st) {
+          log("❌ [CUBIT] Erro no stream de menu: $e", stackTrace: st);
+        });
+
+        _detailsSubscriptions[storeId] = _realtimeRepository.onStoreDetailsUpdated.listen((data) {
+          if (isClosed || data == null || data.core.id != storeId) return;
+          log("➡️ [CUBIT] Evento de dados da loja ativa recebido: details");
+          _onStoreDetailsUpdated(data);
+        });
+
+        _dashboardSubscriptions[storeId] = _realtimeRepository.onDashboardDataUpdated.listen((data) {
+          if (isClosed || data == null) return;
+          log("➡️ [CUBIT] Evento de dados da loja ativa recebido: dashboard");
+          _onDashboardDataUpdated(data);
+        });
+
+        _financialsSubscriptions[storeId] = _realtimeRepository.onFinancialsUpdated.listen((data) {
+          if (isClosed || data == null) return;
+          log("➡️ [CUBIT] Evento de dados da loja ativa recebido: financials");
+          _onFinancialsDataReceived(data);
+        });
+
+        _saloonsSubscriptions[storeId] = _realtimeRepository.listenToSaloons(storeId).listen((data) {
+          if (isClosed) return;
+          log("➡️ [CUBIT] Evento de dados da loja ativa recebido: saloons");
+          _onSaloonsUpdated(data);
+        });
 
 
+
+
+        _standaloneCommandsSubscriptions[storeId] = _realtimeRepository
+            .listenToStandaloneCommands(storeId)
+            .listen((commands) {
+          if (isClosed) return;
+          print("🔥🔥🔥 [CUBIT] Listener de comandas disparado!"); // ✅ ADICIONE
+          log("➡️ [CUBIT] Comandas avulsas recebidas: ${commands.length}");
+          _onStandaloneCommandsUpdated(commands);
+        });
+
+        print('🔥🔥🔥 [CUBIT] Listener de comandas CRIADO para loja $storeId'); // ✅ ADICIONE
+
+
+        log("🎧 [CUBIT] ✅ Todos os listeners configurados para loja $storeId");
+      });
+    }, onError: (e, st) {
+      log("❌ [CUBIT] Erro no stream principal: $e", stackTrace: st);
+    });
   }
 
+
+
+
+
+
+  void _cancelStoreSpecificListeners() {
+    for (var sub in _menuSubscriptions.values) {
+      sub.cancel();
+    }
+    _menuSubscriptions.clear();
+
+    for (var sub in _detailsSubscriptions.values) {
+      sub.cancel();
+    }
+    _detailsSubscriptions.clear();
+
+    for (var sub in _dashboardSubscriptions.values) {
+      sub.cancel();
+    }
+    _dashboardSubscriptions.clear();
+
+    for (var sub in _financialsSubscriptions.values) {
+      sub.cancel();
+    }
+    _financialsSubscriptions.clear();
+
+    for (var sub in _saloonsSubscriptions.values) {
+      sub.cancel();
+    }
+    _saloonsSubscriptions.clear();
+
+    // ✅ ADICIONE ESTE BLOCO
+    for (var sub in _standaloneCommandsSubscriptions.values) {
+      sub.cancel();
+    }
+    _standaloneCommandsSubscriptions.clear();
+  }
 
 
   void _onFinancialsDataReceived(FinancialsData? financialsData) {
@@ -529,11 +597,11 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     final currentState = state;
 
-    // Função interna para aplicar a atualização, evitando repetição de código
     StoreWithRole applyUpdate(StoreWithRole original, Store details) {
       final currentRelations = original.store.relations;
+
+      // ✅ CORREÇÃO: Preserva a subscription do HTTP se o socket não enviar uma
       final newRelations = currentRelations.copyWith(
-        // Atualiza apenas os campos que vêm neste evento
         paymentMethodGroups: details.relations.paymentMethodGroups,
         coupons: details.relations.coupons,
         scheduledPauses: details.relations.scheduledPauses,
@@ -542,8 +610,11 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
         storeOperationConfig: details.relations.storeOperationConfig,
         chatbotMessages: details.relations.chatbotMessages,
         chatbotConfig: details.relations.chatbotConfig,
-        subscription: details.relations.subscription, // <-- O mais importante!
+        // ✅ CORREÇÃO CRÍTICA: Só atualiza subscription se vier do socket
+        // Se vier null/vazio, mantém a que veio do HTTP
+        subscription: details.relations.subscription ?? currentRelations.subscription,
       );
+
       final newStore = original.store.copyWith(
         core: details.core,
         address: details.address,
@@ -555,7 +626,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       return original.copyWith(store: newStore);
     }
 
-    // CASO 1: O app já está totalmente carregado.
     if (currentState is StoresManagerLoaded) {
       log("🔄 [CUBIT] Updating active store details on a loaded state.");
       final activeStore = currentState.activeStoreWithRole;
@@ -565,7 +635,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
         ..[currentState.activeStoreId] = updatedActiveStore;
       emit(currentState.copyWith(stores: newStoresMap));
     }
-    // CASO 2: O app está na fase de sincronização.
     else if (currentState is StoresManagerSynchronizing) {
       log("🔄 [CUBIT] Updating store details during synchronization phase.");
       final activeStore = currentState.stores[currentState.activeStoreId];
@@ -573,17 +642,12 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       final updatedActiveStore = applyUpdate(activeStore, updatedStoreDetails);
       final newStoresMap = Map<int, StoreWithRole>.from(currentState.stores)
         ..[currentState.activeStoreId] = updatedActiveStore;
-      // Emite um novo estado de Sincronização, mas com os dados atualizados.
       emit(StoresManagerSynchronizing(
         stores: newStoresMap,
         activeStoreId: currentState.activeStoreId,
       ));
     }
   }
-
-
-
-// Em: cubits/store_manager_cubit.dart
 
   void _onSaloonsUpdated(List<Saloon> saloons) {
     if (isClosed) return;
@@ -627,13 +691,31 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   }
 
 
+  void _onStandaloneCommandsUpdated(List<Command> commands) {
+    if (isClosed) return;
+    final currentState = state;
 
+    print('🔥🔥🔥 [CUBIT] _onStandaloneCommandsUpdated chamado!');
+    print('🔥🔥🔥 [CUBIT] Comandas recebidas: ${commands.length}');
+    for (var cmd in commands) {
+      print('  - Comanda ID ${cmd.id}: ${cmd.customerName}');
+    }
 
+    // ✅ CORREÇÃO: Atualiza TANTO em Synchronizing QUANTO em Loaded
+    if (currentState is StoresManagerLoaded) {
+      log("🔄 [CUBIT] Atualizando ${commands.length} comandas avulsas (Loaded).");
+      emit(currentState.copyWith(standaloneCommands: commands));
+    }
+    else if (currentState is StoresManagerSynchronizing) {
+      log("🔄 [CUBIT] Atualizando ${commands.length} comandas durante sincronização.");
 
-
-
-
-
+      // ✅ NOVO: Guarda as comandas para quando transicionar para Loaded
+      // Não podemos emitir agora porque vai perder na transição
+      // Então guardamos temporariamente e aplicamos em _onFullMenuUpdated
+      _pendingStandaloneCommands = commands;
+      print('🔥🔥🔥 [CUBIT] Comandas guardadas para aplicar em Loaded');
+    }
+  }
 
 
   void _onDashboardDataUpdated(Map<String, dynamic>? dashboardPayload) {
@@ -827,127 +909,57 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     }
   }
 
+
+
+
+
   Future<void> changeActiveStore(int newStoreId) async {
     if (isClosed) return;
     final currentState = state;
 
     if (currentState is StoresManagerLoaded) {
-      if (currentState.activeStoreId == newStoreId) return;
+      if (currentState.activeStoreId == newStoreId) {
+        log('[CUBIT] Store $newStoreId já é a ativa. Ignorando troca.');
+        return;
+      }
 
       final previousStoreId = currentState.activeStoreId;
+      log('[CUBIT] 🔄 Trocando loja ativa: $previousStoreId → $newStoreId');
 
-      await _realtimeRepository.leaveStoreRoom(previousStoreId);
-      await _realtimeRepository.joinStoreRoom(newStoreId);
+      try {
+        // ✅ PASSO 1: Sair da sala antiga
+        log('[CUBIT] Saindo da sala da loja $previousStoreId...');
+        await _realtimeRepository.leaveStoreRoom(previousStoreId);
 
-      _realtimeRepository.clearNotificationsForStore(newStoreId);
+        // ✅ PASSO 2: Limpar notificações
+        _realtimeRepository.clearNotificationsForStore(newStoreId);
 
-      final newNotificationCounts = Map<int, int>.from(
-        currentState.notificationCounts,
-      );
-      newNotificationCounts.remove(newStoreId);
+        // ✅ PASSO 3: Limpar dados antigos dos BehaviorSubjects
+        log('[CUBIT] Limpando dados antigos dos streams...');
+        _realtimeRepository.clearStoreData(newStoreId);
 
-      emit(
-        currentState.copyWith(
-          activeStoreId: newStoreId,
-          notificationCounts: newNotificationCounts,
-        ),
-      );
-    }
-  }
+        // ✅ PASSO 4: Emitir estado (isso dispara _listenToActiveStoreData que cria os listeners)
+        final newNotificationCounts = Map<int, int>.from(currentState.notificationCounts);
+        newNotificationCounts.remove(newStoreId);
 
-  // ✅ 4. SUBSTITUA O MÉTODO INTEIRO PELA VERSÃO CORRIGIDA
-  Future<void> updateStoreSettings(
-      int storeId, {
-        bool? deliveryEnabled,
-        bool? pickupEnabled,
-        bool? tableEnabled,
-        bool? isStoreOpen,
-        bool? autoAcceptOrders,
-        bool? autoPrintOrders,
-        String? mainPrinterDestination,
-        String? kitchenPrinterDestination,
-        String? barPrinterDestination,
-      }) async {
-    // Mantém a atualização otimista
-    StoreOperationConfig? originalConfig;
-    _updateActiveStore((_, activeStore) {
-      final currentConfig = activeStore.store.relations.storeOperationConfig;
-      if (currentConfig == null) return activeStore;
-      originalConfig = currentConfig; // Salva o estado original
+        emit(
+          currentState.copyWith(
+            activeStoreId: newStoreId,
+            notificationCounts: newNotificationCounts,
+          ),
+        );
 
-      final updatedConfig = currentConfig.copyWith(
-        deliveryEnabled: deliveryEnabled ?? currentConfig.deliveryEnabled,
-        pickupEnabled: pickupEnabled ?? currentConfig.pickupEnabled,
-        tableEnabled: tableEnabled ?? currentConfig.tableEnabled,
-        isStoreOpen: isStoreOpen ?? currentConfig.isStoreOpen,
-        autoAcceptOrders: autoAcceptOrders ?? currentConfig.autoAcceptOrders,
-        autoPrintOrders: autoPrintOrders ?? currentConfig.autoPrintOrders,
-        mainPrinterDestination: mainPrinterDestination ?? currentConfig.mainPrinterDestination,
-        kitchenPrinterDestination: kitchenPrinterDestination ?? currentConfig.kitchenPrinterDestination,
-        barPrinterDestination: barPrinterDestination ?? currentConfig.barPrinterDestination,
-      );
+        // ✅ PASSO 5: Aguardar listeners serem criados
+        await Future.delayed(const Duration(milliseconds: 100));
 
-      final newRelations = activeStore.store.relations.copyWith(storeOperationConfig: updatedConfig);
-      return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
-    });
+        // ✅ PASSO 6: Entrar na nova sala (agora COM listeners prontos)
+        log('[CUBIT] Entrando na sala da loja $newStoreId...');
+        await _realtimeRepository.joinStoreRoom(newStoreId);
 
-    // Se não há configuração para atualizar, saia.
-    if (originalConfig == null) return;
-
-    // Cria o objeto de configuração com apenas os campos que mudaram
-    final configToUpdate = StoreOperationConfig(
-      isStoreOpen: isStoreOpen ?? originalConfig!.isStoreOpen,
-      autoAcceptOrders: autoAcceptOrders ?? originalConfig!.autoAcceptOrders,
-      autoPrintOrders: autoPrintOrders ?? originalConfig!.autoPrintOrders,
-      mainPrinterDestination: mainPrinterDestination ?? originalConfig!.mainPrinterDestination,
-      kitchenPrinterDestination: kitchenPrinterDestination ?? originalConfig!.kitchenPrinterDestination,
-      barPrinterDestination: barPrinterDestination ?? originalConfig!.barPrinterDestination,
-      deliveryEnabled: deliveryEnabled ?? originalConfig!.deliveryEnabled,
-      deliveryEstimatedMin: originalConfig!.deliveryEstimatedMin,
-      deliveryEstimatedMax: originalConfig!.deliveryEstimatedMax,
-      deliveryFee: originalConfig!.deliveryFee,
-      deliveryMinOrder: originalConfig!.deliveryMinOrder,
-      deliveryScope: originalConfig!.deliveryScope,
-      pickupEnabled: pickupEnabled ?? originalConfig!.pickupEnabled,
-      pickupEstimatedMin: originalConfig!.pickupEstimatedMin,
-      pickupEstimatedMax: originalConfig!.pickupEstimatedMax,
-      pickupInstructions: originalConfig!.pickupInstructions,
-      tableEnabled: tableEnabled ?? originalConfig!.tableEnabled,
-      tableEstimatedMin: originalConfig!.tableEstimatedMin,
-      tableEstimatedMax: originalConfig!.tableEstimatedMax,
-      tableInstructions: originalConfig!.tableInstructions,
-    );
-
-    try {
-      // Chama o repositório correto (HTTP)
-      final result = await _storeOperationConfigRepository.updateConfiguration(
-        storeId,
-        configToUpdate,
-      );
-
-      result.fold(
-            (error) {
-          log('❌ [CUBIT] Erro ao atualizar configurações da loja $storeId: $error');
-          // Em caso de erro, reverte a UI para o estado original
-          _updateActiveStore((_, activeStore) {
-            final newRelations = activeStore.store.relations.copyWith(storeOperationConfig: originalConfig);
-            return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
-          });
-          AppToasts.showError('Falha ao salvar as configurações.');
-        },
-            (_) {
-          log('✅ [CUBIT] Configurações da loja $storeId atualizadas com sucesso via HTTP.');
-          // O backend enviará um evento 'store_updated' que atualizará a UI com os dados do banco,
-          // garantindo a consistência.
-        },
-      );
-    } catch (e) {
-      log('❌ [CUBIT] Erro inesperado ao atualizar configurações: $e');
-      _updateActiveStore((_, activeStore) {
-        final newRelations = activeStore.store.relations.copyWith(storeOperationConfig: originalConfig);
-        return activeStore.copyWith(store: activeStore.store.copyWith(relations: newRelations));
-      });
-      AppToasts.showError('Ocorreu um erro inesperado.');
+        log('[CUBIT] ✅ Troca de loja concluída para ID: $newStoreId');
+      } catch (e, st) {
+        log('[CUBIT] ❌ Erro ao trocar de loja', error: e, stackTrace: st);
+      }
     }
   }
 
@@ -1051,23 +1063,29 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-// Em: cubits/store_manager_cubit.dart
-
   void _onFullMenuUpdated(FullMenuData menuData) {
+    if (isClosed) {
+      log('🔴 [CUBIT] _onFullMenuUpdated chamado, mas o cubit está fechado. Abortando.');
+      return;
+    }
     final currentState = state;
 
-    // CASO 1: Transição de Synchronizing para Loaded.
+// CASO 1: Transição de Synchronizing para Loaded.
     if (currentState is StoresManagerSynchronizing) {
       log("🎉 [CUBIT] First full menu received. Transitioning to StoresManagerLoaded.");
 
-      // Pega os dados já atualizados do estado de sincronização.
       final stores = currentState.stores;
       final activeStoreId = currentState.activeStoreId;
       final activeStore = stores[activeStoreId];
 
-      if (activeStore == null) return;
+      if (activeStore == null) {
+        log('❌ [CUBIT] Erro crítico: Estado é Synchronizing, mas a loja ativa ($activeStoreId) não foi encontrada no mapa.');
+        if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+          _initialLoadCompleter!.completeError("Active store not found during sync.");
+        }
+        return;
+      }
 
-      // Adiciona os dados do menu aos dados já existentes.
       final newRelations = activeStore.store.relations.copyWith(
         products: menuData.products,
         categories: menuData.categories,
@@ -1077,18 +1095,35 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       final updatedStoresMap = Map<int, StoreWithRole>.from(stores)
         ..[activeStoreId] = activeStore.copyWith(store: updatedStore);
 
-      // Emite o estado 'Loaded' completo.
+      log('➡️ [CUBIT] Emitindo estado StoresManagerLoaded...');
+
+      // ✅ CORREÇÃO: Aplica as comandas pendentes
+      final commandsToApply = _pendingStandaloneCommands ?? [];
+      print('🔥🔥🔥 [CUBIT] Aplicando ${commandsToApply.length} comandas pendentes');
+
       emit(StoresManagerLoaded(
         stores: updatedStoresMap,
         activeStoreId: activeStoreId,
         connectivityStatus: ConnectivityStatus.connected,
-        // Reseta os outros campos para o padrão inicial
         consolidatedStores: const [],
         lastUpdate: DateTime.now(),
         notificationCounts: const {},
         stuckOrderIds: const {},
         conversations: const [],
+        standaloneCommands: commandsToApply,  // ✅ ADICIONE ESTA LINHA
       ));
+
+      // ✅ Limpa as comandas pendentes
+      _pendingStandaloneCommands = null;
+
+      log('✅ [CUBIT] Estado StoresManagerLoaded emitido.');
+
+      if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+        log("➡️ [CUBIT] Finalizando o completer de carga inicial...");
+        _initialLoadCompleter!.complete();
+        log("✅ [CUBIT] Completer de carga inicial finalizado com sucesso.");
+      }
+
       return;
     }
 
@@ -1118,42 +1153,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     return null;
   }
 
-  Future<void> pauseProducts(List<int> productIds) async {
-    if (state is! StoresManagerLoaded) return;
-    final storeId = (state as StoresManagerLoaded).activeStoreId;
-    // TODO: Adicionar tratamento de erro (try-catch)
-    await _productRepository.updateProductsAvailability(
-      storeId: storeId,
-      productIds: productIds,
-      isAvailable: false,
-    );
-    // Não precisa emitir estado, o evento de socket vai atualizar a UI
-  }
-
-  Future<void> activateProducts(List<int> productIds) async {
-    if (state is! StoresManagerLoaded) return;
-    final storeId = (state as StoresManagerLoaded).activeStoreId;
-    await _productRepository.updateProductsAvailability(
-      storeId: storeId,
-      productIds: productIds,
-      isAvailable: true,
-    );
-  }
-
-
-  Future<void> archiveProducts(List<int> productIds) async {
-    if (state is! StoresManagerLoaded) return;
-    final storeId = (state as StoresManagerLoaded).activeStoreId;
-
-    // Chama a nova função do repositório
-    await _productRepository.archiveProducts(
-      storeId: storeId,
-      productIds: productIds,
-    );
-
-    // Aqui você pode adicionar lógica para atualizar a UI, se necessário
-    // Por exemplo, recarregar a lista de produtos.
-  }
 
   // O método que criamos antes agora também fica mais simples
   String getPreviewForVariant(Variant variant) {
@@ -1171,89 +1170,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
   }
 
 
-
-  /// Adiciona novos turnos de horário para uma loja específica.
-  Future<void> addHours(int storeId, AddShiftResult result) async {
-    if (state is! StoresManagerLoaded) return;
-
-    final currentStore = (state as StoresManagerLoaded).stores[storeId]?.store;
-    if (currentStore == null) return;
-
-    final List<StoreHour> currentHours = List.from(currentStore.relations.hours);
-
-    for (final day in result.selectedDays) {
-      currentHours.add(StoreHour(
-        dayOfWeek: day,
-        openingTime: result.openingTime,
-        closingTime: result.closingTime,
-        isActive: true,
-      ));
-    }
-
-    await _updateAndPersistHours(storeId, currentHours, currentStore);
-  }
-
-  /// Remove um turno de horário de uma loja específica.
-  Future<void> removeHour(int storeId, StoreHour hourToRemove) async {
-    if (state is! StoresManagerLoaded) return;
-
-    final currentStore = (state as StoresManagerLoaded).stores[storeId]?.store;
-    if (currentStore == null) return;
-
-    final List<StoreHour> updatedHours = currentStore.relations.hours
-        .where((h) => h.dayOfWeek != hourToRemove.dayOfWeek || h.openingTime != hourToRemove.openingTime || h.closingTime != hourToRemove.closingTime)
-        .toList();
-
-    await _updateAndPersistHours(storeId, updatedHours, currentStore);
-  }
-
-  /// Atualiza um turno de horário existente em uma loja específica.
-  Future<void> updateHour(int storeId, StoreHour oldHour, EditShiftResult result) async {
-    if (state is! StoresManagerLoaded) return;
-
-    final currentStore = (state as StoresManagerLoaded).stores[storeId]?.store;
-    if (currentStore == null) return;
-
-    final List<StoreHour> updatedHours = currentStore.relations.hours.map((h) {
-      // Usamos uma comparação mais robusta para encontrar o turno certo
-      if (h.dayOfWeek == oldHour.dayOfWeek && h.openingTime == oldHour.openingTime && h.closingTime == oldHour.closingTime) {
-        return h.copyWith(
-          openingTime: result.openingTime,
-          closingTime: result.closingTime,
-        );
-      }
-      return h;
-    }).toList();
-
-    await _updateAndPersistHours(storeId, updatedHours, currentStore);
-  }
-
-  /// Método privado para centralizar a lógica de atualização de horários.
-  Future<void> _updateAndPersistHours(int storeId, List<StoreHour> updatedHours, Store currentStore) async {
-    // 1. Atualização Otimista: a UI é atualizada imediatamente.
-    _updateActiveStore((currentState, activeStore) {
-      final newRelations = currentStore.relations.copyWith(hours: updatedHours);
-      final newStore = currentStore.copyWith(relations: newRelations);
-      return activeStore.copyWith(store: newStore);
-    });
-
-    // 2. Persistência: salva os dados na API em segundo plano.
-    final repoResult = await _storeRepository.updateHours(storeId, updatedHours);
-
-    repoResult.fold(
-          (failure) {
-        // Em caso de erro, reverte para o estado anterior e mostra um aviso.
-        _updateActiveStore((_, activeStore) => activeStore.copyWith(store: currentStore));
-        AppToasts.showError("Falha ao salvar horários: ${failure.toString()}");
-      },
-          (_) {
-        // Em caso de sucesso, o estado já está atualizado. Apenas mostramos a confirmação.
-        AppToasts.showSuccess('Horários salvos com sucesso!');
-        // Opcional: pode-se forçar uma nova busca do backend para garantir 100% de consistência.
-        // _realtimeRepository.joinStoreRoom(storeId);
-      },
-    );
-  }
 
   // ✅ MÉTODO CORRIGIDO E ALINHADO COM A ARQUITETURA DO CUBIT
   Future<bool> saveCityWithNeighborhoods(int storeId, StoreCity city) async {
@@ -1300,99 +1216,66 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
-  void _cancelSubscriptions() {
+
+  // ♻️ MÉTODO DE LIMPEZA PARA LOGOUT
+  Future<void> resetState() async {
+    log('[StoresManagerCubit] Iniciando reset completo do estado...');
+    // 1. Cancela todos os listeners.
+    await _cancelSubscriptions();
+    // 2. Limpa os dados no repositório de tempo real (mas mantém a conexão de socket).
+    _realtimeRepository.reset();
+    // 3. Reseta o estado do Cubit para o inicial.
+    emit(const StoresManagerInitial());
+    log('[StoresManagerCubit] Reset completo finalizado.');
+  }
+
+// ✅ Atualize o método _cancelSubscriptions para incluir a nova lógica
+  Future<void> _cancelSubscriptions() async {
     log('[StoresManagerCubit] Cancelando todas as subscriptions...');
 
-    // Cancela cada subscription de forma segura
-    _adminStoresListSubscription?.cancel();
+    // Cancela listeners específicos de loja
+    _cancelStoreSpecificListeners();
+
+    // Cancela outros listeners (código existente)
+    await _adminStoresListSubscription?.cancel();
     _adminStoresListSubscription = null;
-
-    _notificationSubscription?.cancel();
+    await _notificationSubscription?.cancel();
     _notificationSubscription = null;
-
-    _connectivitySubscription?.cancel();
+    await _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
-
-    _storeDetailsSubscription?.cancel();
-    _storeDetailsSubscription = null;
-
-    _dashboardDataSubscription?.cancel();
-    _dashboardDataSubscription = null;
-
-    _financialsSubscription?.cancel();
-    _financialsSubscription = null;
-
-
-
-    _saloonsSubscription?.cancel();
-    _saloonsSubscription = null;
-
-
-
-    _stuckOrderAlertSubscription?.cancel();
+    await _stuckOrderAlertSubscription?.cancel();
     _stuckOrderAlertSubscription = null;
-
-    _conversationsSubscription?.cancel();
+    await _conversationsSubscription?.cancel();
     _conversationsSubscription = null;
-
-    _subscriptionErrorSubscription?.cancel();
+    await _subscriptionErrorSubscription?.cancel();
     _subscriptionErrorSubscription = null;
-
-    _userHasNoStoresSubscription?.cancel();
+    await _userHasNoStoresSubscription?.cancel();
     _userHasNoStoresSubscription = null;
 
-    _fullMenuSubscription?.cancel();
-    _fullMenuSubscription = null;
+    await _activeStoreDataSubscription?.cancel();
+    _activeStoreDataSubscription = null;
 
     log('[StoresManagerCubit] Todas as subscriptions canceladas.');
   }
 
-
-
-  void resetState() {
-    log('[StoresManagerCubit] Iniciando reset completo do estado...');
-
-    // 1. Cancela todos os listeners PRIMEIRO (antes de limpar o repository)
-    _cancelSubscriptions();
-
-    // 2. Reseta o estado do Cubit ANTES de fazer dispose do repository
-    emit(const StoresManagerInitial());
-
-    // 3. Usa o novo método reset() ao invés de dispose()
-    // Isso mantém a conexão do socket mas limpa os dados
-    _realtimeRepository.reset();
-
-    // 4. Limpa o Completer se houver algum pendente
-    if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
-      _initialLoadCompleter!.complete();
-    }
-    _initialLoadCompleter = null;
-
-    log('[StoresManagerCubit] Reset completo finalizado.');
-  }
-
-
-// SUBSTITUA o método close por este:
   @override
   Future<void> close() {
     log('[StoresManagerCubit] Fechando o Cubit permanentemente...');
 
-    // Cancela subscriptions
     _cancelSubscriptions();
 
-    // Completa qualquer Completer pendente
     if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
-      _initialLoadCompleter!.complete();
+      // Sugestão: Usar completeError para indicar um fechamento inesperado.
+      _initialLoadCompleter!.completeError('Cubit closed before completion');
     }
 
-    // Aqui SIM fazemos dispose completo do repository
-    // porque o Cubit está sendo destruído permanentemente
     _realtimeRepository.dispose();
 
     return super.close();
   }
 
-// ADICIONE este método auxiliar para verificar se é seguro processar eventos:
+
+
   bool get _canProcessEvents => !isClosed;
 
 }

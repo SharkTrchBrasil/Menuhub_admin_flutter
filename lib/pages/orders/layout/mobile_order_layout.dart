@@ -2,12 +2,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totem_pro_admin/core/di.dart';
+
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/responsive_order_view.dart';
 
 import '../../../core/enums/order_view.dart';
 import '../../../widgets/app_shell.dart';
+import '../../operation_configuration/cubit/operation_config_cubit.dart';
 import '../cubit/order_page_state.dart';
 import '../settings/orders_settings.dart';
 import '../widgets/management_switcher.dart';
@@ -42,9 +45,8 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> {
     ListFilter.completed,
   ];
 
-  // MODIFICADO: 2. Crie a função para mostrar o BottomSheet de configurações
+  // ✅ Função atualizada para fornecer o Cubit
   void _showStoreSettings() {
-    // Garante que a loja não seja nula antes de tentar abrir as configurações
     if (widget.store == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nenhuma loja selecionada para configurar.')),
@@ -54,30 +56,37 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> {
 
     showModalBottomSheet(
       context: context,
-      // Permite que o conteúdo determine a altura, evitando que o teclado sobreponha
       isScrollControlled: true,
-      // Define a cor de fundo como transparente para que o borderRadius funcione
       backgroundColor: Colors.transparent,
       builder: (context) {
-        // Usa uma fração da altura da tela para não ocupar a tela inteira
-        return FractionallySizedBox(
-          heightFactor: 0.8, // Ocupa 80% da altura da tela
-          child: StoreSettingsSidePanel(storeId: widget.store!.core.id!),
+        // ✅ CORREÇÃO: Envolver com BlocProvider
+        return BlocProvider<OperationConfigCubit>(
+          create: (context) => getIt<OperationConfigCubit>(),
+          child: FractionallySizedBox(
+            heightFactor: 0.8,
+            child: StoreSettingsSidePanel(storeId: widget.store!.core.id!),
+          ),
         );
       },
     );
   }
 
-// ✅ 2. CRIE AS FUNÇÕES PARA MOSTRAR CADA BOTTOMSHEET
+  // ✅ Funções para os outros bottom sheets
   void _showEditDeliveryTimeSheet() {
     if (widget.store?.relations.storeOperationConfig == null) return;
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Essencial para o teclado não cobrir o campo
-      builder: (context) => EditDeliveryTimeBottomSheet(
-        storeId: widget.store!.core.id!,
-        initialConfig: widget.store!.relations.storeOperationConfig!,
-      ),
+      isScrollControlled: true,
+      builder: (context) {
+        // ✅ Também forneça o Cubit aqui se necessário
+        return BlocProvider<OperationConfigCubit>(
+          create: (context) => getIt<OperationConfigCubit>(),
+          child: EditDeliveryTimeBottomSheet(
+            storeId: widget.store!.core.id!,
+            initialConfig: widget.store!.relations.storeOperationConfig!,
+          ),
+        );
+      },
     );
   }
 
@@ -86,23 +95,25 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => EditMinOrderBottomSheet(
-        storeId: widget.store!.core.id!,
-        initialConfig: widget.store!.relations.storeOperationConfig!,
-      ),
+      builder: (context) {
+        // ✅ Também forneça o Cubit aqui se necessário
+        return BlocProvider<OperationConfigCubit>(
+          create: (context) => getIt<OperationConfigCubit>(),
+          child: EditMinOrderBottomSheet(
+            storeId: widget.store!.core.id!,
+            initialConfig: widget.store!.relations.storeOperationConfig!,
+          ),
+        );
+      },
     );
   }
-
-
-
 
   void _showSearch() async {
     final allOrders = (widget.orderState is OrdersLoaded)
         ? (widget.orderState as OrdersLoaded).orders
         : <OrderDetails>[];
 
-    // AQUI ESTÁ A CORREÇÃO:
-    final OrderDetails? selectedOrder = await showSearch<OrderDetails?>( // <-- Adicione o tipo aqui
+    final OrderDetails? selectedOrder = await showSearch<OrderDetails?>(
       context: context,
       delegate: OrderSearchDelegate(allOrders),
     );
@@ -118,14 +129,11 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> {
         ? (widget.orderState as OrdersLoaded).orders
         : <OrderDetails>[];
 
-
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
-
         title: const AppBarModeSwitcher(),
         actions: [
           IconButton(icon: const Icon(Icons.search), onPressed: _showSearch),
@@ -139,11 +147,9 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> {
               _orderViewKey.currentState?.switchView();
             },
           ),
-
-          // MODIFICADO: 3. Atualize o onPressed para chamar a nova função
           IconButton(
-              icon: const Icon(Icons.settings_outlined),
-              onPressed: _showStoreSettings // Chama a função do bottom sheet
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: _showStoreSettings,
           ),
         ],
       ),
@@ -154,7 +160,6 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> {
             onEditDeliveryTime: _showEditDeliveryTimeSheet,
             onEditMinOrder: _showEditMinOrderSheet,
           ),
-
           Expanded(
             child: ResponsiveOrderView(
               key: _orderViewKey,
@@ -186,6 +191,4 @@ class _MobileOrderLayoutState extends State<MobileOrderLayout> {
           : null,
     );
   }
-
-
 }

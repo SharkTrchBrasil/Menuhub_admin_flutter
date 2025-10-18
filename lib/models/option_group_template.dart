@@ -453,39 +453,6 @@ class CategoryTemplates {
     return [
       OptionGroup(
         localId: _uuid.v4(),
-        name: 'Tipo de Bebida',
-        minSelection: 1,
-        maxSelection: 1,
-        groupType: OptionGroupType.generic,
-        // ✅ GENÉRICO
-        items: [
-          OptionItem(localId: _uuid.v4(), name: 'Refrigerante', price: 700),
-          OptionItem(localId: _uuid.v4(), name: 'Suco Natural', price: 900),
-          OptionItem(localId: _uuid.v4(), name: 'Água', price: 500),
-          OptionItem(localId: _uuid.v4(), name: 'Chá Gelado', price: 800),
-          OptionItem(localId: _uuid.v4(), name: 'Energético', price: 1200),
-        ],
-      ),
-      OptionGroup(
-        localId: _uuid.v4(),
-        name: 'Sabores',
-        minSelection: 1,
-        maxSelection: 1,
-        groupType: OptionGroupType.generic,
-        // ✅ GENÉRICO
-        items: [
-          OptionItem(localId: _uuid.v4(), name: 'Coca-Cola'),
-          OptionItem(localId: _uuid.v4(), name: 'Guaraná'),
-          OptionItem(localId: _uuid.v4(), name: 'Laranja'),
-          OptionItem(localId: _uuid.v4(), name: 'Limão'),
-          OptionItem(localId: _uuid.v4(), name: 'Uva'),
-          OptionItem(localId: _uuid.v4(), name: 'Abacaxi'),
-          OptionItem(localId: _uuid.v4(), name: 'Maracujá'),
-          OptionItem(localId: _uuid.v4(), name: 'Pêssego'),
-        ],
-      ),
-      OptionGroup(
-        localId: _uuid.v4(),
         name: 'Tamanho',
         minSelection: 1,
         maxSelection: 1,
@@ -530,21 +497,7 @@ class CategoryTemplates {
   /// Template para uma categoria de Café da Manhã.
   static List<OptionGroup> forCafeDaManha() {
     return [
-      OptionGroup(
-        localId: _uuid.v4(),
-        name: 'Tipo de Café',
-        minSelection: 1,
-        maxSelection: 1,
-        groupType: OptionGroupType.generic,
-        // ✅ GENÉRICO
-        items: [
-          OptionItem(localId: _uuid.v4(), name: 'Café Preto', price: 300),
-          OptionItem(localId: _uuid.v4(), name: 'Café com Leite', price: 400),
-          OptionItem(localId: _uuid.v4(), name: 'Cappuccino', price: 600),
-          OptionItem(localId: _uuid.v4(), name: 'Mocha', price: 700),
-          OptionItem(localId: _uuid.v4(), name: 'Chocolate Quente', price: 600),
-        ],
-      ),
+
       OptionGroup(
         localId: _uuid.v4(),
         name: 'Acompanhamentos',

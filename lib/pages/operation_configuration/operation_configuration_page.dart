@@ -18,6 +18,7 @@ import '../../../widgets/app_counter_form_field.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/app_toasts.dart' as AppToasts;
 import '../../models/store/store_operation_config.dart';
+import 'cubit/operation_config_cubit.dart';
 
 class OperationConfigurationPage extends StatefulWidget {
   final int storeId;
@@ -36,18 +37,14 @@ class _OperationConfigurationPageState extends State<OperationConfigurationPage>
   int? _storeIdForSync;
   DateTime? _lastUpdateFromCubit;
 
+// ✅ Atualize o método _save:
   Future<void> _save() async {
     if (formKey.currentState?.validate() != true || _editableConfig == null) return;
 
-    final l = AppToasts.showLoading();
-    final result = await storeRepository.updateConfiguration(widget.storeId, _editableConfig!);
-    l();
-
-    result.fold(
-          (error) => AppToasts.showError('Erro ao salvar configurações.'),
-          (success) {
-        AppToasts.showSuccess('Configurações de operação salvas!');
-      },
+    // ✅ USA O CUBIT ESPECÍFICO
+    await context.read<OperationConfigCubit>().updateConfiguration(
+      widget.storeId,
+      _editableConfig!,
     );
   }
 

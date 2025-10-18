@@ -1,5 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
 import 'package:totem_pro_admin/models/plans/available_plan.dart';
@@ -8,15 +10,62 @@ import 'package:totem_pro_admin/pages/new_subscription/new_subscription_dialog.d
 import 'package:totem_pro_admin/widgets/app_page_status_builder.dart';
 import 'package:totem_pro_admin/models/plans/plans.dart';
 
-class EditSubscriptionPage extends StatelessWidget {
+import '../../core/responsive_builder.dart';
+import '../../cubits/store_manager_cubit.dart';
+import '../../cubits/store_manager_state.dart';
+
+
+class EditSubscriptionPage extends StatefulWidget {
   final int storeId;
 
   const EditSubscriptionPage({super.key, required this.storeId});
 
   @override
+  State<EditSubscriptionPage> createState() => _EditSubscriptionPageState();
+}
+
+class _EditSubscriptionPageState extends State<EditSubscriptionPage> {
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ ESCUTA MUDANÇAS NO CUBIT
+    final cubit = GetIt.I<StoresManagerCubit>();
+    cubit.stream.listen((state) {
+      if (!mounted) return;
+
+      if (state is StoresManagerLoaded) {
+        final subscription = state.activeStore?.relations.subscription;
+
+        // ✅ SE ASSINATURA FOI ATIVADA, VOLTA PARA O DASHBOARD
+        if (subscription != null &&
+            !subscription.isBlocked &&
+            subscription.hasPaymentMethod == true) {
+          debugPrint(
+              '✅ [PlansPage] Assinatura ativada! Navegando para dashboard...');
+
+          // ✅ VOLTA PARA O DASHBOARD
+          context.go('/stores/${widget.storeId}/dashboard');
+
+          // ✅ MOSTRA MENSAGEM DE SUCESSO
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🎉 Assinatura ativada com sucesso!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => EditSubscriptionPageController(storeId),
+      create: (_) => EditSubscriptionPageController(widget.storeId),
       child: Scaffold(
         backgroundColor: Colors.white,
         body: Consumer<EditSubscriptionPageController>(
@@ -42,13 +91,13 @@ class EditSubscriptionPage extends StatelessWidget {
                     if (isDesktop) {
                       return _DesktopLayout(
                         plan: plan,
-                        storeId: storeId,
+                        storeId: widget.storeId,
                         controller: controller,
                       );
                     } else {
                       return _MobileLayout(
                         plan: plan,
-                        storeId: storeId,
+                        storeId: widget.storeId,
                         controller: controller,
                       );
                     }
@@ -133,9 +182,11 @@ class _MobileLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding:  EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isMobile(context) ?  14 : 24), // Reduzido o padding
+
       child: Column(
         children: [
+          const SizedBox(height: 14),
           // Header
           _buildHeader(context, plan),
           const SizedBox(height: 32),
@@ -150,6 +201,7 @@ class _MobileLayout extends StatelessWidget {
 
           // CTA
           _buildCtaCard(context, plan, controller),
+          const SizedBox(height: 42),
         ],
       ),
     );
@@ -277,6 +329,13 @@ Widget _buildBenefitItem(IconData icon, String title, String subtitle, Color col
 }
 
 Widget _buildCtaCard(BuildContext context, AvailablePlan plan, EditSubscriptionPageController controller) {
+
+  final storesManagerCubit = GetIt.I<StoresManagerCubit>();
+  final activeStoreId = (storesManagerCubit.state as StoresManagerLoaded?)
+      ?.activeStore?.core.id;
+
+
+
   return Container(
     width: double.infinity,
     padding: const EdgeInsets.all(24),
@@ -306,11 +365,13 @@ Widget _buildCtaCard(BuildContext context, AvailablePlan plan, EditSubscriptionP
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: plan.isCurrent ? null : () async {
+            onPressed: plan.isCurrent || activeStoreId == null
+                ? null
+                : () async {
               await showDialog(
                 context: context,
                 builder: (_) => NewSubscriptionDialog(
-                  storeId: 5,
+                  storeId: activeStoreId!,  // ✅ USA A LOJA ATIVA
                   plan: plan.plan,
                 ),
               );
@@ -370,21 +431,31 @@ class _PricingCalculatorCardState extends State<_PricingCalculatorCard> {
 
   void _calculateFee() {
     final plan = widget.plan;
-    final minFee = plan.minimumFee / 100.0;
-    final capFee = (plan.revenueCapFee ?? double.infinity) / 100.0;
-    final tierStart = (plan.percentageTierStart ?? 0) / 100.0;
-    final tierEnd = (plan.percentageTierEnd ?? double.infinity) / 100.0;
+
+    // ✅ CONVERSÃO CORRETA: Centavos → Reais
+    final minFee = plan.minimumFeeReais;      // R$ 39,90
+    final capFee = plan.revenueCapFeeReais;   // R$ 240,00
+    final tierStart = plan.percentageTierStartReais; // R$ 2.500,00
+    final tierEnd = plan.percentageTierEndReais;     // R$ 15.000,00
 
     double fee;
 
-    if (_currentRevenue <= tierStart) {
+    // ✅ TIER 1: Até R$ 2.500 (EXCLUSIVO)
+    if (_currentRevenue < tierStart) {
       fee = minFee;
       _activeTier = 1;
-    } else if (_currentRevenue <= tierEnd) {
+    }
+    // ✅ TIER 2: R$ 2.500 - R$ 14.999,99 (EXCLUSIVO NO FIM)
+    else if (_currentRevenue < tierEnd) {
       fee = _currentRevenue * plan.revenuePercentage;
-      if (fee < minFee) fee = minFee;
+
+      // Garante mínimo de R$ 45,00 no Tier 2
+      if (fee < 45.0) fee = 45.0;
+
       _activeTier = 2;
-    } else {
+    }
+    // ✅ TIER 3: R$ 15.000 ou mais (INCLUSIVO)
+    else {
       fee = capFee;
       _activeTier = 3;
     }
@@ -501,7 +572,7 @@ class _PricingCalculatorCardState extends State<_PricingCalculatorCard> {
           ),
 
           const SizedBox(height: 24),
-          const Divider(color: Colors.grey, height: 1),
+       //   const Divider(color: Colors.grey, height: 1),
           const SizedBox(height: 24),
 
           // Resultado
@@ -557,7 +628,7 @@ class _PricingCalculatorCardState extends State<_PricingCalculatorCard> {
 
           // Lista de tiers com altura fixa para evitar overflow
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 200), // Limite de altura
+            constraints: const BoxConstraints(maxHeight: 250), // Limite de altura
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,

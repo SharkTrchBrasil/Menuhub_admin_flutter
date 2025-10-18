@@ -5,11 +5,11 @@ import 'package:totem_pro_admin/core/responsive_builder.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/pages/categories/category_panel.dart';
-// ✅ 1. IMPORT DO FILTER_BAR NECESSÁRIO AQUI AGORA
-import 'package:totem_pro_admin/pages/products/widgets/filter_bar.dart';
+
 import 'package:totem_pro_admin/pages/products/widgets/cardapy_tab.dart';
-import 'package:totem_pro_admin/pages/products/widgets/product_creation_panel.dart';
+import 'package:totem_pro_admin/pages/product-wizard/product_creation_panel.dart';
 import 'package:totem_pro_admin/pages/products/widgets/sliver_persistent_header_delegate.dart';
+import 'package:totem_pro_admin/pages/products/widgets/universal_filter_bar.dart';
 import 'package:totem_pro_admin/pages/variants/tabs/complement_tab.dart';
 import 'package:totem_pro_admin/pages/products/widgets/page_tab.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_tab.dart';
@@ -45,8 +45,11 @@ class CategoryProductPageState extends State<CategoryProductPage>
   late TabController _tabController;
   int _currentTabIndex = 0;
 
-  // ✅ 2. ESTADO PARA O FILTRO MOVIDO PARA CÁ
-  final _searchController = TextEditingController();
+  // ✅ CONTROLLERS SEPARADOS POR TAB
+  final _searchControllerCardapio = TextEditingController();
+  final _searchControllerProdutos = TextEditingController();
+  final _searchControllerComplementos = TextEditingController();
+
   Category? _selectedCategory;
 
 
@@ -58,18 +61,18 @@ class CategoryProductPageState extends State<CategoryProductPage>
     _tabController.addListener(() {
       if (mounted && _tabController.indexIsChanging) {
         setState(() => _currentTabIndex = _tabController.index);
+        // ✅ LIMPA SELEÇÃO DE CATEGORIA AO TROCAR DE TAB
+        setState(() => _selectedCategory = null);
       }
-    });
-    // O listener do searchController pode ficar aqui para forçar a reconstrução
-    _searchController.addListener(() {
-      if(mounted) setState(() {});
     });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _searchController.dispose();
+    _searchControllerCardapio.dispose();
+    _searchControllerProdutos.dispose();
+    _searchControllerComplementos.dispose();
     super.dispose();
   }
 
@@ -91,17 +94,13 @@ class CategoryProductPageState extends State<CategoryProductPage>
   }
 
 
-  // Em CategoryProductPageState dentro de products_page.dart
-
   void _navigateToCreateCategory() {
-    showResponsiveSidePanel( // Supondo que você tenha uma função assim
+    showResponsiveSidePanel(
       context,
       CategoryPanel(
           storeId: widget.storeId,
-          // Não passa categoria, indicando que é uma criação
           onSaveSuccess: () {
-            Navigator.of(context).pop(); // Fecha o painel
-
+            Navigator.of(context).pop();
           }
       ),
     );
@@ -116,7 +115,7 @@ class CategoryProductPageState extends State<CategoryProductPage>
     ProductCreationPanel(
       storeId: widget.storeId,
       onSaveSuccess: () {
-        Navigator.of(context).pop(); // Fecha o painel
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Produto criado com sucesso!"), backgroundColor: Colors.green),
         );
@@ -125,13 +124,10 @@ class CategoryProductPageState extends State<CategoryProductPage>
       onCancel: () => Navigator.of(context).pop(),
     );
 
-    // Abre o painel escolhido
     showResponsiveSidePanel(context, panelToOpen);
   }
 
 
-
-// ... imports e código anterior ...
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +175,6 @@ class CategoryProductPageState extends State<CategoryProductPage>
                         ),
                       ),
                       SliverPersistentHeader(
-                     //   pinned: true,
                         delegate: SliverPersistentHeaderDelegateWrapper(
                           minHeight: 28,
                           maxHeight: 28,
@@ -189,26 +184,26 @@ class CategoryProductPageState extends State<CategoryProductPage>
                           ),
                         ),
                       ),
-                      // ✅ 5. FILTERBAR MOVIDO PARA CÁ, COMO UM SLIVER PINNED
+
+                      // ✅ FILTRO APENAS PARA ABA CARDÁPIO
                       if (_currentTabIndex == 0 && allCategories.isNotEmpty)
                         SliverPersistentHeader(
                           pinned: true,
                           delegate: SliverPersistentHeaderDelegateWrapper(
-                            minHeight: 100,
-                            maxHeight: 100,
-                            child: Container(
-                              color: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 1.0),
-                              child: FilterBar(
-                                searchController: _searchController,
-                                categories: allCategories,
-                                selectedValue: _selectedCategory,
-                                onAddCategory: _navigateToCreateCategory,
-                                onReorder: (reordered) { /* TODO */ },
-                                onCategoryChanged: (category) {
-                                  setState(() => _selectedCategory = category);
-                                },
-                              ),
+                            minHeight: 64,
+                            maxHeight: 64,
+                            child: UniversalFilterBar(
+                              searchController: _searchControllerCardapio,
+                              searchHint: 'Buscar item no cardápio',
+                              customFilterWidget: _buildCategoryDropdown(allCategories),
+                              desktopActions: [
+                                DsButton(
+                                  label: 'Adicionar Categoria',
+                                  style: DsButtonStyle.secondary,
+                                  onPressed: _navigateToCreateCategory,
+                                ),
+                              ],
+                              onMobileFilterTap: () => _showCategoryFilterSheet(context, allCategories),
                             ),
                           ),
                         ),
@@ -216,7 +211,7 @@ class CategoryProductPageState extends State<CategoryProductPage>
                   },
                   body: Column(
                     children: [
-                      // ✅ DIVIDER QUE ROLA JUNTO COM O CONTEÚDO
+                      // ✅ DIVIDER APENAS PARA ABA CARDÁPIO
                       if (_currentTabIndex == 0 && allCategories.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 18.0),
@@ -234,7 +229,7 @@ class CategoryProductPageState extends State<CategoryProductPage>
                               allCategories: allCategories,
                               storeId: widget.storeId,
                               allProducts: allProducts,
-                              searchText: _searchController.text,
+                              searchText: _searchControllerCardapio.text,
                               selectedCategory: _selectedCategory,
                               onNavigateToAddCategory: _navigateToCreateCategory,
                             ),
@@ -274,5 +269,76 @@ class CategoryProductPageState extends State<CategoryProductPage>
     );
   }
 
+  Widget _buildCategoryDropdown(List<Category> categories) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<Category?>(
+          hint: const Text('Todas'),
+          value: _selectedCategory,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+          items: [
+            const DropdownMenuItem<Category?>(
+              value: null,
+              child: Text('Todas as categorias'),
+            ),
+            ...categories.map((cat) => DropdownMenuItem<Category?>(
+              value: cat,
+              child: Text(cat.name, overflow: TextOverflow.ellipsis),
+            )),
+          ],
+          onChanged: (category) => setState(() => _selectedCategory = category),
+        ),
+      ),
+    );
+  }
 
+  void _showCategoryFilterSheet(BuildContext context, List<Category> categories) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: const Text(
+              'Filtrar por Categoria',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                ListTile(
+                  title: const Text('Todas as categorias'),
+                  selected: _selectedCategory == null,
+                  onTap: () {
+                    setState(() => _selectedCategory = null);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                ...categories.map((cat) => ListTile(
+                  title: Text(cat.name),
+                  selected: _selectedCategory?.id == cat.id,
+                  onTap: () {
+                    setState(() => _selectedCategory = cat);
+                    Navigator.pop(ctx);
+                  },
+                )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

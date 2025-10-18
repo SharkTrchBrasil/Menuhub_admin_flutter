@@ -12,6 +12,7 @@ import 'package:totem_pro_admin/pages/products/widgets/product_panel.dart';
 
 
 
+import '../../../core/helpers/edit_product_sidepanel.dart';
 import '../../../core/helpers/sidepanel.dart';
 import '../../../models/products/product.dart';
 import '../../product_flavors/flavor_edit_panel.dart';
@@ -130,38 +131,24 @@ class ProductActionsSheetState extends State<ProductActionsSheet> {
   }
 
 
+
   void _openEditPanel() {
-    // Fecha o BottomSheet que está aberto
+    // Fecha o BottomSheet que está aberto, se necessário.
     Navigator.of(context).pop();
 
-    final isCustomizable = widget.parentCategory.type == CategoryType.CUSTOMIZABLE;
-
-    // Decide qual painel abrir
-    final Widget panelToOpen = isCustomizable
-        ? FlavorEditPanel(
-      storeId: widget.storeId,
+    // Chama o helper global passando as informações necessárias
+    showEditProductPanel(
+      context: context,
       product: widget.product,
-      parentCategory: widget.parentCategory,
-      onSaveSuccess: () {
-        Navigator.of(context).pop(); // Fecha o painel
-
-      },
-      onCancel: () => Navigator.of(context).pop(),
-    )
-        : ProductEditPanel(
       storeId: widget.storeId,
-      product: widget.product,
+      parentCategory: widget.parentCategory, // Passa a categoria pai do contexto atual
       onSaveSuccess: () {
-        Navigator.of(context).pop(); // Fecha o painel
-
+        // Você pode adicionar qualquer lógica extra aqui após o salvamento.
+        // Por exemplo, atualizar a UI ou mostrar uma mensagem.
+        print('Produto salvo, painel fechado!');
       },
-      onCancel: () => Navigator.of(context).pop(),
     );
-
-    // Usa o seu helper para abrir o painel lateral escolhido
-    showResponsiveSidePanel(context, panelToOpen);
   }
-
 
   @override
   Widget build(BuildContext context) {

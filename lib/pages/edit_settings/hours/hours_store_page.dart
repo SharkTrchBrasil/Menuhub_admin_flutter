@@ -22,6 +22,7 @@ import '../../../models/store/store_hour.dart';
 import '../../../widgets/app_toasts.dart' as AppToasts;
 
 import '../../store_wizard/cubit/store_wizard_cubit.dart';
+import 'cubit/opening_hours_cubit.dart';
 import 'widgets/action_and_summary_panel.dart';
 
 
@@ -84,22 +85,21 @@ class OpeningHoursPageState extends State<OpeningHoursPage> with TickerProviderS
 
   // A lógica de save e validação continua a mesma
   Future<bool> save() async { /* ... seu código aqui ... */ return true; }
+
   bool _validateHours(List<StoreHour> allSlots) { /* ... seu código aqui ... */ return true; }
 
-  // Funções que chamam o side panel (continuam iguais)
-  Future<void> _showAddShiftDialog({int? day, TimeOfDay? time}) async {
-    final result = await showResponsiveSidePanel<AddShiftResult>(context, AddShiftDialog(initialDay: day ?? 1, initialTime: time ?? const TimeOfDay(hour: 9, minute: 0), dayNames: dayNames, displayOrder: displayOrder));
-    if (result == null || !mounted) return;
-    if (widget.isInWizard) {
-      context.read<StoreWizardCubit>().addHours(result);
-    } else {
-      context.read<StoresManagerCubit>().addHours(widget.storeId, result);
-    }
-  }
+
 
   Future<void> _showEditShiftDialog(StoreHour shiftToEdit) async {
-    final result = await showResponsiveSidePanel<EditShiftResult>(context, EditShiftDialog(initialShift: shiftToEdit, dayName: dayNames[shiftToEdit.dayOfWeek]!));
+    final result = await showResponsiveSidePanel<EditShiftResult>(
+      context,
+      EditShiftDialog(
+        initialShift: shiftToEdit,
+        dayName: dayNames[shiftToEdit.dayOfWeek]!,
+      ),
+    );
     if (result == null || !mounted) return;
+
     if (widget.isInWizard) {
       if (result.deleted) {
         context.read<StoreWizardCubit>().removeHour(shiftToEdit);
@@ -107,9 +107,51 @@ class OpeningHoursPageState extends State<OpeningHoursPage> with TickerProviderS
         context.read<StoreWizardCubit>().updateHour(shiftToEdit, result);
       }
     } else {
-      // Lógica para StoresManagerCubit
+      // ✅ NOVA LÓGICA: Usa o OpeningHoursCubit
+      final storesManagerCubit = context.read<StoresManagerCubit>();
+      final openingHoursCubit = context.read<OpeningHoursCubit>();
+      final currentState = storesManagerCubit.state;
+
+      if (currentState is StoresManagerLoaded) {
+        final currentHours = currentState.activeStore?.relations.hours ?? [];
+
+        if (result.deleted) {
+          await openingHoursCubit.removeHour(widget.storeId, currentHours, shiftToEdit);
+        } else {
+          await openingHoursCubit.updateHour(widget.storeId, currentHours, shiftToEdit, result);
+        }
+      }
     }
   }
+
+// ✅ Faça o mesmo para _showAddShiftDialog
+  Future<void> _showAddShiftDialog({int? day, TimeOfDay? time}) async {
+    final result = await showResponsiveSidePanel<AddShiftResult>(
+      context,
+      AddShiftDialog(
+        initialDay: day ?? 1,
+        initialTime: time ?? const TimeOfDay(hour: 9, minute: 0),
+        dayNames: dayNames,
+        displayOrder: displayOrder,
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    if (widget.isInWizard) {
+      context.read<StoreWizardCubit>().addHours(result);
+    } else {
+      // ✅ NOVA LÓGICA
+      final storesManagerCubit = context.read<StoresManagerCubit>();
+      final openingHoursCubit = context.read<OpeningHoursCubit>();
+      final currentState = storesManagerCubit.state;
+
+      if (currentState is StoresManagerLoaded) {
+        final currentHours = currentState.activeStore?.relations.hours ?? [];
+        await openingHoursCubit.addHours(widget.storeId, currentHours, result);
+      }
+    }
+  }
+
 
   Future<void> _showAddPauseDialog() async {
     final result = await showResponsiveSidePanel<AddPauseResult>(context, const AddPauseDialog());
@@ -124,6 +166,12 @@ class OpeningHoursPageState extends State<OpeningHoursPage> with TickerProviderS
     final success = await context.read<StoresManagerCubit>().addPause(storeId: widget.storeId, reason: (result.reason != null && result.reason!.isNotEmpty) ? result.reason : holiday.name, startTime: result.startTime, endTime: result.endTime);
     if (success) AppToasts.showSuccess('Feriado configurado com sucesso!');
   }
+
+
+
+
+
+
 
   @override
   Widget build(BuildContext context) {

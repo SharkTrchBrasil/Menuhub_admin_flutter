@@ -141,7 +141,7 @@ class _EditMessageBottomSheetState extends State<EditMessageBottomSheet> {
                           child: DsButton(
                             onPressed: () => Navigator.pop(context),
                             style: DsButtonStyle.secondary,
-                            requiresConnection: false,
+
                             label: 'Cancelar',
                           ),
                         ),

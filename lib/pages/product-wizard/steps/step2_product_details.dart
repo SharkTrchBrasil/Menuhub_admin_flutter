@@ -73,7 +73,7 @@ class _Step2ProductDetailsState extends State<Step2ProductDetails> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      flex: 3,
+                      flex: 4,
                       child: mainContent,
                     ),
                     Expanded(

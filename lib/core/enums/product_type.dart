@@ -1,43 +1,32 @@
-
-enum SearchStatus { initial, loading, success, failure }
-
-
-
 // lib/core/utils/enums/product_type.dart
 
 enum ProductType {
+  INDIVIDUAL,
+  KIT,
   PREPARED,
-  INDUSTRIALIZED,
-  INDIVIDUAL, // Adicionei este com base no seu schema Pydantic
-  KIT,        // Adicionei este com base no seu schema Pydantic
-  UNKNOWN;
+  INDUSTRIALIZED; // Removido FLAVOR e UNKNOWN
 
   /// Converte uma String da API para o enum ProductType.
   static ProductType fromString(String? typeStr) {
     switch (typeStr) {
-      case 'Preparado':
-      case 'PREPARED':
-        return ProductType.PREPARED;
-      case 'Industrializado':
-      case 'INDUSTRIALIZED':
-        return ProductType.INDUSTRIALIZED;
-      case 'Individual':
       case 'INDIVIDUAL':
         return ProductType.INDIVIDUAL;
-      case 'Kit':
       case 'KIT':
         return ProductType.KIT;
+      case 'PREPARED':
+        return ProductType.PREPARED;
+      case 'INDUSTRIALIZED':
+        return ProductType.INDUSTRIALIZED;
       default:
-        return ProductType.UNKNOWN;
+      // Se um tipo desconhecido vier da API, é melhor tratar como um erro
+      // ou ter um tipo padrão seguro, como INDIVIDUAL.
+      // Lançar um erro é mais seguro para encontrar bugs.
+        throw ArgumentError('Tipo de produto desconhecido: $typeStr');
     }
   }
 
-  // DENTRO DO ENUM `ProductType`
-
   /// Converte o enum para a String que a API espera.
   String toApiString() {
-    // A propriedade .name já retorna a string em MAIÚSCULO, exatamente como a API espera.
-    // Ex: ProductType.INDIVIDUAL.name se torna "INDIVIDUAL"
-    return name;
+    return name; // Ex: ProductType.INDIVIDUAL.name se torna "INDIVIDUAL"
   }
 }

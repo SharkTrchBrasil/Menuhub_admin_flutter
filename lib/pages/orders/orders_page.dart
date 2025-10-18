@@ -120,6 +120,10 @@ class _OrdersPageState extends State<OrdersPage> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+
+    print('🚀 OrdersPage construída - Rota: ${GoRouterState.of(context).uri.path}');
+    print('🏪 StoreId da rota: ${GoRouterState.of(context).pathParameters['storeId']}');
+
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, storeState) {
         if (storeState is! StoresManagerLoaded) {

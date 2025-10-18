@@ -8,7 +8,13 @@ import 'package:totem_pro_admin/pages/orders/widgets/kanban_column.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/operational_shortcuts.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/orders_top_bar.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
-import '../../table/tables.dart';
+import 'package:totem_pro_admin/pages/table/tables.dart';
+import 'package:totem_pro_admin/pages/commands/commands_page.dart';
+
+import '../../../core/di.dart';
+import '../../../cubits/store_manager_cubit.dart';
+import '../../../cubits/store_manager_state.dart';
+import '../../commands/cubit/standalone_commands_cubit.dart'; // ✅ NOVO IMPORT
 
 class OrdersDesktopLayout extends StatefulWidget {
   final Store? activeStore;
@@ -31,7 +37,7 @@ class OrdersDesktopLayout extends StatefulWidget {
 }
 
 class _OrdersDesktopLayoutState extends State<OrdersDesktopLayout> {
-  String? _selectedTabKey = 'balcao'; // 'balcao', 'delivery', 'mesa'
+  String? _selectedTabKey = 'balcao'; // 'balcao', 'delivery', 'mesa', 'comandas'
   int _selectedStatusFilterIndex = 0;
 
   @override
@@ -53,7 +59,8 @@ class _OrdersDesktopLayoutState extends State<OrdersDesktopLayout> {
         ),
 
         // Atalhos operacionais (tempo de entrega, pedido mínimo)
-        if (_selectedTabKey != 'mesa')
+        // ✅ NÃO MOSTRA PARA MESAS E COMANDAS
+        if (_selectedTabKey != 'mesa' && _selectedTabKey != 'comandas')
           OperationalShortcutsBar(
             store: widget.activeStore,
             onEditDeliveryTime: () {
@@ -80,6 +87,8 @@ class _OrdersDesktopLayoutState extends State<OrdersDesktopLayout> {
         return _buildDeliveryTab();
       case 'mesa':
         return _buildMesasTab();
+      case 'comandas': // ✅ NOVO CASE
+        return _buildComandasTab();
       default:
         return _buildBalcaoTab();
     }
@@ -118,8 +127,24 @@ class _OrdersDesktopLayoutState extends State<OrdersDesktopLayout> {
   }
 
   Widget _buildMesasTab() {
+    // Tab de Mesas: Mostra o grid de mesas do salão
     return const SaloonsAndTablesPanel();
   }
+
+
+
+  Widget _buildComandasTab() {
+    return BlocProvider(
+      create: (context) => getIt<StandaloneCommandsCubit>()
+        ..connectToStore(
+          (context.read<StoresManagerCubit>().state as StoresManagerLoaded)
+              .activeStoreId,
+        ),
+      child: const CommandsPage(),
+    );
+  }
+
+
 
   Widget _buildKanbanView(List<OrderDetails> orders, String title) {
     // Agrupar pedidos por status para o Kanban
@@ -177,7 +202,7 @@ class _OrdersDesktopLayoutState extends State<OrdersDesktopLayout> {
                     backgroundColor: Colors.orange,
                     orders: pendingOrders,
                     store: widget.activeStore,
-                    stuckOrderIds: const {}, // TODO: Implementar lógica de stuck orders
+                    stuckOrderIds: const {},
                   ),
                 ),
                 const SizedBox(width: 12),

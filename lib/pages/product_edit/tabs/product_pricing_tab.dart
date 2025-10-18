@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:brasil_fields/brasil_fields.dart';
-import 'package:flutter/services.dart';
+
 import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
-import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart';
+
 
 import '../../../core/enums/bulk_action_type.dart';
 import '../../../cubits/store_manager_cubit.dart';
@@ -18,12 +17,10 @@ import '../widgets/category_link_wizard.dart';
 class ProductPricingTab extends StatelessWidget {
   const ProductPricingTab({super.key});
 
-  // ✅ 1. LÓGICA DE NAVEGAÇÃO MOVIDA PARA UM MÉTODO AUXILIAR LIMPO
   Future<void> _showAddCategoryWizard(BuildContext context) async {
     final wizardCubit = context.read<ProductWizardCubit>();
     final storesState = context.read<StoresManagerCubit>().state;
 
-    // ✅ 2. VERIFICAÇÃO DE SEGURANÇA
     if (storesState is! StoresManagerLoaded) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Aguarde os dados da loja serem carregados.")),
@@ -31,7 +28,7 @@ class ProductPricingTab extends StatelessWidget {
       return;
     }
 
-    // ✅ 3. ACESSO SEGURO À LISTA DE CATEGORIAS
+
     final allCategories = storesState.activeStore?.relations.categories ?? [];
 
     final newLink = await showResponsiveSidePanelGroup<ProductCategoryLink>(

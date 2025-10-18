@@ -75,7 +75,7 @@ class ConfirmationBottomSheet extends StatelessWidget {
                 Expanded(
                   child: DsButton(
                     style: DsButtonStyle.secondary,
-                    requiresConnection: false,
+
 
 
                     onPressed: () => Navigator.of(context).pop(false),

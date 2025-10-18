@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store/store.dart';
 
+import '../../../cubits/store_manager_cubit.dart';
 import '../cubit/order_page_cubit.dart';
 
 class ReprintButton extends StatelessWidget {
@@ -47,8 +48,9 @@ class ReprintButton extends StatelessWidget {
         ),
       ),
       onPressed: () {
-        // Chama o método do cubit para iniciar a reimpressão
-        context.read<OrderCubit>().reprintOrder(order);
+        // Chama o método do cubit e passa a instância do StoresManagerCubit
+        // que ele lê do mesmo contexto.
+        context.read<OrderCubit>().reprintOrder(order, context.read<StoresManagerCubit>());
       },
     );
   }

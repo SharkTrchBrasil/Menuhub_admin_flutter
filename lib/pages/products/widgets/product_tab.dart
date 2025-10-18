@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/models/category.dart';
 
-import 'package:totem_pro_admin/pages/products/widgets/prduct_filter.dart';
+
 import 'package:totem_pro_admin/pages/products/widgets/product_card_item.dart';
 import 'package:totem_pro_admin/pages/products/widgets/sliver_filter.dart';
+import 'package:totem_pro_admin/pages/products/widgets/sliver_persistent_header_delegate.dart';
 import 'package:totem_pro_admin/pages/products/widgets/table_header.dart';
+import 'package:totem_pro_admin/pages/products/widgets/universal_filter_bar.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 import '../../../core/enums/bulk_action_type.dart';
 import '../../../core/responsive_builder.dart';
@@ -224,16 +226,15 @@ class _ProductListTabState extends State<ProductListTab> {
         .toList();
     _sortProducts(filteredProducts);
 
-    final isAllSelected = _selectedProductIds.length == filteredProducts.length && filteredProducts.isNotEmpty;
-    final bool hasSelection = _selectedProductIds.isNotEmpty;
-    final double persistentHeaderHeight = hasSelection ? 128.0 : 120.0;
+    final isAllSelected = _selectedProductIds.length == filteredProducts.length &&
+        filteredProducts.isNotEmpty;
+    final hasSelection = _selectedProductIds.isNotEmpty;
 
-    // ✅ ESTRUTURA CORRIGIDA: APENAS OS FILTROS FICAM PINNED
     return CustomScrollView(
       key: const PageStorageKey('product_list_view_scroll'),
       slivers: [
-        // ✅ FIXEDHEADERSMALL - DEVE ROLAR PARA CIMA (NÃO PINNED)
-        if(ResponsiveBuilder.isDesktop(context))
+
+        if (ResponsiveBuilder.isDesktop(context))
           SliverToBoxAdapter(
             child: FixedHeaderSmall(
               title: 'Produtos do seu cardápio (${widget.products.length})',
@@ -247,84 +248,83 @@ class _ProductListTabState extends State<ProductListTab> {
             ),
           ),
 
-        // ✅ FILTROS - FICAM FIXOS NO TOPO (PINNED)
+        // ✅ FILTRO PINNED
         SliverPersistentHeader(
-          pinned: true, // 🔥 APENAS ESTE FICA PINNED
-          delegate: SliverFilterBarDelegateProduct(
-            height: persistentHeaderHeight,
+          pinned: true,
+          delegate: SliverPersistentHeaderDelegateWrapper(
+            minHeight: hasSelection ? 128 : 64,
+            maxHeight: hasSelection ? 128 : 64,
             child: Column(
               children: [
-                Container(
-                  color: Colors.white,
-                  child: ProductFilters(
-                    searchController: _searchController,
-                    sortOption: _sortOption,
-                    onSortChanged: (value) {
-                      if (value != null) setState(() => _sortOption = value);
-                    },
-                    onFilterTap: _showFilterBottomSheet,
-                  ),
+                UniversalFilterBar(
+                  searchController: _searchController,
+                  searchHint: 'Buscar produto no cardápio',
+                  customFilterWidget: _buildSortDropdown(),
+                  onMobileFilterTap: _showFilterBottomSheet,
                 ),
-                TableHeader(
-                  selectedCount: _selectedProductIds.length,
-                  isAllSelected: isAllSelected,
-                  onSelectAll: () => _toggleSelectAll(filteredProducts),
-                  onPause: () => _showConfirmationDialog(
-                    title: 'Pausar produtos',
-                    content: 'Tem certeza que deseja pausar os ${_selectedProductIds.length} produtos selecionados?',
-                    confirmText: 'Pausar produtos',
-                    onConfirm: () {
-                      context.read<StoresManagerCubit>().pauseProducts(_selectedProductIds.toList());
+                if (hasSelection) ...[
+                  const Divider(height: 1),
+
+
+                  TableHeader(
+                    selectedCount: _selectedProductIds.length,
+                    isAllSelected: isAllSelected,
+                    onSelectAll: () => _toggleSelectAll(filteredProducts),
+                    onPause: () => _showConfirmationDialog(
+                      title: 'Pausar produtos',
+                      content: 'Tem certeza que deseja pausar os ${_selectedProductIds.length} produtos selecionados?',
+                      confirmText: 'Pausar produtos',
+                      onConfirm: () {
+                        context.read<ProductsCubit>().pauseProducts(widget.storeId, _selectedProductIds.toList());
+                        setState(() => _selectedProductIds.clear());
+                      },
+                    ),
+                    onActivate: () => _showConfirmationDialog(
+                      title: 'Ativar produtos',
+                      content: 'Tem certeza que deseja ativar os ${_selectedProductIds.length} produtos selecionados?',
+                      confirmText: 'Ativar produtos',
+                      onConfirm: () {
+                        context.read<ProductsCubit>().activateProducts(widget.storeId,_selectedProductIds.toList());
+                        setState(() => _selectedProductIds.clear());
+                      },
+                    ),
+                    onRemove: () => _showConfirmationDialog(
+                      title: 'Arquivar produtos',
+                      content: 'Os produtos arquivados não aparecerão no seu cardápio, mas poderão ser restaurados. Deseja arquivar os ${_selectedProductIds.length} produtos selecionados?',
+                      confirmText: 'Sim, Arquivar',
+                      isDestructive: false,
+                      onConfirm: () {
+                        context.read<ProductsCubit>().archiveProducts(widget.storeId,_selectedProductIds.toList());
+                        setState(() => _selectedProductIds.clear());
+                      },
+                    ),
+                    onAddToCategory: () {
+                      final selectedProducts = widget.products
+                          .where((p) => _selectedProductIds.contains(p.id))
+                          .toList();
+                      _showAddToCategoryWizard(selectedProducts);
                       setState(() => _selectedProductIds.clear());
                     },
                   ),
-                  onActivate: () => _showConfirmationDialog(
-                    title: 'Ativar produtos',
-                    content: 'Tem certeza que deseja ativar os ${_selectedProductIds.length} produtos selecionados?',
-                    confirmText: 'Ativar produtos',
-                    onConfirm: () {
-                      context.read<StoresManagerCubit>().activateProducts(_selectedProductIds.toList());
-                      setState(() => _selectedProductIds.clear());
-                    },
-                  ),
-                  onRemove: () => _showConfirmationDialog(
-                    title: 'Arquivar produtos',
-                    content: 'Os produtos arquivados não aparecerão no seu cardápio, mas poderão ser restaurados. Deseja arquivar os ${_selectedProductIds.length} produtos selecionados?',
-                    confirmText: 'Sim, Arquivar',
-                    isDestructive: false,
-                    onConfirm: () {
-                      context.read<StoresManagerCubit>().archiveProducts(_selectedProductIds.toList());
-                      setState(() => _selectedProductIds.clear());
-                    },
-                  ),
-                  onAddToCategory: () {
-                    final selectedProducts = widget.products
-                        .where((p) => _selectedProductIds.contains(p.id))
-                        .toList();
-                    _showAddToCategoryWizard(selectedProducts);
-                    setState(() => _selectedProductIds.clear());
-                  },
-                ),
+                ],
               ],
             ),
           ),
         ),
 
-        // ✅ CONTEÚDO DA LISTA
+        // Lista de produtos
         if (filteredProducts.isEmpty)
-          SliverFillRemaining(
-            child: NoResultsState(),
-          )
+          const SliverFillRemaining(child: NoResultsState())
         else
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                     (context, index) {
                   final product = filteredProducts[index];
                   final isSelected = _selectedProductIds.contains(product.id);
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
+                    padding: const EdgeInsets.only(bottom: 12),
                     child: ProductCardItem(
                       product: product,
                       isSelected: isSelected,
@@ -335,7 +335,9 @@ class _ProductListTabState extends State<ProductListTab> {
                       },
                       storeId: widget.storeId,
                       onStatusToggle: () {
-                        context.read<ProductsCubit>().toggleProductStatus(widget.storeId, product);
+                        context
+                            .read<ProductsCubit>()
+                            .toggleProductStatus(widget.storeId, product);
                       },
                     ),
                   );
@@ -348,10 +350,37 @@ class _ProductListTabState extends State<ProductListTab> {
     );
   }
 
-
-
+  Widget _buildSortDropdown() {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<SortOption>(
+          value: _sortOption,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+          items: const [
+            DropdownMenuItem(value: SortOption.nameAsc, child: Text("Nome A-Z")),
+            DropdownMenuItem(value: SortOption.nameDesc, child: Text("Nome Z-A")),
+            DropdownMenuItem(value: SortOption.priceAsc, child: Text("Menor Preço")),
+            DropdownMenuItem(value: SortOption.priceDesc, child: Text("Maior Preço")),
+          ],
+          onChanged: (v) {
+            if (v != null) setState(() => _sortOption = v);
+          },
+        ),
+      ),
+    );
+  }
 
 }
+
+
 
 class NoResultsState extends StatelessWidget {
   const NoResultsState();

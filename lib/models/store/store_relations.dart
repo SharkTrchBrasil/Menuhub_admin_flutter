@@ -31,7 +31,7 @@ import '../dashboard_insight.dart';
 import '../products/product.dart';
 import '../products/product_analytics_data.dart';
 
-import '../subscription.dart';
+import '../subscription/subscription.dart';
 
 import '../tables/saloon.dart';
 
@@ -101,6 +101,24 @@ class StoreRelations {
   });
 
   factory StoreRelations.fromJson(Map<String, dynamic> json) {
+
+
+
+    Subscription? subscription;
+    if (json.containsKey('active_subscription')) {
+      print('   ✅ active_subscription presente');
+      if (json['active_subscription'] != null && json['active_subscription'] is Map<String, dynamic>) {
+        subscription = Subscription.fromJson(json['active_subscription']);
+        print('   ✅ Subscription parseada: status=${subscription.status}');
+      } else {
+        print('   ⚠️ active_subscription é NULL ou inválido');
+      }
+    } else {
+      print('   ❌ active_subscription NÃO está no JSON!');
+    }
+
+
+
     return StoreRelations(
       paymentMethodGroups: (json['payment_method_groups'] as List<dynamic>?)
           ?.map((e) => PaymentMethodGroup.fromJson(e as Map<String, dynamic>))
@@ -121,10 +139,7 @@ class StoreRelations {
           ?.map((e) => StoreNeighborhood.fromJson(e as Map<String, dynamic>))
           .toList(),
 
-
-      subscription: json['active_subscription'] != null && json['active_subscription'] is Map<String, dynamic>
-          ? Subscription.fromJson(json['active_subscription'])
-          : null,
+      subscription: subscription,
 
       categories: (json['categories'] as List<dynamic>? ?? [])
           .map((e) => Category.fromJson(e as Map<String, dynamic>))

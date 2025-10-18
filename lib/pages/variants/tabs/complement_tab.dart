@@ -6,6 +6,8 @@ import 'package:totem_pro_admin/core/responsive_builder.dart';
 import 'package:totem_pro_admin/pages/variants/widgets/variant_card_item.dart';
 
 
+import '../../products/widgets/sliver_persistent_header_delegate.dart';
+import '../../products/widgets/universal_filter_bar.dart';
 import '../cubits/variants_tab_cubit.dart';
 import '../widgets/filter_and_actions_bar.dart';
 
@@ -66,30 +68,57 @@ class VariantsTab extends StatelessWidget {
             slivers: [
        if(ResponsiveBuilder.isDesktop(context))
               const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(24, 24, 24, 0),
-                  child: _VariantsHeader(),
-                ),
+                child: _VariantsHeader(),
               ),
 
 
               SliverPersistentHeader(
                 pinned: true,
-                delegate: _SliverFilterDelegate(
-                  height: state.selectedVariantIds.isNotEmpty ? 190.0 : 100,
-                  child: FilterAndActionsBar(
+                delegate: SliverPersistentHeaderDelegateWrapper(
+                  minHeight: state.selectedVariantIds.isNotEmpty ? 128 : 64,
+                  maxHeight: state.selectedVariantIds.isNotEmpty ? 128 : 64,
+                  child: Column(
+                    children: [
+                      UniversalFilterBar(
+                        searchController: cubit.searchController,
+                        searchHint: 'Buscar grupos de complementos',
+                        showMobileFilterButton: false,
+                      ),
 
-                    onSearchChanged: cubit.searchChanged,
-                    selectedIds: state.selectedVariantIds,
-                    isAllSelected: isAllSelected,
-                    onToggleSelectAll: cubit.toggleSelectAll,
-                    onActivate: cubit.activateSelectedVariants,
-                    onPause: cubit.pauseSelectedVariants,
-                    onDelete: cubit.unlinkSelectedVariants,
-                    isLoading: state.status == VariantsTabStatus.loading,
+                      if (state.selectedVariantIds.isNotEmpty) ...[
+                        const Divider(height: 1),
+                        Container(
+                          color: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: isAllSelected,
+                                onChanged: (_) => cubit.toggleSelectAll(),
+                              ),
+                              const Text('Selecionar todos'),
+                              const Spacer(),
+                              TextButton.icon(
+                                onPressed: cubit.pauseSelectedVariants,
+                                icon: const Icon(Icons.pause, color: Colors.orange, size: 18),
+                                label: const Text('Pausar', style: TextStyle(color: Colors.orange)),
+                              ),
+                              TextButton.icon(
+                                onPressed: cubit.activateSelectedVariants,
+                                icon: const Icon(Icons.play_arrow, color: Colors.green, size: 18),
+                                label: const Text('Ativar', style: TextStyle(color: Colors.green)),
+                              ),
+
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
+
+
               if (filteredVariants.isEmpty && state.searchText.isNotEmpty)
                 const SliverFillRemaining(
                   hasScrollBody: false,
@@ -141,6 +170,7 @@ class _VariantsHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        SizedBox(height: 12,),
         const Text(
           'Grupos de complementos',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),

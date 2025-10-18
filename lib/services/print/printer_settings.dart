@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:printing/printing.dart';
+import 'package:totem_pro_admin/pages/operation_configuration/cubit/operation_config_cubit.dart';
 
 import '../../cubits/store_manager_cubit.dart';
 import 'constants/print_destinations.dart';
@@ -26,7 +27,9 @@ class PrinterSettingsSidePanel extends StatelessWidget {
       // DEPOIS
       create: (context) => PrinterSettingsCubit(
         getIt<StoresManagerCubit>(),
+        getIt<OperationConfigCubit>(),
         getIt<DeviceSettingsService>(),
+
       )..initialize(),
       child: Align(
         alignment: Alignment.centerRight,

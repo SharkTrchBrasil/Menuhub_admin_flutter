@@ -282,45 +282,56 @@ class Product extends Equatable implements SelectableItem {
 
 
 
-// ✅ toJson para o wizard de PRODUTOS SIMPLES, completo e corrigido
+// Em seu modelo Product no Flutter
   Map<String, dynamic> toSimpleProductJson() {
     return {
       'name': name,
       'description': description,
       'ean': ean,
       'status': status.name,
-      'product_type': productType.name.toUpperCase(),
+
+      'product_type': productType.toApiString(),
       'stock_quantity': stockQuantity,
       'control_stock': controlStock,
       'master_product_id': masterProductId,
       'unit': unit,
       'weight': weight,
       'serves_up_to': servesUpTo,
+
+      // --- CORREÇÃO APLICADA AQUI ---
+      // Para cada tag, pegamos o valor em português do mapa `foodTagNames`.
       'dietary_tags': dietaryTags.map((tag) => foodTagNames[tag]!).toList(),
+
+      // Para cada tag, pegamos o valor em português do mapa `beverageTagNames`.
       'beverage_tags': beverageTags.map((tag) => beverageTagNames[tag]!).toList(),
+      // ---------------------------------
+
+
+
+
       'category_links': categoryLinks.map((link) => link.toJson()).toList(),
       'variant_links': (variantLinks ?? []).map((link) => link.toJson()).toList(),
-      'video_url': videoUrl, // ✅ LINHA ADICIONADA AQUI
-
+      'video_url': videoUrl,
     };
   }
 
 
-
+// Em seu modelo Product no Flutter
   Map<String, dynamic> toFlavorProductJson({required int parentCategoryId}) {
     return {
       'name': name,
       'description': description,
       'ean': ean,
       'status': status.name,
-      'product_type': ProductType.INDIVIDUAL.name,
+
+      'product_type': ProductType.INDIVIDUAL.toApiString(),
       'stock_quantity': stockQuantity,
       'control_stock': controlStock,
       'dietary_tags': dietaryTags.map((tag) => tag.name).toList(),
       'beverage_tags': beverageTags.map((tag) => tag.name).toList(),
-      'parent_category_id': parentCategoryId,
+      'parent_category_id': parentCategoryId, // É ISTO que o define como "sabor"
       'prices': prices.map((p) => p.toJson()).toList(),
-      'video_url': videoUrl, // ✅ LINHA ADICIONADA AQUI
+      'video_url': videoUrl,
     };
   }
 

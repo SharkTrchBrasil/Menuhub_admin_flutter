@@ -1,16 +1,13 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/core/enums/form_status.dart';
 import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/products/product.dart';
-import 'package:totem_pro_admin/pages/product_flavors/cubit/flavor_wizard_cubit.dart';
-import 'package:totem_pro_admin/repositories/product_repository.dart';
-import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 
-// Importe as abas do wizard de sabores
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
+import '../product-wizard/cubit/product_wizard_cubit.dart';
+import '../product-wizard/cubit/product_wizard_state.dart';
 import 'tabs/classification_tab.dart';
 import 'tabs/flavor_details_tab.dart';
 import 'tabs/flavor_price_tab.dart';
@@ -34,15 +31,14 @@ class FlavorEditPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => FlavorWizardCubit(
-        productRepository: getIt<ProductRepository>(),
+      create: (context) => ProductWizardCubit(
         storeId: storeId,
-      )..startFlow(parentCategory: parentCategory, product: product),
-      child: BlocListener<FlavorWizardCubit, FlavorWizardState>(
+      )..startFlow(product: product, parentCategory: parentCategory),
+      child: BlocListener<ProductWizardCubit, ProductWizardState>(
         listener: (context, state) {
-          if (state.status == FormStatus.success) {
+          if (state.submissionStatus == FormStatus.success) {
             onSaveSuccess();
-          } else if (state.status == FormStatus.error) {
+          } else if (state.submissionStatus == FormStatus.error) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
               ..showSnackBar(SnackBar(
@@ -57,7 +53,6 @@ class FlavorEditPanel extends StatelessWidget {
   }
 }
 
-// UI extraída da `FlavorWizardPage`
 class _FlavorEditPanelView extends StatefulWidget {
   final VoidCallback onCancel;
   const _FlavorEditPanelView({required this.onCancel});
@@ -83,80 +78,56 @@ class _FlavorEditPanelViewState extends State<_FlavorEditPanelView> with SingleT
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<FlavorWizardCubit, FlavorWizardState>(
+    return BlocBuilder<ProductWizardCubit, ProductWizardState>(
       builder: (context, state) {
-        final cubit = context.read<FlavorWizardCubit>();
-        final isFormValid = state.product.name.trim().isNotEmpty;
-        final isLoading = state.status == FormStatus.loading;
+        final cubit = context.read<ProductWizardCubit>();
+        final isFormValid = state.productInCreation.name.trim().isNotEmpty;
+        final isLoading = state.submissionStatus == FormStatus.loading;
 
         return Column(
           children: [
-
-
-            // Container para as tabs com background e borda
             Container(
               color: Colors.white,
-              child: Column(
-                children: [
-                  TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    indicatorColor: Theme.of(context).primaryColor,
-                    labelColor: Theme.of(context).primaryColor,
-                    unselectedLabelColor: Colors.grey[600],
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontWeight: FontWeight.normal,
-                    ),
-                    tabs: const [
-                      Tab(text: 'Detalhes'),
-                      Tab(text: 'Preço e PDV'),
-                      Tab(text: 'Classificação'),
-                    ],
-                  ),
-                  // Linha divisória sutil abaixo das tabs
-
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                indicatorColor: Theme.of(context).primaryColor,
+                labelColor: Theme.of(context).primaryColor,
+                unselectedLabelColor: Colors.grey[600],
+                tabs: const [
+                  Tab(text: 'Detalhes e Tipo'),
+                  Tab(text: 'Preços'),
+                  Tab(text: 'Classificação'),
                 ],
               ),
             ),
-
-            // Conteúdo das Abas
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: const [
                   FlavorDetailsTab(),
                   FlavorPriceTab(),
-                  FlavorClassificationTab(),
+                  ClassificationTab(),
                 ],
               ),
             ),
-
-            // Rodapé com Botões
             Container(
               padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-
-              ),
+              decoration: const BoxDecoration(color: Colors.white),
               child: Row(
                 children: [
                   Flexible(
                     child: DsButton(
                       style: DsButtonStyle.secondary,
-                      onPressed: (){
-        context.pop();
-        } ,
+                      onPressed: () => context.pop(),
                       label: 'Cancelar',
                     ),
                   ),
                   const SizedBox(width: 16),
                   Flexible(
                     child: DsButton(
-                      onPressed: isFormValid && !isLoading ? cubit.submitFlavor : null,
+                      onPressed: isFormValid && !isLoading ? cubit.saveProduct : null,
                       isLoading: isLoading,
                       label: 'Salvar Alterações',
                     ),

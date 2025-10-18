@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:either_dart/either.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
@@ -35,6 +37,7 @@ import '../models/store/store_receivable.dart';
 
 import '../models/supplier.dart';
 
+import '../models/tables/command.dart';
 import '../models/tables/saloon.dart';
 import '../models/variant.dart';
 import '../services/connectivity_service.dart';
@@ -67,12 +70,16 @@ class RealtimeRepository {
   IO.Socket? _socket;
   final AuthRepository _authRepository = GetIt.I<AuthRepository>();
 
+  final apiUrl = dotenv.env['API_URL'];
+
   int? _lastJoinedStoreId;
   bool _isDisposed = false;
   bool _isDisposing = false;
   bool get isConnected => _socket?.connected == true;
 
   bool get isDisposed => _isDisposed;
+
+  String? get currentSocketId => _socket?.id;
 
   final _connectionStatusController = BehaviorSubject<bool>.seeded(false);
   final _storeNotificationController = BehaviorSubject<Map<int, int>>.seeded({});
@@ -112,6 +119,17 @@ class RealtimeRepository {
   final _userHasNoStoresController = StreamController<void>.broadcast();
   final _saloonsStreams = <int, BehaviorSubject<List<Saloon>>>{};
 
+  final _deviceLimitReachedController = StreamController<Map<String, dynamic>>.broadcast();
+
+  final _sessionRevokedController = StreamController<Map<String, dynamic>>.broadcast();
+
+  final _standaloneCommandsStreams = <int, BehaviorSubject<List<Command>>>{};
+
+  Stream<Map<String, dynamic>> get onSessionRevoked => _sessionRevokedController.stream;
+
+
+  Stream<Map<String, dynamic>> get onDeviceLimitReached => _deviceLimitReachedController.stream;
+
 
   Stream<FullMenuData> listenToFullMenu(int storeId) =>
       _fullMenuStreams.putIfAbsent(storeId, () => BehaviorSubject()).stream;
@@ -147,16 +165,20 @@ class RealtimeRepository {
   Stream<void> get onUserHasNoStores => _userHasNoStoresController.stream;
 
 
-// Adicione no getter de streams
   Stream<List<Saloon>> listenToSaloons(int storeId) =>
       _saloonsStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])).stream;
 
 
+  Stream<List<Command>> listenToStandaloneCommands(int storeId) {
+    // Cria o subject se não existir
+    final subject = _standaloneCommandsStreams.putIfAbsent(
+      storeId,
+          () => BehaviorSubject<List<Command>>.seeded([]),
+    );
 
+    return subject.stream;
+  }
 
-
-
-  /// Reivindica um trabalho de impressão específico pelo seu ID.
   Future<Either<String, Map<String, dynamic>>> claimSpecificPrintJob(int jobId) {
     print('[RealtimeRepository] Enviando reivindicação para o trabalho de impressão #$jobId');
     return _emitWithAck('claim_specific_print_job', {'job_id': jobId});
@@ -164,8 +186,6 @@ class RealtimeRepository {
 
 
 
-
-  // Conjuntos para controle de salas
   final _joinedStores = <int>{};
   final _joiningInProgress = <int>{};
 
@@ -196,30 +216,84 @@ class RealtimeRepository {
     });
   }
 
-
   Future<void> initialize(String adminToken) async {
-// Armazena o token para reconexão
     if (_socket != null) {
-      log('[Socket] Conexão existente encontrada. Desconectando para reiniciar...');
-      _socket!.dispose(); // Usa dispose para limpar tudo
+      log('[Socket] Conexão existente encontrada. Desconectando...');
+      _socket!.dispose();
     }
 
     log('[Socket] Inicializando conexão com o socket...');
+
+
+    final deviceInfo = _getDeviceInfo();
+
     final options = IO.OptionBuilder()
         .setTransports(['websocket'])
         .disableAutoConnect()
-        .setReconnectionAttempts(10) // Limita as tentativas para evitar loops infinitos
+        .setReconnectionAttempts(10)
         .setReconnectionDelay(2000)
         .setReconnectionDelayMax(10000)
-        .setQuery({'admin_token': adminToken})
+        .setQuery({
+      'admin_token': adminToken,
+      'device_name': deviceInfo['device_name']!,
+      'device_type': deviceInfo['device_type']!,
+      'platform': deviceInfo['platform']!,
+      'browser': deviceInfo['browser']!,
+    })
         .build();
 
-    _socket = IO.io('https://api-pdvix-production.up.railway.app/admin', options);
+    _socket = IO.io('$apiUrl', options);
 
     _registerSocketListeners();
     _socket!.connect();
   }
 
+
+  Map<String, String> _getDeviceInfo() {
+    if (Platform.isAndroid) {
+      return {
+        'device_name': 'Android Device',
+        'device_type': 'mobile',
+        'platform': 'Android',
+        'browser': 'Flutter',
+      };
+    } else if (Platform.isIOS) {
+      return {
+        'device_name': 'iPhone',
+        'device_type': 'mobile',
+        'platform': 'iOS',
+        'browser': 'Flutter',
+      };
+    } else if (Platform.isWindows) {
+      return {
+        'device_name': 'Windows PC',
+        'device_type': 'desktop',
+        'platform': 'Windows',
+        'browser': 'Flutter',
+      };
+    } else if (Platform.isMacOS) {
+      return {
+        'device_name': 'Mac',
+        'device_type': 'desktop',
+        'platform': 'macOS',
+        'browser': 'Flutter',
+      };
+    } else if (Platform.isLinux) {
+      return {
+        'device_name': 'Linux PC',
+        'device_type': 'desktop',
+        'platform': 'Linux',
+        'browser': 'Flutter',
+      };
+    } else {
+      return {
+        'device_name': 'Unknown Device',
+        'device_type': 'unknown',
+        'platform': 'unknown',
+        'browser': 'Flutter',
+      };
+    }
+  }
 
 
 
@@ -373,9 +447,44 @@ class RealtimeRepository {
       _handleOrderUpdated(data);
     });
 
-    _socket!.on('tables_and_commands', (data) {
+    _socket!.on('tables_and_commands_updated', (data) {  // ✅ NOME CORRETO DO EVENTO
       if (_isDisposed || _isDisposing) return;
-      _handleTablesAndCommands(data);
+
+      print('🔥🔥🔥 [SOCKET] Evento tables_and_commands_updated recebido!');
+      print('🔥🔥🔥 [SOCKET] Data: $data');
+
+      try {
+        if (data is! Map || !data.containsKey('store_id')) {
+          print('🔥🔥🔥 [SOCKET] ❌ Payload inválido');
+          return;
+        }
+
+        final storeId = data['store_id'] as int;
+        print('🔥🔥🔥 [SOCKET] Store ID: $storeId');
+
+        // Processa salões
+        final saloonsJson = data['saloons'] as List? ?? [];
+        final saloons = saloonsJson.map((e) => Saloon.fromJson(e)).toList();
+        print('🔥🔥🔥 [SOCKET] Salões: ${saloons.length}');
+
+        // ✅ Processa comandas avulsas
+        final standaloneCommandsJson = data['standalone_commands'] as List? ?? [];
+        print('🔥🔥🔥 [SOCKET] Comandas JSON: ${standaloneCommandsJson.length}');
+
+        final standaloneCommands = standaloneCommandsJson
+            .map((json) => Command.fromJson(json))
+            .toList();
+        print('🔥🔥🔥 [SOCKET] Comandas parseadas: ${standaloneCommands.length}');
+
+        // Emite para os streams
+        _saloonsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(saloons);
+        _standaloneCommandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(standaloneCommands);
+
+        print('🔥🔥🔥 [SOCKET] ✅ Dados emitidos!');
+      } catch (e, st) {
+        print('🔥🔥🔥 [SOCKET] ❌ ERRO: $e');
+        log('[Socket] Erro ao processar tables_and_commands_updated', error: e, stackTrace: st);
+      }
     });
 
     _socket!.on('payables_data_updated', (data) {
@@ -415,6 +524,38 @@ class RealtimeRepository {
         _userHasNoStoresController.add(null);
       }
     });
+
+
+    _socket!.on('session_limit_reached', (data) {
+      if (_isDisposed || _isDisposing) return;
+
+      log('⚠️ Evento recebido: session_limit_reached');
+
+      // Mostra uma notificação ao usuário
+      if (data is Map<String, dynamic>) {
+        final message = data['message'] as String?;
+        final maxDevices = data['max_devices'] as int?;
+
+        // Você pode emitir isso para um stream que a UI escuta
+        _deviceLimitReachedController.add({
+          'message': message ?? 'Limite de dispositivos atingido',
+          'max_devices': maxDevices ?? 5
+        });
+      }
+    });
+
+
+    _socket!.on('session_revoked', (data) {
+      if (_isDisposed || _isDisposing) return;
+
+      log('🚨 Evento recebido: session_revoked - Sessão foi revogada!');
+
+      if (data is Map<String, dynamic> && !_sessionRevokedController.isClosed) {
+        _sessionRevokedController.add(data);
+      }
+    });
+
+
   }
 
 
@@ -542,46 +683,57 @@ class RealtimeRepository {
 
 
 
+
   void _handleStoreDetailsUpdated(dynamic data) {
     if (_isDisposed || _isDisposing) return;
 
-
-    // ✅ PASSO 1: IMPRIMIR OS DADOS BRUTOS QUE CHEGAM DO BACKEND
-    print('--- 🕵️ PONTO DE DEBUG A: DADOS BRUTOS DO SOCKET (store_details_updated) ---');
-    var jsonEncoder = const JsonEncoder.withIndent('  '); // Formata o JSON
-    //  print(jsonEncoder.convert(data));
-    print('-------------------------------------------------------------------------');
+    // ✅ LOG CRÍTICO: Mostra o payload COMPLETO
+    print('🔥🔥🔥 [REALTIME] store_details_updated recebido!');
+    print('🔥🔥🔥 [REALTIME] Payload completo:');
+    print(data);
 
     try {
-      // O resto do seu código continua aqui...
+      // ✅ CORREÇÃO: Não precisa adicionar subscription separadamente
+      // O payload já vem com 'active_subscription' dentro de 'store'
       final Map<String, dynamic> storeData = Map.from(data['store']);
-      if (data['subscription'] != null) {
-        storeData['subscription'] = data['subscription'];
-      }
 
-      final store = Store.fromJson(storeData);
-
-      // ✅ PASSO 2: IMPRIMIR OS DADOS APÓS SEREM CONVERTIDOS PELOS MODELS DO DART
-      print('--- 🕵️ PONTO DE DEBUG B: DADOS APÓS PARSE NO DART ---');
-      if (store.relations.coupons.isNotEmpty) {
-        print('✅ Sucesso! Encontrados ${store.relations.coupons.length} cupons no objeto Store.');
-        // Vamos inspecionar as regras do primeiro cupom da lista
-        final firstCoupon = store.relations.coupons.first;
-        print('🔎 O primeiro cupom (código: "${firstCoupon.code}") tem ${firstCoupon.rules.length} regras.');
-        if (firstCoupon.rules.isNotEmpty) {
-          print('  -> Detalhe da primeira regra: tipo=${firstCoupon.rules.first.ruleType}, valor=${firstCoupon.rules.first.value}');
+      // ✅ LOG: Verifica se a subscription está presente
+      if (storeData.containsKey('active_subscription')) {
+        print('🔥🔥🔥 [REALTIME] ✅ active_subscription presente!');
+        if (storeData['active_subscription'] != null) {
+          final sub = storeData['active_subscription'];
+          print('🔥🔥🔥 [REALTIME]   Status: ${sub['status']}');
+          print('🔥🔥🔥 [REALTIME]   Bloqueada: ${sub['is_blocked']}');
+        } else {
+          print('🔥🔥🔥 [REALTIME]   ⚠️ active_subscription é NULL');
         }
       } else {
-        print('❌ Problema? Nenhum cupom encontrado no objeto Store após o parse.');
+        print('🔥🔥🔥 [REALTIME] ❌ active_subscription NÃO está no payload!');
       }
-      print('-----------------------------------------------------------');
 
+      // ✅ Faz o parse do Store (que já inclui a subscription)
+      final store = Store.fromJson(storeData);
+
+      // ✅ LOG: Confirma se o Store tem subscription
+      print('🔥🔥🔥 [REALTIME] Store parseado:');
+      if (store.relations.subscription != null) {
+        print('🔥🔥🔥 [REALTIME]   ✅ Subscription presente no Store!');
+        print('🔥🔥🔥 [REALTIME]   Status: ${store.relations.subscription!.status}');
+      } else {
+        print('🔥🔥🔥 [REALTIME]   ❌ Subscription NULL no Store!');
+      }
+
+      // ✅ Adiciona ao stream
       _storeDetailsController.add(store);
+
+      print('🔥🔥🔥 [REALTIME] ✅ Store emitido para o stream!');
 
     } catch (e, st) {
       log('[Socket] ❌ Erro em store_details_updated', error: e, stackTrace: st);
     }
   }
+
+
 
   void _handleDashboardDataUpdated(dynamic data) {
 
@@ -598,10 +750,9 @@ class RealtimeRepository {
   }
 
 
-  // ✅ 2. SUBSTITUA SEU MÉTODO _handleProductsUpdated INTEIRO POR ESTE
+
   void _handleProductsUpdated(dynamic data) {
     if (_isDisposed || _isDisposing) return;
-
 
     log('✅ Evento recebido: products_updated (payload completo)');
     try {
@@ -612,7 +763,7 @@ class RealtimeRepository {
       final allProducts = (data['products'] as List? ?? []).map((p) => Product.fromJson(p)).toList();
       final allCategories = (data['categories'] as List? ?? []).map((c) => Category.fromJson(c)).toList();
       final allVariants = (data['variants'] as List? ?? []).map((v) => Variant.fromJson(v)).toList();
-//print(data);
+
       // A RECONCILIAÇÃO QUE JÁ CONHECEMOS
       final productMap = {for (var p in allProducts) p.id: p};
       final reconciledCategories = <Category>[];
@@ -629,15 +780,20 @@ class RealtimeRepository {
         reconciledCategories.add(category.copyWith(productLinks: newProductLinks));
       }
 
-      // ✅ 3. EMITE UM ÚNICO PACOTE DE DADOS CONSISTENTE
-      _fullMenuStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(
-        FullMenuData(
-          products: allProducts,
-          categories: reconciledCategories, // A lista já corrigida!
-          variants: allVariants,
-        ),
+      // ✅ LOG ADICIONADO ANTES DE EMITIR
+      log('📦 [RealtimeRepository] Preparando FullMenuData para loja $storeId: ${allProducts.length} produtos, ${reconciledCategories.length} categorias, ${allVariants.length} variantes');
+
+      final menuData = FullMenuData(
+        products: allProducts,
+        categories: reconciledCategories,
+        variants: allVariants,
       );
 
+      // ✅ LOG CRÍTICO: Confirma a emissão
+      final subject = _fullMenuStreams.putIfAbsent(storeId, () => BehaviorSubject());
+      log('🚀 [RealtimeRepository] Emitindo FullMenuData para stream da loja $storeId (listeners ativos: ${subject.hasListener})');
+      subject.add(menuData);
+      log('✅ [RealtimeRepository] FullMenuData emitido com sucesso para loja $storeId');
 
       _connectivityStatusController.add(ConnectivityStatus.connected);
       log('[Socket] Sincronização de dados completa. Status: Conectado.');
@@ -646,8 +802,6 @@ class RealtimeRepository {
       log('[Socket] ❌ Erro CRÍTICO em _handleProductsUpdated.', error: e, stackTrace: st);
     }
   }
-
-
 
 
   void _handleOrdersInitial(dynamic data) {
@@ -702,31 +856,68 @@ class RealtimeRepository {
     if (_isDisposed || _isDisposing) return;
 
     log('✅ Evento recebido: tables_and_commands_updated (com nova estrutura hierárquica)');
+
+    // ✅ ADICIONE ESTES LOGS
+    print('🔥🔥🔥 [REALTIME] Payload completo recebido:');
+    print('🔥🔥🔥 [REALTIME] ${data.toString()}');
+
     try {
       // 1. Validação básica do payload
-      if (data is! Map || !data.containsKey('store_id')) return;
+      if (data is! Map || !data.containsKey('store_id')) {
+        print('🔥🔥🔥 [REALTIME] ❌ Payload inválido ou sem store_id');
+        return;
+      }
       final storeId = data['store_id'] as int;
+      print('🔥🔥🔥 [REALTIME] Store ID: $storeId');
 
-      // 2. A MUDANÇA PRINCIPAL: Processamos APENAS a lista de 'saloons'
-      // Seus models já sabem como decodificar as mesas e comandas aninhadas.
+      // 2. Processa salões (mesas com comandas)
       final saloons = (data['saloons'] as List? ?? [])
           .map((e) => Saloon.fromJson(e))
           .toList();
+      print('🔥🔥🔥 [REALTIME] Salões processados: ${saloons.length}');
 
-      // 3. Emitimos a lista completa e estruturada de salões para o stream correto.
-      // O Cubit agora receberá a árvore de dados completa por aqui.
+      // 3. Emite salões
       _saloonsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(saloons);
 
-      // 4. ❗ REMOVIDO: Não precisamos mais emitir para os streams de mesas e comandas
-      // _tablesStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(tables);
-      // _commandsStreams.putIfAbsent(storeId, () => BehaviorSubject()).add(commands);
+      // ✅ 4. NOVO: Processa comandas avulsas (sem mesa)
+      print('🔥🔥🔥 [REALTIME] Verificando comandas avulsas...');
+      final standaloneCommandsJson = data['standalone_commands'] as List? ?? [];
+      print('🔥🔥🔥 [REALTIME] JSON bruto de comandas: $standaloneCommandsJson');
+      print('🔥🔥🔥 [REALTIME] Quantidade de comandas no JSON: ${standaloneCommandsJson.length}');
 
-      log('✅ Estrutura de ${saloons.length} salões (com mesas e comandas) emitida para o Cubit.');
+      final standaloneCommands = standaloneCommandsJson
+          .map((json) {
+        print('🔥🔥🔥 [REALTIME] Parseando comanda: $json');
+        return Command.fromJson(json);
+      })
+          .toList();
+
+      print('🔥🔥🔥 [REALTIME] Comandas parseadas: ${standaloneCommands.length}');
+      for (var cmd in standaloneCommands) {
+        print('🔥🔥🔥 [REALTIME]   - ID: ${cmd.id}, Nome: ${cmd.customerName}');
+      }
+
+      // ✅ 5. Emite comandas avulsas
+      print('🔥🔥🔥 [REALTIME] Emitindo para stream de comandas...');
+      final subject = _standaloneCommandsStreams
+          .putIfAbsent(storeId, () => BehaviorSubject.seeded([]));
+      print('🔥🔥🔥 [REALTIME] Stream tem listeners? ${subject.hasListener}');
+      subject.add(standaloneCommands);
+      print('🔥🔥🔥 [REALTIME] ✅ Comandas emitidas com sucesso!');
+
+      log('✅ Estrutura de ${saloons.length} salões e ${standaloneCommands.length} comandas avulsas emitida.');
 
     } catch (e, st) {
+      print('🔥🔥🔥 [REALTIME] ❌ ERRO: $e');
       log('[Socket] ❌ Erro em _handleTablesAndCommands', error: e, stackTrace: st);
     }
   }
+
+
+
+
+
+
   void _handleNewPrintJobsAvailable(dynamic data) {
     if (_isDisposed || _isDisposing) return;
 
@@ -797,14 +988,27 @@ class RealtimeRepository {
 
 
 
+// Em: repositories/realtime_repository.dart
+
+// ✅ CORREÇÃO: Criar o BehaviorSubject de forma eager quando entramos na sala
   Future<void> joinStoreRoom(int storeId) async {
     _lastJoinedStoreId = storeId;
 
-    // ✅ CORREÇÃO REFORÇADA: Aguarda conexão mais robustamente
+    // ✅ ADIÇÃO CRÍTICA: Cria o BehaviorSubject ANTES de entrar na sala
+    // Isso garante que o listener estará pronto para receber o primeiro evento
+    _fullMenuStreams.putIfAbsent(storeId, () => BehaviorSubject());
+    _saloonsStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([]));
+    _standaloneCommandsStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([])); // ✅ ADICIONE
+    _productsStreams.putIfAbsent(storeId, () => BehaviorSubject());
+    _ordersStreams.putIfAbsent(storeId, () => BehaviorSubject());
+    _categoriesStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([]));
+    _variantsStreams.putIfAbsent(storeId, () => BehaviorSubject.seeded([]));
+
+    log('[RealtimeRepository] 🎯 BehaviorSubjects criados para loja $storeId. Prontos para receber dados.');
+
     if (_socket == null || !_socket!.connected) {
       log('[Socket] Conexão indisponível. Aguardando conexão...');
 
-      // Aguarda até 5 segundos pela conexão
       int attempts = 0;
       while (attempts < 10 && (_socket == null || !_socket!.connected)) {
         await Future.delayed(const Duration(milliseconds: 500));
@@ -817,7 +1021,6 @@ class RealtimeRepository {
       }
     }
 
-    // Resto do método permanece igual...
     if (_joinedStores.contains(storeId) || _joiningInProgress.contains(storeId)) {
       log('[Socket] Já está na sala $storeId ou a entrada está em andamento. Ignorando.');
       return;
@@ -853,8 +1056,6 @@ class RealtimeRepository {
       _joiningInProgress.remove(storeId);
     }
   }
-
-
 
 
 
@@ -960,6 +1161,51 @@ class RealtimeRepository {
   }
 
 
+  void clearStoreData(int storeId) {
+    log('[RealtimeRepository] 🧹 Limpando dados antigos da loja $storeId...');
+
+    // ✅ IMPORTANTE: Não fecha os subjects, apenas envia dados vazios
+    if (_fullMenuStreams.containsKey(storeId)) {
+      _fullMenuStreams[storeId]!.add(FullMenuData(
+        products: [],
+        categories: [],
+        variants: [],
+      ));
+      log('[RealtimeRepository] FullMenuData limpo para loja $storeId');
+    }
+
+    if (_saloonsStreams.containsKey(storeId)) {
+      _saloonsStreams[storeId]!.add([]);
+    }
+
+    if (_ordersStreams.containsKey(storeId)) {
+      _ordersStreams[storeId]!.add([]);
+    }
+
+    if (_categoriesStreams.containsKey(storeId)) {
+      _categoriesStreams[storeId]!.add([]);
+    }
+
+    if (_variantsStreams.containsKey(storeId)) {
+      _variantsStreams[storeId]!.add([]);
+    }
+
+    // Limpa controllers globais
+    if (!_financialsController.isClosed) {
+      _financialsController.add(null);
+    }
+
+    if (!_storeDetailsController.isClosed) {
+      _storeDetailsController.add(null);
+    }
+
+    // ✅ ADICIONE ESTE BLOCO:
+    if (_standaloneCommandsStreams.containsKey(storeId)) {
+      _standaloneCommandsStreams[storeId]!.add([]);
+    }
+
+    log('[RealtimeRepository] ✅ Limpeza completa para loja $storeId');
+  }
 
 
 
@@ -1011,8 +1257,10 @@ class RealtimeRepository {
       _safeClose(_userHasNoStoresController);
       _safeClose(_storeDetailsController);
       _safeClose(_dashboardDataController);
+      _safeClose(_deviceLimitReachedController);
+      _safeClose(_sessionRevokedController);
+      _safeCloseStream(_standaloneCommandsStreams.values); // ✅ ADICIONE
 
-      // 6. Limpa estruturas de dados
       _productsStreams.clear();
       _ordersStreams.clear();
       _fullMenuStreams.clear();
@@ -1022,7 +1270,7 @@ class RealtimeRepository {
       _joiningInProgress.clear();
       _lastJoinedStoreId = null;
 
-      // 7. Marca como completamente disposed
+
       _isDisposed = true;
       _isDisposing = false;
 

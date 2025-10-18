@@ -1,282 +1,430 @@
-// lib/pages/new_subscription/new_subscription_dialog.dart
-
-import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart'; // Importe o flutter_bloc
 import 'package:get_it/get_it.dart';
-import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/core/extensions/extensions.dart';
-import 'package:totem_pro_admin/cubits/auth_cubit.dart'; // ✅ Importe o AuthCubit
-import 'package:totem_pro_admin/cubits/auth_state.dart'; // ✅ Importe o AuthState
-import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
-import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-import 'package:totem_pro_admin/models/address.dart';
-import 'package:totem_pro_admin/models/billing_customer.dart';
 import 'package:totem_pro_admin/models/plans/plans.dart';
-import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/models/subscription/create_subscription_payload.dart';
-import 'package:totem_pro_admin/models/subscription/credit_card.dart';
-import 'package:totem_pro_admin/models/user.dart'; // Importe o modelo User
 import 'package:totem_pro_admin/repositories/store_repository.dart';
-import 'package:totem_pro_admin/widgets/app_primary_button.dart';
-import 'package:totem_pro_admin/widgets/app_text_field.dart';
-import 'package:totem_pro_admin/widgets/app_toasts.dart';
-
-import '../../core/utils/card_utils.dart';
+import 'package:totem_pro_admin/core/utils/card_utils.dart';
 
 class NewSubscriptionDialog extends StatefulWidget {
-  const NewSubscriptionDialog({
-    super.key,
-    required this.plan,
-    required this.storeId,
-  });
-
   final int storeId;
   final Plans plan;
+
+  const NewSubscriptionDialog({
+    super.key,
+    required this.storeId,
+    required this.plan,
+  });
 
   @override
   State<NewSubscriptionDialog> createState() => _NewSubscriptionDialogState();
 }
 
 class _NewSubscriptionDialogState extends State<NewSubscriptionDialog> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final StoreRepository _storeRepository = getIt<StoreRepository>();
+  final _formKey = GlobalKey<FormState>();
+  final _repository = GetIt.I<StoreRepository>();
 
-  // O StoresManagerCubit continua sendo necessário para pegar a loja ativa
-  final StoresManagerCubit _storesManagerCubit = getIt<StoresManagerCubit>();
+  // Controllers
+  final _cardNumberController = TextEditingController();
+  final _holderNameController = TextEditingController();
+  final _expiryController = TextEditingController();
+  final _cvvController = TextEditingController();
 
-  // Variáveis de estado
-  Address? _address;
-  BillingCustomer? _billingCustomer;
-  CreditCard _creditCard = CreditCard();
-  bool _isLoading = true;
-  String? _errorMessage;
+  bool _isLoading = false;
+  CardBrand _detectedBrand = CardBrand.unknown;
 
   @override
-  void initState() {
-    super.initState();
-    _loadInitialData();
+  void dispose() {
+    _cardNumberController.dispose();
+    _holderNameController.dispose();
+    _expiryController.dispose();
+    _cvvController.dispose();
+    super.dispose();
   }
 
-  void _loadInitialData() {
-    // Acessa o estado dos dois cubits
-    final storeState = _storesManagerCubit.state;
-
-    // ✅ CORREÇÃO PRINCIPAL: Acessa o AuthCubit através do context
-    final authState = context.read<AuthCubit>().state;
-    User? currentUser;
-
-    if (authState is AuthAuthenticated) {
-      currentUser = authState.data.user;
-    }
-
-    if (storeState is StoresManagerLoaded && storeState.activeStore != null && currentUser != null) {
-      final Store store = storeState.activeStore!;
-      setState(() {
-        _address = Address(
-          street: store.address?.street ?? '',
-          number: store.address?.number ?? '',
-          complement: store.address?.complement ?? '',
-          neighborhood: store.address?.neighborhood ?? '',
-          city: store.address?.city ?? '',
-          state: store.address?.state ?? '',
-          zipcode: store.address?.zipCode ?? '',
-        );
-
-        _billingCustomer = BillingCustomer(
-          name: currentUser!.name,
-          cpf: currentUser.cpf!,
-          email: currentUser.email,
-          phone: store.core.phone ?? currentUser.phone ?? '',
-          birthday:  currentUser.birthDate,
-        );
-
-        _isLoading = false;
-      });
-    } else {
-      setState(() {
-        _errorMessage = "Não foi possível carregar os dados da loja ou do usuário. Tente novamente.";
-        _isLoading = false;
-      });
+  void _onCardNumberChanged(String value) {
+    final brand = CardUtils.detectBrand(value);
+    if (brand != _detectedBrand) {
+      setState(() => _detectedBrand = brand);
     }
   }
 
-  Future<void> _submitSubscription() async {
-    if (!_formKey.currentState!.validate()) {
-      showError('Por favor, verifique os dados do cartão.');
-      return;
-    }
+  /// ✅ VERSÃO FINAL CORRIGIDA
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    if (_address == null || _billingCustomer == null) {
-      showError("Dados da loja não carregados. Não é possível continuar.");
-      return;
-    }
-
-    // ✅ PRINT DE DEPURACAO AQUI
-    debugPrint('--- DEBUG: [UI - NewSubscriptionDialog] ---');
-    debugPrint('Enviando para o repositório...');
-    debugPrint('Número do Cartão: "${_creditCard.number}"');
-    debugPrint('CVV: "${_creditCard.cvv}"');
-    debugPrint('Data de Vencimento: ${_creditCard.expirationDate}');
-    debugPrint('Bandeira Detectada: ${_creditCard.brand.name}');
-    debugPrint('-----------------------------------------');
-
-
-    final VoidCallback hideLoading = showLoading();
+    setState(() => _isLoading = true);
 
     try {
-      final tokenizeResult = await _storeRepository.generateCardToken(_creditCard);
+      // ═══════════════════════════════════════════════════════════
+      // 1️⃣ TOKENIZA O CARTÃO VIA PAGAR.ME
+      // ═══════════════════════════════════════════════════════════
 
-      await tokenizeResult.fold(
-            (failure) async {
-          showError(failure.message);
-        },
-            (tokenizedCard) async {
-          final payload = CreateSubscriptionPayload(
-            planId: widget.plan.id,
-            customer: _billingCustomer,
-            card: tokenizedCard,
-            address: _address,
-          );
-          await _createSubscriptionInBackend(payload);
-        },
+      final expiry = _expiryController.text.split('/');
+
+      final tokenResult = await _repository.generatePagarmeCardToken(
+        cardNumber: _cardNumberController.text,
+        holderName: _holderNameController.text,
+        expirationMonth: expiry[0].trim(),
+        expirationYear: '20${expiry[1].trim()}',
+        // 25 → 2025
+        cvv: _cvvController.text,
       );
+
+      if (tokenResult.isLeft) {
+        final failure = tokenResult.left;
+        if (mounted) {
+          _showError(failure.message);
+        }
+        return;
+      }
+
+      // ✅ CORREÇÃO: tokenResult.right é PagarmeTokenResult, não String
+      final tokenData = tokenResult.right;
+
+      debugPrint('✅ Token recebido: ${tokenData.token.substring(0, 20)}...');
+      debugPrint('   Máscara: ${tokenData.cardMask}');
+      debugPrint('   Bandeira: ${tokenData.brand}');
+
+      // ═══════════════════════════════════════════════════════════
+      // 2️⃣ CRIA PAYLOAD E ENVIA PARA O BACKEND
+      // ═══════════════════════════════════════════════════════════
+
+      // ✅ CORREÇÃO: Usa factory method
+      final payload = CreateSubscriptionPayload.fromTokenResult(tokenData);
+
+      debugPrint('📤 Enviando payload para backend...');
+      debugPrint('   Payload: ${payload.toJson()}');
+
+      final result = await _repository.createSubscription(
+        widget.storeId,
+        payload,
+      );
+
+      // ═══════════════════════════════════════════════════════════
+      // 3️⃣ PROCESSA RESULTADO
+      // ═══════════════════════════════════════════════════════════
+
+      if (mounted) {
+        if (result.isRight) {
+          debugPrint('✅ Assinatura criada com sucesso!');
+          _showSuccess();
+        } else {
+          debugPrint('❌ Erro ao criar assinatura: ${result.left.message}');
+          _showError(result.left.message);
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Erro inesperado: $e');
+      debugPrint('Stack trace: $stackTrace');
+
+      if (mounted) {
+        _showError('Erro inesperado: $e');
+      }
     } finally {
-      hideLoading();
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  Future<void> _createSubscriptionInBackend(CreateSubscriptionPayload payload) async {
-    final result = await _storeRepository.createSubscription(widget.storeId, payload);
+  void _showSuccess() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ Assinatura ativada com sucesso!'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 3),
+      ),
+    );
+    Navigator.of(context).pop(true);
+  }
 
-    result.fold(
-          (failure) {
-        showError(failure.message);
-      },
-          (success) {
-        showSuccess('Cobrança ativada com sucesso!');
-        if (context.mounted) context.pop();
-
-      },
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // O restante do build permanece o mesmo, pois a UI não muda
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 500,
+        constraints: const BoxConstraints(maxWidth: 500),
         padding: const EdgeInsets.all(24),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-            ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
-            : Form(
+        child: Form(
           key: _formKey,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Ativar cobrança: ${widget.plan.planName}',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ═══════════════════════════════════════════════════════════
+              // HEADER
+              // ═══════════════════════════════════════════════════════════
+              Row(
+                children: [
+                  const Icon(Icons.credit_card, color: Color(0xFF3C76E8)),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Adicionar Cartão',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.close)),
-                  ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // ═══════════════════════════════════════════════════════════
+              // NÚMERO DO CARTÃO
+              // ═══════════════════════════════════════════════════════════
+              TextFormField(
+                controller: _cardNumberController,
+                decoration: InputDecoration(
+                  labelText: 'Número do Cartão',
+                  hintText: '0000 0000 0000 0000',
+                  prefixIcon: Icon(
+                    _detectedBrand != CardBrand.unknown
+                        ? Icons.credit_card
+                        : Icons.credit_card_outlined,
+                    color: const Color(0xFF3C76E8),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Para ativar seu plano, precisamos dos dados de um cartão de crédito. A cobrança será realizada mensalmente com base no faturamento da sua loja, conforme os termos do plano.',
-                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(16),
+                  CardNumberInputFormatter(),
+                ],
+                onChanged: _onCardNumberChanged,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Digite o número do cartão';
+                  }
+                  final clean = value.replaceAll(' ', '');
+                  if (clean.length < 13) {
+                    return 'Número do cartão inválido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // ═══════════════════════════════════════════════════════════
+              // NOME DO TITULAR
+              // ═══════════════════════════════════════════════════════════
+              TextFormField(
+                controller: _holderNameController,
+                decoration: InputDecoration(
+                  labelText: 'Nome do Titular',
+                  hintText: 'Como está no cartão',
+                  prefixIcon: const Icon(Icons.person_outline),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                const SizedBox(height: 24),
-                const Text('Dados do cartão de crédito', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                AppTextField(
-                  title: 'Número do cartão',
-                  hint: '0000 0000 0000 0000',
-                  // suffixIcon: Padding(
-                  //   padding: const EdgeInsets.all(8.0),
-                  //   child: Image.asset(
-                  //     _creditCard.brand.assetPath,
-                  //     width: 32, // ajuste o tamanho conforme necessário
-                  //   ),
-                  // ),
-                  // ✅ VALIDADOR CORRIGIDO E MAIS ROBUSTO
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'O número do cartão é obrigatório.';
-                    }
-                    if (v.length < 19) { // 19 por causa dos espaços do formatador
-                      return 'Número de cartão inválido.';
-                    }
-                    return null;
-                  },
+                textCapitalization: TextCapitalization.characters,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Digite o nome do titular';
+                  }
+                  if (value.trim().length < 3) {
+                    return 'Nome muito curto';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
 
-                  formatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    CartaoBancarioInputFormatter()
-                  ],
-
-                  onChanged: (c) {
-                    setState(() {
-                      final brand = CardUtils.detectCreditCardBrand(c ?? '');
-                      _creditCard = _creditCard.copyWith(number: c, brand: brand);
-                    });
-                  },
-
-
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        hint: 'MM/AA',
-                        title: 'Vencimento',
-                        formatters: [FilteringTextInputFormatter.digitsOnly, ValidadeCartaoInputFormatter()],
-                        validator: (v) => (v == null || v.length < 5) ? 'Data inválida' : null,
-                        onChanged: (c) {
-                          if (c != null && c.length == 5) {
-                            _creditCard = _creditCard.copyWith(expirationDate: DateFormat('MM/yy').tryParse(c));
-                          }
-                        },
+              // ═══════════════════════════════════════════════════════════
+              // VALIDADE E CVV
+              // ═══════════════════════════════════════════════════════════
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _expiryController,
+                      decoration: InputDecoration(
+                        labelText: 'Validade',
+                        hintText: 'MM/AA',
+                        prefixIcon: const Icon(Icons.calendar_today_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                        ExpiryDateInputFormatter(),
+                      ],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Digite a validade';
+                        }
+                        if (!value.contains('/') || value.length != 5) {
+                          return 'Formato: MM/AA';
+                        }
+                        return null;
+                      },
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: AppTextField(
-                        title: 'CVV',
-                        hint: '123',
-                        validator: (v) => (v == null || v.length < 3) ? 'CVV inválido' : null,
-                        formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(4)],
-                        onChanged: (c) => _creditCard = _creditCard.copyWith(cvv: c),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _cvvController,
+                      decoration: InputDecoration(
+                        labelText: 'CVV',
+                        hintText: '123',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ],
+                      obscureText: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Digite o CVV';
+                        }
+                        if (value.length < 3) {
+                          return 'CVV inválido';
+                        }
+                        return null;
+                      },
                     ),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // ═══════════════════════════════════════════════════════════
+              // BOTÃO CONFIRMAR
+              // ═══════════════════════════════════════════════════════════
+              SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _handleSubmit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3C76E8),
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : const Text(
+                            'Confirmar e Ativar',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                 ),
-                const SizedBox(height: 24),
-                AppPrimaryButton(
-                  label: 'Ativar Plano e Salvar Cartão',
-                  onPressed: _submitSubscription,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+
+              // ═══════════════════════════════════════════════════════════
+              // SEGURANÇA
+              // ═══════════════════════════════════════════════════════════
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.lock, size: 14, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Pagamento 100% seguro via Pagar.me',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// FORMATADORES CUSTOMIZADOS
+// ═══════════════════════════════════════════════════════════
+
+class CardNumberInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text.replaceAll(' ', '');
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < text.length; i++) {
+      buffer.write(text[i]);
+      if ((i + 1) % 4 == 0 && i + 1 != text.length) {
+        buffer.write(' ');
+      }
+    }
+
+    return TextEditingValue(
+      text: buffer.toString(),
+      selection: TextSelection.collapsed(offset: buffer.length),
+    );
+  }
+}
+
+class ExpiryDateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text.replaceAll('/', '');
+
+    if (text.length >= 2) {
+      return TextEditingValue(
+        text: '${text.substring(0, 2)}/${text.substring(2)}',
+        selection: TextSelection.collapsed(offset: text.length + 1),
+      );
+    }
+
+    return newValue;
   }
 }

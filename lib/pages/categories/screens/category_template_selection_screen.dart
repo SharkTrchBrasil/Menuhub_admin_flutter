@@ -68,12 +68,7 @@ class CategoryTemplateSelectionScreen extends StatelessWidget {
         color: const Color(0xFFFFA000),
         onTap: () => cubit.applyTemplate(CategoryTemplateType.lunchBoxes), // CORRIGIDO
       ),
-      _TemplateInfo(
-        title: "Do Zero",
-        icon: Icons.add_circle_outline,
-        color: const Color(0xFF78909C),
-        onTap: () => cubit.applyTemplate(CategoryTemplateType.blank),
-      ),
+
     ];
 
     return Scaffold(

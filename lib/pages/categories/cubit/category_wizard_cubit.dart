@@ -49,10 +49,32 @@ class CategoryWizardCubit extends Cubit<CategoryWizardState> {
       case CategoryTemplateType.acai:
         groups = CategoryTemplates.forAcai();
         break;
-    // Adicione cases para seus outros templates (lanches, marmitas, etc.)
+      case CategoryTemplateType.snacks:
+        groups = CategoryTemplates.forLanches(); // Usa o método forLanches() para snacks
+        break;
+      case CategoryTemplateType.sushi:
+        groups = CategoryTemplates.forSushi();
+        break;
+      case CategoryTemplateType.salads:
+        groups = CategoryTemplates.forSaladas(); // Usa o método forSaladas() para salads
+        break;
+      case CategoryTemplateType.desserts:
+        groups = CategoryTemplates.forSobremesas(); // Usa o método forSobremesas() para desserts
+        break;
+      case CategoryTemplateType.drinks:
+        groups = CategoryTemplates.forBebidas(); // Usa o método forBebidas() para drinks
+        break;
+      case CategoryTemplateType.breakfast:
+        groups = CategoryTemplates.forCafeDaManha(); // Usa o método forCafeDaManha() para breakfast
+        break;
+      case CategoryTemplateType.lunchBoxes:
+      // Você precisa criar o método forLunchBoxes() na classe CategoryTemplates
+        groups = []; // Placeholder - precisa implementar
+        break;
+      case CategoryTemplateType.none:
       case CategoryTemplateType.blank:
       default:
-        groups = []; // "Começar do Zero"
+        groups = []; // "Começar do Zero" ou categoria geral
     }
 
     emit(state.copyWith(

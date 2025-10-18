@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/pages/edit_settings/citys/delivery_locations_page.dart';
 import 'package:totem_pro_admin/pages/edit_settings/general/store_profile_page.dart';
+import 'package:totem_pro_admin/pages/edit_settings/hours/cubit/opening_hours_cubit.dart';
 import 'package:totem_pro_admin/pages/edit_settings/hours/hours_store_page.dart';
 import 'package:totem_pro_admin/pages/edit_settings/payment_methods/payment_methods_page.dart';
 import 'package:totem_pro_admin/pages/products/products_page.dart';
@@ -35,6 +36,7 @@ class StoreSetupWizardPage extends StatelessWidget {
       create: (context) => StoreWizardCubit(
         storeId: storeId,
         storesManagerCubit: context.read<StoresManagerCubit>(),
+        openingHoursCubit: context.read<OpeningHoursCubit>(),
       ),
       // A View agora é apenas um consumidor do Bloc.
       child: const _StoreSetupWizardView(),

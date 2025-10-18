@@ -238,7 +238,7 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
                 if(_currentStep != SetupStep.storeDetails)
                 Flexible(
                   child: DsButton(
-                    requiresConnection: false,
+
                     style: DsButtonStyle.secondary,
                     onPressed: _currentStep == SetupStep.storeDetails ? null : _goToPreviousStep,
                     label: 'Voltar',
@@ -248,7 +248,7 @@ class _StoreSetupPageState extends State<StoreSetupPage> {
                 const SizedBox(width: 18),
                 Flexible(
                   child: DsButton(
-                    requiresConnection: false,
+
                     onPressed: _goToNextStep,
                     label: _currentStep == SetupStep.contract ? 'ACEITAR E FINALIZAR' : 'Continuar',
                   ),

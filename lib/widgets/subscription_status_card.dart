@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:totem_pro_admin/models/subscription.dart';
+import 'package:totem_pro_admin/models/subscription/subscription.dart';
 
 
 class SubscriptionStatusCard extends StatelessWidget {

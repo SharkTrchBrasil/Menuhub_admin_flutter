@@ -9,6 +9,7 @@ import '../../../core/di.dart';
 import '../../../core/enums/category_type.dart';
 import '../../../core/enums/product_status.dart';
 
+import '../../../core/helpers/edit_product_sidepanel.dart';
 import '../../../core/helpers/sidepanel.dart';
 import '../../../models/products/product.dart';
 import '../../../repositories/product_repository.dart';
@@ -37,33 +38,26 @@ class ProductCardDesktop extends StatefulWidget {
 
 class _ProductCardDesktopState extends State<ProductCardDesktop> {
 
-  void _openEditPanel({required bool isCustomizable}) {
-    // Lógica para decidir qual painel abrir
-    final Widget panelToOpen = isCustomizable
-        ? FlavorEditPanel(
-      // ATENÇÃO: O FlavorEditPanel espera uma `parentCategory`.
-      // Estou passando a primeira categoria do produto.
-      // Se a lógica for mais complexa, este ponto pode precisar de ajuste.
-      parentCategory: widget.product.categoryLinks.first.category!,
-      storeId: widget.storeId,
-      product: widget.product,
-      onSaveSuccess: () {
-        Navigator.of(context).pop(); // Fecha o painel
-      },
-      onCancel: () => Navigator.of(context).pop(),
-    )
-        : ProductEditPanel(
-      storeId: widget.storeId,
-      product: widget.product,
-      onSaveSuccess: () {
-        Navigator.of(context).pop(); // Fecha o painel
-      },
-      onCancel: () => Navigator.of(context).pop(),
-    );
+  // ✨ CÓDIGO NOVO E REATORADO USANDO O HELPER ✨
+  void _openEditPanel() {
+    // Fecha o BottomSheet que está aberto, se necessário.
+    Navigator.of(context).pop();
 
-    // Abre o painel lateral
-    showResponsiveSidePanel(context, panelToOpen);
+    // Chama o helper global passando as informações necessárias
+    showEditProductPanel(
+      context: context,
+      product: widget.product,
+      storeId: widget.storeId,
+      parentCategory:  widget.product.categoryLinks.first.category!, // Passa a categoria pai do contexto atual
+      onSaveSuccess: () {
+        // Você pode adicionar qualquer lógica extra aqui após o salvamento.
+        // Por exemplo, atualizar a UI ou mostrar uma mensagem.
+        print('Produto salvo, painel fechado!');
+      },
+    );
   }
+
+
 
 
 
@@ -152,7 +146,7 @@ class _ProductCardDesktopState extends State<ProductCardDesktop> {
                 isActive: isActive,
                 isCustomizable: isCustomizable,
                 onToggle: widget.onStatusToggle,
-                onEdit: () => _openEditPanel(isCustomizable: isCustomizable),
+                onEdit: () => _openEditPanel(),
               ),
             ),
           ],

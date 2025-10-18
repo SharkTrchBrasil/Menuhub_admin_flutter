@@ -9,6 +9,7 @@ import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 
 // Importe as abas que você já criou
+import '../../product-wizard/steps/step4_categories.dart';
 import '../../product_edit/tabs/complement_tab.dart';
 import '../../product_edit/tabs/product_availability_tab.dart';
 import '../../product_edit/tabs/product_cashback_tab.dart';

@@ -12,7 +12,7 @@ import '../../../core/helpers/sidepanel.dart';
 import '../../../core/responsive_builder.dart';
 import '../../platform_payment_methods/gateway-payment.dart';
 
-// ✅ DELEGATE COPIADO DA delivery_locations_page.dart (ou pode ser movido para um arquivo comum)
+// O delegate permanece o mesmo, está correto.
 class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
 
@@ -25,7 +25,6 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    // Container para dar a cor de fundo e garantir que a TabBar não fique transparente
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: tabBar,
@@ -72,19 +71,70 @@ class PaymentMethodsPage extends StatelessWidget {
           const Tab(text: 'Pagamento na entrega'),
         ];
 
+        // ✅ A ESTRUTURA É ENVOLVIDA POR UM ÚNICO DefaultTabController
         return DefaultTabController(
           length: tabs.length,
           child: Scaffold(
-            // ✅ A ESTRUTURA AGORA É UM CUSTOMSCROLLVIEW ÚNICO DENTRO DO TABBARVIEW
-            body: Padding(
-              padding:  EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isDesktop(context) ? 24: 14.0),
-              child: TabBarView(
-                children: [
-                  // Cada aba tem seu próprio CustomScrollView
-                  _buildContentForTab(context, onlineGroups, storeId, tabs),
-                  _buildContentForTab(context, offlineGroups, storeId, tabs),
-                ],
-              ),
+            // ✅ O CORPO AGORA É UM ÚNICO CUSTOMSCROLLVIEW
+            body: CustomScrollView(
+              slivers: [
+                // ✅ 1. HEADER FIXO (FORA DA TABBARVIEW)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveBuilder.isDesktop(context) ? 38 : 28,
+                      vertical: 16,
+                    ),
+                    child: FixedHeader(
+                      showActionsOnMobile: true,
+                      title: 'Formas de pagamento',
+                      subtitle: 'Ative e configure os métodos de pagamento para seus clientes.',
+                      actions: [
+                        DsButton(
+                          label: 'Adicionar',
+                          style: DsButtonStyle.secondary,
+                          onPressed: () {
+                            showResponsiveSidePanel(
+                              context,
+                              PlatformPaymentMethodsPage(
+                                storeId: storeId,
+                                isInSidePanel: true,
+                              ),
+                            );
+                          },
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ✅ 2. BARRA DE ABAS "PINADA" (FORA DA TABBARVIEW)
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SliverTabBarDelegate(
+                    TabBar(
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      tabs: tabs,
+                      // ✅ Adicionado padding para alinhar com o conteúdo
+                      padding: EdgeInsets.symmetric(horizontal: ResponsiveBuilder.isDesktop(context) ? 24 : 14),
+                    ),
+                  ),
+                ),
+
+                // ✅ 3. O CONTEÚDO QUE TROCA (A TABBARVIEW) VEM POR ÚLTIMO
+                // Envolvemos a TabBarView em um SliverFillRemaining para que ela ocupe
+                // o espaço restante e funcione dentro de um CustomScrollView.
+                SliverFillRemaining(
+                  child: TabBarView(
+                    children: [
+                      // Cada filho da TabBarView agora é apenas a lista de conteúdo.
+                      _buildPaymentList(context, onlineGroups, storeId),
+                      _buildPaymentList(context, offlineGroups, storeId),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -92,76 +142,28 @@ class PaymentMethodsPage extends StatelessWidget {
     );
   }
 
-  // ✅ NOVO MÉTODO PARA CONSTRUIR O CONTEÚDO DE CADA ABA
-  Widget _buildContentForTab(BuildContext context, List<PaymentMethodGroup> groups, int storeId, List<Tab> tabs) {
-    return CustomScrollView(
-      slivers: [
-        // ✅ 1. HEADER FIXO (SliverToBoxAdapter)
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-            child: FixedHeader(
-              showActionsOnMobile: true,
-              title: 'Formas de pagamento',
-              subtitle: 'Ative e configure os métodos de pagamento para seus clientes.',
-              actions: [
-                DsButton(
-                  label: 'Adicionar',
-                  style: DsButtonStyle.secondary,
-                  onPressed: () {
-                    showResponsiveSidePanel(
-                      context,
-                      PlatformPaymentMethodsPage(
-                        storeId: storeId,
-                        isInSidePanel: true,
-                      ),
-                    );
-                  },
-                )
-              ],
-            ),
-          ),
-        ),
+  // ✅ MÉTODO SIMPLIFICADO: CONSTRÓI APENAS A LISTA DE CONTEÚDO PARA UMA ABA
+  Widget _buildPaymentList(BuildContext context, List<PaymentMethodGroup> groups, int storeId) {
+    if (groups.isEmpty) {
+      return const Center(
+        child: Text('Nenhum método deste tipo disponível.'),
+      );
+    }
 
-        // ✅ 2. BARRA DE ABAS "PINADA" (SliverPersistentHeader)
-        SliverPersistentHeader(
-          pinned: true, // A mágica acontece aqui!
-          delegate: _SliverTabBarDelegate(
-            TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: tabs,
-            ),
+    // Usamos um ListView aqui, pois ele já é rolável por si só.
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(28, 16, 28, 88), // Espaçamento geral
+      itemCount: groups.length,
+      itemBuilder: (context, index) {
+        final group = groups[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16.0),
+          child: PaymentGroupView(
+            group: group,
+            storeId: storeId,
           ),
-        ),
-
-        // ✅ 3. CONTEÚDO DA ABA (SliverList)
-        if (groups.isEmpty)
-          const SliverFillRemaining(
-            child: Center(
-              child: Text('Nenhum método deste tipo disponível.'),
-            ),
-          )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 88), // Espaço para o FAB (se houver)
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                  final group = groups[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: PaymentGroupView(
-                      group: group,
-                      storeId: storeId,
-                    ),
-                  );
-                },
-                childCount: groups.length,
-              ),
-            ),
-          ),
-      ],
+        );
+      },
     );
   }
 }

@@ -1,16 +1,11 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:go_router/go_router.dart';
-
 import 'package:totem_pro_admin/models/category.dart';
-import 'package:totem_pro_admin/pages/products/widgets/product_creation_panel.dart';
-
+import 'package:totem_pro_admin/pages/product-wizard/product_creation_panel.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_list_item.dart';
-
 import 'package:totem_pro_admin/services/dialog_service.dart';
-
 import '../../../core/enums/category_type.dart';
 import '../../../core/helpers/sidepanel.dart';
 import '../../../cubits/store_manager_cubit.dart';
@@ -20,7 +15,6 @@ import '../../categories/widgets/empty_category.dart';
 import '../../product_flavors/flavor_creation_panel.dart';
 import '../cubit/products_cubit.dart';
 import '../../categories/category_panel.dart';
-
 
 class CategoryCard extends StatefulWidget {
   final int storeId;
@@ -39,7 +33,6 @@ class CategoryCard extends StatefulWidget {
 }
 
 class _CategoryCardState extends State<CategoryCard> {
-  // ✨ 1. Estado para controlar a edição do nome
   bool _isEditingName = false;
   late TextEditingController _nameController;
 
@@ -56,18 +49,15 @@ class _CategoryCardState extends State<CategoryCard> {
   }
 
   void _saveCategoryName() {
-    // A validação continua aqui, pois é controle de UI
     if (_nameController.text.trim().isEmpty || _nameController.text == widget.category.name) {
       setState(() => _isEditingName = false);
       return;
     }
-    // Delega a ação para o Cubit
     context.read<ProductsCubit>().updateCategoryName(
       widget.storeId,
       widget.category,
       _nameController.text,
     );
-    // A UI local é atualizada imediatamente
     setState(() => _isEditingName = false);
   }
 
@@ -75,37 +65,28 @@ class _CategoryCardState extends State<CategoryCard> {
     context.read<ProductsCubit>().toggleCategoryStatus(widget.storeId, widget.category);
   }
 
-
   Future<void> _deleteCategory() async {
     final confirmed = await DialogService.showConfirmationDialog(
       context,
       title: 'Confirmar Exclusão',
       content: 'Tem certeza que deseja excluir a categoria "${widget.category.name}"?',
     );
-
     if (confirmed == true && context.mounted) {
-      // Apenas notifica o Cubit sobre a intenção de deletar
       context.read<ProductsCubit>().deleteCategory(widget.storeId, widget.category);
     }
   }
 
-
-
-
   void _openAddItemPanel() {
-    // A lógica inteligente que antes estava no router, agora está aqui.
     final bool isCustomizable = widget.category.type == CategoryType.CUSTOMIZABLE;
-
     final Widget panelToOpen = isCustomizable
         ? FlavorCreationPanel(
       storeId: widget.storeId,
       category: widget.category,
       onSaveSuccess: () {
-        Navigator.of(context).pop(); // Fecha o painel
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Sabor criado com sucesso!"), backgroundColor: Colors.green),
         );
-
       },
       onCancel: () => Navigator.of(context).pop(),
     )
@@ -113,48 +94,36 @@ class _CategoryCardState extends State<CategoryCard> {
       storeId: widget.storeId,
       category: widget.category,
       onSaveSuccess: () {
-        Navigator.of(context).pop(); // Fecha o painel
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Produto criado com sucesso!"), backgroundColor: Colors.green),
         );
-
       },
       onCancel: () => Navigator.of(context).pop(),
     );
-
-    // Abre o painel escolhido
     showResponsiveSidePanel(context, panelToOpen);
   }
 
-
-
   void _navigateToEditCategory() {
-    // Substituímos o context.goNamed por uma chamada que abre o painel.
-    showResponsiveSidePanel( // Supondo que você tenha uma função assim
+    showResponsiveSidePanel(
       context,
       CategoryPanel(
         storeId: widget.storeId,
-        category: widget.category, // Passa a categoria para edição
-        onSaveSuccess: () {   Navigator.of(context).pop();        // Fecha o painel
-
-
-        }
+        category: widget.category,
+        onSaveSuccess: () => Navigator.of(context).pop(),
       ),
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 1,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: Color(0xFFF5F5F5),
+      color: const Color(0xFFF5F5F5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          // ✨ 3. O cabeçalho agora é um widget separado e mais rico
           CategoryCardHeader(
             category: widget.category,
             productCount: widget.products.length,
@@ -169,64 +138,63 @@ class _CategoryCardState extends State<CategoryCard> {
             onAddItem: _openAddItemPanel,
             onToggleStatus: _toggleCategoryStatus,
             onEditCategory: _navigateToEditCategory,
-            onDeleteCategory: () => _deleteCategory(),
+            onDeleteCategory: _deleteCategory,
           ),
-
-          // A lista de produtos
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: widget.products.isEmpty
-                ? EmptyCategoryCardContent( onAddItem: _openAddItemPanel,)
+                ? EmptyCategoryCardContent(onAddItem: _openAddItemPanel)
                 : ListView.separated(
               itemCount: widget.products.length,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemBuilder: (context, index) {
                 final product = widget.products[index];
+                String displayPriceText;
 
-                String displayPriceText = 'R\$ 0,00'; // Valor padrão seguro
-
-                // ✅ --- INÍCIO DA NOVA LÓGICA DE PREÇO ---
-
+                // ✅ --- INÍCIO DA LÓGICA DE PREÇO CORRIGIDA ---
                 if (widget.category.type == CategoryType.CUSTOMIZABLE) {
-                  // LÓGICA PARA PIZZAS, AÇAÍS, ETC.
+                  // 1. Encontra o grupo de tamanhos na categoria.
+                  final sizeGroup = widget.category.optionGroups
+                      .firstWhereOrNull((g) => g.minSelection == 1 && g.maxSelection == 1);
 
-                  // Filtra apenas os preços válidos (maiores que zero)
-                  final validPrices = product.prices.where((p) => p.price > 0).map((p) => p.price).toList();
+                  // 2. Cria um mapa de ID da opção para o status de disponibilidade.
+                  final activeOptionIds = sizeGroup != null
+                      ? {for (var item in sizeGroup.items.where((i) => i.isActive)) item.id}
+                      : <int?>{};
 
-                  if (validPrices.isNotEmpty) {
-                    // Encontra o menor preço entre os tamanhos
-                    final minPrice = validPrices.reduce((a, b) => a < b ? a : b);
-                    // Formata o preço em centavos para o formato R$ XX,XX
+                  // 3. Filtra os preços do produto para incluir apenas aqueles
+                  //    que são maiores que zero E pertencem a uma opção ATIVA.
+                  final activePrices = product.prices
+                      .where((price) => price.price > 0 && activeOptionIds.contains(price.sizeOptionId))
+                      .map((price) => price.price)
+                      .toList();
+
+                  if (activePrices.isNotEmpty) {
+                    final minPrice = activePrices.reduce((a, b) => a < b ? a : b);
                     final formattedPrice = (minPrice / 100).toStringAsFixed(2).replaceAll('.', ',');
-                    displayPriceText = formattedPrice;
+                    displayPriceText = 'R\$ $formattedPrice';
                   } else {
-                    displayPriceText = '0,00';
+                    displayPriceText = 'Preço indisponível';
                   }
-
                 } else {
-                  // LÓGICA PARA CATEGORIAS GERAIS (LANCHES, BEBIDAS, ETC.)
+                  // Lógica para categorias gerais (continua a mesma e está correta)
                   final link = product.categoryLinks.firstWhereOrNull(
                         (link) => link.categoryId == widget.category.id,
                   );
-
                   final priceInCents = link?.price ?? product.price ?? 0;
-
                   if (priceInCents > 0) {
                     final formattedPrice = (priceInCents / 100).toStringAsFixed(2).replaceAll('.', ',');
-                    displayPriceText = formattedPrice;
+                    displayPriceText = 'R\$ $formattedPrice';
                   } else {
-                    displayPriceText = '0,00'; // Ou 'Preço a definir'
+                    displayPriceText = 'Preço a definir';
                   }
                 }
-                // ✅ --- FIM DA NOVA LÓGICA DE PREÇO ---
-
+                // ✅ --- FIM DA LÓGICA DE PREÇO CORRIGIDA ---
 
                 return Container(
                   decoration: BoxDecoration(
-                   // color: widget.category.active ? const Color(0xFFF5F5F5) :const Color(0xFFFFFFFF)  ,
                     borderRadius: BorderRadius.circular(8),
-                 //   border: Border.all(color: Colors.grey.shade200),
                   ),
                   child: ProductListItem(
                     key: ValueKey(product.id),
@@ -234,7 +202,6 @@ class _CategoryCardState extends State<CategoryCard> {
                     product: product,
                     parentCategory: widget.category,
                     displayPriceText: displayPriceText,
-
                   ),
                 );
               },
@@ -246,6 +213,3 @@ class _CategoryCardState extends State<CategoryCard> {
     );
   }
 }
-
-
-

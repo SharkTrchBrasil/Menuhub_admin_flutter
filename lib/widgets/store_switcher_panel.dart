@@ -1,117 +1,342 @@
-import 'package:cached_network_image/cached_network_image.dart';
+// lib/widgets/store_switcher_panel.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/models/store/store.dart';
+import 'package:totem_pro_admin/widgets/fixed_header.dart';
+import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 
-import 'ds_primary_button.dart';
+import '../core/di.dart';
+import '../core/helpers/sidepanel.dart';
+import '../pages/plans/subscription_side_panel.dart';
 
-/// Um painel que exibe a lista de lojas do usuário e permite a troca.
 class StoreSwitcherPanel extends StatelessWidget {
-  const StoreSwitcherPanel({super.key});
+  final StoresManagerCubit storesManagerCubit;
+  final bool isInSidePanel;
 
-  void _navigateToStore(BuildContext context, Store store) {
+  const StoreSwitcherPanel({
+    super.key,
+    required this.storesManagerCubit,
+    this.isInSidePanel = false,
+  });
+
+  void _navigateToHubAfterSelection(BuildContext context, Store store) {
     final storeId = store.core.id!;
-    // 1. Troca a loja ativa no cubit
-    context.read<StoresManagerCubit>().changeActiveStore(storeId);
-    // 2. Navega para o dashboard da nova loja selecionada
-    context.go('/stores/$storeId/dashboard');
-    // 3. Fecha o painel lateral
-    Navigator.of(context).pop();
+
+    if (isInSidePanel) {
+      Navigator.of(context).pop();
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          context.go('/stores/$storeId/dashboard');
+        }
+      });
+    } else {
+      context.go('/stores/$storeId/dashboard');
+    }
   }
 
   void _createNewStore(BuildContext context) {
-    Navigator.of(context).pop(); // Fecha o painel
-    context.go('/stores/new'); // Vai para a tela de nova loja
+    if (isInSidePanel) {
+      Navigator.of(context).pop();
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          context.go('/stores/new');
+        }
+      });
+    } else {
+      context.go('/stores/new');
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
+  Future<void> _openSubscriptionPanel(BuildContext context, int storeId) async {
+    if (isInSidePanel) {
+      Navigator.of(context).pop();
+      await Future.delayed(const Duration(milliseconds: 150));
+    }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text(
-          'Trocar de Loja',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
+    if (context.mounted) {
+      await showResponsiveSidePanel(
+        context,
+        SubscriptionSidePanel(
+          storesManagerCubit: storesManagerCubit,
+          storeId: storeId,
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black87,
-        automaticallyImplyLeading: false,
-        centerTitle: false,
+      );
+    }
+  }
+
+
+  bool _hasSubscriptionIssue(dynamic subscription) {
+    // Se não tem subscription, tem problema
+    if (subscription == null) return true;
+
+    // Se está bloqueada, tem problema
+    if (subscription.isBlocked) return true;
+
+
+    final problematicStatuses = ['expired', 'past_due', 'canceled'];
+
+    // Se status é problemático E está bloqueada
+    if (problematicStatuses.contains(subscription.status)) {
+      return true;
+    }
+
+    // ✅ Status válidos que NÃO têm problema: 'active', 'trialing', 'warning'
+    return false;
+  }
+
+
+  Widget _buildSubscriptionBadge(dynamic subscription) {
+    if (subscription == null) {
+      return _buildBadge(
+        'Sem Assinatura',
+        Colors.red.shade50,
+        Colors.red.shade700,
+        Icons.error_outline,
+      );
+    }
+
+    // ✅ CORREÇÃO: Badges por status
+    switch (subscription.status) {
+      case 'active':
+        return _buildBadge(
+          'Ativa',
+          Colors.green.shade50,
+          Colors.green.shade700,
+          Icons.check_circle,
+        );
+
+      case 'trialing':
+        return _buildBadge(
+          'Período de Teste',
+          Colors.blue.shade50,
+          Colors.blue.shade700,
+          Icons.timer,
+        );
+
+      case 'warning':
+        return _buildBadge(
+          'Atenção',
+          Colors.orange.shade50,
+          Colors.orange.shade700,
+          Icons.warning_amber,
+        );
+
+      case 'past_due':
+        return _buildBadge(
+          'Pagamento Pendente',
+          Colors.red.shade50,
+          Colors.red.shade700,
+          Icons.payment,
+        );
+
+      case 'expired':
+        return _buildBadge(
+          'Expirada',
+          Colors.red.shade50,
+          Colors.red.shade700,
+          Icons.block,
+        );
+
+      case 'canceled':
+        return _buildBadge(
+          'Cancelada',
+          Colors.grey.shade50,
+          Colors.grey.shade700,
+          Icons.cancel,
+        );
+
+      default:
+        return _buildBadge(
+          subscription.status,
+          Colors.grey.shade50,
+          Colors.grey.shade700,
+          Icons.help_outline,
+        );
+    }
+  }
+
+  Widget _buildBadge(String text, Color bgColor, Color textColor, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
       ),
-      body: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: BlocBuilder<StoresManagerCubit, StoresManagerState>(
-              builder: (context, state) {
-                if (state is! StoresManagerLoaded) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final stores = state.stores.values.toList();
-                final activeStoreId = state.activeStore?.core.id;
-
-                if (stores.isEmpty) {
-                  return _buildEmptyState(context);
-                }
-
-                return _buildStoresList(
-                  context,
-                  stores: stores,
-                  activeStoreId: activeStoreId,
-                  isMobile: isMobile,
-                );
-              },
+          Icon(icon, size: 14, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: textColor,
             ),
           ),
-
-          // Botão de criar nova loja - responsivo
-          _buildCreateStoreButton(context, isMobile),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    return isMobile
+        ? _buildMobileLayout(context)
+        : _buildDesktopLayout(context);
+  }
+
+  Widget _buildMobileLayout(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.store_mall_directory_outlined,
-              size: 64,
-              color: Colors.grey.shade400,
+            FixedHeader(
+              showActionsOnMobile: true,
+              title: 'Trocar de Loja',
+              subtitle: 'Selecione uma loja para gerenciar',
+              actions: [
+                DsButton(
+                  label: 'Nova Loja',
+                  style: DsButtonStyle.secondary,
+                  onPressed: () => _createNewStore(context),
+                )
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Nenhuma loja encontrada',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Comece criando sua primeira loja',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade500,
-              ),
-              textAlign: TextAlign.center,
+            const SizedBox(height: 12),
+            Expanded(
+              child: _buildStoresContent(context),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 800,
+          maxHeight: 600,
+        ),
+        child: Card(
+          margin: const EdgeInsets.all(24),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: FixedHeader(
+                  showActionsOnMobile: true,
+                  title: 'Trocar de Loja',
+                  subtitle: 'Selecione uma loja para gerenciar',
+                  actions: [
+                    DsButton(
+                      label: 'Nova Loja',
+                      style: DsButtonStyle.secondary,
+                      onPressed: () => _createNewStore(context),
+                    )
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _buildStoresContent(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoresContent(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    return BlocBuilder<StoresManagerCubit, StoresManagerState>(
+      bloc: storesManagerCubit,
+      builder: (context, state) {
+        if (state is! StoresManagerLoaded) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final stores = state.stores.values.toList();
+        final activeStoreId = state.activeStore?.core.id;
+
+        if (stores.isEmpty) {
+          return _buildEmptyState(context);
+        }
+
+        return _buildStoresList(
+          context,
+          stores: stores,
+          activeStoreId: activeStoreId,
+          isMobile: isMobile,
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.store_mall_directory_outlined,
+            size: isMobile ? 64 : 80,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Nenhuma loja encontrada',
+            style: TextStyle(
+              fontSize: isMobile ? 18 : 20,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Comece criando sua primeira loja',
+            style: TextStyle(
+              fontSize: isMobile ? 14 : 16,
+              color: Colors.grey.shade500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: isMobile ? double.infinity : 200,
+            child: DsButton(
+              onPressed: () => _createNewStore(context),
+              label: 'Criar Primeira Loja',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -123,140 +348,76 @@ class StoreSwitcherPanel extends StatelessWidget {
         required bool isMobile,
       }) {
     return ListView.builder(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, isMobile ? 80 : 16),
       itemCount: stores.length,
       itemBuilder: (context, index) {
         final store = stores[index];
+        final subscription = store.store.relations.subscription;
         final bool isActive = store.store.core.id == activeStoreId;
 
+        // ✅ CORREÇÃO: Usa a nova função de validação
+        final bool hasIssue = _hasSubscriptionIssue(subscription);
+
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: EdgeInsets.only(bottom: isMobile ? 12 : 16),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => _navigateToStore(context, store.store),
+              onTap: () {
+                if (hasIssue) {
+                  _openSubscriptionPanel(context, store.store.core.id!);
+                } else {
+                  _navigateToHubAfterSelection(context, store.store);
+                }
+              },
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 decoration: BoxDecoration(
-                  color:
-                  Colors.white,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isActive
                         ? Theme.of(context).primaryColor
-                        : Colors.grey.shade200,
+                        : (hasIssue ? Colors.red.shade300 : Colors.grey.shade200),
                     width: isActive ? 1.5 : 1,
                   ),
-
                 ),
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isMobile ? 16 : 20),
                 child: Row(
                   children: [
-                    // Avatar da loja
                     Container(
-                      width: 50,
-                      height: 50,
+                      width: isMobile ? 50 : 60,
+                      height: isMobile ? 50 : 60,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        border: Border.all(
-                          color: Theme.of(context).primaryColor.withOpacity(0.2),
-                          width: 1.5,
-                        ),
                       ),
-                      child: ClipOval(
-                        child: store.store.media?.image?.url != null
-                            ? CachedNetworkImage(
-                          imageUrl: store.store.media!.image!.url!,
-                          fit: BoxFit.cover,
-                          errorWidget: (context, url, error) =>
-                              Icon(
-                                Icons.storefront,
-                                size: 24,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                        )
-                            : Icon(
-                          Icons.storefront,
-                          size: 24,
-                          color: Theme.of(context).primaryColor,
-                        ),
+                      child: Icon(
+                        Icons.storefront,
+                        size: isMobile ? 24 : 28,
+                        color: Theme.of(context).primaryColor,
                       ),
                     ),
-
-                    const SizedBox(width: 16),
-
-                    // Informações da loja
+                    SizedBox(width: isMobile ? 16 : 20),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             store.store.core.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            store.store.address?.city ?? 'Sem cidade',
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: store.store.core.isActive
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.grey.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              store.store.core.isActive ? 'Ativa' : 'Inativa',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: store.store.core.isActive
-                                    ? Colors.green
-                                    : Colors.grey,
-                              ),
+                              fontWeight: FontWeight.w600,
+                              fontSize: isMobile ? 16 : 18,
                             ),
                           ),
+                          const SizedBox(height: 6),
+                          // ✅ CORREÇÃO: Usa a nova função de badge
+                          _buildSubscriptionBadge(subscription),
                         ],
                       ),
                     ),
-
-                    const SizedBox(width: 12),
-
-                    // Indicador de loja ativa ou seta
-                    isActive
-                        ? Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    )
-                        : Icon(
-                      Icons.chevron_right_rounded,
-                      color: Colors.grey.shade400,
-                      size: 24,
+                    Icon(
+                      hasIssue ? Icons.arrow_forward : Icons.chevron_right,
+                      color: hasIssue ? Colors.red : Colors.grey.shade400,
                     ),
                   ],
                 ),
@@ -267,27 +428,18 @@ class StoreSwitcherPanel extends StatelessWidget {
       },
     );
   }
+}
 
-  Widget _buildCreateStoreButton(BuildContext context, bool isMobile) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 16 : 24,
-        vertical: isMobile ? 12 : 16,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
+class StoreSwitcherPanelWrapper extends StatelessWidget {
+  const StoreSwitcherPanelWrapper({super.key});
 
-
-      ),
-      child: SizedBox(
-        height: isMobile ? 48 : 52,
-        child: DsButton(
-          onPressed: () => _createNewStore(context),
-          label:'Criar Nova Loja',
-
-
-        ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: StoreSwitcherPanel(
+        storesManagerCubit: getIt<StoresManagerCubit>(),
+        isInSidePanel: false,
       ),
     );
   }

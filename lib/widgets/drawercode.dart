@@ -33,10 +33,16 @@ class _DrawerCodeState extends State<DrawerCode> {
   bool _isLoggingOut = false;
 
   void _openStoreSwitcherPanel(BuildContext context) {
+    // ✅ CORREÇÃO: Passa o cubit como parâmetro
+    final storesManagerCubit = context.read<StoresManagerCubit>();
+
     showResponsiveSidePanel(
       context,
-      const StoreSwitcherPanel(),
-      useHalfScreenOnDesktop: true
+      StoreSwitcherPanel(
+        storesManagerCubit: storesManagerCubit,
+        isInSidePanel: true,
+      ),
+      useHalfScreenOnDesktop: true,
     );
   }
 
@@ -127,89 +133,105 @@ class _DrawerCodeState extends State<DrawerCode> {
         onTap: () => drawerController.toggle(),
         borderRadius: BorderRadius.circular(12),
         child: isExpanded
-            ? Row(
-          children: [
-            // Avatar da Loja
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                border: Border.all(
-                  color: Theme.of(context).primaryColor.withOpacity(0.2),
-                  width: 2,
+            ? Container(
+          constraints: BoxConstraints(
+            maxWidth: _expandedWidth - 32, // ✅ Subtrai o padding horizontal
+          ),
+          child: Row(
+            children: [
+              // Avatar da Loja
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  border: Border.all(
+                    color: Theme.of(context).primaryColor.withOpacity(0.2),
+                    width: 2,
+                  ),
+                ),
+                child: ClipOval(
+                  child: hasImage
+                      ? CachedNetworkImage(
+                    imageUrl: store.media!.image!.url!,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) =>
+                        _buildDefaultStoreIcon(context),
+                  )
+                      : _buildDefaultStoreIcon(context),
                 ),
               ),
-              child: ClipOval(
-                child: hasImage
-                    ? CachedNetworkImage(
-                  imageUrl: store.media!.image!.url!,
-                  fit: BoxFit.cover,
-                  errorWidget: (context, url, error) =>
-                      _buildDefaultStoreIcon(context),
-                )
-                    : _buildDefaultStoreIcon(context),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Informações da Loja
-            Expanded( // ✅ IMPORTANTE: Expanded para evitar overflow
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    store.core.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: store.core.isActive
-                          ? Colors.green.withOpacity(0.1)
-                          : Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      store.core.isActive ? 'Ativa' : 'Inativa',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: store.core.isActive
-                            ? Colors.green
-                            : Colors.grey,
+              const SizedBox(width: 12),
+              // Informações da Loja - COM LARGURA FIXA
+              Expanded(
+                child: SizedBox(
+                  width: _expandedWidth - 50 - 12 - 40, // ✅ Largura calculada
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        store.core.name,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: store.core.isActive
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          store.core.isActive ? 'Ativa' : 'Inativa',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: store.core.isActive
+                                ? Colors.green
+                                : Colors.grey,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-            // Ícone de toggle do drawer
-            IconButton(
-              onPressed: () => drawerController.toggle(),
-              icon: Icon(
-                Icons.menu,
-                color: Colors.grey[600],
-                size: 20,
+              // Ícone de toggle do drawer
+              SizedBox(
+                width: 24, // ✅ Largura fixa para o ícone
+                child: IconButton(
+                  onPressed: () => drawerController.toggle(),
+                  icon: Icon(
+                    Icons.menu,
+                    color: Colors.grey[600],
+                    size: 20,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
               ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-          ],
+            ],
+          ),
         )
-            : Column( // ✅ Modo recolhido - usa Column ao invés de Row
+            :
+
+        Column(
           children: [
             // Avatar da Loja (modo collapsed)
             Container(
@@ -249,6 +271,12 @@ class _DrawerCodeState extends State<DrawerCode> {
       ),
     );
   }
+
+
+
+
+
+
 
   // Resto do código permanece igual...
   Widget _buildDefaultStoreIcon(BuildContext context, {double size = 24}) {
@@ -538,9 +566,23 @@ class _DrawerCodeState extends State<DrawerCode> {
     },
     {
       'type': 'item',
-      'title': 'Planos',
-      'route': '/plans',
+      'title': 'Acessos',
+      'route': '/accesses',
       'index': 18,
+      'iconPath': 'assets/images/user.png',
+    },
+    {
+      'type': 'item',
+      'title': 'Dispositivos',
+      'route': '/sessions',
+      'index': 19,
+      'iconPath': 'assets/images/user.png',
+    },
+    {
+      'type': 'item',
+      'title': 'Minha assinatura',
+      'route': '/manager',
+      'index': 20,
       'iconPath': 'assets/images/rocket-launch.png',
     },
   ];

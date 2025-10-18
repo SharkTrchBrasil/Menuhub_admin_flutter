@@ -367,7 +367,7 @@ class GeneralCategoryDetailsScreen extends StatelessWidget {
           Expanded(
             flex: isMobile ? 1 : 0,
             child: DsButton(
-              requiresConnection: false,
+
               label: 'Cancelar',
               style: DsButtonStyle.secondary,
               onPressed: (){

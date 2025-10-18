@@ -1,8 +1,13 @@
-import 'package:totem_pro_admin/models/store/store_with_role.dart';
+// Em: models/store/store_access.dart
+
 import 'package:totem_pro_admin/models/user.dart';
 
-class StoreAccess {
+import '../../core/enums/store_access.dart';
 
+
+
+/// Modelo que representa um acesso de usuário a uma loja
+class StoreAccess {
   StoreAccess({
     required this.user,
     required this.role,
@@ -14,8 +19,7 @@ class StoreAccess {
   factory StoreAccess.fromJson(Map<String, dynamic> json) {
     return StoreAccess(
       user: User.fromJson(json['user']),
-      role: StoreAccessRole.values.byName(json['role']['machine_name']),
+      role: StoreAccessRole.fromName(json['role']['machine_name']),
     );
   }
-
 }

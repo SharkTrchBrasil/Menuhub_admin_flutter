@@ -1,16 +1,13 @@
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:dio/dio.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:pretty_dio_logger/pretty_dio_logger.dart';
-import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/core/token_interceptor.dart';
 import 'package:totem_pro_admin/models/auth_tokens.dart';
 import 'package:totem_pro_admin/models/user.dart';
-import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/totem_auth.dart';
@@ -76,41 +73,44 @@ enum CodeError { unknown, userNotFound, alreadyVerified, invalidCode }
 enum ResendError { unknown, userNotFound, resendError }
 
 class SecureStorageKeys {
-  // ✅ ALTERAÇÃO 1: A chave principal de autenticação agora é o JWT do usuário.
   static const accessToken = 'access_token';
   static const refreshToken = 'refreshToken';
-  // A chave do totem é mantida para outras funcionalidades, se houver.
   static const totemToken = 'totem_token';
 }
 
-
 class AuthRepository {
-  AuthRepository(this._dio, this._secureStorage);
-
   final Dio _dio;
+  final FlutterSecureStorage _secureStorage;
+  // ✅ NOVO: Dio dedicado para chamadas de autenticação que não devem ser interceptadas.
+  final Dio _authDio;
+
+  AuthRepository(this._dio, this._secureStorage)
+  // Inicializa o _authDio com a mesma base URL, mas sem interceptors.
+      : _authDio = Dio(BaseOptions(baseUrl: _dio.options.baseUrl));
+
   AuthTokens? _authTokens;
-  // Getter para o objeto completo
   AuthTokens? get authTokens => _authTokens;
-
-  // Getter para o token de acesso, derivado do objeto principal
-  String? get accessToken => _authTokens?.accessToken; // ⬅️ Use um getter
-
+  String? get accessToken => _authTokens?.accessToken;
 
   User? _user;
-
   User? get user => _user;
 
-  final FlutterSecureStorage _secureStorage;
-
-  // ✅ NOVO: Flag para controlar o processo de refresh e evitar chamadas duplicadas.
   bool _isRefreshing = false;
   bool get isRefreshingToken => _isRefreshing;
 
   Future<bool> initialize() async {
-    // Tenta renovar o token usando o refresh_token salvo.
+    log('[AuthRepository] Inicializando e tentando renovar sessão...');
+    // Tenta carregar o refresh token do armazenamento seguro
+    final refreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
+    if (refreshToken == null) {
+      log('[AuthRepository] Nenhum refresh token encontrado. Usuário não está logado.');
+      return false;
+    }
+
+    // Tenta obter um novo access token
     final refreshResult = await refreshAccessToken();
     if (refreshResult.isLeft) {
-      // Se a renovação falhar (ex: refresh_token expirado), desloga o usuário.
+      log('[AuthRepository] Falha ao renovar token durante a inicialização. Limpando sessão.');
       await logout();
       return false;
     }
@@ -118,105 +118,99 @@ class AuthRepository {
     // Se a renovação foi bem-sucedida, busca os dados do usuário.
     final userResult = await _getUserInfo();
     if (userResult.isLeft) {
+      log('[AuthRepository] Token renovado, mas falha ao buscar dados do usuário. Limpando sessão.');
       await logout();
       return false;
     }
 
+    log('[AuthRepository] Sessão inicializada com sucesso.');
     return true;
   }
 
-  /// ✅ ALTERAÇÃO 2: O método signIn agora salva AMBOS os tokens.
   Future<Either<SignInError, void>> signIn({
     required String email,
     required String password,
   }) async {
     try {
-      final response = await _dio.post(
+      // ✅ Usa o _authDio para a chamada de login
+      final response = await _authDio.post(
         '/auth/login',
         data: {'username': email, 'password': password},
         options: Options(contentType: Headers.formUrlEncodedContentType),
       );
 
       final tokens = AuthTokens.fromJson(response.data);
-
-      _authTokens = tokens;
-
-      // Salva ambos os tokens no armazenamento seguro.
-      await _secureStorage.write(key: SecureStorageKeys.accessToken, value: tokens.accessToken);
-      await _secureStorage.write(key: SecureStorageKeys.refreshToken, value: tokens.refreshToken);
+      await _saveTokens(tokens);
 
       final result = await _getUserInfo();
-      if (result.isLeft) {
-        return Left(SignInError.unknown);
-      }
-
-      return const Right(null);
+      return result.fold(
+            (_) => const Left(SignInError.unknown),
+            (_) => const Right(null),
+      );
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         final responseData = e.response?.data as Map<String, dynamic>?;
         if (responseData?['detail'] == 'Email not verified') {
-          // Encontramos nosso caso específico!
-          return Left(SignInError.emailNotVerified);
+          return const Left(SignInError.emailNotVerified);
         }
-        // Se for outro erro 401, consideramos credenciais inválidas.
-        return Left(SignInError.invalidCredentials);
+        return const Left(SignInError.invalidCredentials);
       }
       return const Left(SignInError.unknown);
     }
   }
 
-
   Future<Either<String, void>> refreshAccessToken() async {
-    // ✅ LÓGICA PARA USAR A FLAG
-    // Se uma renovação já estiver em andamento, não inicia outra.
     if (_isRefreshing) {
       return const Left('Renovação de token já em andamento.');
     }
-
-    // Marca que o processo começou.
     _isRefreshing = true;
 
     try {
       final refreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
       if (refreshToken == null) {
+        // Garante que a flag seja resetada antes de sair.
+        _isRefreshing = false;
         return const Left('Nenhuma sessão para renovar.');
       }
 
-      final response = await _dio.post(
+      // ✅ Usa o _authDio para a chamada de refresh
+      final response = await _authDio.post(
         '/auth/refresh',
         data: {'refresh_token': refreshToken},
       );
 
       final newTokens = AuthTokens.fromJson(response.data);
-      _authTokens = newTokens;
+      await _saveTokens(newTokens);
 
-      await _secureStorage.write(key: SecureStorageKeys.accessToken, value: newTokens.accessToken);
-      await _secureStorage.write(key: SecureStorageKeys.refreshToken, value: newTokens.refreshToken);
-
-      print('[AuthRepository] Token de acesso renovado com sucesso.');
+      log('[AuthRepository] Token de acesso renovado com sucesso.');
       return const Right(null);
     } catch (e) {
-      print('[AuthRepository] Falha ao renovar o token: $e');
+      log('[AuthRepository] Falha ao renovar o token: $e');
       return Left('Falha ao renovar o token: ${e.toString()}');
     } finally {
-      // ✅ GARANTE que a flag seja resetada, mesmo se der erro.
       _isRefreshing = false;
     }
   }
 
-  /// ✅ ALTERAÇÃO 4: O logout agora limpa AMBOS os tokens.
+  // ✅ NOVO: Método privado para salvar tokens, garantindo consistência.
+  Future<void> _saveTokens(AuthTokens tokens) async {
+    _authTokens = tokens;
+    await _secureStorage.write(key: SecureStorageKeys.accessToken, value: tokens.accessToken);
+    // IMPORTANTE: Salva o novo refresh token, caso o backend o rotacione.
+    await _secureStorage.write(key: SecureStorageKeys.refreshToken, value: tokens.refreshToken);
+  }
+
   Future<void> logout() async {
+    log('[AuthRepository] Limpando tokens e dados de sessão.');
     _authTokens = null;
     _user = null;
     await _secureStorage.delete(key: SecureStorageKeys.accessToken);
     await _secureStorage.delete(key: SecureStorageKeys.refreshToken);
   }
 
-
-
   Future<Either<ResendError, void>> sendCode({required String email}) async {
     try {
-      final response = await _dio.post(
+      final response = await _authDio.post(
         '/verify-code/resend',
         data: {'email': email},
       );
@@ -248,14 +242,12 @@ class AuthRepository {
     required String code,
   }) async {
     try {
-      final response = await _dio.post(
+      final response = await _authDio.post(
         '/verify-code',
         queryParameters: {'email': email, 'code': code},
       );
 
-      // Aqui, o código foi validado com sucesso, podemos redirecionar
       if (response.statusCode == 200) {
-        // Ex: print(response.data['message']); se quiser usar a mensagem
         return const Right(null);
       }
 
@@ -282,14 +274,14 @@ class AuthRepository {
     }
   }
 
-
-
   Future<Either<void, void>> _getUserInfo() async {
     try {
+      // ✅ Esta chamada usa o _dio normal e será interceptada, o que é correto.
       final response = await _dio.get('/users/me');
       _user = User.fromJson(response.data);
       return const Right(null);
     } catch (e) {
+      log('[AuthRepository] Falha ao obter informações do usuário: $e');
       return const Left(null);
     }
   }
@@ -299,30 +291,21 @@ class AuthRepository {
     required String phone,
     required String email,
     required String password,
-
   }) async {
     try {
-      await Future.delayed(const Duration(seconds: 2));
-
-      await _dio.post(
+      // ✅ Usa _authDio para não enviar token de um usuário antigo, se houver.
+      await _authDio.post(
         '/users',
         data: {'email': email, 'phone': phone, 'name': name, 'password': password},
       );
-
-      return Right(null);
+      return const Right(null);
     } on DioException catch (e) {
       if (e.response?.statusCode == 400 &&
           e.response?.data?['detail'] == 'User already exists') {
-        return Left(SignUpError.userAlreadyExists);
+        return const Left(SignUpError.userAlreadyExists);
       }
       debugPrint('$e');
-      return Left(SignUpError.unknown);
+      return const Left(SignUpError.unknown);
     }
   }
-
-
-
-
-
-
 }

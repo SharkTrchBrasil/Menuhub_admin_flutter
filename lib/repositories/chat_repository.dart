@@ -7,7 +7,6 @@ import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:totem_pro_admin/models/chat_panel_initial_state.dart';
-
 import '../core/failures.dart';
 
 class ChatRepository {
@@ -26,27 +25,27 @@ class ChatRepository {
       );
       return Right(ChatPanelInitialState.fromJson(response.data));
     } on DioException catch (e) {
-      // Tratamento de erro específico para Dio, igual ao StoreRepository
       debugPrint('DioException em getInitialState: $e');
-      final errorMsg = e.response?.data?['detail'] ?? 'Falha ao carregar o histórico da conversa.';
-      return Left(Failure(errorMsg));
+      return Left(Failure(
+        message: e.response?.data?['detail'] ??
+            'Falha ao carregar o histórico da conversa',
+        statusCode: e.response?.statusCode,
+      ));
     } catch (e) {
-      // Tratamento de erro genérico
       debugPrint('Erro inesperado em getInitialState: $e');
-      return Left(Failure('Ocorreu um erro inesperado.'));
+      return Left(Failure(message: 'Erro inesperado: $e'));
     }
   }
 
   Future<Either<Failure, void>> sendMessage({
     required int storeId,
     required String chatId,
-    String? textContent, // Torna o texto opcional para mídias sem legenda
+    String? textContent,
     String? mediaUrl,
     String? mediaType,
     String? mediaFilename,
   }) async {
     try {
-      // Monta o payload dinamicamente com todos os dados
       final payload = {
         'chat_id': chatId,
         'text_content': textContent,
@@ -55,7 +54,6 @@ class ChatRepository {
         'media_filename': mediaFilename,
       };
 
-      // Remove chaves nulas para enviar um payload limpo para a API
       payload.removeWhere((key, value) => value == null);
 
       await _dio.post(
@@ -65,27 +63,36 @@ class ChatRepository {
       return const Right(null);
     } on DioException catch (e) {
       debugPrint('DioException em sendMessage: $e');
-      final errorMsg = e.response?.data?['detail'] ?? 'Não foi possível enviar a mensagem.';
-      return Left(Failure(errorMsg));
+      return Left(Failure(
+        message: e.response?.data?['detail'] ??
+            'Não foi possível enviar a mensagem',
+        statusCode: e.response?.statusCode,
+      ));
     } catch (e) {
       debugPrint('Erro inesperado em sendMessage: $e');
-      return Left(Failure('Ocorreu um erro inesperado.'));
+      return Left(Failure(message: 'Erro inesperado: $e'));
     }
   }
 
-
-  Future<void> markAsRead({
+  Future<Either<Failure, void>> markAsRead({
     required int storeId,
     required String chatId,
   }) async {
     try {
-      // Não nos preocupamos com a resposta, apenas enviamos o comando.
       await _dio.post(
         '/stores/$storeId/chatbot/conversations/$chatId/mark-as-read',
       );
+      return const Right(null);
+    } on DioException catch (e) {
+      debugPrint('DioException em markAsRead: $e');
+      return Left(Failure(
+        message: e.response?.data?['detail'] ??
+            'Falha ao marcar conversa como lida',
+        statusCode: e.response?.statusCode,
+      ));
     } catch (e) {
-      // Em caso de falha, apenas logamos. Não precisa interromper o usuário.
-      debugPrint('Falha ao marcar conversa como lida: $e');
+      debugPrint('Erro inesperado em markAsRead: $e');
+      return Left(Failure(message: 'Erro inesperado: $e'));
     }
   }
 
@@ -96,29 +103,27 @@ class ChatRepository {
     try {
       final fileName = file.path.split('/').last;
       final formData = FormData.fromMap({
-        'media_file': await MultipartFile.fromFile(file.path, filename: fileName),
+        'media_file': await MultipartFile.fromFile(
+          file.path,
+          filename: fileName,
+        ),
       });
 
-      // Supondo que você crie este endpoint no seu backend Python
       final response = await _dio.post(
         '/stores/$storeId/chatbot/upload-media',
         data: formData,
       );
 
-      // O backend deve retornar um JSON como: { "media_url": "https://..." }
       return Right(response.data['media_url']);
-
     } on DioException catch (e) {
       debugPrint('DioException em uploadMedia: $e');
-      return Left(Failure('Falha ao enviar a mídia.'));
+      return Left(Failure(
+        message: e.response?.data?['detail'] ?? 'Falha ao enviar a mídia',
+        statusCode: e.response?.statusCode,
+      ));
     } catch (e) {
       debugPrint('Erro inesperado em uploadMedia: $e');
-      return Left(Failure('Ocorreu um erro inesperado.'));
+      return Left(Failure(message: 'Erro inesperado: $e'));
     }
   }
-
-
-
-
-
 }

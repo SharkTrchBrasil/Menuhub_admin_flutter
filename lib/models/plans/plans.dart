@@ -9,12 +9,12 @@ class Plans {
   final bool available;
   final String? supportType;
 
-  // --- ESTRUTURA DE PREÇOS DINÂMICOS ---
-  final int minimumFee; // Em centavos
-  final double revenuePercentage; // Ex: 0.029 para 2.9%
-  final int? revenueCapFee; // Em centavos
-  final int? percentageTierStart; // Em centavos
-  final int? percentageTierEnd; // Em centavos
+  // --- ESTRUTURA DE PREÇOS DINÂMICOS (EM CENTAVOS) ---
+  final int minimumFee; // Ex: 3990 centavos = R$ 39,90
+  final double revenuePercentage; // Ex: 0.018 para 1.8%
+  final int? revenueCapFee; // Ex: 24000 centavos = R$ 240,00
+  final int? percentageTierStart; // Ex: 250000 centavos = R$ 2.500,00
+  final int? percentageTierEnd; // Ex: 2000000 centavos = R$ 20.000,00
 
   // --- BENEFÍCIOS PROMOCIONAIS ---
   final bool firstMonthFree;
@@ -40,6 +40,28 @@ class Plans {
     required this.features,
   });
 
+  // ✅ HELPERS PARA CONVERSÃO CENTAVOS → REAIS
+  /// Converte minimum_fee de centavos para reais
+  /// Ex: 3990 → R$ 39,90
+  double get minimumFeeReais => minimumFee / 100.0;
+
+  /// Converte revenue_cap_fee de centavos para reais
+  /// Ex: 24000 → R$ 240,00
+  double get revenueCapFeeReais => (revenueCapFee ?? 0) / 100.0;
+
+  /// Converte percentage_tier_start de centavos para reais
+  /// Ex: 250000 → R$ 2.500,00
+  double get percentageTierStartReais => (percentageTierStart ?? 0) / 100.0;
+
+  /// Converte percentage_tier_end de centavos para reais
+  /// Ex: 2000000 → R$ 20.000,00
+  double get percentageTierEndReais => (percentageTierEnd ?? 0) / 100.0;
+
+  /// Retorna o percentual de revenue formatado como string
+  /// Ex: 0.018 → "1.8%"
+  String get revenuePercentageFormatted =>
+      '${(revenuePercentage * 100).toStringAsFixed(1)}%';
+
   factory Plans.fromJson(Map<String, dynamic> json) {
     // Função auxiliar para converter de forma segura
     double safeParseDouble(dynamic value) {
@@ -56,14 +78,22 @@ class Plans {
       planName: json['plan_name'] ?? '',
       available: json['available'] ?? true,
       supportType: json['support_type'],
+
+      // ✅ VALORES EM CENTAVOS (mantém como vem do backend)
       minimumFee: json['minimum_fee'] ?? 0,
-      revenuePercentage: safeParseDouble(json['revenue_percentage']),
       revenueCapFee: json['revenue_cap_fee'],
       percentageTierStart: json['percentage_tier_start'],
       percentageTierEnd: json['percentage_tier_end'],
+
+      // ✅ PERCENTUAL (converte para double)
+      revenuePercentage: safeParseDouble(json['revenue_percentage']),
+
+      // Benefícios
       firstMonthFree: json['first_month_free'] ?? false,
       secondMonthDiscount: safeParseDouble(json['second_month_discount']),
       thirdMonthDiscount: safeParseDouble(json['third_month_discount']),
+
+      // Features
       features: (json['features'] as List<dynamic>? ?? [])
           .map((featureJson) => Feature.fromJson(featureJson))
           .toList(),
@@ -160,6 +190,11 @@ class Plans {
 
   @override
   String toString() {
-    return 'Plans{id: $id, planName: $planName, available: $available, supportType: $supportType, minimumFee: $minimumFee, revenuePercentage: $revenuePercentage, revenueCapFee: $revenueCapFee, percentageTierStart: $percentageTierStart, percentageTierEnd: $percentageTierEnd, firstMonthFree: $firstMonthFree, secondMonthDiscount: $secondMonthDiscount, thirdMonthDiscount: $thirdMonthDiscount, features: $features}';
+    return 'Plans{id: $id, planName: $planName, available: $available, '
+        'supportType: $supportType, minimumFee: $minimumFee, '
+        'revenuePercentage: $revenuePercentage, revenueCapFee: $revenueCapFee, '
+        'percentageTierStart: $percentageTierStart, percentageTierEnd: $percentageTierEnd, '
+        'firstMonthFree: $firstMonthFree, secondMonthDiscount: $secondMonthDiscount, '
+        'thirdMonthDiscount: $thirdMonthDiscount, features: $features}';
   }
 }

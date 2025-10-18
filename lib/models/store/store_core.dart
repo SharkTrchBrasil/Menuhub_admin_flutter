@@ -14,6 +14,10 @@ class StoreCore {
   final String? internalNotes;
   final String? storeUrl;
 
+  // ✅ NOVOS CAMPOS DO PAGAR.ME
+  final String? pagarmeCustomerId;
+  final String? pagarmeCardId;
+
   StoreCore({
     this.id,
     this.name = '',
@@ -28,6 +32,9 @@ class StoreCore {
     this.verificationStatus = 'UNVERIFIED',
     this.internalNotes,
     this.storeUrl,
+    // ✅ ADICIONAR AQUI
+    this.pagarmeCustomerId,
+    this.pagarmeCardId,
   });
 
   factory StoreCore.fromJson(Map<String, dynamic> json) {
@@ -45,6 +52,9 @@ class StoreCore {
       verificationStatus: json['verification_status'] ?? 'UNVERIFIED',
       internalNotes: json['internal_notes'],
       storeUrl: json['store_url'],
+      // ✅ PARSE DOS NOVOS CAMPOS
+      pagarmeCustomerId: json['pagarme_customer_id'] as String?,
+      pagarmeCardId: json['pagarme_card_id'] as String?,
     );
   }
 
@@ -63,9 +73,11 @@ class StoreCore {
       'verification_status': verificationStatus,
       'internal_notes': internalNotes,
       'store_url': storeUrl,
+      // ✅ SERIALIZAR OS NOVOS CAMPOS
+      'pagarme_customer_id': pagarmeCustomerId,
+      'pagarme_card_id': pagarmeCardId,
     };
   }
-
 
   StoreCore copyWith({
     int? id,
@@ -81,6 +93,9 @@ class StoreCore {
     String? verificationStatus,
     String? internalNotes,
     String? storeUrl,
+    // ✅ ADICIONAR NOS PARÂMETROS DO COPYWITH
+    String? pagarmeCustomerId,
+    String? pagarmeCardId,
   }) {
     return StoreCore(
       id: id ?? this.id,
@@ -96,6 +111,9 @@ class StoreCore {
       verificationStatus: verificationStatus ?? this.verificationStatus,
       internalNotes: internalNotes ?? this.internalNotes,
       storeUrl: storeUrl ?? this.storeUrl,
+      // ✅ APLICAR NO COPYWITH
+      pagarmeCustomerId: pagarmeCustomerId ?? this.pagarmeCustomerId,
+      pagarmeCardId: pagarmeCardId ?? this.pagarmeCardId,
     );
   }
 }

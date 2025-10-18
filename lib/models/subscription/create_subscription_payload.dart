@@ -1,30 +1,52 @@
 
-import '../address.dart';
-import '../billing_customer.dart';
-import 'tokenized_card.dart';
+import 'package:totem_pro_admin/services/pagarme_service.dart';
 
 class CreateSubscriptionPayload {
-  final int planId;
-  // ✅ Adicionado '?' para tornar os campos opcionais
-  final Address? address;
-  final BillingCustomer? customer;
-  final TokenizedCard? card;
+final String cardToken;
+final String cardMask;
 
-  const CreateSubscriptionPayload({
-    required this.planId,
-    // ✅ Removido o 'required' para que possam ser nulos
-    this.address,
-    this.customer,
-    this.card,
-  });
+CreateSubscriptionPayload({
+required this.cardToken,
+required this.cardMask,
+});
 
-  Map<String, dynamic> toJson() {
-    return {
-      'plan_id': planId,
-      // ✅ Usa o operador '?.' para chamar toJson() somente se o objeto não for nulo
-      'address': address?.toJson(),
-      'customer': customer?.toJson(),
-      'card': card?.toJson(),
-    };
-  }
+/// ✅ Factory conveniente que recebe PagarmeTokenResult
+///
+/// Uso:
+/// ```dart
+/// final tokenResult = await pagarmeService.tokenizeCard(...);
+/// final payload = CreateSubscriptionPayload.fromTokenResult(tokenResult);
+/// ```
+factory CreateSubscriptionPayload.fromTokenResult(
+PagarmeTokenResult tokenResult,
+) {
+return CreateSubscriptionPayload(
+cardToken: tokenResult.token,
+cardMask: tokenResult.cardMask,
+);
+}
+
+/// Converte para JSON no formato esperado pelo backend
+///
+/// Formato:
+/// ```json
+/// {
+///   "card": {
+///     "payment_token": "tok_abc123xyz",
+///     "card_mask": "************1234"
+///   }
+/// }
+/// ```
+Map<String, dynamic> toJson() {
+return {
+'card': {
+'payment_token': cardToken,
+'card_mask': cardMask,
+}
+};
+}
+
+@override
+String toString() =>
+'CreateSubscriptionPayload(cardToken: ${cardToken.substring(0, 10)}..., cardMask: $cardMask)';
 }

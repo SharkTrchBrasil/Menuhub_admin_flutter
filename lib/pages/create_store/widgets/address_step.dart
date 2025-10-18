@@ -1,12 +1,12 @@
-// Em lib/pages/store_setup/store_setup_page.dart
+// lib/pages/store_setup/address_step.dart
 
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/responsive_builder.dart';
+import 'package:totem_pro_admin/core/utils/brazilian_states.dart'; // ✅ IMPORTAR
 import 'package:totem_pro_admin/models/page_status.dart';
 import 'package:flutter/material.dart';
-import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
 import '../../../widgets/app_text_field.dart';
 import '../cubit/store_setup-state.dart';
@@ -23,7 +23,6 @@ class AddressStep extends StatelessWidget {
         final cubit = context.read<CreateStoreCubit>();
         final status = state.zipCodeStatus;
 
-        // Verifica se já fez alguma busca (sucesso ou erro)
         final hasSearched = status is PageStatusSuccess || status is PageStatusError;
 
         return Form(
@@ -33,7 +32,10 @@ class AddressStep extends StatelessWidget {
               children: [
                 const SizedBox(height: 24),
 
-                // --- CAMPO DE CEP ---
+                // ═══════════════════════════════════════════════════════════
+                // CAMPO DE CEP
+                // ═══════════════════════════════════════════════════════════
+
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -47,11 +49,11 @@ class AddressStep extends StatelessWidget {
                           FilteringTextInputFormatter.digitsOnly,
                           CepInputFormatter(),
                         ],
-                        validator: (v) => (v == null || v.length < 10) ? 'CEP inválido' : null,
+                        validator: (v) =>
+                        (v == null || v.length < 10) ? 'CEP inválido' : null,
                         onChanged: (c) {
                           cubit.updateField(cep: c);
 
-                          // Busca o endereço quando o CEP estiver completo
                           if (c != null && c.length == 10) {
                             cubit.searchZipCode(c);
                           }
@@ -59,7 +61,6 @@ class AddressStep extends StatelessWidget {
                       ),
                     ),
 
-                    // BOTÃO DE RELOAD QUANDO HOUVER ERRO E CEP COMPLETO
                     if (status is PageStatusError && state.cep.length == 10)
                       Padding(
                         padding: const EdgeInsets.only(top: 32.0, left: 8),
@@ -69,9 +70,7 @@ class AddressStep extends StatelessWidget {
                             color: Theme.of(context).colorScheme.primary,
                             size: 28,
                           ),
-                          onPressed: () {
-                            cubit.searchZipCode(state.cep);
-                          },
+                          onPressed: () => cubit.searchZipCode(state.cep),
                           tooltip: 'Tentar buscar novamente',
                         ),
                       ),
@@ -80,7 +79,10 @@ class AddressStep extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // --- FEEDBACK DA BUSCA ---
+                // ═══════════════════════════════════════════════════════════
+                // FEEDBACK DA BUSCA
+                // ═══════════════════════════════════════════════════════════
+
                 if (status is PageStatusLoading)
                   _buildLoadingFeedback()
                 else if (status is PageStatusError)
@@ -90,7 +92,10 @@ class AddressStep extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-                // --- CAMPOS DO ENDEREÇO (SÓ APARECEM APÓS BUSCA) ---
+                // ═══════════════════════════════════════════════════════════
+                // CAMPOS DO ENDEREÇO
+                // ═══════════════════════════════════════════════════════════
+
                 if (hasSearched) _buildAddressFields(context, state),
               ],
             ),
@@ -101,14 +106,18 @@ class AddressStep extends StatelessWidget {
   }
 
   Widget _buildLoadingFeedback() {
-    return Column(
+    return const Column(
       children: [
         LinearProgressIndicator(),
       ],
     );
   }
 
-  Widget _buildErrorFeedback(PageStatusError status, String cep, CreateStoreCubit cubit) {
+  Widget _buildErrorFeedback(
+      PageStatusError status,
+      String cep,
+      CreateStoreCubit cubit,
+      ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -144,11 +153,7 @@ class AddressStep extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: Icon(
-              Icons.refresh,
-              color: Colors.orange[800],
-              size: 20,
-            ),
+            icon: Icon(Icons.refresh, color: Colors.orange[800], size: 20),
             onPressed: () => cubit.searchZipCode(cep),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -191,6 +196,11 @@ class AddressStep extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 16),
+
+        // ═══════════════════════════════════════════════════════════
+        // RUA
+        // ═══════════════════════════════════════════════════════════
+
         AppTextField(
           title: 'Rua / Avenida',
           initialValue: state.street,
@@ -200,6 +210,10 @@ class AddressStep extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
+        // ═══════════════════════════════════════════════════════════
+        // BAIRRO
+        // ═══════════════════════════════════════════════════════════
+
         AppTextField(
           title: 'Bairro',
           initialValue: state.neighborhood,
@@ -208,6 +222,10 @@ class AddressStep extends StatelessWidget {
           hint: 'Digite o bairro',
         ),
         const SizedBox(height: 16),
+
+        // ═══════════════════════════════════════════════════════════
+        // NÚMERO E COMPLEMENTO
+        // ═══════════════════════════════════════════════════════════
 
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,47 +253,135 @@ class AddressStep extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        ResponsiveBuilder.isDesktop(context) ?
-        Row(
+        // ═══════════════════════════════════════════════════════════
+        // CIDADE E ESTADO (DROPDOWN)
+        // ═══════════════════════════════════════════════════════════
+
+        ResponsiveBuilder.isDesktop(context)
+            ? Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // CIDADE
             Expanded(
               child: AppTextField(
                 title: 'Cidade',
                 initialValue: state.city,
-                validator: (v) => (v?.isEmpty ?? true) ? 'Obrigatório' : null,
+                validator: (v) =>
+                (v?.isEmpty ?? true) ? 'Obrigatório' : null,
                 onChanged: (v) => cubit.updateField(city: v),
                 hint: 'Nome da cidade',
               ),
             ),
             const SizedBox(width: 16),
+
+            // ✅ ESTADO (DROPDOWN)
             Expanded(
-              child: AppTextField(
-                title: 'Estado',
-                initialValue: state.uf,
-                validator: (v) => (v?.isEmpty ?? true) ? 'Obrigatório' : null,
-                onChanged: (v) => cubit.updateField(uf: v),
-                hint: 'UF',
-              ),
+              child: _buildStateDropdown(context, state, cubit),
             ),
           ],
-        ) : Column(
+        )
+            : Column(
           children: [
+            // CIDADE
             AppTextField(
               title: 'Cidade',
               initialValue: state.city,
-              validator: (v) => (v?.isEmpty ?? true) ? 'Obrigatório' : null,
+              validator: (v) =>
+              (v?.isEmpty ?? true) ? 'Obrigatório' : null,
               onChanged: (v) => cubit.updateField(city: v),
               hint: 'Nome da cidade',
             ),
             const SizedBox(height: 16),
-            AppTextField(
-              title: 'Estado',
-              initialValue: state.uf,
-              validator: (v) => (v?.isEmpty ?? true) ? 'Obrigatório' : null,
-              onChanged: (v) => cubit.updateField(uf: v),
-              hint: 'UF',
-            ),
+
+            // ✅ ESTADO (DROPDOWN)
+            _buildStateDropdown(context, state, cubit),
           ],
+        ),
+      ],
+    );
+  }
+
+  /// ✅ WIDGET DO DROPDOWN DE ESTADOS
+  Widget _buildStateDropdown(
+      BuildContext context,
+      CreateStoreState state,
+      CreateStoreCubit cubit,
+      ) {
+    // ✅ Normaliza o valor atual (pode vir como nome ou sigla)
+    final normalizedState = BrazilianStates.normalizeState(state.uf);
+
+    // ✅ Lista de estados (Sigla - Nome)
+    final stateOptions = BrazilianStates.getAllAbbreviations()
+        .map((abbr) {
+      final name = BrazilianStates.getAbbrToNameMap()[abbr]!;
+      return MapEntry(abbr, '$abbr - $name');
+    })
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label
+        Text(
+          'Estado (UF)',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Dropdown
+        DropdownButtonFormField<String>(
+          value: normalizedState,
+          decoration: InputDecoration(
+            hintText: 'Selecione o estado',
+            filled: true,
+            fillColor: Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Theme.of(context).primaryColor,
+                width: 2,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+          ),
+          icon: const Icon(Icons.arrow_drop_down),
+          validator: (v) => (v == null || v.isEmpty) ? 'Obrigatório' : null,
+          items: stateOptions
+              .map((entry) => DropdownMenuItem<String>(
+            value: entry.key,
+            child: Text(
+              entry.value,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ))
+              .toList(),
+          onChanged: (newValue) {
+            if (newValue != null) {
+              cubit.updateField(uf: newValue);
+            }
+          },
+          isExpanded: true,
+          dropdownColor: Colors.white,
+          menuMaxHeight: 300,
         ),
       ],
     );

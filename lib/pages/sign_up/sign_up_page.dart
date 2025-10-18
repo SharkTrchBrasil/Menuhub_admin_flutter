@@ -80,7 +80,7 @@ class _SignUpPageState extends State<SignUpPage> {
             Flexible(
 
               child: DsButton(
-                requiresConnection: false,
+
                 style: DsButtonStyle.secondary,
                 onPressed: () {
                   context.go('/sign-in${widget.redirectTo != null ? '?redirectTo=${widget.redirectTo!}' : ''}');
@@ -91,7 +91,7 @@ class _SignUpPageState extends State<SignUpPage> {
             SizedBox(width: 16,),
             Flexible(
               child: DsButton(
-                requiresConnection: false,
+
 
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {

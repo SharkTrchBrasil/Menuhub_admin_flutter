@@ -164,7 +164,7 @@ class _ProductListItemMobileState extends State<ProductListItemMobile> {
                   ),
                 ),
                 Text(
-                  'R\$ '+widget.displayPriceText,
+                  widget.displayPriceText,
                   style: TextStyle(
                     color: textColor.withOpacity(0.7),
                     fontSize: 13,
@@ -187,7 +187,7 @@ class _ProductListItemMobileState extends State<ProductListItemMobile> {
           Row(
             children: [
               Text(
-                'R\$ ' + widget.displayPriceText,
+                widget.displayPriceText,
                 style: TextStyle(
                   color: textColor.withOpacity(0.7),
                   fontSize: 13,
@@ -250,67 +250,8 @@ class _ProductListItemMobileState extends State<ProductListItemMobile> {
     );
   }
 
-  Future<void> _removeProductFromCategory() async {
-    try {
-      await getIt<ProductRepository>().removeProductFromCategory(
-        storeId: widget.storeId,
-        productId: widget.product.id!,
-        categoryId: widget.parentCategory.id!,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao remover da categoria: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
 
 
-
-  Widget _buildDefaultImage(bool isAvailable) {
-    // ✅ LÓGICA CORRIGIDA AQUI
-    // 1. Verifica se a lista de imagens não está vazia e pega a URL da primeira imagem.
-    final coverImageUrl = (widget.product.images.isNotEmpty)
-        ? widget.product.images.first.url
-        : null;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8.0),
-      child: ColorFiltered(
-          colorFilter: ColorFilter.mode(
-            isAvailable ? Colors.transparent : Colors.grey,
-            BlendMode.saturation,
-          ),
-          // 2. Usa a nova variável 'coverImageUrl' para decidir o que mostrar.
-          child: coverImageUrl != null
-              ? CachedNetworkImage(
-            imageUrl: coverImageUrl, // Usa a URL da capa
-            width: 60,
-            height: 68,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              color: Colors.grey.shade200,
-              child: const Center(child: CircularProgressIndicator(strokeWidth: 2.0)),
-            ),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
-          )
-              : SizedBox(
-            width: 60,
-            height: 68,
-            child: Center(
-              child: SvgPicture.asset(
-                'assets/icons/burguer.svg',
-                width: 42,
-                height: 42,
-                placeholderBuilder: (context) => const CircularProgressIndicator(strokeWidth: 2),
-                semanticsLabel: 'Placeholder de produto',
-              ),
-            ),
-          )
-      ),
-    );
-  }
 
   Widget _buildComplementsList() {
     final links = widget.product.variantLinks;

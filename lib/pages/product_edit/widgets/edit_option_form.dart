@@ -198,7 +198,7 @@ class _EditOptionFormState extends State<EditOptionForm> {
               Flexible(
                 child: DsButton(
                   onPressed: widget.onCancel,
-                  requiresConnection: false,
+
                   style: DsButtonStyle.secondary,
 
 

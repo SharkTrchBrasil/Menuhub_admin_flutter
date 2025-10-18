@@ -15,6 +15,7 @@ import 'package:universal_html/js.dart';
 
 import '../../../ConstData/typography.dart';
 import '../../../models/store/store_hour.dart';
+import '../../operation_configuration/cubit/operation_config_cubit.dart';
 import '../details/order_details_desktop.dart';
 
 class SummaryPanel extends StatelessWidget {
@@ -106,10 +107,14 @@ class SummaryPanel extends StatelessWidget {
             value: isStoreOpen,
             onChanged: (newValue) {
               if (store != null) {
-                context.read<StoresManagerCubit>().updateStoreSettings(
-                  store!.core.id!,
-                  isStoreOpen: newValue,
-                );
+                final currentConfig = store!.relations.storeOperationConfig;
+                if (currentConfig != null) {
+                  context.read<OperationConfigCubit>().updatePartialSettings(
+                    store!.core.id!,
+                    currentConfig,
+                    isStoreOpen: newValue,
+                  );
+                }
               }
             },
             activeColor: Colors.green,

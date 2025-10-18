@@ -82,7 +82,7 @@ class StoreNavigationHelper {
             context.go('/stores/$storeId/dashboard');
             break;
           case 1:
-            context.go('/stores/$storeId/orders');
+            context.go('/stores/$storeId/coupons');
             break;
           case 2:
             context.go('/stores/$storeId/products');
@@ -101,8 +101,8 @@ class StoreNavigationHelper {
           label: 'Início',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.receipt_long_rounded),
-          label: 'Pedidos',
+          icon: Icon(Icons.local_offer_outlined),
+          label: 'Promoções',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.menu_book_rounded),

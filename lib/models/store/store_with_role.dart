@@ -1,16 +1,8 @@
 import 'package:totem_pro_admin/models/store/store.dart';
 
-enum StoreAccessRole {
-  owner('Proprietário', false), // Geralmente não atribuível via UI
-  manager('Gerente', true),    // Antigo 'admin', agora para gerentes
-  cashier('Caixa', true),      // Nova role para operadores de caixa
-  stockManager('Estoquista', true); // Nova role para gerentes de estoque
+import '../../core/enums/store_access.dart';
 
-  final String title;
-  final bool selectable;
 
-  const StoreAccessRole(this.title, this.selectable);
-}
 
 class StoreWithRole {
   final Store store;

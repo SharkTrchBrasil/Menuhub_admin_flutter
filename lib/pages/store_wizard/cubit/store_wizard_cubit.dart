@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/core/di.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
+
 import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart' as AppToasts;
@@ -13,6 +14,7 @@ import 'package:totem_pro_admin/pages/store_wizard/store_wizard_page.dart';
 
 import '../../../models/store/store_hour.dart';
 import '../../edit_settings/general/store_profile_page.dart';
+import '../../edit_settings/hours/cubit/opening_hours_cubit.dart';
 import '../../edit_settings/hours/hours_store_page.dart';
 import '../../edit_settings/hours/widgets/add_shift_dialog.dart';
 import '../../edit_settings/hours/widgets/edit_shift_dialog.dart';
@@ -22,6 +24,7 @@ part 'store_wizard_state.dart';
 
 class StoreWizardCubit extends Cubit<StoreWizardState> {
   final StoresManagerCubit _storesManagerCubit;
+  final OpeningHoursCubit _openingHoursCubit; // ✅ ADICIONAR
   final int storeId;
   late final StreamSubscription _storesManagerSubscription;
   bool _hasReceivedInitialData = false;
@@ -30,10 +33,13 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
   final hoursKey = GlobalKey<OpeningHoursPageState>();
   final catalogKey = GlobalKey<CategoryProductPageState>();
 
+  // ✅ ATUALIZAR O CONSTRUTOR
   StoreWizardCubit({
     required this.storeId,
     required StoresManagerCubit storesManagerCubit,
+    required OpeningHoursCubit openingHoursCubit, // ✅ ADICIONAR
   })  : _storesManagerCubit = storesManagerCubit,
+        _openingHoursCubit = openingHoursCubit, // ✅ ADICIONAR
         super(StoreWizardInitial()) {
     _initialize();
     _storesManagerSubscription =
@@ -97,13 +103,10 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
   bool _isStepCompleted(StoreConfigStep step, Store store) {
     switch (step) {
       case StoreConfigStep.profile:
-      // ✅ ALTERAÇÃO: Adicionada a verificação da imagem (file_key)
         return store.core.name.isNotEmpty &&
             (store.core.phone?.isNotEmpty ?? false) &&
             (store.address?.street?.isNotEmpty ?? false) &&
             (store.media?.image?.hasImage ?? false);
-
-
 
       case StoreConfigStep.paymentMethods:
         return store.relations.paymentMethodGroups
@@ -178,18 +181,11 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     }
   }
 
-  // Este método agora chama o método `validate` da página do passo atual.
   bool _validateCurrentStep(StoreWizardLoaded state) {
     switch (state.currentStep) {
       case StoreConfigStep.profile:
-      // Chama a validação do Form dentro de StoreProfilePage
         return profileKey.currentState?.validateForm() ?? false;
 
-    // Adicione a lógica para outros passos aqui, se eles tiverem formulários
-    // case StoreConfigStep.openingHours:
-    //   return hoursKey.currentState?.validateForm() ?? false;
-
-    // Para passos sem formulário, podemos usar a lógica antiga
       case StoreConfigStep.paymentMethods:
         final isValid = _isStepCompleted(StoreConfigStep.paymentMethods, state.store);
         if (!isValid) AppToasts.showError("Selecione ao menos um método de pagamento.");
@@ -206,7 +202,7 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
         return isValid;
 
       default:
-        return true; // Passos como 'finish' são sempre válidos para avançar
+        return true;
     }
   }
 
@@ -214,11 +210,8 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     final currentState = state;
     if (currentState is! StoreWizardLoaded) return;
 
-    // ✅ 3. LÓGICA DE VALIDAÇÃO DELEGADA PARA A PÁGINA
     bool isStepValid = _validateCurrentStep(currentState);
 
-    // Se o passo atual não for válido, simplesmente retorne.
-    // A própria página já terá mostrado os erros nos campos.
     if (!isStepValid) {
       return;
     }
@@ -250,11 +243,6 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     ));
   }
 
-
-
-
-
-
   Future<bool> _saveCurrentStep(StoreWizardLoaded currentState) async {
     switch (currentState.currentStep) {
       case StoreConfigStep.profile:
@@ -285,16 +273,11 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     final currentStepIndex = currentState.currentStep.index;
     final targetStepIndex = step.index;
 
-    // ✅ ALTERAÇÃO: Permite navegar para qualquer etapa anterior,
-    // independentemente do status de "concluído".
     if (targetStepIndex < currentStepIndex) {
       emit(currentState.copyWith(currentStep: step));
-    }
-    // Mantém a lógica para etapas futuras: só pode ir se já estiver concluída.
-    else if (currentState.stepCompletionStatus[step] ?? false) {
+    } else if (currentState.stepCompletionStatus[step] ?? false) {
       emit(currentState.copyWith(currentStep: step));
-    }
-    else {
+    } else {
       AppToasts.showInfo("Complete as etapas anteriores primeiro.");
     }
   }
@@ -318,15 +301,28 @@ class StoreWizardCubit extends Cubit<StoreWizardState> {
     );
   }
 
+  // ✅ MÉTODOS ATUALIZADOS: Agora usam o OpeningHoursCubit
   Future<void> addHours(AddShiftResult result) async {
-    await _storesManagerCubit.addHours(storeId, result);
+    final managerState = _storesManagerCubit.state;
+    if (managerState is StoresManagerLoaded) {
+      final currentHours = managerState.stores[storeId]?.store.relations.hours ?? [];
+      await _openingHoursCubit.addHours(storeId, currentHours, result);
+    }
   }
 
   Future<void> removeHour(StoreHour hourToRemove) async {
-    await _storesManagerCubit.removeHour(storeId, hourToRemove);
+    final managerState = _storesManagerCubit.state;
+    if (managerState is StoresManagerLoaded) {
+      final currentHours = managerState.stores[storeId]?.store.relations.hours ?? [];
+      await _openingHoursCubit.removeHour(storeId, currentHours, hourToRemove);
+    }
   }
 
   Future<void> updateHour(StoreHour oldHour, EditShiftResult result) async {
-    await _storesManagerCubit.updateHour(storeId, oldHour, result);
+    final managerState = _storesManagerCubit.state;
+    if (managerState is StoresManagerLoaded) {
+      final currentHours = managerState.stores[storeId]?.store.relations.hours ?? [];
+      await _openingHoursCubit.updateHour(storeId, currentHours, oldHour, result);
+    }
   }
 }

@@ -1,14 +1,17 @@
-// Em lib/pages/table/tables.dart
+// lib/pages/table/tables.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
-
+import 'package:totem_pro_admin/pages/table/widgets/create_table_dialog.dart';
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
-import '../../models/tables/saloon.dart';
-import '../../models/tables/table.dart';
-import 'widgets/create_table_dialog.dart';
+import 'package:totem_pro_admin/models/tables/saloon.dart';
+import 'package:totem_pro_admin/models/tables/table.dart';
+
+import 'cubits/tables_cubit.dart';
+import 'widgets/table_order_side_panel.dart';
 
 class SaloonsAndTablesPanel extends StatefulWidget {
   const SaloonsAndTablesPanel({super.key});
@@ -21,27 +24,60 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
   int _selectedSaloonIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // ✅ Conecta ao store ativo quando a tela carregar
+    final storeManagerState = context.read<StoresManagerCubit>().state;
+    if (storeManagerState is StoresManagerLoaded &&
+        storeManagerState.activeStoreWithRole != null) {
+      context.read<TablesCubit>().connectToStore(
+          storeManagerState.activeStoreWithRole!.store.core.id!
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<StoresManagerCubit, StoresManagerState>(
-      builder: (context, state) {
-        if (state is! StoresManagerLoaded || state.activeStoreWithRole == null) {
+    return BlocBuilder<TablesCubit, TablesState>(
+      builder: (context, tablesState) {
+        // ✅ Mostra loading enquanto carrega
+        if (tablesState is TablesLoading || tablesState is TablesInitial) {
           return const Center(child: DotLoading());
         }
 
-        final saloons = state.activeStoreWithRole!.store.relations.saloons;
+        // ✅ Mostra erro se houver
+        if (tablesState is TablesError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Erro: ${tablesState.message}',
+                  style: const TextStyle(fontSize: 16, color: Colors.red),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // ✅ Agora trabalha com TablesLoaded
+        final saloons = (tablesState as TablesLoaded).saloons;
+        final selectedTable = tablesState.selectedTable;
 
         if (saloons.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
+                const Text(
                   'Nenhum salão encontrado.',
-                  style: const TextStyle(fontSize: 18, color: Colors.grey),
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () => _showCreateTableDialog(context),
+                  onPressed: () => _showCreateSaloonDialog(context),
                   icon: const Icon(Icons.add),
                   label: const Text('Criar Primeiro Salão'),
                   style: ElevatedButton.styleFrom(
@@ -60,38 +96,45 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
 
         final selectedSaloon = saloons[_selectedSaloonIndex];
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+        return Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // HEADER COM LEGENDAS E TOTAL
-              _buildHeader(context, selectedSaloon),
-
-              // LISTA DE SALÕES (AMBIENTES)
-              _buildSaloonList(saloons),
-
-              // ÁREA DAS MESAS
-              Expanded(
-                child: _buildTablesArea(selectedSaloon),
+              child: Column(
+                children: [
+                  _buildHeader(context, selectedSaloon),
+                  _buildSaloonList(saloons),
+                  Expanded(
+                    child: _buildTablesArea(selectedSaloon),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+
+            // ✅ SidePanel aparece quando uma mesa está selecionada
+            if (selectedTable != null)
+              TableOrderSidePanel(
+                table: selectedTable,
+                onClose: () {
+                  context.read<TablesCubit>().clearSelection();
+                },
+              ),
+          ],
         );
       },
     );
   }
 
-  // HEADER COM LEGENDAS E TOTAL (igual ao HTML)
   Widget _buildHeader(BuildContext context, Saloon selectedSaloon) {
     return Container(
       height: 44,
@@ -113,13 +156,12 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // LEGENDAS DOS TIPOS DE MESA
           Row(
             children: [
               _buildTableTypeLegend(
                 color: const Color(0xFF082610),
                 iconColor: const Color(0xFF5A6472),
-                count: _countTablesByStatus(selectedSaloon, 'FREE'),
+                count: _countTablesByStatus(selectedSaloon, 'AVAILABLE'),
               ),
               const SizedBox(width: 24),
               _buildTableTypeLegend(
@@ -135,12 +177,10 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
               ),
             ],
           ),
-
-          // TOTAL (R$ 0,00 + ÍCONE DE VISIBILIDADE)
           Row(
             children: [
               Text(
-                'R\$ 0,00',
+                'R\$ ${_calculateTotalRevenue(selectedSaloon).toStringAsFixed(2)}',
                 style: TextStyle(
                   color: Colors.grey[700],
                   fontWeight: FontWeight.w500,
@@ -161,7 +201,6 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
     );
   }
 
-  // LEGENDA DO TIPO DE MESA
   Widget _buildTableTypeLegend({
     required Color color,
     required Color iconColor,
@@ -195,19 +234,21 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
     );
   }
 
-  // CONTAR MESAS POR STATUS
   int _countTablesByStatus(Saloon saloon, String status) {
     return saloon.tables.where((table) => table.status.toUpperCase() == status).length;
   }
 
-  // LISTA DE SALÕES (AMBIENTES) - estilo do HTML
+  double _calculateTotalRevenue(Saloon saloon) {
+    // TODO: Calcular o total de vendas das mesas ocupadas
+    return 0.0;
+  }
+
   Widget _buildSaloonList(List<Saloon> saloons) {
     return Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          // LISTA DE SALÕES
           Expanded(
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
@@ -250,7 +291,6 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // CONTADORES
                         Row(
                           children: [
                             if (occupiedCount > 0) ...[
@@ -262,9 +302,9 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
                                 ),
                                 child: Text(
                                   occupiedCount.toString(),
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 10,
-                                    color: isSelected ? Colors.white : Colors.white,
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -280,9 +320,9 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
                                 ),
                                 child: Text(
                                   reservedCount.toString(),
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 10,
-                                    color: isSelected ? Colors.white : Colors.white,
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -297,11 +337,9 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
               },
             ),
           ),
-
-          // BOTÃO "NOVO AMBIENTE"
           const SizedBox(width: 8),
           ElevatedButton(
-            onPressed: () => _showCreateTableDialog(context),
+            onPressed: () => _showCreateSaloonDialog(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: const Color(0xFF5A6472),
@@ -332,10 +370,33 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
     );
   }
 
-  void _showCreateTableDialog(BuildContext context) {
+  void _showCreateSaloonDialog(BuildContext context) {
+    // TODO: Criar dialog para salão
     showDialog(
       context: context,
-      builder: (context) => const CreateTableDialog(),
+      builder: (context) => AlertDialog(
+        title: const Text('Criar Novo Salão'),
+        content: const Text('Dialog de criar salão será implementado'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateTableDialog(BuildContext context, int saloonId) {
+    final storeId = (context.read<StoresManagerCubit>().state as StoresManagerLoaded)
+        .activeStoreWithRole!.store.core.id;
+
+    showDialog(
+      context: context,
+      builder: (context) => ManageTableDialog(
+        storeId: storeId!,
+        saloonId: saloonId,
+      ),
     );
   }
 
@@ -345,7 +406,6 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Grid de mesas
           Expanded(
             child: _buildTablesGrid(saloon),
           ),
@@ -369,11 +429,10 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
             mainAxisSpacing: 12,
             childAspectRatio: 0.9,
           ),
-          itemCount: tables.length + 1, // +1 para o botão "Nova mesa"
+          itemCount: tables.length + 1,
           itemBuilder: (context, index) {
             if (index == tables.length) {
-              // BOTÃO "NOVA MESA"
-              return _buildNewTableButton();
+              return _buildNewTableButton(saloon.id);
             }
 
             final table = tables[index];
@@ -392,10 +451,9 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
     return 2;
   }
 
-  // BOTÃO "NOVA MESA"
-  Widget _buildNewTableButton() {
+  Widget _buildNewTableButton(int saloonId) {
     return ElevatedButton(
-      onPressed: () => _showCreateTableDialog(context),
+      onPressed: () => _showCreateTableDialog(context, saloonId),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF4E627E),
@@ -422,28 +480,29 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
     );
   }
 
-  // ITEM DE MESA (estilo do HTML)
   Widget _buildTableItem(TableModel table) {
-    final bool isOccupied = table.status.toUpperCase() == 'OCCUPIED';
-    final bool isReserved = table.status.toUpperCase() == 'RESERVED';
+    final bool isAvailable = table.isAvailable;
+    final bool isOccupied = table.isOccupied;
+    final bool isReserved = table.isReserved;
 
     Color backgroundColor;
-    Color textColor;
+    Color textColor = Colors.white;
 
     if (isOccupied) {
       backgroundColor = const Color(0xFF613400);
-      textColor = Colors.white;
     } else if (isReserved) {
       backgroundColor = const Color(0xFF0047A3);
-      textColor = Colors.white;
     } else {
       backgroundColor = const Color(0xFF082610);
-      textColor = Colors.white;
     }
+
+    // Pega a comanda ativa (se houver)
+    final activeCommand = table.activeCommand;
 
     return ElevatedButton(
       onPressed: () {
-        // Ação ao clicar na mesa
+        // ✅ Seleciona a mesa no Cubit
+        context.read<TablesCubit>().selectTable(table);
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: backgroundColor,
@@ -458,30 +517,32 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // STATUS DA MESA (vazio por enquanto)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                height: 16,
-                width: double.infinity,
-                // Espaço para status futuro
-              ),
-              const SizedBox(height: 4),
-              // Nome do cliente (vazio por enquanto)
-              const SizedBox(
+              SizedBox(
                 height: 16,
                 child: Text(
-                  '',
-                  style: TextStyle(fontSize: 12),
+                  table.status,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: textColor.withOpacity(0.7),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              SizedBox(
+                height: 16,
+                child: Text(
+                  activeCommand?.customerName ?? '',
+                  style: const TextStyle(fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-
-          // NÚMERO DA MESA (centralizado)
           Expanded(
             child: Center(
               child: Text(
@@ -496,14 +557,17 @@ class _SaloonsAndTablesPanelState extends State<SaloonsAndTablesPanel> {
               ),
             ),
           ),
-
-          // GARÇOM/ATENDENTE (vazio por enquanto)
-          const SizedBox(
+          SizedBox(
             height: 16,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // Espaço para informações do garçom futuro
+                if (activeCommand != null && activeCommand.attendantId != null)
+                  Icon(
+                    Icons.person,
+                    size: 12,
+                    color: textColor.withOpacity(0.7),
+                  ),
               ],
             ),
           ),

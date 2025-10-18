@@ -1,5 +1,5 @@
+// status_chip.dart
 import 'package:flutter/material.dart';
-
 import '../../../core/enums/inventory_stock.dart';
 
 class StatusChip extends StatelessWidget {
@@ -9,19 +9,56 @@ class StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Map<ProductStockStatus, dynamic> styles = {
-      ProductStockStatus.inStock: {'label': 'Em Estoque', 'color': Colors.green.shade600},
-      ProductStockStatus.lowStock: {'label': 'Estoque Baixo', 'color': Colors.orange.shade800},
-      ProductStockStatus.outOfStock: {'label': 'Esgotado', 'color': Colors.red.shade700},
-      ProductStockStatus.notControlled: {'label': 'Não Controlado', 'color': Colors.grey.shade500},
+      ProductStockStatus.inStock: {
+        'label': 'Em Estoque',
+        'color': Colors.green,
+        'icon': Icons.check_circle_outline,
+      },
+      ProductStockStatus.lowStock: {
+        'label': 'Estoque Baixo',
+        'color': Colors.orange,
+        'icon': Icons.warning_amber_outlined,
+      },
+      ProductStockStatus.outOfStock: {
+        'label': 'Esgotado',
+        'color': Colors.red,
+        'icon': Icons.error_outline,
+      },
+      ProductStockStatus.notControlled: {
+        'label': 'Não Controlado',
+        'color': Colors.grey,
+        'icon': Icons.remove_circle_outline,
+      },
     };
+
     final style = styles[status]!;
 
-    return Chip(
-      label: Text(style['label']),
-      labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-      backgroundColor: style['color'],
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      visualDensity: VisualDensity.compact,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: style['color'].withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: style['color'].withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            style['icon'],
+            size: 12,
+            color: style['color'],
+          ),
+          const SizedBox(width: 4),
+          Text(
+            style['label'],
+            style: TextStyle(
+              color: style['color'],
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

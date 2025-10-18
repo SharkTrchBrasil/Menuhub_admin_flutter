@@ -9,6 +9,7 @@ import '../../../core/di.dart';
 import '../../../core/enums/category_type.dart';
 import '../../../core/enums/product_status.dart';
 
+import '../../../core/helpers/edit_product_sidepanel.dart';
 import '../../../core/helpers/sidepanel.dart';
 import '../../../models/products/product.dart';
 import '../../../repositories/product_repository.dart';
@@ -38,37 +39,24 @@ class ProductCardMobile extends StatefulWidget {
 class _ProductCardMobileState extends State<ProductCardMobile> {
   bool _isUpdating = false; // ✅ Estado para controlar loading
 
-  void _openEditPanel({required bool isCustomizable}) {
-    // Fecha o BottomSheet que está aberto
+  // ✨ CÓDIGO NOVO E REATORADO USANDO O HELPER ✨
+  void _openEditPanel() {
+    // Fecha o BottomSheet que está aberto, se necessário.
     Navigator.of(context).pop();
 
-    // Lógica para decidir qual painel abrir
-    final Widget panelToOpen = isCustomizable
-        ? FlavorEditPanel(
-      // ATENÇÃO: O FlavorEditPanel espera uma `parentCategory`.
-      // Estou passando a primeira categoria do produto.
-      // Se a lógica for mais complexa, este ponto pode precisar de ajuste.
-      parentCategory: widget.product.categoryLinks.first.category!,
-      storeId: widget.storeId,
+    // Chama o helper global passando as informações necessárias
+    showEditProductPanel(
+      context: context,
       product: widget.product,
-      onSaveSuccess: () {
-        Navigator.of(context).pop(); // Fecha o painel
-      },
-      onCancel: () => Navigator.of(context).pop(),
-    )
-        : ProductEditPanel(
       storeId: widget.storeId,
-      product: widget.product,
+      parentCategory: widget.product.categoryLinks.first.category, // Passa a categoria pai do contexto atual
       onSaveSuccess: () {
-        Navigator.of(context).pop(); // Fecha o painel
+        // Você pode adicionar qualquer lógica extra aqui após o salvamento.
+        // Por exemplo, atualizar a UI ou mostrar uma mensagem.
+        print('Produto salvo, painel fechado!');
       },
-      onCancel: () => Navigator.of(context).pop(),
     );
-
-    // Abre o painel lateral
-    showResponsiveSidePanel(context, panelToOpen);
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -364,7 +352,7 @@ class _ProductCardMobileState extends State<ProductCardMobile> {
                 _ActionButtonItem(
                   icon: Icons.visibility,
                   text: 'Ver detalhes',
-                  onTap: () => _openEditPanel(isCustomizable: isCustomizable),
+                  onTap: () => _openEditPanel(),
                 ),
                 _ActionButtonItem(
                   icon: isActive ? Icons.pause : Icons.play_arrow,

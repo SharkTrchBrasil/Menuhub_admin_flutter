@@ -28,7 +28,7 @@ class ProductPhoneMockup extends StatelessWidget {
 
     // Define valores padrão se os parâmetros não forem fornecidos
     final double finalWidth = width ?? 240.0;
-    final double finalHeight = height ?? 580.0;
+    final double finalHeight = height ?? 500.0;
     final bool showVar = showVariants ?? false;
     return Container(
       width: finalWidth,   // Usa a largura final
@@ -68,7 +68,9 @@ final bool showVar;
     // ✅ Usa a largura recebida via construtor para os cálculos
     final double imageHeight = mockupWidth * 0.9;
     final double contentOverlapPosition = imageHeight - 30;
-
+    // ✅ 1. LÓGICA DEFENSIVA: Verificamos se há uma imagem válida.
+    final bool hasImage = product.images.isNotEmpty && product.images.first.url != null;
+    final String? imageUrl = hasImage ? product.images.first.url : null;
 
     return Stack(
       children: [
@@ -80,7 +82,7 @@ final bool showVar;
               CachedNetworkImage(
 
 
-                imageUrl: product.images.first.url?? "https://img.freepik.com/vetores-premium/conjunto-de-desenhos-animados-de-fast-food-sem-costura_1639-39822.jpg",
+                imageUrl: imageUrl ?? "https://img.freepik.com/vetores-premium/conjunto-de-desenhos-animados-de-fast-food-sem-costura_1639-39822.jpg",
 
 
                 height: imageHeight,

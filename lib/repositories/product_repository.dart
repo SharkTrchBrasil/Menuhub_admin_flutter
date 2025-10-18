@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http_parser/http_parser.dart'; // Import necessário
 
 
 import 'package:totem_pro_admin/models/variant.dart';
@@ -66,10 +67,10 @@ class ProductRepository {
   }
 
   Future<Either<void, Variant>> getVariant(
-    int storeId,
+      int storeId,
 
-    int id,
-  ) async {
+      int id,
+      ) async {
     try {
       final response = await _dio.get(
         '/stores/$storeId/variants/$id',
@@ -116,11 +117,11 @@ class ProductRepository {
   }
 
   Future<Either<void, VariantOption>> getVariantOption(
-    int storeId,
+      int storeId,
 
-    int variantId,
-    int id,
-  ) async {
+      int variantId,
+      int id,
+      ) async {
     try {
       final response = await _dio.get(
         '/stores/$storeId/variants/$variantId/options/$id',
@@ -393,39 +394,53 @@ class ProductRepository {
 
   Future<Either<String, Product>> createSimpleProduct(
       int storeId,
-      Product product, {
-  List<ImageModel>? images,
-      }) async {
+      Product product,
+      ) async {
     try {
       final productJson = product.toSimpleProductJson();
       final formData = FormData.fromMap({
         'payload': json.encode(productJson),
       });
 
-      // ✅ LÓGICA UNIFICADA DE UPLOAD
-      if (images != null && images.isNotEmpty) {
-        for (var imageModel in images) {
-          if (imageModel.file != null) {
-            final fileBytes = await imageModel.file!.readAsBytes();
-            // ✅ LÓGICA CORRIGIDA AQUI
+      // ✅ --- LÓGICA RESTAURADA PARA UPLOAD DE ARQUIVOS ---
+      // Anexa as imagens da galeria
+      for (var imageModel in product.images) {
+        if (imageModel.file != null) {
+          final fileBytes = await imageModel.file!.readAsBytes();
+          final fileName = imageModel.file!.name;
+          final fileExtension = fileName.split('.').last;
 
-            final fileName = imageModel.file!.name.isNotEmpty
-                ? imageModel.file!.name
-                : 'upload.jpg';
-
-            formData.files.add(
-              MapEntry(
-                'images',
-                MultipartFile.fromBytes(fileBytes, filename: fileName),
-              ),
-            );
-
-          }
+          formData.files.add(MapEntry(
+            'files', // Nome do campo que a API espera para os arquivos da galeria
+            MultipartFile.fromBytes(
+              fileBytes,
+              filename: fileName,
+              contentType: MediaType('image', fileExtension),
+            ),
+          ));
         }
       }
 
+      // Anexa o vídeo, se houver
+      if (product.videoFile?.file != null) {
+        final videoFile = product.videoFile!.file!;
+        final videoBytes = await videoFile.readAsBytes();
+        final videoFileName = videoFile.name;
+        final videoFileExtension = videoFileName.split('.').last;
+
+        formData.files.add(MapEntry(
+          'video', // Nome do campo que a API espera para o vídeo
+          MultipartFile.fromBytes(
+            videoBytes,
+            filename: videoFileName,
+            contentType: MediaType('video', videoFileExtension),
+          ),
+        ));
+      }
+      // ✅ --- FIM DA LÓGICA RESTAURADA ---
+
       final response = await _dio.post(
-        '/stores/$storeId/products/simple-product',
+        '/admin/stores/$storeId/products/simple-product',
         data: formData,
       );
 

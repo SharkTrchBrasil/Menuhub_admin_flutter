@@ -13,6 +13,7 @@ import 'package:totem_pro_admin/pages/products/widgets/product_panel.dart';
 import '../../../core/di.dart';
 import '../../../core/enums/category_type.dart';
 
+import '../../../core/helpers/edit_product_sidepanel.dart';
 import '../../../core/helpers/sidepanel.dart';
 import '../../../models/category.dart';
 
@@ -103,18 +104,7 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
     if (!_stockFocusNode.hasFocus) _updateStock();
   }
 
-  Future<void> _toggleAvailabilityInCategory() async {
-    final bool currentLinkAvailability = widget.product.categoryLinks
-        .firstWhere((link) => link.categoryId == widget.parentCategory.id)
-        .isAvailable;
 
-    await getIt<ProductRepository>().toggleLinkAvailability(
-      storeId: widget.storeId,
-      productId: widget.product.id!,
-      categoryId: widget.parentCategory.id!,
-      isAvailable: !currentLinkAvailability,
-    );
-  }
 
   Future<void> _updatePrice() async {
     final originalPriceText = widget.displayPriceText;
@@ -143,15 +133,7 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
     }
   }
 
-  Future<void> _deactivateAndClearStock() async {
-    if (widget.product.stockQuantity == 0 && !widget.product.controlStock) return;
 
-    final updatedProduct = widget.product.copyWith(
-      stockQuantity: 0,
-      controlStock: false,
-    );
-    await getIt<ProductRepository>().updateProduct(widget.storeId, updatedProduct, deletedImageIds: []);
-  }
 
   void _updateStock() async {
     final originalQuantity = widget.product.stockQuantity;
@@ -205,10 +187,13 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
+
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 14.0),
             child: Row(
+
+
               children: [
                 const SizedBox(width: 10),
 
@@ -218,11 +203,11 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
 
 
                 ),
-             //   _buildDefaultImage(isAvailableInThisCategory),
+
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(top: 4.0),
@@ -274,93 +259,84 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            children: [
-              Text(widget.product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center, // ← Centraliza verticalmente
+              children: [
+                Text(widget.product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
 
-              if (widget.product.description != null && widget.product.description!.isNotEmpty)
+                // COM PLACEHOLDER
                 Padding(
-                  padding: const EdgeInsets.only(top: 2.0),
+                  padding: const EdgeInsets.only(top: 4.0),
                   child: Text(
-                    widget.product.description!,
+                    widget.product.description?.isNotEmpty == true
+                        ? widget.product.description!
+                        : 'Sem descrição',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        color: textColor.withOpacity(0.7),
-                        fontSize: 12
+                      color: widget.product.description?.isNotEmpty == true
+                          ? textColor.withOpacity(0.7)
+                          : textColor.withOpacity(0.4), // Cor mais clara para placeholder
+                      fontSize: 12,
+                      fontStyle: widget.product.description?.isNotEmpty == true
+                          ? FontStyle.normal
+                          : FontStyle.italic, // Itálico para placeholder
                     ),
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(width: 8),
-          Column(
-            children: [
-              Text(
-                'À partir de',
-                style: TextStyle(
-                    color: textColor.withOpacity(0.7),
-                    fontSize: 12
-                ),
-              ),
-              Text(
-                'R\$ '+widget.displayPriceText,
-                style: TextStyle(
-                  color: textColor.withOpacity(0.7),
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
+
         ],
       );
     } else {
-      return Column(
+      return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.product.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center, // ← Centraliza verticalmente
+              children: [
+                Text(widget.product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w700, color: textColor)),
 
-          Row(
-            children: [
-              Text(
-                'R\$ ' + widget.displayPriceText,
-                style: TextStyle(
-                  color: textColor.withOpacity(0.7),
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (widget.product.controlStock)
-                Row(
-                  children: [
-                    Icon(
-                      Icons.inventory_2_outlined,
-                      size: 14,
-                      color: textColor.withOpacity(0.7),
+                // COM PLACEHOLDER
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    widget.product.description?.isNotEmpty == true
+                        ? widget.product.description!
+                        : 'Sem descrição',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: widget.product.description?.isNotEmpty == true
+                          ? textColor.withOpacity(0.7)
+                          : textColor.withOpacity(0.4), // Cor mais clara para placeholder
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      fontStyle: widget.product.description?.isNotEmpty == true
+                          ? FontStyle.normal
+                          : FontStyle.italic, // Itálico para placeholder
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${widget.product.stockQuantity ?? 0}',
-                      style: TextStyle(
-                        color: textColor.withOpacity(0.7),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-            ],
+              ],
+            ),
           ),
         ],
       );
     }
   }
-
   List<Widget> _buildDesktopActions(Color textColor, bool isCustomizable, bool isAvailableInThisCategory) {
     if (isCustomizable) {
       return [
@@ -470,134 +446,49 @@ class _ProductListItemDesktopState extends State<ProductListItemDesktop> {
     );
   }
 
-// Em product_list_item_desktop.dart
-
 
   void _openEditPanel() {
 
 
-    final isCustomizable = widget.parentCategory.type == CategoryType.CUSTOMIZABLE;
-
-    // Decide qual painel abrir
-    final Widget panelToOpen = isCustomizable
-        ? FlavorEditPanel(
-      storeId: widget.storeId,
+    // Chama o helper global passando as informações necessárias
+    showEditProductPanel(
+      context: context,
       product: widget.product,
-      parentCategory: widget.parentCategory,
-      onSaveSuccess: () {
-
-
-      },
-      onCancel: () => Navigator.of(context).pop(),
-    )
-        : ProductEditPanel(
       storeId: widget.storeId,
-      product: widget.product,
+      parentCategory: widget.parentCategory, // Passa a categoria pai do contexto atual
       onSaveSuccess: () {
-      // Fecha o painel
-
+        // Você pode adicionar qualquer lógica extra aqui após o salvamento.
+        // Por exemplo, atualizar a UI ou mostrar uma mensagem.
+        print('Produto salvo, painel fechado!');
       },
-      onCancel: () => Navigator.of(context).pop(),
-    );
-
-    // Usa o seu helper para abrir o painel lateral escolhido
-    showResponsiveSidePanel(context, panelToOpen);
-  }
-
-
-
-
-
-
-
-
-
-  Widget _buildDefaultImage(bool isAvailable) {
-    // ✅ LÓGICA CORRIGIDA AQUI
-    // 1. Verifica se a lista de imagens não está vazia e pega a URL da primeira imagem.
-    final coverImageUrl = (widget.product.images.isNotEmpty)
-        ? widget.product.images.first.url
-        : null;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8.0),
-      child: ColorFiltered(
-          colorFilter: ColorFilter.mode(
-            isAvailable ? Colors.transparent : Colors.grey,
-            BlendMode.saturation,
-          ),
-          // 2. Usa a nova variável 'coverImageUrl' para decidir o que mostrar.
-          child: coverImageUrl != null
-              ? CachedNetworkImage(
-            imageUrl: coverImageUrl, // Usa a URL da capa
-            width: 60,
-            height: 68,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              color: Colors.grey.shade200,
-              child: const Center(child: CircularProgressIndicator(strokeWidth: 2.0)),
-            ),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
-          )
-              : SizedBox(
-            width: 60,
-            height: 68,
-            child: Center(
-              child: SvgPicture.asset(
-                'assets/icons/burguer.svg',
-                width: 42,
-                height: 42,
-                placeholderBuilder: (context) => const CircularProgressIndicator(strokeWidth: 2),
-                semanticsLabel: 'Placeholder de produto',
-              ),
-            ),
-          )
-      ),
     );
   }
+
+
+
 
   Widget _buildPriceDisplay() {
-    final hasPrices = widget.product.prices.isNotEmpty;
-    final startingPrice = hasPrices
-        ? widget.product.prices.map((p) => p.price).reduce((a, b) => a < b ? a : b)
-        : 0;
 
-    return hasPrices
-        ? Column(
+
+    // Se o texto do preço estiver indisponível ou zerado, mostra o chip de alerta.
+    if (widget.displayPriceText.contains('indisponível') || widget.displayPriceText.contains('0,00')) {
+      return InkWell(
+        onTap: () => _openEditPanel(), // Permite clicar para corrigir
+        child: const Chip(label: Text('⚠️ Sem Preço'), backgroundColor: Colors.orangeAccent),
+      );
+    }
+
+    return
+        Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('À partir de', style: TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(width: 8),
         Text(
-          UtilBrasilFields.obterReal(startingPrice / 100),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          widget.displayPriceText,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ],
-    )
-        : InkWell(
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Item sem preço'),
-            content: const Text('Este sabor ainda não tem preços definidos para os tamanhos. Edite o item para configurá-los.'),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancelar'),
-                onPressed: () => Navigator.of(dialogContext).pop(),
-              ),
-              TextButton(
-                child: const Text('Ir para Edição'),
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                  context.push('/stores/${widget.storeId}/products/${widget.product.id}/edit-flavor', extra: widget.product);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-      child: const Chip(label: Text('⚠️ Sem Preço'), backgroundColor: Colors.orangeAccent),
     );
   }
 

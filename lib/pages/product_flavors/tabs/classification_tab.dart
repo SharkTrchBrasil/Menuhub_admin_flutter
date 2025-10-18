@@ -3,26 +3,21 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/enums/foodtags.dart';
 
 
-import '../cubit/flavor_wizard_cubit.dart';
+import '../../product-wizard/cubit/product_wizard_cubit.dart';
+import '../../product-wizard/cubit/product_wizard_state.dart';
 
-class FlavorClassificationTab extends StatelessWidget {
-
-  const FlavorClassificationTab({super.key});
-
-
+class ClassificationTab extends StatelessWidget {
+  const ClassificationTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // ✅ O WIDGET AGORA LÊ DIRETAMENTE DO CUBIT
-    return BlocBuilder<FlavorWizardCubit, FlavorWizardState>(
-      buildWhen: (p, c) => p.product.dietaryTags != c.product.dietaryTags,
+    return BlocBuilder<ProductWizardCubit, ProductWizardState>(
+      buildWhen: (p, c) => p.productInCreation.dietaryTags != c.productInCreation.dietaryTags,
       builder: (context, state) {
-        final cubit = context.read<FlavorWizardCubit>();
-
+        final cubit = context.read<ProductWizardCubit>();
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-
             children: [
               Text('Classificação', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
@@ -30,10 +25,6 @@ class FlavorClassificationTab extends StatelessWidget {
                 'Indique se seu item é adequado a restrições alimentares.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
               ),
-
-
-
-
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -44,9 +35,8 @@ class FlavorClassificationTab extends StatelessWidget {
                   return CheckboxListTile(
                     title: Text(foodTagNames[tag]!),
                     subtitle: Text(foodTagDescriptions[tag]!),
-                    value: state.product.dietaryTags.contains(tag),
+                    value: state.productInCreation.dietaryTags.contains(tag),
                     onChanged: (isSelected) {
-                      // ✅ CHAMA O MÉTODO ESPECÍFICO DO CUBIT
                       cubit.toggleDietaryTag(tag);
                     },
                   );
@@ -59,22 +49,3 @@ class FlavorClassificationTab extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

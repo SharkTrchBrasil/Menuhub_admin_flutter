@@ -1,7 +1,5 @@
 // lib/repositories/chatbot_repository.dart
 
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -12,15 +10,12 @@ class ChatbotRepository {
 
   final Dio _dio;
 
-
-  // ✅ MÉTODO ATUALIZADO
   Future<Either<Failure, void>> connectWhatsApp({
     required int storeId,
     required String method,
-    String? phoneNumber, // phoneNumber agora é opcional
+    String? phoneNumber,
   }) async {
     try {
-      // Monta o payload dinamicamente
       final Map<String, dynamic> payload = {
         'method': method,
       };
@@ -30,30 +25,36 @@ class ChatbotRepository {
 
       await _dio.post(
         '/stores/$storeId/chatbot-config/connect',
-        data: payload, // Envia o payload completo
+        data: payload,
       );
       return const Right(null);
     } on DioException catch (e) {
       debugPrint('connectWhatsApp error: $e');
-      final errorMsg = e.response?.data?['detail'] ?? 'Falha ao conectar com o WhatsApp.';
-      return Left(Failure(errorMsg));
+      return Left(Failure(
+        message: e.response?.data?['detail'] ??
+            'Falha ao conectar com o WhatsApp',
+        statusCode: e.response?.statusCode,
+      ));
     } catch (e) {
-      return Left(Failure('Ocorreu um erro inesperado.'));
+      return Left(Failure(message: 'Erro inesperado: $e'));
     }
   }
-
 
   Future<Either<Failure, void>> disconnectChatbot(int storeId) async {
     try {
       await _dio.delete('/stores/$storeId/chatbot-config/disconnect');
       return const Right(null);
-    } catch (e) {
+    } on DioException catch (e) {
       debugPrint('disconnectChatbot error: $e');
-      return Left(Failure('Não foi possível desconectar o chatbot.'));
+      return Left(Failure(
+        message: e.response?.data?['detail'] ??
+            'Não foi possível desconectar o chatbot',
+        statusCode: e.response?.statusCode,
+      ));
+    } catch (e) {
+      return Left(Failure(message: 'Erro inesperado: $e'));
     }
   }
-
-
 
   Future<Either<Failure, void>> updateMessage({
     required int storeId,
@@ -73,7 +74,6 @@ class ChatbotRepository {
         return const Right(null);
       }
 
-
       await _dio.patch(
         '/stores/$storeId/chatbot-config/$messageKey',
         data: payload,
@@ -81,20 +81,23 @@ class ChatbotRepository {
 
       return const Right(null);
     } on DioException catch (e) {
-      final errorMsg = e.response?.data?['detail'] ?? 'Falha ao atualizar a mensagem.';
-      return Left(Failure(errorMsg));
+      return Left(Failure(
+        message: e.response?.data?['detail'] ??
+            'Falha ao atualizar a mensagem',
+        statusCode: e.response?.statusCode,
+      ));
     } catch (e) {
-      return Left(Failure('Ocorreu um erro inesperado ao salvar a mensagem.'));
+      return Left(Failure(
+        message: 'Erro inesperado ao salvar a mensagem: $e',
+      ));
     }
   }
-
 
   Future<Either<Failure, void>> updateChatbotStatus({
     required int storeId,
     required bool isActive,
   }) async {
     try {
-      // Este endpoint está na raiz da API do Node, não sob /stores/{id}
       await _dio.post(
         '/chatbot/update-status',
         data: {
@@ -104,11 +107,13 @@ class ChatbotRepository {
       );
       return const Right(null);
     } on DioException catch (e) {
-      final errorMsg = e.response?.data?['detail'] ?? 'Falha ao atualizar o status do chatbot.';
-      return Left(Failure(errorMsg));
+      return Left(Failure(
+        message: e.response?.data?['detail'] ??
+            'Falha ao atualizar o status do chatbot',
+        statusCode: e.response?.statusCode,
+      ));
     } catch (e) {
-      return Left(Failure('Ocorreu um erro inesperado.'));
+      return Left(Failure(message: 'Erro inesperado: $e'));
     }
   }
-
 }

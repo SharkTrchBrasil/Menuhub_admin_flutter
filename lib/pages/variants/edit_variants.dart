@@ -114,7 +114,7 @@ class VariantEditScreen extends StatelessWidget {
                     pathParameters: {'storeId': storeId.toString()},
                   ),
 
-                  requiresConnection: false,
+
                   style: DsButtonStyle.secondary,
                   label: 'Cancelar',
 
