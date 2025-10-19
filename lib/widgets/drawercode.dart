@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import '../controller/inbox_controller.dart';
 import '../core/helpers/sidepanel.dart';
 import '../core/menu_app_controller.dart';
 import '../cubits/auth_cubit.dart';
-import '../cubits/auth_state.dart';
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
 import '../models/store/store.dart';
-
 import 'store_switcher_panel.dart';
 
 class DrawerCode extends StatefulWidget {
@@ -26,14 +22,11 @@ class DrawerCode extends StatefulWidget {
 }
 
 class _DrawerCodeState extends State<DrawerCode> {
-  InboxController inboxController = Get.put(InboxController());
-
   final double _collapsedWidth = 72.0;
   final double _expandedWidth = 260.0;
   bool _isLoggingOut = false;
 
   void _openStoreSwitcherPanel(BuildContext context) {
-    // ✅ CORREÇÃO: Passa o cubit como parâmetro
     final storesManagerCubit = context.read<StoresManagerCubit>();
 
     showResponsiveSidePanel(
@@ -46,6 +39,33 @@ class _DrawerCodeState extends State<DrawerCode> {
     );
   }
 
+  // ✅ NOVA FUNÇÃO: Pega a rota atual do GoRouter
+  String _getCurrentRoute(BuildContext context) {
+    return GoRouterState.of(context).uri.path;
+  }
+
+  // ✅ NOVA FUNÇÃO: Verifica se a rota está ativa
+  bool _isRouteActive(BuildContext context, String menuRoute) {
+    final currentPath = _getCurrentRoute(context);
+    final fullRoute = '/stores/${widget.storeId}$menuRoute';
+
+    // Compara exatamente ou se é uma sub-rota
+    return currentPath == fullRoute || currentPath.startsWith('$fullRoute/');
+  }
+
+  // ✅ NOVA FUNÇÃO: Navega e fecha o drawer
+  void _navigateAndCloseDrawer(BuildContext context, String route) {
+    // Fecha o drawer antes de navegar
+    if (Scaffold.of(context).isDrawerOpen) {
+      Navigator.of(context).pop();
+    }
+
+    // Pequeno delay para animação suave
+    Future.delayed(const Duration(milliseconds: 100), () {
+      context.go(route);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final drawerController = context.watch<DrawerControllerProvider>();
@@ -55,62 +75,57 @@ class _DrawerCodeState extends State<DrawerCode> {
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
       builder: (context, storesState) {
         if (storesState is! StoresManagerLoaded) {
-          return Drawer(
-            child: const Center(child: CircularProgressIndicator()),
+          return const Drawer(
+            child: Center(child: CircularProgressIndicator()),
           );
         }
+
         final activeStore = storesState.activeStore;
         if (activeStore == null) {
-          return Drawer(
-            child: const Center(child: Text('Erro: Loja não encontrada.')),
+          return const Drawer(
+            child: Center(child: Text('Erro: Loja não encontrada.')),
           );
         }
 
-        return GetBuilder<InboxController>(
-          builder: (inboxController) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: isExpanded ? _expandedWidth : _collapsedWidth,
-              child: Drawer(
-                backgroundColor: Colors.white,
-                child: Column(
-                  children: [
-                    // ✅ ADICIONANDO MARGIN NO TOPO PARA MOBILE
-                    SizedBox(height: isMobile ? 16 : 0),
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: isExpanded ? _expandedWidth : _collapsedWidth,
+          child: Drawer(
+            backgroundColor: Colors.white,
+            child: Column(
+              children: [
+                SizedBox(height: isMobile ? 16 : 0),
 
-                    // CABEÇALHO COM INFORMAÇÕES DA LOJA - AGORA TOGGLE O DRAWER
-                    _buildStoreHeader(
-                      context,
-                      isExpanded,
-                      activeStore,
-                      drawerController,
-                    ),
-
-                    // LISTA DE ITENS
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ..._buildMenuItemsFromData(isExpanded: isExpanded),
-
-                            const SizedBox(height: 20),
-
-                            // TROCAR DE LOJA
-                            _buildStoreSwitcherMenuItem(context, isExpanded),
-                            const SizedBox(height: 8),
-
-                            // BOTÃO DE LOGOUT
-                            _buildLogoutButton(context, isExpanded),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                _buildStoreHeader(
+                  context,
+                  isExpanded,
+                  activeStore,
+                  drawerController,
                 ),
-              ),
-            );
-          },
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ..._buildMenuItemsFromData(
+                          context: context,
+                          isExpanded: isExpanded,
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        _buildStoreSwitcherMenuItem(context, isExpanded),
+                        const SizedBox(height: 8),
+
+                        _buildLogoutButton(context, isExpanded),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -135,11 +150,10 @@ class _DrawerCodeState extends State<DrawerCode> {
         child: isExpanded
             ? Container(
           constraints: BoxConstraints(
-            maxWidth: _expandedWidth - 32, // ✅ Subtrai o padding horizontal
+            maxWidth: _expandedWidth - 32,
           ),
           child: Row(
             children: [
-              // Avatar da Loja
               Container(
                 width: 50,
                 height: 50,
@@ -163,58 +177,53 @@ class _DrawerCodeState extends State<DrawerCode> {
                 ),
               ),
               const SizedBox(width: 12),
-              // Informações da Loja - COM LARGURA FIXA
               Expanded(
-                child: SizedBox(
-                  width: _expandedWidth - 50 - 12 - 40, // ✅ Largura calculada
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        store.core.name,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      store.core.name,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: store.core.isActive
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.grey.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        store.core.isActive ? 'Ativa' : 'Inativa',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: store.core.isActive
+                              ? Colors.green
+                              : Colors.grey,
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: store.core.isActive
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          store.core.isActive ? 'Ativa' : 'Inativa',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: store.core.isActive
-                                ? Colors.green
-                                : Colors.grey,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              // Ícone de toggle do drawer
               SizedBox(
-                width: 24, // ✅ Largura fixa para o ícone
+                width: 24,
                 child: IconButton(
                   onPressed: () => drawerController.toggle(),
                   icon: Icon(
@@ -229,11 +238,8 @@ class _DrawerCodeState extends State<DrawerCode> {
             ],
           ),
         )
-            :
-
-        Column(
+            : Column(
           children: [
-            // Avatar da Loja (modo collapsed)
             Container(
               width: 40,
               height: 40,
@@ -257,7 +263,6 @@ class _DrawerCodeState extends State<DrawerCode> {
               ),
             ),
             const SizedBox(height: 8),
-            // Status badge (modo collapsed)
             Container(
               width: 8,
               height: 8,
@@ -272,13 +277,6 @@ class _DrawerCodeState extends State<DrawerCode> {
     );
   }
 
-
-
-
-
-
-
-  // Resto do código permanece igual...
   Widget _buildDefaultStoreIcon(BuildContext context, {double size = 24}) {
     return Icon(
       Icons.store_mall_directory_outlined,
@@ -296,7 +294,15 @@ class _DrawerCodeState extends State<DrawerCode> {
         Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
 
     return InkWell(
-      onTap: () => _openStoreSwitcherPanel(context),
+      onTap: () {
+        // ✅ Fecha o drawer antes de abrir o panel
+        if (Scaffold.of(context).isDrawerOpen) {
+          Navigator.of(context).pop();
+        }
+        Future.delayed(const Duration(milliseconds: 100), () {
+          _openStoreSwitcherPanel(context);
+        });
+      },
       borderRadius: BorderRadius.circular(8),
       child: Container(
         height: isExpanded ? 48 : 55,
@@ -361,7 +367,7 @@ class _DrawerCodeState extends State<DrawerCode> {
         width: isExpanded ? double.infinity : 60,
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         child: _isLoggingOut
-            ? Center(
+            ? const Center(
           child: SizedBox(
             width: 20,
             height: 20,
@@ -375,7 +381,7 @@ class _DrawerCodeState extends State<DrawerCode> {
             ? Row(
           children: [
             const SizedBox(width: 8),
-            Icon(
+            const Icon(
               Icons.logout_rounded,
               size: 20,
               color: Colors.red,
@@ -398,8 +404,8 @@ class _DrawerCodeState extends State<DrawerCode> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
+              const Padding(
+                padding: EdgeInsets.all(8.0),
                 child: Icon(
                   Icons.logout_rounded,
                   size: 20,
@@ -408,7 +414,7 @@ class _DrawerCodeState extends State<DrawerCode> {
               ),
               const SizedBox(height: 4),
               if (!isExpanded)
-                Text(
+                const Text(
                   "Sair",
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -443,20 +449,19 @@ class _DrawerCodeState extends State<DrawerCode> {
 
       if (!mounted) return;
       final authCubit = context.read<AuthCubit>();
-      final router = GoRouter.of(context);
 
       await authCubit.logout();
 
       if (!mounted) return;
 
-      router.go('/sign-in');
+      context.go('/sign-in');
     } catch (e) {
       debugPrint('Erro durante logout: $e');
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Erro ao fazer logout. Tente novamente.'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
@@ -587,7 +592,9 @@ class _DrawerCodeState extends State<DrawerCode> {
     },
   ];
 
+  // ✅ CORRIGIDO: Recebe BuildContext para verificar rota ativa
   List<Widget> _buildMenuItemsFromData({
+    required BuildContext context,
     required bool isExpanded,
   }) {
     final List<Widget> menuWidgets = [];
@@ -618,7 +625,7 @@ class _DrawerCodeState extends State<DrawerCode> {
           menuWidgets.add(_buildMenuItem(
             context: context,
             title: title,
-            route: '/stores/${widget.storeId}$route',
+            route: route,
             index: index,
             iconPath: iconPath ?? 'assets/images/package.png',
             isExpanded: isExpanded,
@@ -645,6 +652,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     );
   }
 
+  // ✅ TOTALMENTE CORRIGIDO: Sem GetX, com detecção de rota correta
   Widget _buildMenuItem({
     required BuildContext context,
     required String title,
@@ -654,7 +662,9 @@ class _DrawerCodeState extends State<DrawerCode> {
     required bool isExpanded,
     IconData? customIcon,
   }) {
-    final isSelected = inboxController.pageselecter == index;
+    // ✅ Verifica se a rota está ativa
+    final isSelected = _isRouteActive(context, route);
+
     final Color primaryColor = Theme.of(context).primaryColor;
     final Color defaultIconColor =
         Theme.of(context).listTileTheme.iconColor ??
@@ -673,8 +683,9 @@ class _DrawerCodeState extends State<DrawerCode> {
 
     return InkWell(
       onTap: () {
-        inboxController.setTextIsTrue(index);
-        context.go(route);
+        // ✅ Navega e fecha o drawer
+        final fullRoute = '/stores/${widget.storeId}$route';
+        _navigateAndCloseDrawer(context, fullRoute);
       },
       borderRadius: BorderRadius.circular(8),
       child: Container(

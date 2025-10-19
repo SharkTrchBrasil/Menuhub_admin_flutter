@@ -6,6 +6,7 @@ import 'package:email_validator/email_validator.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 
+import '../../core/enums/auth_erros.dart';
 import '../../cubits/auth_state.dart';
 import '../../repositories/auth_repository.dart';
 import '../../cubits/auth_cubit.dart'; // Mantenha este import

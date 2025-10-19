@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:signature/signature.dart';
+
 import 'package:totem_pro_admin/pages/create_store/cubit/store_setup_cubit.dart';
 import 'package:totem_pro_admin/pages/create_store/cubit/store_setup-state.dart';
 
@@ -12,31 +12,9 @@ class ContractStep extends StatefulWidget {
 }
 
 class ContractStepState extends State<ContractStep> {
-  final SignatureController signatureController = SignatureController(
-    penStrokeWidth: 2,
-    penColor: Colors.black,
-    exportBackgroundColor: Colors.white,
-  );
 
-  bool isSigned = false;
 
-  @override
-  void initState() {
-    super.initState();
-    signatureController.addListener(() {
-      if (signatureController.isNotEmpty && !isSigned) {
-        setState(() {
-          isSigned = true;
-        });
-      }
-    });
-  }
 
-  @override
-  void dispose() {
-    signatureController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {

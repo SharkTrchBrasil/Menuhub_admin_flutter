@@ -8,6 +8,7 @@ import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/repositories/auth_repository.dart';
 import 'package:totem_pro_admin/services/auth_service.dart';
 import '../core/di.dart';
+import '../core/enums/auth_erros.dart';
 import '../models/totem_auth_and_stores.dart';
 import '../repositories/realtime_repository.dart';
 import '../services/print/printing_service.dart';
@@ -95,9 +96,8 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  // ✅ NOVO: Método para escutar quando a sessão for revogada por outro dispositivo
+// ✅ ATUALIZADO: _listenToSessionRevoked agora chama logout com reason
   void _listenToSessionRevoked() {
-    // Cancela listener anterior se existir
     _sessionRevokedSubscription?.cancel();
 
     _sessionRevokedSubscription = getIt<RealtimeRepository>()
@@ -106,7 +106,8 @@ class AuthCubit extends Cubit<AuthState> {
       if (isClosed) return;
 
       final reason = data['reason'] as String? ?? 'Sessão encerrada';
-      final message = data['message'] as String? ?? 'Por favor, faça login novamente.';
+      final message = data['message'] as String? ??
+          'Você foi desconectado. Outro dispositivo fez login nesta conta.';
 
       log('🚨 [AuthCubit] ========================================');
       log('🚨 [AuthCubit] SESSÃO REVOGADA POR OUTRO DISPOSITIVO!');
@@ -115,16 +116,18 @@ class AuthCubit extends Cubit<AuthState> {
       log('🚨 [AuthCubit] Fazendo logout automático...');
       log('🚨 [AuthCubit] ========================================');
 
-      // Faz logout automático (sem emitir loading para não confundir o usuário)
-      logout();
+      // ✅ CORRIGIDO: Passa reason e message para o logout
+      logout(reason: 'session_revoked', message: message);
     });
 
-    log('✅ [AuthCubit] Listener de sessão revogada configurado com sucesso.');
+    log('✅ [AuthCubit] Listener de sessão revogada configurado.');
   }
 
-  // ✅ MÉTODO CORRIGIDO: Logout com limpeza completa
-  Future<void> logout() async {
-    log('[AuthCubit] Iniciando processo de logout...');
+
+
+// ✅ MÉTODO CORRIGIDO: Logout com reason
+  Future<void> logout({String? reason, String? message}) async {
+    log('[AuthCubit] Iniciando processo de logout... Reason: ${reason ?? 'manual'}');
 
     // Evita múltiplas chamadas
     if (state is AuthUnauthenticated) {
@@ -133,10 +136,12 @@ class AuthCubit extends Cubit<AuthState> {
     }
 
     // Mostra loading (exceto se vier de sessão revogada)
-    emit(AuthLoading());
+    if (reason != 'session_revoked') {
+      emit(AuthLoading());
+    }
 
     try {
-      // 1. ✅ NOVO: Cancela listener de sessão revogada PRIMEIRO
+      // 1. Cancela listener de sessão revogada PRIMEIRO
       log('[AuthCubit] Cancelando listener de sessão revogada...');
       _sessionRevokedSubscription?.cancel();
       _sessionRevokedSubscription = null;
@@ -151,7 +156,7 @@ class AuthCubit extends Cubit<AuthState> {
       log('[AuthCubit] Desregistrando singletons de escopo de usuário...');
       await unregisterUserScopeSingletons();
 
-      // 4. Faz reset do RealtimeRepository (limpa estado mas mantém conexão)
+      // 4. Faz reset do RealtimeRepository
       if (getIt.isRegistered<RealtimeRepository>()) {
         log('[AuthCubit] Fazendo reset do RealtimeRepository...');
         getIt<RealtimeRepository>().reset();
@@ -161,13 +166,34 @@ class AuthCubit extends Cubit<AuthState> {
       log('[AuthCubit] Limpando tokens via AuthService...');
       await _authService.logout();
 
-      // 6. Emite o estado final
-      emit(AuthUnauthenticated());
-      log('[AuthCubit] ✅ Logout completo. Estado agora é AuthUnauthenticated.');
+      // 6. ✅ CORRIGIDO: Emite o estado final COM reason e message
+      emit(AuthUnauthenticated(
+        reason: reason,
+        message: message ?? _getLogoutMessage(reason),
+      ));
+
+      log('[AuthCubit] ✅ Logout completo. Reason: ${reason ?? 'manual'}');
     } catch (e, st) {
       log('[AuthCubit] ❌ Erro durante o logout: $e', error: e, stackTrace: st);
       // Mesmo em caso de erro, força o estado de deslogado
-      emit(AuthUnauthenticated());
+      emit(AuthUnauthenticated(reason: reason, message: message));
+    }
+
+  }
+
+  // ✅ NOVO: Helper para gerar mensagens de logout
+  String _getLogoutMessage(String? reason) {
+    switch (reason) {
+      case 'session_expired':
+        return 'Sua sessão expirou após 7 dias de inatividade.';
+      case 'session_revoked':
+        return 'Você foi desconectado por outro dispositivo.';
+      case 'token_refresh_failed':
+        return 'Não foi possível renovar sua sessão. Faça login novamente.';
+      case 'manual':
+        return 'Logout realizado com sucesso.';
+      default:
+        return '';
     }
   }
 
@@ -207,6 +233,16 @@ class AuthCubit extends Cubit<AuthState> {
       },
     );
   }
+
+// No AuthCubit, adicione:
+  String? getUserName() {
+    final authState = state;
+    if (authState is AuthAuthenticated) {
+      return authState.data.user.name ?? authState.data.user?.email?.split('@').first;
+    }
+    return null;
+  }
+
 
   @override
   Future<void> close() {

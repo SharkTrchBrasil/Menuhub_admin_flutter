@@ -3,8 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_multi_formatter/flutter_multi_formatter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:get/get.dart';
-import 'package:provider/provider.dart';
+
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:totem_pro_admin/core/extensions/extensions.dart';
 
@@ -12,8 +11,7 @@ import '../../../ConstData/colorfile.dart';
 import '../../../ConstData/colorprovider.dart';
 import '../../../ConstData/staticdata.dart';
 import '../../../ConstData/typography.dart';
-import '../../../UI TEMP/widgets/card.dart';
-import '../../../controller/mywalletscontroller.dart';
+
 import '../../../core/enums/cashback_type.dart';
 import '../../../models/dashboard_data.dart';
 import '../cubit/dashboard_state.dart';
@@ -579,96 +577,6 @@ class StatisticsChart extends StatelessWidget {
   }
 }
 
-// O widget _MonthDropdownMenu e a classe ChartData podem ser removidos deste arquivo
-// se não forem mais usados em nenhum outro lugar.
-
-
-class _MonthDropdownMenu extends StatelessWidget {
-  final MyWalletsController controller;
-  final ColorNotifire notifire;
-
-  const _MonthDropdownMenu({
-    required this.controller,
-    required this.notifire,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton(
-      tooltip: "",
-      offset: const Offset(0, 40),
-      color: notifire.getContainerColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      onOpened: () => controller.setMenuOpen(true),
-      onCanceled: () => controller.setMenuOpen(false),
-      itemBuilder: (context) {
-        return [
-          PopupMenuItem(
-            padding: const EdgeInsets.all(0),
-            child: SizedBox(
-              height: 70,
-              width: 100,
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: controller.listOfMonths.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
-                        InkWell(
-                          onTap: () {
-                            controller.setListValue(index);
-                            Get.back();
-                          },
-                          child: Text(
-                            controller.listOfMonths[index],
-                            style: Typographyy.bodySmallSemiBold
-                                .copyWith(color: notifire.getTextColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ];
-      },
-      child: Container(
-        height: 34,
-        width: 121,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: notifire.getGry50_800Color,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              controller.listOfMonths[controller.selectListIteam],
-              style: Typographyy.bodySmallSemiBold
-                  .copyWith(color: notifire.getTextColor),
-            ),
-            const SizedBox(width: 8),
-            SvgPicture.asset(
-              controller.isMenuOpen
-                  ? "assets/images/chevron-up.svg"
-                  : "assets/images/chevron-down.svg",
-              color: controller.isMenuOpen
-                  ? priMeryColor
-                  : notifire.getGry500_600Color,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // Substitua seu antigo `CurrencySection` por este widget completo.
 
@@ -774,168 +682,7 @@ class _PaymentMethodItem extends StatelessWidget {
   }
 }
 
-class ConversionSection extends StatelessWidget {
-  final ColorNotifire notifire;
-  final MyWalletsController controller;
 
-  const ConversionSection({
-    super.key,
-    required this.notifire,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: notifire.getGry700_300Color),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Conversion",
-            style: Typographyy.heading6.copyWith(color: notifire.getTextColor),
-          ),
-          const SizedBox(height: 24),
-          _ConversionInput(
-            notifire: notifire,
-            controller: controller,
-            isFirst: true,
-          ),
-          const SizedBox(height: 20),
-          _ConversionInput(
-            notifire: notifire,
-            controller: controller,
-            isFirst: false,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConversionInput extends StatelessWidget {
-  final ColorNotifire notifire;
-  final MyWalletsController controller;
-  final bool isFirst;
-
-  const _ConversionInput({
-    required this.notifire,
-    required this.controller,
-    required this.isFirst,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 1,
-          child: PopupMenuButton(
-            onOpened: () =>
-            isFirst
-                ? controller.setMenuOpen1(true)
-                : controller.setMenuOpen2(true),
-            onCanceled: () =>
-            isFirst
-                ? controller.setMenuOpen1(false)
-                : controller.setMenuOpen2(false),
-            tooltip: "",
-            offset: const Offset(0, 40),
-            constraints: const BoxConstraints(maxWidth: 60, minWidth: 60),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            color: notifire.getContainerColor,
-            child: Container(
-              height: 56,
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: notifire.getGry700_300Color)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    isFirst
-                        ? controller.menuIteam[controller.selectMenuIteam]
-                        : controller.menuIteam[controller.selectMenuIteam1],
-                    style: Typographyy.bodyMediumExtraBold
-                        .copyWith(color: notifire.getTextColor),
-                  ),
-                  const SizedBox(width: 8),
-                  SvgPicture.asset(
-                    (isFirst ? controller.isMenuOpen1 : controller.isMenuOpen2)
-                        ? "assets/images/chevron-up.svg"
-                        : "assets/images/chevron-down.svg",
-                    height: 20,
-                    width: 20,
-                  ),
-                ],
-              ),
-            ),
-            itemBuilder: (context) {
-              return [
-                PopupMenuItem(
-                  padding: const EdgeInsets.all(0),
-                  child: SizedBox(
-                    height: 100,
-                    width: 50,
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: controller.menuIteam.length,
-                      itemBuilder: (context, index) {
-                        return Column(
-                          children: [
-                            const SizedBox(height: 12),
-                            InkWell(
-                              onTap: () {
-                                isFirst
-                                    ? controller.setSelectMenuIteam(index)
-                                    : controller.setSelectMenuIteam1(index);
-                                Get.back();
-                              },
-                              child: Text(
-                                controller.menuIteam[index],
-                                style: Typographyy.bodyMediumExtraBold
-                                    .copyWith(color: notifire.getTextColor),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ];
-            },
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 3,
-          child: Container(
-            height: 56,
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: notifire.getGry700_300Color)),
-            child: TextField(
-              style: Typographyy.bodyLargeMedium
-                  .copyWith(color: notifire.getTextColor),
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 20),
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class ChartData {
   ChartData(this.x, this.y, this.y1);

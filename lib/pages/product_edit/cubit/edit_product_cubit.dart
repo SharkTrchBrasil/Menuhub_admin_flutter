@@ -115,7 +115,7 @@ class EditProductCubit extends Cubit<EditProductState> {
           (savedProduct) {
         // --- SUCESSO NA ETAPA 1! ---
         if (!isClosed) {
-          BotToast.showText(text: "Produto salvo com sucesso!");
+        //  BotToast.showText(text: "Produto salvo com sucesso!");
           // Atualiza o estado imediatamente para dar feedback ao usuário
           emit(EditProductState.fromProduct(savedProduct));
 

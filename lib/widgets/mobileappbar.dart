@@ -1,13 +1,7 @@
 // ignore_for_file: camel_case_types, deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
-import 'package:totem_pro_admin/core/extensions/extensions.dart';
-
-import '../ConstData/typography.dart';
 import '../core/responsive_builder.dart';
 
 

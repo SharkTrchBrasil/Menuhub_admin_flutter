@@ -57,7 +57,7 @@ import 'package:totem_pro_admin/pages/edit_settings/payment_methods/payment_meth
 import 'package:totem_pro_admin/pages/platform_payment_methods/gateway-payment.dart';
 import 'package:totem_pro_admin/pages/coupons/coupons_page.dart';
 import 'package:totem_pro_admin/pages/edit_coupon/edit_coupon_page.dart';
-import 'package:totem_pro_admin/pages/totems/totems_page.dart';
+
 import 'package:totem_pro_admin/pages/cash/cash_page.dart';
 import 'package:totem_pro_admin/pages/accesses/accesses_page.dart';
 import 'package:totem_pro_admin/pages/chatbot/chatbot_page.dart';
@@ -116,9 +116,24 @@ class AppRouter {
       final isAtAuthScreen = ['/sign-in', '/sign-up', '/verify-email']
           .any((route) => location.startsWith(route));
 
+
       if (!isLoggedIn) {
+        // ✅ NOVO: Detecta se foi logout por sessão expirada
+        if (authState is AuthUnauthenticated && authState.reason == 'session_expired') {
+          // Mostra mensagem de sessão expirada
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            BotToast.showText(
+              text: '⏰ Sua sessão expirou após 7 dias de inatividade. Faça login novamente.',
+              duration: const Duration(seconds: 5),
+              contentColor: Colors.orange,
+              textStyle: const TextStyle(color: Colors.white, fontSize: 14),
+            );
+          });
+        }
+
         return isAtAuthScreen ? null : '/sign-in';
       }
+
 
       if (authState is AuthNeedsVerification) {
         return location.startsWith('/verify-email') ? null : '/verify-email';
@@ -551,19 +566,6 @@ class AppRouter {
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // TOTEMS
-                  // ─────────────────────────────────────────────────────
-                  StatefulShellBranch(
-                    routes: [
-                      GoRoute(
-                        path: 'totems',
-                        pageBuilder: (_, state) => NoTransitionPage(
-                          child: TotemsPage(storeId: state.storeId),
-                        ),
-                      ),
-                    ],
-                  ),
 
                   // ─────────────────────────────────────────────────────
                   // CAIXA

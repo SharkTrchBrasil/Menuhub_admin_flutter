@@ -1,5 +1,5 @@
 // lib/pages/orders/widgets/order_list_item.dart
-import 'package:avatar_glow/avatar_glow.dart';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
@@ -129,15 +129,10 @@ class OrderListItem extends StatelessWidget {
 
     // Lógica do AvatarGlow (efeito de alerta para pedidos presos)
     if (isStuck) {
-      return AvatarGlow(
-        glowColor: Colors.red,
-        duration: const Duration(milliseconds: 2000),
-        repeat: true,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: cardContent,
-        ),
+      return InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: cardContent,
       );
     }
 

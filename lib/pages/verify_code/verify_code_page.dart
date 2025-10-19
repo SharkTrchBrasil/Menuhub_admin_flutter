@@ -8,6 +8,7 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:totem_pro_admin/ConstData/typography.dart';
 
 import '../../core/di.dart';
+import '../../core/enums/auth_erros.dart';
 import '../../cubits/auth_cubit.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/store_repository.dart';

@@ -1,13 +1,14 @@
 import 'dart:developer';
-
 import 'package:dio/dio.dart';
 import 'package:totem_pro_admin/cubits/auth_cubit.dart';
 import 'package:totem_pro_admin/repositories/auth_repository.dart';
-
 import 'di.dart';
 
 class TokenInterceptor extends Interceptor {
   AuthRepository get _authRepository => getIt<AuthRepository>();
+
+  // ✅ NOVO: Callback para notificar quando tokens expirarem
+  Function? onBothTokensExpired;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
@@ -26,30 +27,45 @@ class TokenInterceptor extends Interceptor {
 
   @override
   Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
-    // ✅ Lógica mantida: verifica 401 e evita loop na rota de refresh.
-    if (err.response?.statusCode == 401 && !err.requestOptions.path.contains('/refresh')) {
-      log('[TokenInterceptor] Token expirado detectado. Tentando renovar...');
+    // ✅ Verifica 401 e evita loop na rota de refresh.
+    if (err.response?.statusCode == 401 &&
+        !err.requestOptions.path.contains('/refresh')) {
 
+      log('[TokenInterceptor] 🔴 Token expirado detectado (401). Tentando renovar...');
+
+      // ✅ Se já está renovando, aguarda
       if (_authRepository.isRefreshingToken) {
-        log('[TokenInterceptor] Renovação já em andamento. Aguardando...');
-        // Ouve a conclusão do processo de renovação para tentar novamente.
+        log('[TokenInterceptor] ⏳ Renovação já em andamento. Aguardando...');
         return _awaitAndRetry(err, handler);
       }
 
+      // ✅ Tenta renovar o token
       final refreshResult = await _authRepository.refreshAccessToken();
 
       return await refreshResult.fold(
+        // ❌ FALHA: Refresh token também expirou
             (error) async {
-          log('[TokenInterceptor] Falha ao renovar o token: $error. Deslogando usuário.');
+          log('[TokenInterceptor] ❌ Falha ao renovar token: $error');
+          log('[TokenInterceptor] 🚪 Ambos tokens expiraram. Fazendo logout...');
+
+          // ✅ NOTIFICA O CALLBACK (para mostrar mensagem no UI)
+          onBothTokensExpired?.call();
+
+          // ✅ Faz logout
           await getIt<AuthCubit>().logout();
+
           return handler.next(err);
         },
+        // ✅ SUCESSO: Token renovado
             (_) async {
-          log('[TokenInterceptor] Token renovado com sucesso. Tentando requisição original novamente.');
+          log('[TokenInterceptor] ✅ Token renovado com sucesso!');
+          log('[TokenInterceptor] 🔄 Retentando requisição original...');
+
           try {
             final response = await _retry(err.requestOptions);
             return handler.resolve(response);
           } on DioException catch (e) {
+            log('[TokenInterceptor] ❌ Erro ao retentar requisição: ${e.message}');
             return handler.reject(e);
           }
         },
@@ -59,30 +75,36 @@ class TokenInterceptor extends Interceptor {
     return handler.next(err);
   }
 
-  // ✅ NOVO: Método mais robusto para aguardar uma renovação em andamento.
-  Future<void> _awaitAndRetry(DioException err, ErrorInterceptorHandler handler) async {
+  /// ✅ Aguarda renovação em andamento e retenta
+  Future<void> _awaitAndRetry(
+      DioException err,
+      ErrorInterceptorHandler handler,
+      ) async {
     // Aguarda até que a flag _isRefreshing seja liberada.
     await Future.doWhile(() => _authRepository.isRefreshingToken);
 
-    log('[TokenInterceptor] Renovação concluída. Tentando novamente a requisição que estava em espera.');
+    log('[TokenInterceptor] ✅ Renovação concluída. Retentando requisição em espera...');
+
     try {
       final response = await _retry(err.requestOptions);
       return handler.resolve(response);
     } on DioException catch (e) {
+      log('[TokenInterceptor] ❌ Erro ao retentar: ${e.message}');
       return handler.reject(e);
     }
   }
 
-  // ✨ MÉTODO _retry CORRIGIDO E ROBUSTO ✨
+  /// ✅ Retenta requisição com novo token
   Future<Response<dynamic>> _retry(RequestOptions requestOptions) async {
-    log('[TokenInterceptor] Refazendo a requisição para: ${requestOptions.path}');
+    log('[TokenInterceptor] 🔄 Refazendo requisição: ${requestOptions.path}');
 
-    // 1. Atualiza o cabeçalho da requisição original com o novo token.
-    requestOptions.headers['Authorization'] = 'Bearer ${_authRepository.accessToken}';
+    // 1. Atualiza o cabeçalho com o novo token
+    final newToken = _authRepository.accessToken;
+    if (newToken != null) {
+      requestOptions.headers['Authorization'] = 'Bearer $newToken';
+    }
 
-    // 2. Usa dio.fetch() que recebe um RequestOptions e o re-executa.
-    //    Este método é capaz de lidar corretamente com streams de FormData
-    //    e outros tipos de corpo de requisição complexos.
+    // 2. Re-executa a requisição
     final dio = getIt<Dio>();
     return dio.fetch(requestOptions);
   }

@@ -10,6 +10,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 import '../../core/di.dart';
+import '../../core/enums/auth_erros.dart';
 import '../../cubits/auth_state.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/auth_service.dart';

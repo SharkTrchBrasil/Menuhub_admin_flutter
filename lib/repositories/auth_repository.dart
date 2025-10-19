@@ -8,88 +8,30 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:totem_pro_admin/models/auth_tokens.dart';
 import 'package:totem_pro_admin/models/user.dart';
-import 'package:uuid/uuid.dart';
 
+import '../core/enums/auth_erros.dart';
 import '../models/totem_auth.dart';
 
-enum SignInError {
-  invalidCredentials, // Credenciais incorretas
-  inactiveAccount, // Conta desativada
-  emailNotVerified, // E-mail não verificado
-  noStoresAvailable, // Nenhuma loja disponível (novo)
-  notLoggedIn, // Usuário não está logado (novo)
-  networkError, // Problema de conexão (novo)
-  serverError, // Erro no servidor (novo)
-  unauthorized, // Acesso não autorizado (novo)
-  sessionExpired, // Sessão expirada (novo)
-  unknown, // Erro desconhecido
-}
-
-enum SignUpError {
-  userAlreadyExists, // Email já cadastrado
-  invalidData, // Dados inválidos
-  weakPassword, // Senha fraca
-  networkError, // Problema de conexão
-  emailNotSent, // Falha no envio do email de verificação
-  unknown; // Erro desconhecido
-
-  String get message {
-    switch (this) {
-      case SignUpError.userAlreadyExists:
-        return 'user_already_exists'.tr();
-      case SignUpError.invalidData:
-        return 'invalid_data'.tr();
-      case SignUpError.weakPassword:
-        return 'weak_password'.tr();
-      case SignUpError.networkError:
-        return 'network_error'.tr();
-      case SignUpError.emailNotSent:
-        return 'verification_email_not_sent'.tr();
-      case SignUpError.unknown:
-        return 'failed_to_create_account'.tr();
-    }
-  }
-}
-
-enum StoreCreationError {
-  creationFailed,
-  connectionFailed,
-  unknown;
-
-  String get message {
-    switch (this) {
-      case StoreCreationError.creationFailed:
-        return 'Falha ao criar a loja';
-      case StoreCreationError.connectionFailed:
-        return 'Falha ao conectar com a loja';
-      case StoreCreationError.unknown:
-        return 'Erro desconhecido';
-    }
-  }
-}
-
-enum CodeError { unknown, userNotFound, alreadyVerified, invalidCode }
-
-enum ResendError { unknown, userNotFound, resendError }
 
 class SecureStorageKeys {
   static const accessToken = 'access_token';
-  static const refreshToken = 'refreshToken';
+  static const refreshToken = 'refresh_token'; // ✅ CORRIGIDO: era 'refreshToken'
   static const totemToken = 'totem_token';
 }
 
 class AuthRepository {
   final Dio _dio;
   final FlutterSecureStorage _secureStorage;
-  // ✅ NOVO: Dio dedicado para chamadas de autenticação que não devem ser interceptadas.
   final Dio _authDio;
 
   AuthRepository(this._dio, this._secureStorage)
-  // Inicializa o _authDio com a mesma base URL, mas sem interceptors.
       : _authDio = Dio(BaseOptions(baseUrl: _dio.options.baseUrl));
 
+  // ✅ Cache em memória dos tokens
   AuthTokens? _authTokens;
   AuthTokens? get authTokens => _authTokens;
+
+  // ✅ CORRIGIDO: Getter que retorna token em memória ou do storage
   String? get accessToken => _authTokens?.accessToken;
 
   User? _user;
@@ -98,27 +40,39 @@ class AuthRepository {
   bool _isRefreshing = false;
   bool get isRefreshingToken => _isRefreshing;
 
+  // ✅ NOVO: Completer para fila de requisições durante refresh
+  Future<Either<String, void>>? _refreshFuture;
+
   Future<bool> initialize() async {
     log('[AuthRepository] Inicializando e tentando renovar sessão...');
-    // Tenta carregar o refresh token do armazenamento seguro
-    final refreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
-    if (refreshToken == null) {
-      log('[AuthRepository] Nenhum refresh token encontrado. Usuário não está logado.');
+
+    // ✅ Tenta carregar tokens do storage
+    final savedAccessToken = await _secureStorage.read(key: SecureStorageKeys.accessToken);
+    final savedRefreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
+
+    if (savedRefreshToken == null || savedAccessToken == null) {
+      log('[AuthRepository] Nenhum token encontrado. Usuário não está logado.');
       return false;
     }
 
-    // Tenta obter um novo access token
+    // ✅ NOVO: Carrega tokens na memória ANTES de renovar
+    _authTokens = AuthTokens(
+      accessToken: savedAccessToken,
+      refreshToken: savedRefreshToken,
+    );
+
+    // Tenta renovar o access token
     final refreshResult = await refreshAccessToken();
     if (refreshResult.isLeft) {
-      log('[AuthRepository] Falha ao renovar token durante a inicialização. Limpando sessão.');
+      log('[AuthRepository] Falha ao renovar token. Limpando sessão.');
       await logout();
       return false;
     }
 
-    // Se a renovação foi bem-sucedida, busca os dados do usuário.
+    // Se renovação OK, busca dados do usuário
     final userResult = await _getUserInfo();
     if (userResult.isLeft) {
-      log('[AuthRepository] Token renovado, mas falha ao buscar dados do usuário. Limpando sessão.');
+      log('[AuthRepository] Token renovado, mas falha ao buscar usuário. Limpando sessão.');
       await logout();
       return false;
     }
@@ -132,7 +86,8 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      // ✅ Usa o _authDio para a chamada de login
+      log('[AuthRepository] Tentando login para: $email');
+
       final response = await _authDio.post(
         '/auth/login',
         data: {'username': email, 'password': password},
@@ -142,70 +97,149 @@ class AuthRepository {
       final tokens = AuthTokens.fromJson(response.data);
       await _saveTokens(tokens);
 
+      log('[AuthRepository] Login bem-sucedido. Buscando dados do usuário...');
       final result = await _getUserInfo();
+
       return result.fold(
-            (_) => const Left(SignInError.unknown),
-            (_) => const Right(null),
+            (_) {
+          log('[AuthRepository] ❌ Falha ao buscar dados do usuário após login');
+          return const Left(SignInError.unknown);
+        },
+            (_) {
+          log('[AuthRepository] ✅ Dados do usuário obtidos com sucesso');
+          return const Right(null);
+        },
       );
     } on DioException catch (e) {
+      log('[AuthRepository] ❌ Erro no login: ${e.response?.statusCode} - ${e.message}');
+
       if (e.response?.statusCode == 401) {
         final responseData = e.response?.data as Map<String, dynamic>?;
-        if (responseData?['detail'] == 'Email not verified') {
+        final detail = responseData?['detail'] as String?;
+
+        if (detail == 'Email not verified') {
           return const Left(SignInError.emailNotVerified);
+        }
+        if (detail == 'Inactive account') {
+          return const Left(SignInError.inactiveAccount);
         }
         return const Left(SignInError.invalidCredentials);
       }
+
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return const Left(SignInError.networkError);
+      }
+
+      if (e.response?.statusCode != null && e.response!.statusCode! >= 500) {
+        return const Left(SignInError.serverError);
+      }
+
       return const Left(SignInError.unknown);
     }
   }
 
+  // ✅ MÉTODO CORRIGIDO: Aguarda renovações em andamento
   Future<Either<String, void>> refreshAccessToken() async {
-    if (_isRefreshing) {
-      return const Left('Renovação de token já em andamento.');
+    // ✅ Se já está renovando, retorna a mesma Future para evitar duplicação
+    if (_isRefreshing && _refreshFuture != null) {
+      log('[AuthRepository] ⏳ Renovação já em andamento. Aguardando conclusão...');
+      return _refreshFuture!;
     }
+
     _isRefreshing = true;
 
+    // ✅ NOVO: Cria Future que será compartilhada com requisições simultâneas
+    _refreshFuture = _performRefresh();
+
+    try {
+      return await _refreshFuture!;
+    } finally {
+      _isRefreshing = false;
+      _refreshFuture = null;
+    }
+  }
+
+  // ✅ NOVO: Método privado que executa o refresh
+  Future<Either<String, void>> _performRefresh() async {
     try {
       final refreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
+
       if (refreshToken == null) {
-        // Garante que a flag seja resetada antes de sair.
-        _isRefreshing = false;
+        log('[AuthRepository] ❌ Nenhum refresh token encontrado');
         return const Left('Nenhuma sessão para renovar.');
       }
 
-      // ✅ Usa o _authDio para a chamada de refresh
+      log('[AuthRepository] 🔄 Renovando access token...');
+
       final response = await _authDio.post(
         '/auth/refresh',
         data: {'refresh_token': refreshToken},
       );
 
-      final newTokens = AuthTokens.fromJson(response.data);
-      await _saveTokens(newTokens);
+      if (response.statusCode == 200) {
+        final newTokens = AuthTokens.fromJson(response.data);
+        await _saveTokens(newTokens);
 
-      log('[AuthRepository] Token de acesso renovado com sucesso.');
-      return const Right(null);
+        log('[AuthRepository] ✅ Token renovado com sucesso');
+        return const Right(null);
+      }
+
+      log('[AuthRepository] ❌ Resposta inesperada: ${response.statusCode}');
+      return Left('Erro ao renovar token: status ${response.statusCode}');
+
+    } on DioException catch (e) {
+      log('[AuthRepository] ❌ Erro ao renovar token: ${e.response?.statusCode}');
+
+      // ✅ NOVO: Detecta se refresh token expirou
+      if (e.response?.statusCode == 401) {
+        log('[AuthRepository] 🚨 Refresh token expirado. Sessão inválida.');
+        return const Left('session_expired');
+      }
+
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return const Left('Erro de conexão ao renovar token');
+      }
+
+      return Left('Falha ao renovar token: ${e.message}');
     } catch (e) {
-      log('[AuthRepository] Falha ao renovar o token: $e');
-      return Left('Falha ao renovar o token: ${e.toString()}');
-    } finally {
-      _isRefreshing = false;
+      log('[AuthRepository] ❌ Erro inesperado ao renovar token: $e');
+      return Left('Erro inesperado: ${e.toString()}');
     }
   }
 
-  // ✅ NOVO: Método privado para salvar tokens, garantindo consistência.
+  // ✅ MÉTODO CORRIGIDO: Salva em memória E no storage
   Future<void> _saveTokens(AuthTokens tokens) async {
     _authTokens = tokens;
-    await _secureStorage.write(key: SecureStorageKeys.accessToken, value: tokens.accessToken);
-    // IMPORTANTE: Salva o novo refresh token, caso o backend o rotacione.
-    await _secureStorage.write(key: SecureStorageKeys.refreshToken, value: tokens.refreshToken);
+
+    await Future.wait([
+      _secureStorage.write(
+        key: SecureStorageKeys.accessToken,
+        value: tokens.accessToken,
+      ),
+      _secureStorage.write(
+        key: SecureStorageKeys.refreshToken,
+        value: tokens.refreshToken,
+      ),
+    ]);
+
+    log('[AuthRepository] ✅ Tokens salvos (memória + storage)');
   }
 
   Future<void> logout() async {
-    log('[AuthRepository] Limpando tokens e dados de sessão.');
+    log('[AuthRepository] 🚪 Limpando tokens e dados de sessão...');
+
     _authTokens = null;
     _user = null;
-    await _secureStorage.delete(key: SecureStorageKeys.accessToken);
-    await _secureStorage.delete(key: SecureStorageKeys.refreshToken);
+
+    await Future.wait([
+      _secureStorage.delete(key: SecureStorageKeys.accessToken),
+      _secureStorage.delete(key: SecureStorageKeys.refreshToken),
+    ]);
+
+    log('[AuthRepository] ✅ Logout completo');
   }
 
   Future<Either<ResendError, void>> sendCode({required String email}) async {
@@ -232,7 +266,7 @@ class AuthRepository {
         return const Left(ResendError.resendError);
       }
 
-      debugPrint('Erro: $e');
+      debugPrint('Erro ao reenviar código: $e');
       return const Left(ResendError.unknown);
     }
   }
@@ -269,19 +303,26 @@ class AuthRepository {
         }
       }
 
-      debugPrint('$e');
+      debugPrint('Erro ao verificar código: $e');
       return const Left(CodeError.unknown);
     }
   }
 
   Future<Either<void, void>> _getUserInfo() async {
     try {
-      // ✅ Esta chamada usa o _dio normal e será interceptada, o que é correto.
+      log('[AuthRepository] Buscando dados do usuário...');
+
+      // ✅ Esta chamada usa o _dio normal (com interceptor)
       final response = await _dio.get('/users/me');
       _user = User.fromJson(response.data);
+
+      log('[AuthRepository] ✅ Usuário: ${_user?.name ?? _user?.email}');
       return const Right(null);
+    } on DioException catch (e) {
+      log('[AuthRepository] ❌ Erro ao buscar usuário: ${e.response?.statusCode}');
+      return const Left(null);
     } catch (e) {
-      log('[AuthRepository] Falha ao obter informações do usuário: $e');
+      log('[AuthRepository] ❌ Erro inesperado ao buscar usuário: $e');
       return const Left(null);
     }
   }
@@ -293,18 +334,45 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      // ✅ Usa _authDio para não enviar token de um usuário antigo, se houver.
       await _authDio.post(
         '/users',
-        data: {'email': email, 'phone': phone, 'name': name, 'password': password},
+        data: {
+          'email': email,
+          'phone': phone,
+          'name': name,
+          'password': password,
+        },
       );
+
+      log('[AuthRepository] ✅ Cadastro realizado com sucesso');
       return const Right(null);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 400 &&
-          e.response?.data?['detail'] == 'User already exists') {
-        return const Left(SignUpError.userAlreadyExists);
+      log('[AuthRepository] ❌ Erro no cadastro: ${e.response?.statusCode}');
+
+      if (e.response?.statusCode == 409) {
+        final detail = e.response?.data?['detail'] as String?;
+        if (detail?.contains('e-mail') == true || detail?.contains('email') == true) {
+          return const Left(SignUpError.emailAlreadyExists);
+        }
+        if (detail?.contains('telefone') == true || detail?.contains('phone') == true) {
+          return const Left(SignUpError.userAlreadyExists);
+        }
       }
-      debugPrint('$e');
+
+      if (e.response?.statusCode == 400) {
+        final detail = e.response?.data?['detail'] as String?;
+        if (detail?.contains('senha') == true || detail?.contains('password') == true) {
+          return const Left(SignUpError.weakPassword);
+        }
+        return const Left(SignUpError.invalidData);
+      }
+
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return const Left(SignUpError.networkError);
+      }
+
+      debugPrint('Erro no cadastro: $e');
       return const Left(SignUpError.unknown);
     }
   }

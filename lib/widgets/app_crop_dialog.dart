@@ -1,10 +1,11 @@
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:totem_pro_admin/widgets/app_primary_button.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart';
+import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
 import 'ds_primary_button.dart';
 
@@ -48,7 +49,7 @@ class _AppCropDialogState extends State<AppCropDialog> {
           builder: (_, snapshot) {
             if (!snapshot.hasData) {
               return const Center(
-                child: SpinKitCubeGrid(color: Colors.blue),
+                child: DotLoading(),
               );
             }
 

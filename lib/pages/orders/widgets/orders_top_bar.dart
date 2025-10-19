@@ -1,16 +1,10 @@
-// lib/pages/orders/widgets/orders_top_bar.dart
 
-import 'package:avatar_glow/avatar_glow.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/order_type_tab.dart';
-import 'package:totem_pro_admin/services/print/printer_settings.dart';
 
-import '../../../core/helpers/sidepanel.dart';
-import '../../chatpanel/widgets/chat_central_panel.dart';
-import '../../table/widgets/create_table_dialog.dart';
 import 'desktoptoolbar.dart';
 
 class OrdersTopBar extends StatelessWidget {

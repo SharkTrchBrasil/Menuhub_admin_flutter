@@ -1,3 +1,4 @@
+import 'package:bot_toast/bot_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,7 +8,7 @@ import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:totem_pro_admin/core/router.dart';
 import 'package:totem_pro_admin/core/token_interceptor.dart';
-
+import 'package:flutter/material.dart';
 // Repositórios
 import 'package:totem_pro_admin/repositories/auth_repository.dart';
 import 'package:totem_pro_admin/repositories/category_repository.dart';
@@ -117,13 +118,19 @@ Future<void> configureDependencies() async {
   final sharedPreferences = await SharedPreferences.getInstance();
   getIt.registerSingleton<SharedPreferences>(sharedPreferences);
 
+  // ✅ CRIAR INTERCEPTOR ANTES DE ADICIONAR NO DIO
+  final tokenInterceptor = TokenInterceptor();
+
   final dio = Dio(BaseOptions(baseUrl: '$apiUrl'))
     ..interceptors.addAll([
-      TokenInterceptor(),
+      tokenInterceptor, // ✅ Usar instância criada acima
       PrettyDioLogger(requestBody: true, requestHeader: true),
     ]);
   getIt.registerSingleton(dio);
   getIt.registerSingleton(const FlutterSecureStorage());
+
+  // ✅ REGISTRAR O INTERCEPTOR NO GET_IT (para acessar depois)
+  getIt.registerSingleton<TokenInterceptor>(tokenInterceptor);
 
   // --- 2. REPOSITÓRIOS ---
   getIt.registerSingleton(AuthRepository(getIt(), getIt()));
@@ -236,4 +243,22 @@ Future<void> configureDependencies() async {
   // --- 6. ROUTER ---
   final appRouter = AppRouter(authCubit: getIt<AuthCubit>());
   getIt.registerLazySingleton<GoRouter>(() => appRouter.router);
+
+
+  // ✅ CONFIGURAR CALLBACK APÓS CRIAR AUTHCUBIT E ROUTER
+  tokenInterceptor.onBothTokensExpired = () {
+    // ✅ Mostra notificação de sessão expirada
+    final context = globalNavigatorKey.currentContext;
+    if (context != null) {
+      BotToast.showText(
+        text: '⏰ Sua sessão expirou. Faça login novamente.',
+        duration: const Duration(seconds: 5),
+        contentColor: Colors.orange,
+        textStyle: const TextStyle(color: Colors.white, fontSize: 14),
+      );
+    }
+  };
 }
+
+
+
