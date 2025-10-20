@@ -9,7 +9,7 @@ import 'package:totem_pro_admin/models/store/store_with_role.dart';
 
 import '../core/enums/store_access.dart';
 import '../core/failures.dart';
-import '../core/payment_token.dart';
+
 import '../models/address.dart';
 import '../models/cash_session.dart';
 import '../models/cash_transaction.dart';

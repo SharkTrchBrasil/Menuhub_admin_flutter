@@ -11,9 +11,6 @@ import 'package:totem_pro_admin/repositories/store_repository.dart';
 import 'package:totem_pro_admin/widgets/app_drop_down_form_field.dart';
 import 'package:totem_pro_admin/widgets/app_text_field.dart';
 import 'package:totem_pro_admin/widgets/app_toasts.dart';
-import 'package:totem_pro_admin/widgets/dot_loading.dart';
-import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
-import 'package:totem_pro_admin/widgets/fixed_header.dart';
 
 import '../../../core/enums/store_access.dart';
 
@@ -21,9 +18,11 @@ class AddUserSidePanel extends StatefulWidget {
   const AddUserSidePanel({
     super.key,
     this.storeId,
+    required this.availableStores,
   });
 
   final int? storeId;
+  final List<StoreWithRole> availableStores;
 
   @override
   State<AddUserSidePanel> createState() => _AddUserSidePanelState();
@@ -42,107 +41,96 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
 
   // Estados
   bool isLoading = false;
-  bool isLoadingStores = true;
-  List<StoreWithRole> availableStores = [];
   String storeSearchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _loadStores();
+    _initializeSelectedStore();
   }
 
-  Future<void> _loadStores() async {
-    setState(() => isLoadingStores = true);
+  void _initializeSelectedStore() {
+    if (widget.availableStores.isEmpty) return;
 
-    final result = await getIt<StoreRepository>().getStores();
-
-    result.fold(
-          (_) {
-        if (mounted) {
-          showError('Erro ao carregar lojas disponíveis.');
-          Navigator.of(context).pop();
-        }
-      },
-          (stores) {
-        if (mounted) {
-          setState(() {
-            availableStores = stores;
-            isLoadingStores = false;
-
-            if (stores.isNotEmpty) {
-              if (widget.storeId != null) {
-                final matchingStore = stores
-                    .where((s) => s.store.core.id == widget.storeId)
-                    .firstOrNull;
-                selectedStore = matchingStore ?? stores.first;
-              } else {
-                selectedStore = stores.first;
-              }
-            }
-          });
-        }
-      },
-    );
+    if (widget.storeId != null) {
+      final matchingStore = widget.availableStores
+          .where((s) => s.store.core.id == widget.storeId)
+          .firstOrNull;
+      selectedStore = matchingStore ?? widget.availableStores.first;
+    } else {
+      selectedStore = widget.availableStores.first;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoadingStores) {
-      return const Scaffold(
-        body: Center(child: DotLoading()),
-      );
-    }
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
+      appBar: isMobile
+          ? AppBar(
+        title: const Text('Adicionar Usuário'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => context.pop(),
+        ),
+      )
+          : null,
       body: Form(
         key: formKey,
-        child: Column(
-          children: [
-            // ✅ Header fixo com FixedHeader
-            FixedHeader(
-              title: 'Adicionar Novo Usuário',
-              subtitle: 'Crie uma nova conta de usuário e conceda acesso a uma loja.',
-              showActionsOnMobile: true,
-              actions: [
-                DsButton(
-                  label: 'Cancelar',
-                  style: DsButtonStyle.secondary,
-                  onPressed: isLoading ? null : () => context.pop(),
-                ),
-                const SizedBox(width: 12),
-                DsButton(
-                  label: isLoading ? 'Salvando...' : 'Criar Usuário',
-                  onPressed: isLoading ? null : _handleSubmit,
-                  icon: Icons.check,
-                ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(isMobile ? 16 : 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!isMobile) ...[
+                  _buildHeader(),
+                  const SizedBox(height: 24),
+                ],
+                _buildStoreSelector(isMobile),
+                SizedBox(height: isMobile ? 16 : 24),
+                _buildUserFields(isMobile),
+                SizedBox(height: isMobile ? 24 : 32),
+                _buildActionButtons(isMobile),
+                if (isMobile) const SizedBox(height: 16),
               ],
             ),
-
-            // ✅ Conteúdo rolável
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStoreSelector(context),
-                    const SizedBox(height: 32),
-                    _buildUserFields(),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStoreSelector(BuildContext context) {
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        IconButton(
+          onPressed: () => context.pop(),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Adicionar Usuário',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoreSelector(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -154,7 +142,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
@@ -162,24 +150,24 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
                 child: Icon(
                   Icons.store_rounded,
                   color: Colors.blue.shade700,
-                  size: 20,
+                  size: isMobile ? 18 : 20,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isMobile ? 8 : 12),
               Expanded(
                 child: Text(
                   'Loja de Vínculo',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: isMobile ? 15 : 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey.shade800,
                   ),
                 ),
               ),
-              if (availableStores.length > 1)
+              if (widget.availableStores.length > 1)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
+                    horizontal: 8,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
@@ -187,9 +175,9 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${availableStores.length} lojas',
+                    '${widget.availableStores.length} lojas',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: Colors.blue.shade700,
                     ),
@@ -197,10 +185,10 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
 
           // Campo de busca (se tiver mais de 5 lojas)
-          if (availableStores.length > 5) ...[
+          if (widget.availableStores.length > 5) ...[
             TextField(
               decoration: InputDecoration(
                 hintText: 'Buscar loja...',
@@ -220,7 +208,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
                 setState(() => storeSearchQuery = value.toLowerCase());
               },
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 12 : 16),
           ],
 
           // Dropdown de lojas
@@ -232,7 +220,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
             items: _getFilteredStores()
                 .map((store) => DropdownMenuItem(
               value: store,
-              child: _buildStoreItem(context, store),
+              child: _buildStoreItem(store, isMobile),
             ))
                 .toList(),
             validator: (v) {
@@ -247,23 +235,23 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
     );
   }
 
-  Widget _buildStoreItem(BuildContext context, StoreWithRole store) {
+  Widget _buildStoreItem(StoreWithRole store, bool isMobile) {
     return Row(
       children: [
         Container(
-          width: 36,
-          height: 36,
+          width: isMobile ? 32 : 36,
+          height: isMobile ? 32 : 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Theme.of(context).primaryColor.withOpacity(0.1),
           ),
           child: Icon(
             Icons.storefront,
-            size: 18,
+            size: isMobile ? 16 : 18,
             color: Theme.of(context).primaryColor,
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: isMobile ? 8 : 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,9 +259,9 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
             children: [
               Text(
                 store.store.core.name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                  fontSize: isMobile ? 13 : 14,
                 ),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
@@ -282,7 +270,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
                 Text(
                   store.store.address!.city!,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: isMobile ? 11 : 12,
                     color: Colors.grey.shade600,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -295,9 +283,9 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
     );
   }
 
-  Widget _buildUserFields() {
+  Widget _buildUserFields(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -309,7 +297,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(8),
@@ -317,21 +305,21 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
                 child: Icon(
                   Icons.person_add_rounded,
                   color: Colors.green.shade700,
-                  size: 20,
+                  size: isMobile ? 18 : 20,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isMobile ? 8 : 12),
               Text(
                 'Dados do Usuário',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: isMobile ? 15 : 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.grey.shade800,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isMobile ? 16 : 20),
           AppTextField(
             title: 'Nome Completo',
             hint: 'Digite o nome completo',
@@ -346,7 +334,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
           AppTextField(
             title: 'E-mail',
             hint: 'Digite o e-mail do usuário',
@@ -362,7 +350,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
           AppTextField(
             title: 'Telefone',
             hint: '(00) 00000-0000',
@@ -383,7 +371,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
           AppTextField(
             title: 'Senha',
             hint: 'Mínimo 6 caracteres',
@@ -399,7 +387,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
           AppDropDownFormField<StoreAccessRole>(
             title: 'Função',
             onChanged: (v) => role = v,
@@ -410,11 +398,16 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
                 children: [
                   Icon(
                     _getRoleIcon(r),
-                    size: 18,
+                    size: isMobile ? 16 : 18,
                     color: Colors.grey.shade700,
                   ),
-                  const SizedBox(width: 8),
-                  Text(r.title),
+                  SizedBox(width: isMobile ? 6 : 8),
+                  Text(
+                    r.title,
+                    style: TextStyle(
+                      fontSize: isMobile ? 13 : null,
+                    ),
+                  ),
                 ],
               ),
             ))
@@ -431,15 +424,63 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
     );
   }
 
+  Widget _buildActionButtons(bool isMobile) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: isLoading ? null : () => context.pop(),
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.symmetric(vertical: isMobile ? 14 : 16),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(
+                fontSize: isMobile ? 14 : null,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(width: isMobile ? 12 : 16),
+        Expanded(
+          flex: isMobile ? 2 : 2,
+          child: ElevatedButton(
+            onPressed: isLoading ? null : _handleSubmit,
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.symmetric(vertical: isMobile ? 14 : 16),
+            ),
+            child: isLoading
+                ? SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+                : Text(
+              'Criar Usuário',
+              style: TextStyle(
+                fontSize: isMobile ? 14 : null,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   List<StoreWithRole> _getFilteredStores() {
     if (storeSearchQuery.isEmpty) {
-      return availableStores;
+      return widget.availableStores;
     }
 
-    return availableStores.where((store) {
+    return widget.availableStores.where((store) {
       final name = store.store.core.name.toLowerCase();
       final city = store.store.address?.city?.toLowerCase() ?? '';
-      return name.contains(storeSearchQuery) || city.contains(storeSearchQuery);
+      return name.contains(storeSearchQuery) ||
+          city.contains(storeSearchQuery);
     }).toList();
   }
 

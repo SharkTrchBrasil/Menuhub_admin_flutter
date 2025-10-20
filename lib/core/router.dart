@@ -17,7 +17,7 @@ import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 import 'package:totem_pro_admin/pages/create_store/create_store_page.dart';
 import 'package:totem_pro_admin/pages/orders/cubit/order_page_cubit.dart';
 import 'package:totem_pro_admin/pages/orders/orders_page.dart';
-import 'package:totem_pro_admin/pages/payables/payables_page.dart';
+
 import 'package:totem_pro_admin/pages/table/cubits/tables_cubit.dart';
 import 'package:totem_pro_admin/pages/chatbot/cubit/chatbot_cubit.dart';
 import 'package:totem_pro_admin/pages/perfomance/cubit/performance_cubit.dart';
@@ -52,7 +52,7 @@ import 'package:totem_pro_admin/pages/perfomance/perfomance_page.dart';
 
 import 'package:totem_pro_admin/pages/orders/details/order_details_mobile.dart';
 import 'package:totem_pro_admin/pages/products/products_page.dart';
-import 'package:totem_pro_admin/pages/banners/banners_page.dart';
+
 import 'package:totem_pro_admin/pages/edit_settings/payment_methods/payment_methods_page.dart';
 import 'package:totem_pro_admin/pages/platform_payment_methods/gateway-payment.dart';
 import 'package:totem_pro_admin/pages/coupons/coupons_page.dart';
@@ -65,7 +65,7 @@ import 'package:totem_pro_admin/pages/edit_settings/general/store_profile_page.d
 import 'package:totem_pro_admin/pages/edit_settings/hours/hours_store_page.dart';
 import 'package:totem_pro_admin/pages/operation_configuration/operation_configuration_page.dart';
 import 'package:totem_pro_admin/pages/edit_settings/citys/delivery_locations_page.dart';
-import 'package:totem_pro_admin/pages/integrations/integrations_page.dart';
+
 import 'package:totem_pro_admin/pages/more/more_page.dart';
 import 'package:totem_pro_admin/pages/reports/reports_page.dart';
 import 'package:totem_pro_admin/pages/inventory/inventory_page.dart';
@@ -495,19 +495,6 @@ class AppRouter {
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // BANNERS
-                  // ─────────────────────────────────────────────────────
-                  StatefulShellBranch(
-                    routes: [
-                      GoRoute(
-                        path: 'banners',
-                        pageBuilder: (_, state) => NoTransitionPage(
-                          child: BannersPage(storeId: state.storeId),
-                        ),
-                      ),
-                    ],
-                  ),
 
                   // ─────────────────────────────────────────────────────
                   // MÉTODOS DE PAGAMENTO
@@ -686,19 +673,6 @@ class AppRouter {
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // INTEGRAÇÕES
-                  // ─────────────────────────────────────────────────────
-                  StatefulShellBranch(
-                    routes: [
-                      GoRoute(
-                        path: 'integrations',
-                        pageBuilder: (_, state) => NoTransitionPage(
-                          child: EditPaymentInfoSection(storeId: state.storeId),
-                        ),
-                      ),
-                    ],
-                  ),
 
                   // ─────────────────────────────────────────────────────
                   // MAIS
@@ -737,20 +711,6 @@ class AppRouter {
                         path: 'inventory',
                         pageBuilder: (_, state) => NoTransitionPage(
                           child: InventoryPage(storeId: state.storeId),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // ─────────────────────────────────────────────────────
-                  // CONTAS A PAGAR
-                  // ─────────────────────────────────────────────────────
-                  StatefulShellBranch(
-                    routes: [
-                      GoRoute(
-                        path: 'payables',
-                        pageBuilder: (_, state) => NoTransitionPage(
-                          child: PayablePage(storeId: state.storeId),
                         ),
                       ),
                     ],

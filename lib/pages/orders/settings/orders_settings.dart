@@ -16,114 +16,21 @@ class StoreSettingsSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
-    final panelWidth = isMobile
-        ? MediaQuery.of(context).size.width
-        : MediaQuery.of(context).size.width * 0.3;
+    return BlocBuilder<StoresManagerCubit, StoresManagerState>(
+      builder: (context, state) {
+        if (state is StoresManagerLoaded) {
+          final storeWithRole = state.stores[storeId];
+          final store = storeWithRole?.store;
+          final settings = store?.relations.storeOperationConfig;
 
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Material(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        elevation: 16,
-        shadowColor: Colors.black.withOpacity(0.2),
-        borderRadius: isMobile
-            ? null
-            : const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          bottomLeft: Radius.circular(20),
-        ),
-        child: Container(
-          width: panelWidth,
-          height: MediaQuery.of(context).size.height,
-          decoration: isMobile
-              ? null
-              : BoxDecoration(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              bottomLeft: Radius.circular(20),
-            ),
-          ),
-          child: _buildContent(context),
-        ),
-      ),
-    );
-  }
+          if (store == null || settings == null) {
+            return _buildErrorState(context);
+          }
 
-  Widget _buildContent(BuildContext context) {
-    return Column(
-      children: [
-        _buildHeader(context),
-        Expanded(
-          child: BlocBuilder<StoresManagerCubit, StoresManagerState>(
-            builder: (context, state) {
-              if (state is StoresManagerLoaded) {
-                final storeWithRole = state.stores[storeId];
-                final store = storeWithRole?.store;
-                final settings = store?.relations.storeOperationConfig;
-
-                if (store == null || settings == null) {
-                  return _buildErrorState(context);
-                }
-
-                return _buildSettingsList(context, settings, storeId);
-              }
-              return _buildLoadingState();
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Configurações da Loja',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Gerencie as operações da loja',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.color
-                      ?.withOpacity(0.6),
-                ),
-              ),
-            ],
-          ),
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(4),
-              child: const Icon(
-                Icons.close,
-                size: 20,
-              ),
-            ),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
+          return _buildSettingsList(context, settings, storeId);
+        }
+        return _buildLoadingState();
+      },
     );
   }
 

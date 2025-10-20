@@ -1,3 +1,5 @@
+// widgets/drawercode.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -5,11 +7,12 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../core/helpers/sidepanel.dart';
-import '../core/menu_app_controller.dart';
+import '../core/provider/drawer_provider.dart';
 import '../cubits/auth_cubit.dart';
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
 import '../models/store/store.dart';
+
 import 'store_switcher_panel.dart';
 
 class DrawerCode extends StatefulWidget {
@@ -39,28 +42,25 @@ class _DrawerCodeState extends State<DrawerCode> {
     );
   }
 
-  // ✅ NOVA FUNÇÃO: Pega a rota atual do GoRouter
+  /// ✅ Pega a rota atual do GoRouter
   String _getCurrentRoute(BuildContext context) {
     return GoRouterState.of(context).uri.path;
   }
 
-  // ✅ NOVA FUNÇÃO: Verifica se a rota está ativa
+  /// ✅ Verifica se a rota está ativa
   bool _isRouteActive(BuildContext context, String menuRoute) {
     final currentPath = _getCurrentRoute(context);
     final fullRoute = '/stores/${widget.storeId}$menuRoute';
 
-    // Compara exatamente ou se é uma sub-rota
     return currentPath == fullRoute || currentPath.startsWith('$fullRoute/');
   }
 
-  // ✅ NOVA FUNÇÃO: Navega e fecha o drawer
+  /// ✅ Navega e fecha o drawer
   void _navigateAndCloseDrawer(BuildContext context, String route) {
-    // Fecha o drawer antes de navegar
     if (Scaffold.of(context).isDrawerOpen) {
       Navigator.of(context).pop();
     }
 
-    // Pequeno delay para animação suave
     Future.delayed(const Duration(milliseconds: 100), () {
       context.go(route);
     });
@@ -68,8 +68,9 @@ class _DrawerCodeState extends State<DrawerCode> {
 
   @override
   Widget build(BuildContext context) {
-    final drawerController = context.watch<DrawerControllerProvider>();
-    final bool isExpanded = drawerController.isExpanded;
+    // ✅ USA O PROVIDER AO INVÉS DO GETX
+    final drawerProvider = context.watch<DrawerProvider>();
+    final bool isExpanded = drawerProvider.isExpanded;
     final bool isMobile = MediaQuery.of(context).size.width < 600;
 
     return BlocBuilder<StoresManagerCubit, StoresManagerState>(
@@ -96,13 +97,15 @@ class _DrawerCodeState extends State<DrawerCode> {
               children: [
                 SizedBox(height: isMobile ? 16 : 0),
 
+                // ✅ HEADER DA LOJA
                 _buildStoreHeader(
                   context,
                   isExpanded,
                   activeStore,
-                  drawerController,
+                  drawerProvider, // ✅ Passa o provider
                 ),
 
+                // ✅ MENU PRINCIPAL
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
@@ -115,10 +118,14 @@ class _DrawerCodeState extends State<DrawerCode> {
 
                         const SizedBox(height: 20),
 
+                        // ✅ TROCAR DE LOJA
                         _buildStoreSwitcherMenuItem(context, isExpanded),
                         const SizedBox(height: 8),
 
+                        // ✅ LOGOUT
                         _buildLogoutButton(context, isExpanded),
+
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -135,7 +142,7 @@ class _DrawerCodeState extends State<DrawerCode> {
       BuildContext context,
       bool isExpanded,
       Store store,
-      DrawerControllerProvider drawerController,
+      DrawerProvider drawerProvider, // ✅ PROVIDER AO INVÉS DO GETX
       ) {
     final hasImage = store.media?.image?.url != null &&
         store.media!.image!.url!.isNotEmpty;
@@ -145,7 +152,7 @@ class _DrawerCodeState extends State<DrawerCode> {
           ? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0)
           : const EdgeInsets.symmetric(vertical: 20.0),
       child: InkWell(
-        onTap: () => drawerController.toggle(),
+        onTap: () => drawerProvider.toggle(), // ✅ USA O PROVIDER
         borderRadius: BorderRadius.circular(12),
         child: isExpanded
             ? Container(
@@ -154,6 +161,7 @@ class _DrawerCodeState extends State<DrawerCode> {
           ),
           child: Row(
             children: [
+              // Avatar da loja
               Container(
                 width: 50,
                 height: 50,
@@ -177,6 +185,8 @@ class _DrawerCodeState extends State<DrawerCode> {
                 ),
               ),
               const SizedBox(width: 12),
+
+              // Nome e status da loja
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,10 +232,12 @@ class _DrawerCodeState extends State<DrawerCode> {
                   ],
                 ),
               ),
+
+              // Botão de toggle
               SizedBox(
                 width: 24,
                 child: IconButton(
-                  onPressed: () => drawerController.toggle(),
+                  onPressed: () => drawerProvider.toggle(),
                   icon: Icon(
                     Icons.menu,
                     color: Colors.grey[600],
@@ -240,6 +252,7 @@ class _DrawerCodeState extends State<DrawerCode> {
         )
             : Column(
           children: [
+            // Avatar compacto
             Container(
               width: 40,
               height: 40,
@@ -263,6 +276,8 @@ class _DrawerCodeState extends State<DrawerCode> {
               ),
             ),
             const SizedBox(height: 8),
+
+            // Indicador de status
             Container(
               width: 8,
               height: 8,
@@ -295,7 +310,6 @@ class _DrawerCodeState extends State<DrawerCode> {
 
     return InkWell(
       onTap: () {
-        // ✅ Fecha o drawer antes de abrir o panel
         if (Scaffold.of(context).isDrawerOpen) {
           Navigator.of(context).pop();
         }
@@ -387,7 +401,7 @@ class _DrawerCodeState extends State<DrawerCode> {
               color: Colors.red,
             ),
             const SizedBox(width: 12),
-            Expanded(
+            const Expanded(
               child: Text(
                 "Sair",
                 style: TextStyle(
@@ -476,6 +490,7 @@ class _DrawerCodeState extends State<DrawerCode> {
     }
   }
 
+  // ✅ DADOS DO MENU (SEM MUDANÇAS)
   final List<Map<String, dynamic>> _menuData = [
     {'type': 'section', 'title': 'Dashboard', 'index': 0},
     {
@@ -592,7 +607,6 @@ class _DrawerCodeState extends State<DrawerCode> {
     },
   ];
 
-  // ✅ CORRIGIDO: Recebe BuildContext para verificar rota ativa
   List<Widget> _buildMenuItemsFromData({
     required BuildContext context,
     required bool isExpanded,
@@ -652,7 +666,6 @@ class _DrawerCodeState extends State<DrawerCode> {
     );
   }
 
-  // ✅ TOTALMENTE CORRIGIDO: Sem GetX, com detecção de rota correta
   Widget _buildMenuItem({
     required BuildContext context,
     required String title,
@@ -662,7 +675,6 @@ class _DrawerCodeState extends State<DrawerCode> {
     required bool isExpanded,
     IconData? customIcon,
   }) {
-    // ✅ Verifica se a rota está ativa
     final isSelected = _isRouteActive(context, route);
 
     final Color primaryColor = Theme.of(context).primaryColor;
@@ -683,7 +695,6 @@ class _DrawerCodeState extends State<DrawerCode> {
 
     return InkWell(
       onTap: () {
-        // ✅ Navega e fecha o drawer
         final fullRoute = '/stores/${widget.storeId}$route';
         _navigateAndCloseDrawer(context, fullRoute);
       },

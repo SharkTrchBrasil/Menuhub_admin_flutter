@@ -5,11 +5,12 @@ import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/pages/product-wizard/product_creation_panel.dart';
 import 'package:totem_pro_admin/pages/products/widgets/product_list_item.dart';
-import 'package:totem_pro_admin/services/dialog_service.dart';
+
 import '../../../core/enums/category_type.dart';
 import '../../../core/helpers/sidepanel.dart';
 import '../../../cubits/store_manager_cubit.dart';
 import '../../../models/products/product.dart';
+import '../../../services/dialog_service.dart';
 import '../../categories/widgets/category_card_header.dart';
 import '../../categories/widgets/empty_category.dart';
 import '../../product_flavors/flavor_creation_panel.dart';

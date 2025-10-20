@@ -10,7 +10,7 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:totem_pro_admin/cubits/auth_cubit.dart';
 import 'package:totem_pro_admin/constdata/colorprovider.dart';
 import 'package:totem_pro_admin/core/di.dart';
-import 'package:totem_pro_admin/core/menu_app_controller.dart';
+
 import 'package:totem_pro_admin/core/theme/app_theme.dart';
 import 'package:totem_pro_admin/services/notification_service.dart';
 import 'package:totem_pro_admin/themes/ds_theme.dart';
@@ -18,6 +18,8 @@ import 'package:totem_pro_admin/themes/ds_theme_switcher.dart';
 import 'package:totem_pro_admin/core/utils/platform_utils.dart';
 import 'package:totem_pro_admin/core/utils/sounds/sound_util.dart';
 import 'package:totem_pro_admin/widgets/device_limit_notification.dart';
+
+import 'core/provider/drawer_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,14 +51,17 @@ class AppRoot extends StatelessWidget {
     // e não dependem do estado de login do usuário.
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => DrawerControllerProvider()),
+
         ChangeNotifierProvider(create: (_) => ColorNotifire()),
         ChangeNotifierProvider(create: (_) => DsThemeSwitcher()),
       ],
       child: MultiBlocProvider(
         providers: [
-          // O AuthCubit é global, pois controla o estado de autenticação
-          // em todo o aplicativo.
+
+          ChangeNotifierProvider(
+            create: (_) => DrawerProvider(),
+          ),
+
           BlocProvider.value(value: getIt<AuthCubit>()),
         ],
         child: const MyApp(),
