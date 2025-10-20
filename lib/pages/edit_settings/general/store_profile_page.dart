@@ -1,6 +1,7 @@
 // ARQUIVO: lib/pages/settings/store_profile_page.dart
 
 import 'package:brasil_fields/brasil_fields.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,6 +27,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 import '../../../core/responsive_builder.dart';
+import '../../../core/utils/error_parser.dart';
 import '../../../models/store/store_address.dart';
 
 class StoreProfilePage extends StatefulWidget {
@@ -79,13 +81,11 @@ class StoreProfilePageState extends State<StoreProfilePage> {
 
 
 
-
-  // ✅ PASSO 2: SIMPLIFICAR O MÉTODO `save`
-  // Ele não precisa mais verificar as mudanças, pois o wizard fará isso.
   Future<bool> save() async {
     if (_editableStore == null) return false;
 
     log('💾 Iniciando processo de salvamento...');
+
     if (!(formKey.currentState?.validate() ?? false)) {
       log('❌ Validação falhou.');
       return false;
@@ -94,32 +94,98 @@ class StoreProfilePageState extends State<StoreProfilePage> {
     formKey.currentState!.save();
 
     try {
-      await storeRepository.updateStore(widget.storeId, _editableStore!);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Informações salvas com sucesso!'), backgroundColor: Colors.green),
-        );
-      }
-      // Atualiza o estado original para refletir o novo estado salvo.
-      setState(() {
-        _originalStore = _editableStore?.copyWith();
-      });
-      log('✅ Salvo com sucesso.');
-      return true;
+      // ✅ Agora updateStore já retorna Either com mensagem tratada
+      final result = await storeRepository.updateStore(widget.storeId, _editableStore!);
+
+      // ✅ Verifica se deu certo ou erro
+      return result.fold(
+        // ❌ ERRO (Left)
+            (failure) {
+          log('🔥 Erro ao salvar: ${failure.message}');
+
+          if (mounted) {
+            // ✅ Verifica se é erro de permissão (403)
+            final isPermissionError = failure.statusCode == 403 ||
+                failure.message.contains('REQUIRES_ANOTHER_ROLE') ||
+                failure.message.contains('não tem permissão');
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: isPermissionError
+                    ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.block, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Acesso Negado',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(failure.message),
+                  ],
+                )
+                    : Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(failure.message)),
+                  ],
+                ),
+                backgroundColor: isPermissionError ? Colors.red.shade700 : Colors.red,
+                duration: Duration(seconds: isPermissionError ? 5 : 4),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+
+          return false;
+        },
+        // ✅ SUCESSO (Right)
+            (updatedStore) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Informações salvas com sucesso!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+
+          // Atualiza o estado original para refletir o novo estado salvo
+          setState(() {
+            _originalStore = _editableStore?.copyWith();
+          });
+
+          log('✅ Salvo com sucesso.');
+          return true;
+        },
+      );
     } catch (e) {
-      log('🔥 Erro ao salvar: $e');
+      // ✅ Captura erros não relacionados ao Dio (improvável, mas seguro)
+      log('🔥 Erro inesperado ao salvar: $e');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Erro inesperado: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
+
       return false;
     }
   }
-
-
-
-
 
   void _onStoreChanged(Store updatedStore) {
     setState(() {

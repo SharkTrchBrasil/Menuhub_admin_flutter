@@ -5,13 +5,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:totem_pro_admin/widgets/permission_widget.dart';
 
 import '../core/helpers/sidepanel.dart';
 import '../core/provider/drawer_provider.dart';
+import '../core/enums/store_access.dart'; // ✅ ADICIONAR
 import '../cubits/auth_cubit.dart';
 import '../cubits/store_manager_cubit.dart';
 import '../cubits/store_manager_state.dart';
 import '../models/store/store.dart';
+import '../services/permission_service.dart'; // ✅ ADICIONAR
 
 import 'store_switcher_panel.dart';
 
@@ -68,7 +71,6 @@ class _DrawerCodeState extends State<DrawerCode> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ USA O PROVIDER AO INVÉS DO GETX
     final drawerProvider = context.watch<DrawerProvider>();
     final bool isExpanded = drawerProvider.isExpanded;
     final bool isMobile = MediaQuery.of(context).size.width < 600;
@@ -102,7 +104,7 @@ class _DrawerCodeState extends State<DrawerCode> {
                   context,
                   isExpanded,
                   activeStore,
-                  drawerProvider, // ✅ Passa o provider
+                  drawerProvider,
                 ),
 
                 // ✅ MENU PRINCIPAL
@@ -111,15 +113,20 @@ class _DrawerCodeState extends State<DrawerCode> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // ✅ AGORA PASSA activeStore PARA VALIDAR PERMISSÕES
                         ..._buildMenuItemsFromData(
                           context: context,
                           isExpanded: isExpanded,
+                          activeStore: storesState.activeStoreWithRole,
                         ),
 
                         const SizedBox(height: 20),
 
-                        // ✅ TROCAR DE LOJA
-                        _buildStoreSwitcherMenuItem(context, isExpanded),
+                        // ✅ TROCAR DE LOJA - Só mostra se tiver múltiplas lojas
+                        if (PermissionService.canSwitchStores(
+                            storesState.stores.values.toList()))
+                          _buildStoreSwitcherMenuItem(context, isExpanded),
+
                         const SizedBox(height: 8),
 
                         // ✅ LOGOUT
@@ -142,7 +149,7 @@ class _DrawerCodeState extends State<DrawerCode> {
       BuildContext context,
       bool isExpanded,
       Store store,
-      DrawerProvider drawerProvider, // ✅ PROVIDER AO INVÉS DO GETX
+      DrawerProvider drawerProvider,
       ) {
     final hasImage = store.media?.image?.url != null &&
         store.media!.image!.url!.isNotEmpty;
@@ -152,7 +159,7 @@ class _DrawerCodeState extends State<DrawerCode> {
           ? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0)
           : const EdgeInsets.symmetric(vertical: 20.0),
       child: InkWell(
-        onTap: () => drawerProvider.toggle(), // ✅ USA O PROVIDER
+        onTap: () => drawerProvider.toggle(),
         borderRadius: BorderRadius.circular(12),
         child: isExpanded
             ? Container(
@@ -490,130 +497,153 @@ class _DrawerCodeState extends State<DrawerCode> {
     }
   }
 
-  // ✅ DADOS DO MENU (SEM MUDANÇAS)
-  final List<Map<String, dynamic>> _menuData = [
-    {'type': 'section', 'title': 'Dashboard', 'index': 0},
-    {
-      'type': 'item',
-      'title': 'Inicio',
-      'route': '/dashboard',
-      'index': 0,
-      'iconPath': 'assets/images/package.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Pedidos',
-      'route': '/orders',
-      'index': 1,
-      'iconPath': 'assets/images/package.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Desempenho',
-      'route': '/performance',
-      'index': 2,
-      'iconPath': 'assets/images/package.png',
-    },
-    {'type': 'spacer'},
-    {
-      'type': 'item',
-      'title': 'Cardápios',
-      'route': '/products',
-      'index': 4,
-      'iconPath': 'assets/images/package.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Promoções',
-      'route': '/coupons',
-      'index': 5,
-      'iconPath': 'assets/images/6.png',
-    },
-    {'type': 'spacer'},
-    {'type': 'section', 'title': 'Configuração da Loja', 'index': 10},
-    {
-      'type': 'item',
-      'title': 'Minha loja',
-      'route': '/settings',
-      'index': 9,
-      'iconPath': 'assets/images/33.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Horários',
-      'route': '/settings/hours',
-      'index': 10,
-      'iconPath': 'assets/images/calendar-edit.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Forma de Pagamento',
-      'route': '/payment-methods',
-      'index': 11,
-      'iconPath': 'assets/images/coins.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Configurações de Entrega',
-      'route': '/settings/shipping',
-      'index': 12,
-      'iconPath': 'assets/images/box.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Cidades e Bairros',
-      'route': '/settings/locations',
-      'index': 13,
-      'iconPath': 'assets/images/location-pin.png',
-    },
-    {'type': 'spacer'},
-    {'type': 'section', 'title': 'Estoque', 'index': 17},
-    {
-      'type': 'item',
-      'title': 'Estoque',
-      'route': '/inventory',
-      'index': 15,
-      'iconPath': 'assets/images/database.png',
-    },
-    {'type': 'spacer'},
-    {'type': 'section', 'title': 'Sistema', 'index': 21},
-    {
-      'type': 'item',
-      'title': 'Chatbot',
-      'route': '/chatbot',
-      'index': 17,
-      'iconPath': 'assets/images/user.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Acessos',
-      'route': '/accesses',
-      'index': 18,
-      'iconPath': 'assets/images/user.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Dispositivos',
-      'route': '/sessions',
-      'index': 19,
-      'iconPath': 'assets/images/user.png',
-    },
-    {
-      'type': 'item',
-      'title': 'Minha assinatura',
-      'route': '/manager',
-      'index': 20,
-      'iconPath': 'assets/images/rocket-launch.png',
-    },
-  ];
+  // ✅ DADOS DO MENU COM PERMISSÕES
+  List<Map<String, dynamic>> _getMenuData() {
+    return [
+      {'type': 'section', 'title': 'Dashboard', 'index': 0},
+      {
+        'type': 'item',
+        'title': 'Inicio',
+        'route': '/dashboard',
+        'index': 0,
+        'iconPath': 'assets/images/package.png',
+        'roles': null, // ✅ Todos podem acessar
+      },
+      {
+        'type': 'item',
+        'title': 'Pedidos',
+        'route': '/orders',
+        'index': 1,
+        'iconPath': 'assets/images/package.png',
+        'roles': null, // ✅ Todos podem acessar
+      },
+      {
+        'type': 'item',
+        'title': 'Desempenho',
+        'route': '/performance',
+        'index': 2,
+        'iconPath': 'assets/images/package.png',
+        'roles': [StoreAccessRole.owner, StoreAccessRole.manager], // ✅ OWNER/MANAGER
+      },
+      {'type': 'spacer'},
+      {
+        'type': 'item',
+        'title': 'Cardápios',
+        'route': '/products',
+        'index': 4,
+        'iconPath': 'assets/images/package.png',
+        'roles': [StoreAccessRole.owner, StoreAccessRole.manager], // ✅ OWNER/MANAGER
+      },
+      {
+        'type': 'item',
+        'title': 'Promoções',
+        'route': '/coupons',
+        'index': 5,
+        'iconPath': 'assets/images/6.png',
+        'roles': [StoreAccessRole.owner, StoreAccessRole.manager], // ✅ OWNER/MANAGER
+      },
+      {'type': 'spacer'},
+      {'type': 'section', 'title': 'Configuração da Loja', 'index': 10},
+      {
+        'type': 'item',
+        'title': 'Minha loja',
+        'route': '/settings',
+        'index': 9,
+        'iconPath': 'assets/images/33.png',
+        'roles': [StoreAccessRole.owner, StoreAccessRole.manager], // ✅ OWNER/MANAGER
+      },
+      {
+        'type': 'item',
+        'title': 'Horários',
+        'route': '/settings/hours',
+        'index': 10,
+        'iconPath': 'assets/images/calendar-edit.png',
+        'roles': [StoreAccessRole.owner, StoreAccessRole.manager], // ✅ OWNER/MANAGER
+      },
+      {
+        'type': 'item',
+        'title': 'Forma de Pagamento',
+        'route': '/payment-methods',
+        'index': 11,
+        'iconPath': 'assets/images/coins.png',
+        'roles': [StoreAccessRole.owner, StoreAccessRole.manager], // ✅ OWNER/MANAGER
+      },
+      {
+        'type': 'item',
+        'title': 'Configurações de Entrega',
+        'route': '/settings/shipping',
+        'index': 12,
+        'iconPath': 'assets/images/box.png',
+        'roles': [StoreAccessRole.owner, StoreAccessRole.manager], // ✅ OWNER/MANAGER
+      },
+      {
+        'type': 'item',
+        'title': 'Cidades e Bairros',
+        'route': '/settings/locations',
+        'index': 13,
+        'iconPath': 'assets/images/location-pin.png',
+        'roles': [StoreAccessRole.owner, StoreAccessRole.manager], // ✅ OWNER/MANAGER
+      },
+      {'type': 'spacer'},
+      {'type': 'section', 'title': 'Estoque', 'index': 17},
+      {
+        'type': 'item',
+        'title': 'Estoque',
+        'route': '/inventory',
+        'index': 15,
+        'iconPath': 'assets/images/database.png',
+        'roles': [
+          StoreAccessRole.owner,
+          StoreAccessRole.manager,
+          StoreAccessRole.stockManager
+        ], // ✅ OWNER/MANAGER/STOCK_MANAGER
+      },
+      {'type': 'spacer'},
+      {'type': 'section', 'title': 'Sistema', 'index': 21},
+      {
+        'type': 'item',
+        'title': 'Chatbot',
+        'route': '/chatbot',
+        'index': 17,
+        'iconPath': 'assets/images/user.png',
+        'roles': [StoreAccessRole.owner, StoreAccessRole.manager], // ✅ OWNER/MANAGER
+      },
+      {
+        'type': 'item',
+        'title': 'Acessos',
+        'route': '/accesses',
+        'index': 18,
+        'iconPath': 'assets/images/user.png',
+        'roles': [StoreAccessRole.owner], // ✅ SÓ OWNER
+      },
+      {
+        'type': 'item',
+        'title': 'Dispositivos',
+        'route': '/sessions',
+        'index': 19,
+        'iconPath': 'assets/images/user.png',
+        'roles': null, // ✅ Todos podem acessar
+      },
+      {
+        'type': 'item',
+        'title': 'Minha assinatura',
+        'route': '/manager',
+        'index': 20,
+        'iconPath': 'assets/images/rocket-launch.png',
+        'roles': [StoreAccessRole.owner], // ✅ SÓ OWNER
+      },
+    ];
+  }
 
   List<Widget> _buildMenuItemsFromData({
     required BuildContext context,
     required bool isExpanded,
+    required dynamic activeStore, // ✅ ADICIONAR
   }) {
     final List<Widget> menuWidgets = [];
+    final menuData = _getMenuData(); // ✅ Usa método que retorna dados com roles
 
-    for (final itemData in _menuData) {
+    for (final itemData in menuData) {
       final String type = itemData['type'] as String;
 
       if (type == 'spacer') {
@@ -635,6 +665,17 @@ class _DrawerCodeState extends State<DrawerCode> {
           final String title = itemData['title'] as String;
           final String route = itemData['route'] as String;
           final int index = itemData['index'] as int;
+          final List<StoreAccessRole>? requiredRoles =
+          itemData['roles'] as List<StoreAccessRole>?;
+
+          // ✅ VALIDAÇÃO DE PERMISSÃO
+          if (requiredRoles != null) {
+            final hasPermission =
+            PermissionService.hasAnyRole(activeStore, requiredRoles);
+            if (!hasPermission) {
+              continue; // ✅ Não mostra o item se não tiver permissão
+            }
+          }
 
           menuWidgets.add(_buildMenuItem(
             context: context,

@@ -213,11 +213,51 @@ class StoreRepository {
         return Right(Store.fromJson(response.data));
       }
     } on DioException catch (e) {
+      // ✅ CORREÇÃO: Parsing seguro de erros com estrutura Map aninhada
+      String errorMessage = 'Erro ao atualizar loja';
+
+      if (e.response?.data != null) {
+        final data = e.response!.data;
+
+        // Caso 1: data é Map com 'detail' aninhado
+        if (data is Map<String, dynamic>) {
+          final detail = data['detail'];
+
+          // Caso 1a: detail é Map (formato novo: {"detail": {"message": "...", "code": "..."}})
+          if (detail is Map<String, dynamic>) {
+            errorMessage = detail['message'] as String? ?? errorMessage;
+
+            // ✅ Tratamento especial para erro de permissão
+            if (detail['code'] == 'REQUIRES_ANOTHER_ROLE' || e.response?.statusCode == 403) {
+              errorMessage = '⛔ ${detail['message'] ?? 'Você não tem permissão para esta ação'}\n\n'
+                  'Apenas proprietários podem editar estas informações.';
+            }
+          }
+          // Caso 1b: detail é String (formato antigo: {"detail": "mensagem"})
+          else if (detail is String) {
+            errorMessage = detail.isNotEmpty ? detail : errorMessage;
+          }
+          // Caso 1c: message direto no root
+          else if (data['message'] is String) {
+            errorMessage = data['message'] as String;
+          }
+        }
+        // Caso 2: data é String direto
+        else if (data is String) {
+          errorMessage = data.isNotEmpty ? data : errorMessage;
+        }
+      }
+
+      debugPrint('🔥 Erro ao atualizar loja: $errorMessage');
+      debugPrint('🔍 Status Code: ${e.response?.statusCode}');
+      debugPrint('🔍 Response Data: ${e.response?.data}');
+
       return Left(Failure(
-        message: e.response?.data?['detail'] ?? 'Erro ao atualizar loja',
+        message: errorMessage,
         statusCode: e.response?.statusCode,
       ));
     } catch (e) {
+      debugPrint('🔥 Erro inesperado ao atualizar loja: $e');
       return Left(Failure(message: 'Erro inesperado: $e'));
     }
   }
