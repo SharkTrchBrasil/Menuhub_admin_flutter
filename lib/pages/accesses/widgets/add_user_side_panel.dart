@@ -66,47 +66,30 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: isMobile
-          ? AppBar(
-        title: const Text('Adicionar Usuário'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.pop(),
-        ),
-      )
-          : null,
-      body: Form(
-        key: formKey,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(isMobile ? 16 : 24),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!isMobile) ...[
-                  _buildHeader(),
-                  const SizedBox(height: 24),
-                ],
-                _buildStoreSelector(isMobile),
-                SizedBox(height: isMobile ? 16 : 24),
-                _buildUserFields(isMobile),
-                SizedBox(height: isMobile ? 24 : 32),
-                _buildActionButtons(isMobile),
-                if (isMobile) const SizedBox(height: 16),
-              ],
-            ),
-          ),
+    return   Form(
+      key: formKey,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
+        child: Column( // ✅ REMOVIDO ConstrainedBox
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // ✅ ADICIONADO
+          children: [
+            if (!isMobile) ...[
+              _buildHeader(),
+              const SizedBox(height: 24),
+            ],
+            _buildStoreSelector(isMobile),
+            SizedBox(height: isMobile ? 16 : 24),
+            _buildUserFields(isMobile),
+            SizedBox(height: isMobile ? 24 : 32),
+            _buildActionButtons(isMobile),
+            SizedBox(height: isMobile ? 16 : 80), // ✅ Espaçamento final
+          ],
         ),
       ),
     );
   }
+
 
   Widget _buildHeader() {
     return Row(
@@ -237,10 +220,11 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
 
   Widget _buildStoreItem(StoreWithRole store, bool isMobile) {
     return Row(
+      mainAxisSize: MainAxisSize.min, // ✅ CORRIGIDO: min ao invés de max
       children: [
         Container(
           width: isMobile ? 32 : 36,
-          height: isMobile ? 32 : 36,
+          height: 50,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Theme.of(context).primaryColor.withOpacity(0.1),
@@ -252,7 +236,8 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
           ),
         ),
         SizedBox(width: isMobile ? 8 : 12),
-        Expanded(
+        // ✅ CORRIGIDO: Removido Expanded, adicionado Flexible com shrinkWrap
+        Flexible(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -282,6 +267,7 @@ class _AddUserSidePanelState extends State<AddUserSidePanel> {
       ],
     );
   }
+
 
   Widget _buildUserFields(bool isMobile) {
     return Container(

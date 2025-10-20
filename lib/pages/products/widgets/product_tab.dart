@@ -252,8 +252,8 @@ class _ProductListTabState extends State<ProductListTab> {
         SliverPersistentHeader(
           pinned: true,
           delegate: SliverPersistentHeaderDelegateWrapper(
-            minHeight: hasSelection ? 128 : 64,
-            maxHeight: hasSelection ? 128 : 64,
+            minHeight: hasSelection ? 128 : 74,
+            maxHeight: hasSelection ? 128 : 74,
             child: Column(
               children: [
                 UniversalFilterBar(
@@ -317,7 +317,7 @@ class _ProductListTabState extends State<ProductListTab> {
           const SliverFillRemaining(child: NoResultsState())
         else
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                     (context, index) {

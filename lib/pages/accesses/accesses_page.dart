@@ -50,6 +50,7 @@ class _AccessesPageState extends State<AccessesPage> {
       backgroundColor: Colors.grey.shade50,
       body: SafeArea(
         child: Column(
+
           children: [
             // ✅ Header fixo responsivo
             _buildHeader(context),
@@ -164,15 +165,7 @@ class _AccessesPageState extends State<AccessesPage> {
             color: Colors.grey.shade700,
           ),
         ),
-        const Spacer(),
-        if (isMobile)
-          DsButton(
-            label: 'Adicionar',
-            style: DsButtonStyle.primary,
-            icon: Icons.person_add_rounded,
-            onPressed: _addUser,
 
-          ),
       ],
     );
   }

@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -257,6 +258,12 @@ class _SignUpPageState extends State<SignUpPage> {
                         }
                         return null;
                       },
+
+                      formatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9@._-]')),
+                        FilteringTextInputFormatter.deny(RegExp(r'\s')), // Não permite espaços
+                      ],
+                      keyboardType: TextInputType.emailAddress,
                       onChanged: (s) => email = s ?? '',
                     ),
 
