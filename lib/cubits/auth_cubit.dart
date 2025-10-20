@@ -16,18 +16,23 @@ import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthService _authService;
-
-  // ✅ NOVO: Subscription para escutar quando a sessão for revogada
   StreamSubscription? _sessionRevokedSubscription;
+  bool _hasInitialized = false; // ✅ Flag para evitar re-inicialização
 
   AuthCubit({
     required AuthService authService,
   })  : _authService = authService,
         super(AuthInitial()) {
-    _initializeApp();
+    // ✅ Só inicializa se nunca foi inicializado
+    if (!_hasInitialized) {
+      _initializeApp();
+    }
   }
 
+
   Future<void> _initializeApp() async {
+    if (_hasInitialized) return; // ✅ Proteção dupla
+
     log('[AuthCubit] Iniciando app...');
     emit(AuthLoading());
 
@@ -35,14 +40,21 @@ class AuthCubit extends Cubit<AuthState> {
     result.fold(
           (error) {
         log('[AuthCubit] Falha na inicialização do app: $error');
-        logout();
+        // ✅ Só faz logout se NÃO for erro de "não logado"
+        if (error != SignInError.notLoggedIn) {
+          logout();
+        } else {
+          emit(AuthUnauthenticated());
+        }
       },
           (data) async {
-        log('[AuthCubit] App inicializado com sucesso. Orquestrando setup pós-autenticação...');
+        log('[AuthCubit] App inicializado com sucesso...');
+        _hasInitialized = true; // ✅ Marca como inicializado
         await _postAuthenticationSetup(data);
       },
     );
   }
+
 
   Future<void> signIn(String email, String password) async {
     log('[AuthCubit] Tentando login para $email...');

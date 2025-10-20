@@ -9,6 +9,7 @@ import 'package:totem_pro_admin/repositories/product_repository.dart';
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 
 // Importe as abas que você já criou
+import '../../../models/variant.dart';
 import '../../product-wizard/steps/step4_categories.dart';
 import '../../product_edit/tabs/complement_tab.dart';
 import '../../product_edit/tabs/product_availability_tab.dart';
@@ -21,6 +22,8 @@ class ProductEditPanel extends StatelessWidget {
   final Product product;
   final VoidCallback onSaveSuccess;
   final VoidCallback onCancel;
+  final List<Variant> allStoreVariants; // ✅ Adicione
+  final List<Product> allStoreProducts; // ✅ Adicione
 
   const ProductEditPanel({
     super.key,
@@ -28,6 +31,8 @@ class ProductEditPanel extends StatelessWidget {
     required this.product,
     required this.onSaveSuccess,
     required this.onCancel,
+    required this.allStoreVariants, // ✅ Adicione
+    required this.allStoreProducts, // ✅ Adicione
   });
 
   @override
@@ -41,7 +46,7 @@ class ProductEditPanel extends StatelessWidget {
       child: BlocListener<EditProductCubit, EditProductState>(
         listener: (context, state) {
           if (state.status == FormStatus.success) {
-            onSaveSuccess(); // Notifica o pai para fechar e atualizar
+            onSaveSuccess();
           } else if (state.status == FormStatus.error) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
@@ -55,17 +60,27 @@ class ProductEditPanel extends StatelessWidget {
         },
         child: _EditProductPanelView(
           onCancel: onCancel,
+          storeId: storeId, // ✅ Passe
+          allStoreVariants: allStoreVariants, // ✅ Passe
+          allStoreProducts: allStoreProducts, // ✅ Passe
         ),
       ),
     );
   }
 }
 
-// Esta é a UI extraída da sua `EditProductPage`
 class _EditProductPanelView extends StatelessWidget {
   final VoidCallback onCancel;
+  final int storeId; // ✅ Adicione
+  final List<Variant> allStoreVariants; // ✅ Adicione
+  final List<Product> allStoreProducts; // ✅ Adicione
 
-  const _EditProductPanelView({required this.onCancel});
+  const _EditProductPanelView({
+    required this.onCancel,
+    required this.storeId,
+    required this.allStoreVariants,
+    required this.allStoreProducts,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +89,6 @@ class _EditProductPanelView extends StatelessWidget {
         final cubit = context.read<EditProductCubit>();
         final isImported = state.editedProduct.masterProductId != null;
 
-        // A lógica de abas que você já tem em `edit_product_page(delete).dart`
         final List<Widget> tabs = [
           const Tab(text: 'Sobre o produto'),
           if (!isImported) const Tab(text: 'Grupo de complementos'),
@@ -84,37 +98,33 @@ class _EditProductPanelView extends StatelessWidget {
 
         final List<Widget> tabViews = [
           const ProductDetailsTab(),
-          if (!isImported) const ComplementGroupsTab(),
-          const ProductPricingTab(), // Você chamou de availability, mas o arquivo é pricing. Ajuste se necessário.
+          if (!isImported) ComplementGroupsTab( // ✅ Passe os dados
+            storeId: storeId,
+            allStoreVariants: allStoreVariants,
+            allStoreProducts: allStoreProducts,
+          ),
+          const ProductAvailabilityTab(),
           const ProductCashbackTab(),
         ];
 
-        // O DefaultTabController envolve toda a estrutura
         return DefaultTabController(
           length: tabs.length,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
-              // 2. Barra de abas
               Container(
                 color: Colors.white,
                 child: TabBar(
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
                   tabs: tabs,
                 ),
               ),
-
-
-              // 3. Conteúdo das abas
               Expanded(
                 child: TabBarView(
                   children: tabViews,
                 ),
               ),
 
-              // 4. Rodapé com botões de ação
+
               Container(
                 padding: const EdgeInsets.all(16),
 
@@ -150,3 +160,6 @@ class _EditProductPanelView extends StatelessWidget {
     );
   }
 }
+
+
+

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/core/helpers/sidepanel.dart';
 import 'package:totem_pro_admin/models/category.dart';
 import 'package:totem_pro_admin/models/products/product.dart';
-import 'package:totem_pro_admin/core/enums/category_type.dart'; // ✅ 1. Importar o enum de tipo de categoria
+import 'package:totem_pro_admin/core/enums/category_type.dart';
+import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
+import 'package:totem_pro_admin/cubits/store_manager_state.dart';
 
 import '../../pages/product_flavors/flavor_edit_panel.dart';
 import '../../pages/products/widgets/product_panel.dart';
@@ -15,22 +18,19 @@ void showEditProductPanel({
   required BuildContext context,
   required Product product,
   required int storeId,
-  Category? parentCategory, // A categoria pai, se já for conhecida (ex: clicando em um produto dentro de uma categoria)
+  Category? parentCategory,
   VoidCallback? onSaveSuccess,
 }) {
   Category? resolvedParentCategory = parentCategory;
 
-  // ✅ 2. LÓGICA CORRIGIDA: Se a categoria pai não foi fornecida, vamos encontrá-la.
-  // Um "sabor" geralmente tem apenas um link de categoria, que é sua categoria customizável.
+  // ✅ Se a categoria pai não foi fornecida, vamos encontrá-la
   if (resolvedParentCategory == null) {
     if (product.categoryLinks.isNotEmpty) {
-      // Pega a categoria do primeiro link como fallback.
-      // Em um cenário ideal, o produto teria um `primaryCategoryId` para desambiguação.
       resolvedParentCategory = product.categoryLinks.first.category;
     }
   }
 
-  // Se, mesmo após a busca, não encontrarmos nenhuma categoria, não podemos continuar.
+  // Se não encontrarmos nenhuma categoria, não podemos continuar
   if (resolvedParentCategory == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -41,9 +41,37 @@ void showEditProductPanel({
     return;
   }
 
-  // ✅ 3. A DECISÃO FINAL E CORRETA:
-  // Verificamos o TIPO da categoria pai resolvida.
+  // ✅ Verifica o TIPO da categoria pai
   final bool isFlavor = resolvedParentCategory.type == CategoryType.CUSTOMIZABLE;
+
+  // ✅ NOVO: Busca os dados da loja do StoresManagerCubit
+  final storesManagerCubit = context.read<StoresManagerCubit>();
+  final storesState = storesManagerCubit.state;
+
+  if (storesState is! StoresManagerLoaded) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Erro: Dados da loja não carregados.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  final activeStore = storesState.activeStore;
+  if (activeStore == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Erro: Loja ativa não encontrada.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  // ✅ Extrai as listas necessárias
+  final allStoreVariants = activeStore.relations.variants ?? [];
+  final allStoreProducts = activeStore.relations.products ?? [];
 
   final Widget panelToOpen;
 
@@ -52,7 +80,7 @@ void showEditProductPanel({
     panelToOpen = FlavorEditPanel(
       storeId: storeId,
       product: product,
-      parentCategory: resolvedParentCategory, // Passamos a categoria que encontramos
+      parentCategory: resolvedParentCategory,
       onSaveSuccess: () {
         Navigator.of(context).pop();
         onSaveSuccess?.call();
@@ -60,11 +88,12 @@ void showEditProductPanel({
       onCancel: () => Navigator.of(context).pop(),
     );
   } else {
-    // Se não é um sabor (ou seja, pertence a uma categoria GENERAL),
-    // ABRE O PAINEL DE EDIÇÃO DE PRODUTO SIMPLES.
+    // ✅ CORRIGIDO: Passa os dados necessários para ProductEditPanel
     panelToOpen = ProductEditPanel(
       storeId: storeId,
       product: product,
+      allStoreVariants: allStoreVariants, // ✅ Passa as variantes
+      allStoreProducts: allStoreProducts, // ✅ Passa os produtos
       onSaveSuccess: () {
         Navigator.of(context).pop();
         onSaveSuccess?.call();

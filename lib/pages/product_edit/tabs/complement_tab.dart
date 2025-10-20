@@ -6,9 +6,9 @@ import 'package:totem_pro_admin/pages/product_edit/cubit/edit_product_cubit.dart
 import 'package:totem_pro_admin/pages/product_edit/widgets/variant_link_card.dart';
 
 import '../../../core/responsive_builder.dart';
-import '../../../cubits/store_manager_cubit.dart';
-import '../../../cubits/store_manager_state.dart';
+import '../../../models/products/product.dart';
 import '../../../models/products/product_variant_link.dart';
+import '../../../models/variant.dart';
 import '../../../models/variant_option.dart';
 import '../../../widgets/ds_primary_button.dart';
 import '../../product_groups/helper/side_panel_helper.dart';
@@ -17,38 +17,28 @@ import '../../product_groups/widgets/add_option_panel.dart';
 import '../widgets/edit_option_form.dart';
 
 class ComplementGroupsTab extends StatelessWidget {
-  const ComplementGroupsTab({super.key});
+  // ✅ CORRIGIDO: Adiciona parâmetros necessários via construtor
+  final int storeId;
+  final List<Variant> allStoreVariants;
+  final List<Product> allStoreProducts;
 
-  // ✅ CORRIGIDO: Agora passa os dados necessários para showCreateGroupPanel
+  const ComplementGroupsTab({
+    super.key,
+    required this.storeId,
+    required this.allStoreVariants,
+    required this.allStoreProducts,
+  });
+
+  // ✅ CORRIGIDO: Usa dados do construtor ao invés de StoresManagerCubit
   Future<void> _addComplementGroup(BuildContext context) async {
     final cubit = context.read<EditProductCubit>();
-    final storesState = context.read<StoresManagerCubit>().state;
 
-    if (storesState is! StoresManagerLoaded) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Dados da loja não carregados.")),
-        );
-      }
-      return;
-    }
-
-    final activeStore = storesState.activeStore;
-    if (activeStore == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Loja não encontrada.")),
-        );
-      }
-      return;
-    }
-
-    // ✅ PASSA OS DADOS NECESSÁRIOS
+    // ✅ PASSA OS DADOS DO CONSTRUTOR
     final resultLink = await showCreateGroupPanel(
       context,
-      storeId: activeStore.core.id!,
-      allStoreVariants: activeStore.relations.variants ?? [],
-      allStoreProducts: activeStore.relations.products ?? [],
+      storeId: storeId,
+      allStoreVariants: allStoreVariants,
+      allStoreProducts: allStoreProducts,
       productId: cubit.state.editedProduct.id,
     );
 
@@ -57,15 +47,9 @@ class ComplementGroupsTab extends StatelessWidget {
     }
   }
 
-  // ✅ CORRIGIDO: Agora obtém os dados de forma segura
+  // ✅ CORRIGIDO: Usa dados do construtor ao invés de StoresManagerCubit
   Future<void> _addOption(BuildContext context, ProductVariantLink link) async {
     final cubit = context.read<EditProductCubit>();
-    final storesState = context.read<StoresManagerCubit>().state;
-
-    if (storesState is! StoresManagerLoaded) return;
-
-    final allProducts = storesState.activeStore!.relations.products ?? [];
-    final allVariants = storesState.activeStore!.relations.variants ?? [];
     final bool isMobile = MediaQuery.of(context).size.width < 768;
 
     VariantOption? newOption;
@@ -90,11 +74,12 @@ class ComplementGroupsTab extends StatelessWidget {
       );
     } else {
       // FLUXO DESKTOP: Side Panel
+      // ✅ USA DADOS DO CONSTRUTOR
       newOption = await showResponsiveSidePanelGroup<VariantOption>(
         context,
         panel: AddOptionPanel(
-          allProducts: allProducts,
-          allVariants: allVariants,
+          allProducts: allStoreProducts,
+          allVariants: allStoreVariants,
         ),
       );
     }

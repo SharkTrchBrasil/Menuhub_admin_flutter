@@ -301,7 +301,7 @@ class _ProductCategoriesManagerState extends State<ProductCategoriesManager> {
                   ),
                   children: [
                     _buildTableHeader("Categoria"),
-                    _buildTableHeader("Canal de venda"),
+                   // _buildTableHeader("Canal de venda"),
                     _buildTableHeader("Preço"),
                     _buildTableHeader("Código PDV"),
                     _buildTableHeader("Ações"),
@@ -312,7 +312,7 @@ class _ProductCategoriesManagerState extends State<ProductCategoriesManager> {
                   TableRow(
                     children: [
                       _buildCategoryCell(link),
-                      _buildChannelCell(link),
+                   //   _buildChannelCell(link),
                       _buildPriceCell(link),
                       _buildPdvCell(link),
                       _buildActionsCell(link),
@@ -406,13 +406,13 @@ class _ProductCategoriesManagerState extends State<ProductCategoriesManager> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.calendar_today, size: 16),
-            onPressed: () {},
-            tooltip: "Adicionar disponibilidade",
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.calendar_today, size: 16),
+          //   onPressed: () {},
+          //   tooltip: "Adicionar disponibilidade",
+          //   padding: EdgeInsets.zero,
+          //   constraints: const BoxConstraints(),
+          // ),
         ],
       ),
     );

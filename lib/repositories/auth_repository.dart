@@ -15,7 +15,7 @@ import '../models/totem_auth.dart';
 
 class SecureStorageKeys {
   static const accessToken = 'access_token';
-  static const refreshToken = 'refresh_token'; // ✅ CORRIGIDO: era 'refreshToken'
+  static const refreshToken = 'refresh_token';
   static const totemToken = 'totem_token';
 }
 
@@ -31,7 +31,7 @@ class AuthRepository {
   AuthTokens? _authTokens;
   AuthTokens? get authTokens => _authTokens;
 
-  // ✅ CORRIGIDO: Getter que retorna token em memória ou do storage
+  // ✅ Getter que retorna token em memória
   String? get accessToken => _authTokens?.accessToken;
 
   User? _user;
@@ -40,13 +40,12 @@ class AuthRepository {
   bool _isRefreshing = false;
   bool get isRefreshingToken => _isRefreshing;
 
-  // ✅ NOVO: Completer para fila de requisições durante refresh
+  // ✅ Completer para fila de requisições durante refresh
   Future<Either<String, void>>? _refreshFuture;
 
   Future<bool> initialize() async {
     log('[AuthRepository] Inicializando e tentando renovar sessão...');
 
-    // ✅ Tenta carregar tokens do storage
     final savedAccessToken = await _secureStorage.read(key: SecureStorageKeys.accessToken);
     final savedRefreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
 
@@ -55,30 +54,28 @@ class AuthRepository {
       return false;
     }
 
-    // ✅ NOVO: Carrega tokens na memória ANTES de renovar
+    // ✅ Carrega tokens em memória PRIMEIRO
     _authTokens = AuthTokens(
       accessToken: savedAccessToken,
       refreshToken: savedRefreshToken,
     );
 
-    // Tenta renovar o access token
-    final refreshResult = await refreshAccessToken();
-    if (refreshResult.isLeft) {
-      log('[AuthRepository] Falha ao renovar token. Limpando sessão.');
-      await logout();
-      return false;
+    // ✅ Verifica se o access token ainda é válido
+    try {
+      // Tenta buscar dados do usuário com o token atual
+      final response = await _dio.get('/users/me');
+      if (response.statusCode == 200) {
+        _user = User.fromJson(response.data);
+        log('[AuthRepository] ✅ Token válido, sessão restaurada');
+        return true;
+      }
+    } catch (e) {
+      log('[AuthRepository] Token expirado, tentando refresh...');
     }
 
-    // Se renovação OK, busca dados do usuário
-    final userResult = await _getUserInfo();
-    if (userResult.isLeft) {
-      log('[AuthRepository] Token renovado, mas falha ao buscar usuário. Limpando sessão.');
-      await logout();
-      return false;
-    }
-
-    log('[AuthRepository] Sessão inicializada com sucesso.');
-    return true;
+    // ✅ Se falhou, tenta renovar
+    final refreshResult = await refreshToken();
+    return refreshResult.isRight;
   }
 
   Future<Either<SignInError, void>> signIn({
@@ -140,6 +137,11 @@ class AuthRepository {
     }
   }
 
+  // ✅ MÉTODO PÚBLICO: refreshToken (nome usado pelo código)
+  Future<Either<String, void>> refreshToken() async {
+    return refreshAccessToken();
+  }
+
   // ✅ MÉTODO CORRIGIDO: Aguarda renovações em andamento
   Future<Either<String, void>> refreshAccessToken() async {
     // ✅ Se já está renovando, retorna a mesma Future para evitar duplicação
@@ -150,7 +152,7 @@ class AuthRepository {
 
     _isRefreshing = true;
 
-    // ✅ NOVO: Cria Future que será compartilhada com requisições simultâneas
+    // ✅ Cria Future que será compartilhada com requisições simultâneas
     _refreshFuture = _performRefresh();
 
     try {
@@ -161,12 +163,12 @@ class AuthRepository {
     }
   }
 
-  // ✅ NOVO: Método privado que executa o refresh
+  // ✅ Método privado que executa o refresh
   Future<Either<String, void>> _performRefresh() async {
     try {
-      final refreshToken = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
+      final refreshTokenValue = await _secureStorage.read(key: SecureStorageKeys.refreshToken);
 
-      if (refreshToken == null) {
+      if (refreshTokenValue == null) {
         log('[AuthRepository] ❌ Nenhum refresh token encontrado');
         return const Left('Nenhuma sessão para renovar.');
       }
@@ -175,7 +177,7 @@ class AuthRepository {
 
       final response = await _authDio.post(
         '/auth/refresh',
-        data: {'refresh_token': refreshToken},
+        data: {'refresh_token': refreshTokenValue},
       );
 
       if (response.statusCode == 200) {
@@ -192,7 +194,7 @@ class AuthRepository {
     } on DioException catch (e) {
       log('[AuthRepository] ❌ Erro ao renovar token: ${e.response?.statusCode}');
 
-      // ✅ NOVO: Detecta se refresh token expirou
+      // ✅ Detecta se refresh token expirou
       if (e.response?.statusCode == 401) {
         log('[AuthRepository] 🚨 Refresh token expirado. Sessão inválida.');
         return const Left('session_expired');
@@ -210,7 +212,7 @@ class AuthRepository {
     }
   }
 
-  // ✅ MÉTODO CORRIGIDO: Salva em memória E no storage
+  // ✅ Salva em memória E no storage
   Future<void> _saveTokens(AuthTokens tokens) async {
     _authTokens = tokens;
 
