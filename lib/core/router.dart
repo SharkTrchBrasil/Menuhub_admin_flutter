@@ -242,36 +242,150 @@ class AppRouter {
       ),
 
 
-
+      // ═══════════════════════════════════════════════════════════
+      // ✅ ORDERS FORA DO SHELL - COM PROVIDERS PRÓPRIOS
+      // ═══════════════════════════════════════════════════════════
       GoRoute(
-        path: '/orders',
-        pageBuilder: (_, state) =>
-        const NoTransitionPage(child: OrdersPage()),
+        path: '/stores/:storeId/orders',
+        pageBuilder: (context, state) {
+          final storeId = int.parse(state.pathParameters['storeId']!);
+
+          return NoTransitionPage(
+            child: MultiBlocProvider(
+              providers: [
+                BlocProvider.value(
+                  value: getIt<StoresManagerCubit>(),
+                ),
+                BlocProvider(
+                  create: (context) =>
+                  getIt<OrderCubit>()..init(context.read<StoresManagerCubit>()),
+                  lazy: false,
+                ),
+                BlocProvider(
+                  create: (context) => TablesCubit(
+                    realtimeRepository: getIt<RealtimeRepository>(),
+                  ),
+                  lazy: true,
+                ),
+              ],
+              child: OrdersPage(storeId: storeId),
+            ),
+          );
+        },
         routes: [
+          // ✅ Pedidos (rota padrão)
           GoRoute(
-            path: ':id',
+            path: 'list',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrdersListPage(),
+            ),
+          ),
+
+          // ✅ Expedição
+          GoRoute(
+            path: 'shipping',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrdersShippingPage(),
+            ),
+          ),
+
+          // ✅ Cardápio
+          GoRoute(
+            path: 'menu',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrdersMenuPage(),
+            ),
+          ),
+
+          // ✅ Ajuda
+          GoRoute(
+            path: 'help',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrdersHelpPage(),
+            ),
+          ),
+
+          // ✅ Configurações
+          GoRoute(
+            path: 'settings',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: OrdersSettingsPage(),
+            ),
+          ),
+
+          // Detalhes do pedido
+          GoRoute(
+            path: 'details/:id',
             name: 'order-details',
             builder: (context, state) {
               final extra = state.extra as Map<String, dynamic>?;
               final order = extra?['order'] as OrderDetails?;
               final store = extra?['store'] as Store?;
+
               if (order != null && store != null) {
                 return OrderDetailsPageMobile(
                   order: order,
                   store: store,
                 );
               }
+
               return const Scaffold(
                 body: Center(
-                  child: Text(
-                    "Erro: Dados do pedido não encontrados.",
-                  ),
+                  child: Text("Erro: Dados do pedido não encontrados."),
                 ),
               );
             },
           ),
         ],
       ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
       // ═══════════════════════════════════════════════════════════

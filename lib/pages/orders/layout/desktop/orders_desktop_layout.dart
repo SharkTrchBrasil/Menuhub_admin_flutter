@@ -28,7 +28,7 @@ class _OrdersDesktopLayoutState extends State<OrdersDesktopLayout> {
 
   @override
   Widget build(BuildContext context) {
-    return IfoodDesktopLayout(
+    return OrdersPageDesktop(
       activeStore: widget.activeStore,
       warningMessage: widget.warningMessage,
       orders: widget.orders,

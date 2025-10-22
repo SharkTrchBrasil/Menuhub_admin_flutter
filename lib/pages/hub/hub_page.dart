@@ -103,7 +103,7 @@ class _HubPageState extends State<HubPage> {
                   title: 'Gerenciar Pedidos',
                   subtitle: 'Acompanhe e gerencie os pedidos em tempo real',
                   icon: Icons.receipt_long_outlined,
-                  onTap: () => context.go('/orders'),
+                  onTap: () => context.go('/stores/$storeId/orders'),
                   color: Colors.orange,
                 ),
                 const SizedBox(height: 40),
