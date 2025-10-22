@@ -34,6 +34,8 @@ class CreateStoreCubit extends Cubit<CreateStoreState> {
     String? initialResponsibleName, // <-- Parâmetro para o nome
   }) : super(CreateStoreState(responsibleName: initialResponsibleName ?? ''));
 
+// lib/pages/create_store/cubit/store_setup_cubit.dart (ADICIONAR)
+
   void updateField({
     String? cep,
     String? street,
@@ -42,6 +44,9 @@ class CreateStoreCubit extends Cubit<CreateStoreState> {
     String? city,
     String? uf,
     String? complement,
+    double? latitude,
+    double? longitude,
+    double? deliveryRadius, // ✅ ADICIONAR
   }) {
     emit(
       state.copyWith(
@@ -52,9 +57,13 @@ class CreateStoreCubit extends Cubit<CreateStoreState> {
         city: city,
         uf: uf,
         complement: complement,
+        latitude: latitude,
+        longitude: longitude,
+        deliveryRadius: deliveryRadius, // ✅ ADICIONAR
       ),
     );
   }
+
 
   void setTaxIdType(TaxIdType type) {
     emit(state.copyWith(taxIdType: type));
@@ -113,27 +122,28 @@ class CreateStoreCubit extends Cubit<CreateStoreState> {
         .toList();
   }
 
+
+
   Future<void> searchZipCode(String zipcode) async {
-    // 1. Emite o estado de Loading
     emit(state.copyWith(zipCodeStatus: PageStatusLoading()));
 
     final result = await _storeRepository.getZipcodeAddress(zipcode);
 
     result.fold(
-      (failure) {
-        // 2a. Em caso de erro, emite o estado de Erro
+          (failure) {
         emit(state.copyWith(zipCodeStatus: PageStatusError(failure.message)));
       },
-      (address) {
-        // 2b. Em caso de sucesso, emite o estado de Sucesso E ATUALIZA OS CAMPOS
+          (address) {
+        // ✅ AGORA TAMBÉM SALVA COORDENADAS
         emit(
           state.copyWith(
             zipCodeStatus: PageStatusSuccess(address),
-            //  cep: address.zipcode,
             street: address.street,
             neighborhood: address.neighborhood,
             city: address.city,
             uf: address.state,
+            latitude: address.latitude,   // ✅ NOVO
+            longitude: address.longitude, // ✅ NOVO
           ),
         );
       },

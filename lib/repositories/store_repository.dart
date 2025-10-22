@@ -156,6 +156,13 @@ class StoreRepository {
         'uf': jsonData['address']?['uf'] ?? '',
         'responsible_name': jsonData['responsible']?['name'] ?? '',
         'responsible_phone': jsonData['responsible']?['phone'] ?? '',
+        // ✅ ADICIONAR COORDENADAS E RAIO
+        if (jsonData['address']?['latitude'] != null)
+          'latitude': jsonData['address']['latitude'],
+        if (jsonData['address']?['longitude'] != null)
+          'longitude': jsonData['address']['longitude'],
+        if (jsonData['delivery_radius_km'] != null)
+          'delivery_radius_km': jsonData['delivery_radius_km'],
       };
 
       flattenedData.removeWhere((key, value) {

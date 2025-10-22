@@ -38,7 +38,10 @@ class CreateStoreState extends Equatable {
   final PageStatus plansStatus;
   final PageStatus submissionStatus;
   final Segment? selectedSpecialty;
-
+  // ✅ NOVOS CAMPOS
+  final double? latitude;
+  final double? longitude;
+  final double deliveryRadius;
 
 
   const CreateStoreState({
@@ -70,6 +73,10 @@ class CreateStoreState extends Equatable {
     List<Segment>? specialtiesList,
     PageStatus? specialtiesStatus,
     this.submissionStatus = const PageStatusIdle(),
+    this.latitude,
+    this.longitude,
+    this.deliveryRadius = 10.0,
+
   })  : zipCodeStatus = zipCodeStatus ?? const PageStatusIdle(),
         specialtiesList = specialtiesList ?? const [],
         specialtiesStatus = specialtiesStatus ?? const PageStatusIdle();
@@ -104,7 +111,10 @@ class CreateStoreState extends Equatable {
 
     List<Plans>? plansList,
     PageStatus? plansStatus,
-    PageStatus? submissionStatus
+    PageStatus? submissionStatus,
+    double? latitude,
+    double? longitude,
+    double? deliveryRadius,
   }) {
     return CreateStoreState(
       cep: cep ?? this.cep,
@@ -135,6 +145,9 @@ class CreateStoreState extends Equatable {
       plansList: plansList ?? this.plansList,
       plansStatus: plansStatus ?? this.plansStatus,
       submissionStatus: submissionStatus ?? this.submissionStatus,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      deliveryRadius: deliveryRadius ?? this.deliveryRadius,
 
     );
   }
@@ -150,6 +163,9 @@ class CreateStoreState extends Equatable {
     plansList,
     plansStatus,
     submissionStatus,
+    latitude,
+    longitude,
+    deliveryRadius,
 
   ];
 
@@ -181,9 +197,13 @@ class CreateStoreState extends Equatable {
         'number': number,
         'neighborhood': neighborhood,
         'city': city,
+        // ✅ ADICIONAR COORDENADAS
+        'latitude': latitude,
+        'longitude': longitude,
         'uf': uf,
         'complement': complement.isNotEmpty ? complement : null,
       },
+      'delivery_radius_km': deliveryRadius,
     };
   }
 

@@ -26,7 +26,7 @@ import '../product_groups/helper/side_panel_helper.dart';
 
 import 'cubit/order_page_cubit.dart';
 import 'cubit/order_page_state.dart';
-import 'layout/orders_desktop_layout.dart';
+import 'layout/desktop/orders_desktop_layout.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});

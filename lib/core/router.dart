@@ -74,6 +74,7 @@ import 'package:totem_pro_admin/pages/variants/variant_edit_screen_wrapper.dart'
 
 // Widgets & Services
 import 'package:totem_pro_admin/widgets/app_shell.dart';
+import '../pages/create_store/cubit/store_setup_cubit.dart';
 import '../pages/edit_settings/hours/cubit/opening_hours_cubit.dart';
 import '../pages/operation_configuration/cubit/operation_config_cubit.dart';
 import '../pages/plans/manage_subscription_page.dart';
@@ -83,6 +84,9 @@ import '../pages/plans/subscription_manager_page.dart';
 import '../pages/products/cubit/products_cubit.dart';
 
 import '../pages/sessions/session_manager_screen.dart';
+import '../repositories/segment_repository.dart';
+import '../repositories/store_repository.dart';
+import '../repositories/user_repository.dart';
 import '../widgets/store_switcher_panel.dart';
 import 'enums/store_access.dart';
 import 'enums/wizard_type.dart';
@@ -99,14 +103,14 @@ class AppRouter {
   late final router = GoRouter(
     navigatorKey: globalNavigatorKey,
     initialLocation: '/splash',
-    debugLogDiagnostics: false,
+    debugLogDiagnostics: true,
     redirectLimit: 10,
     observers: [BotToastNavigatorObserver()],
     refreshListenable: GoRouterRefreshStream(authCubit.stream),
+
+    // ✅ REDIRECT GLOBAL - Sem applyGuards aqui
     redirect: (BuildContext context, GoRouterState state) {
       final location = state.uri.toString();
-
-      // ✅ SOLUÇÃO: Acessa direto do GetIt ao invés do context
       final authState = getIt<AuthCubit>().state;
 
       // --- NÍVEL 0: ESTADO INICIAL / CARREGAMENTO ---
@@ -123,21 +127,17 @@ class AppRouter {
       ].any((route) => location.startsWith(route));
 
       if (!isLoggedIn) {
-        // ✅ Detecta se foi logout por sessão expirada
         if (authState is AuthUnauthenticated &&
             authState.reason == 'session_expired') {
-          // Mostra mensagem de sessão expirada
           WidgetsBinding.instance.addPostFrameCallback((_) {
             BotToast.showText(
-              text:
-                  '⏰ Sua sessão expirou após 7 dias de inatividade. Faça login novamente.',
+              text: 'Sua sessão expirou após 7 dias de inatividade. Faça login novamente.',
               duration: const Duration(seconds: 5),
               contentColor: Colors.orange,
               textStyle: const TextStyle(color: Colors.white, fontSize: 14),
             );
           });
         }
-
         return isAtAuthScreen ? null : '/sign-in';
       }
 
@@ -146,12 +146,10 @@ class AppRouter {
       }
 
       // --- NÍVEL 2: ESTADO DOS DADOS DO USUÁRIO (LOJAS) ---
-      // ✅ CORRIGIDO: Verifica se StoresManagerCubit está registrado
       if (!getIt.isRegistered<StoresManagerCubit>()) {
         return '/splash';
       }
 
-      // ✅ CORRIGIDO: Acessa via getIt ao invés de context.read
       final storesState = getIt<StoresManagerCubit>().state;
 
       if (storesState is StoresManagerInitial ||
@@ -163,28 +161,33 @@ class AppRouter {
       if (storesState is StoresManagerEmpty) {
         final allowedRoutes = ['/stores/new', '/hub'];
         final isGoingToAllowedRoute = allowedRoutes.any(
-          (route) => location.startsWith(route),
+              (route) => location.startsWith(route),
         );
         return isGoingToAllowedRoute ? null : '/stores/new/wizard';
       }
 
-      // --- NÍVEL 3: ESTADO DA APLICAÇÃO (LOJA ATIVA E CONFIGURAÇÃO) ---
+// --- NÍVEL 3: ESTADO DA APLICAÇÃO (LOJA ATIVA E CONFIGURAÇÃO) ---
       if (storesState is StoresManagerLoaded) {
         final activeStore = storesState.activeStore;
+        final allStores = storesState.stores.values.toList();
 
         final isComingFromAuthFlow =
             location == '/splash' || location == '/sign-in';
+
         if (isComingFromAuthFlow) {
-          if (storesState.stores.length == 1) {
-            final singleStore = storesState.stores.values.first.store;
-            // ✅ CORRIGIDO: Usa getIt ao invés de context.read
+          // Após autenticação
+          if (allStores.length == 1) {
+            // 1 loja: vai direto pro hub
+            final singleStore = allStores.first.store;
             getIt<StoresManagerCubit>().changeActiveStore(singleStore.core.id!);
             return '/hub';
-          } else {
+          } else if (allStores.length > 1) {
+            // 2+ lojas: vai pro select-store
             return '/select-store';
           }
         }
 
+        // Se já tem uma loja ativa, mantém o fluxo
         if (activeStore == null) {
           final allowedRoutes = ['/select-store', '/hub'];
           return allowedRoutes.any((route) => location.startsWith(route))
@@ -198,36 +201,37 @@ class AppRouter {
         }
       }
 
+
       return null;
     },
-    errorPageBuilder:
-        (context, state) => const MaterialPage(child: NotFoundPage()),
 
+    errorPageBuilder: (context, state) => const MaterialPage(child: NotFoundPage()),
 
     routes: [
       // ═══════════════════════════════════════════════════════════
       // ROTAS DE AUTENTICAÇÃO (sem guards)
       // ═══════════════════════════════════════════════════════════
-      GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashPage(),
+      ),
       GoRoute(
         path: '/sign-in',
-        builder:
-            (_, state) =>
-                SignInPage(redirectTo: state.uri.queryParameters['redirectTo']),
+        builder: (_, state) => SignInPage(
+          redirectTo: state.uri.queryParameters['redirectTo'],
+        ),
       ),
       GoRoute(
         path: '/sign-up',
-        builder:
-            (_, state) =>
-                SignUpPage(redirectTo: state.uri.queryParameters['redirectTo']),
+        builder: (_, state) => SignUpPage(
+          redirectTo: state.uri.queryParameters['redirectTo'],
+        ),
       ),
       GoRoute(
         path: '/verify-email',
         builder: (context, state) {
-          final email =
-              state.uri.queryParameters['email'] ??
-              (context.read<AuthCubit>().state as AuthNeedsVerification?)
-                  ?.email;
+          final email = state.uri.queryParameters['email'] ??
+              (context.read<AuthCubit>().state as AuthNeedsVerification?)?.email;
           if (email == null) {
             return const Scaffold(
               body: Center(child: Text('E-mail não encontrado.')),
@@ -236,6 +240,39 @@ class AppRouter {
           return VerifyCodePage(email: email);
         },
       ),
+
+
+
+      GoRoute(
+        path: '/orders',
+        pageBuilder: (_, state) =>
+        const NoTransitionPage(child: OrdersPage()),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'order-details',
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              final order = extra?['order'] as OrderDetails?;
+              final store = extra?['store'] as Store?;
+              if (order != null && store != null) {
+                return OrderDetailsPageMobile(
+                  order: order,
+                  store: store,
+                );
+              }
+              return const Scaffold(
+                body: Center(
+                  child: Text(
+                    "Erro: Dados do pedido não encontrados.",
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+
 
       // ═══════════════════════════════════════════════════════════
       // SHELL PRINCIPAL
@@ -246,17 +283,14 @@ class AppRouter {
             providers: [
               BlocProvider.value(value: getIt<StoresManagerCubit>()),
               BlocProvider(
-                create:
-                    (context) =>
-                        getIt<OrderCubit>()
-                          ..init(context.read<StoresManagerCubit>()),
+                create: (context) =>
+                getIt<OrderCubit>()..init(context.read<StoresManagerCubit>()),
                 lazy: true,
               ),
               BlocProvider(
-                create:
-                    (context) => TablesCubit(
-                      realtimeRepository: getIt<RealtimeRepository>(),
-                    ),
+                create: (context) => TablesCubit(
+                  realtimeRepository: getIt<RealtimeRepository>(),
+                ),
                 lazy: true,
               ),
             ],
@@ -265,51 +299,52 @@ class AppRouter {
         },
         routes: [
           // ─────────────────────────────────────────────────────
-          // SELETOR DE LOJAS (com guard)
+          // SELECT STORE (sem redirect, rota simples)
           // ─────────────────────────────────────────────────────
           GoRoute(
             path: '/select-store',
-            redirect:
-                (context, state) => applyGuards(
-                  context,
-                  state,
-                  [MultiStoreGuard()], // ✅ Só permite se tiver múltiplas lojas
-                ),
             pageBuilder: (context, state) {
               return const MaterialPage(child: StoreSwitcherPanelWrapper());
             },
           ),
 
-          GoRoute(path: '/hub', builder: (context, state) => const HubPage()),
+          GoRoute(
+            path: '/hub',
+            builder: (context, state) => const HubPage(),
+          ),
 
           // ─────────────────────────────────────────────────────
-          // CRIAR NOVA LOJA (com guard)
+          // CRIAR NOVA LOJA (sem redirect, rota simples)
           // ─────────────────────────────────────────────────────
+
           GoRoute(
             path: '/stores/new',
-            redirect:
-                (context, state) => applyGuards(
-                  context,
-                  state,
-                  [CanCreateStoreGuard()], // ✅ Só OWNER pode criar lojas
-                ),
             builder: (context, state) => const NewStoreOptionsPage(),
             routes: [
               GoRoute(
                 path: 'clone',
-                redirect:
-                    (context, state) =>
-                        applyGuards(context, state, [CanCreateStoreGuard()]),
-                builder:
-                    (context, state) =>
-                        NewStoreWizardPage(mode: WizardMode.clone),
+                builder: (context, state) =>
+                    NewStoreWizardPage(mode: WizardMode.clone),
               ),
+
+              // ✅ CORRIGIR ESTA ROTA
               GoRoute(
                 path: 'wizard',
-                redirect:
-                    (context, state) =>
-                        applyGuards(context, state, [CanCreateStoreGuard()]),
-                builder: (context, state) => const StoreSetupPage(),
+                builder: (context, state) {
+                  // ✅ ADICIONAR O CUBIT AQUI
+                  return BlocProvider<CreateStoreCubit>(
+                    create: (context) => CreateStoreCubit(
+                      getIt<StoreRepository>(),
+                      getIt<SegmentRepository>(),
+                      getIt<UserRepository>(),
+                      getIt<AuthCubit>(),
+                      getIt<StoresManagerCubit>(),
+                      initialResponsibleName: (context.read<AuthCubit>().state
+                      as AuthAuthenticated?)?.data.user.name,
+                    ),
+                    child: const StoreSetupPage(),
+                  );
+                },
               ),
             ],
           ),
@@ -327,50 +362,36 @@ class AppRouter {
               return null;
             },
             routes: [
-              // ───────────────────────────────────────────────────────
-              // WIZARD (sem guard - necessário para setup inicial)
-              // ───────────────────────────────────────────────────────
+              // ─────────────────────────────────────────────────────
+              // WIZARD (sem guard)
+              // ─────────────────────────────────────────────────────
               GoRoute(
                 path: 'wizard',
                 builder: (context, state) {
                   final storeId = int.parse(state.pathParameters['storeId']!);
                   return BlocProvider<StoreWizardCubit>(
-                    create:
-                        (context) => StoreWizardCubit(
-                          storeId: storeId,
-                          storesManagerCubit:
-                              context.read<StoresManagerCubit>(),
-                          openingHoursCubit: context.read<OpeningHoursCubit>(),
-                        ),
+                    create: (context) => StoreWizardCubit(
+                      storeId: storeId,
+                      storesManagerCubit: context.read<StoresManagerCubit>(),
+                      openingHoursCubit: context.read<OpeningHoursCubit>(),
+                    ),
                     child: StoreSetupWizardPage(storeId: storeId),
                   );
                 },
               ),
 
-              // ───────────────────────────────────────────────────────
-              // ASSINATURA (guard: OWNER)
-              // ───────────────────────────────────────────────────────
+              // ─────────────────────────────────────────────────────
+              // SUBSCRIPTION (sem redirect, rota simples)
+              // ─────────────────────────────────────────────────────
               GoRoute(
                 path: 'subscription',
                 redirect: (context, state) {
-                  // Primeiro aplica o guard
-                  final guardResult = applyGuards(
-                    context,
-                    state,
-                    [OwnerGuard()], // ✅ Só OWNER
-                  );
-                  if (guardResult != null) return guardResult;
-
-                  // Depois faz o redirect normal
                   final storeId = state.pathParameters['storeId'];
                   return '/stores/$storeId/subscription/plans';
                 },
                 routes: [
                   GoRoute(
                     path: 'manage',
-                    redirect:
-                        (context, state) =>
-                            applyGuards(context, state, [OwnerGuard()]),
                     pageBuilder: (context, state) {
                       final storeId = int.parse(
                         state.pathParameters['storeId']!,
@@ -382,9 +403,6 @@ class AppRouter {
                   ),
                   GoRoute(
                     path: 'plans',
-                    redirect:
-                        (context, state) =>
-                            applyGuards(context, state, [OwnerGuard()]),
                     pageBuilder: (context, state) {
                       final storeId = int.parse(
                         state.pathParameters['storeId']!,
@@ -396,9 +414,6 @@ class AppRouter {
                   ),
                   GoRoute(
                     path: 'reactivate',
-                    redirect:
-                        (context, state) =>
-                            applyGuards(context, state, [OwnerGuard()]),
                     pageBuilder: (context, state) {
                       final storeId = int.parse(
                         state.pathParameters['storeId']!,
@@ -423,303 +438,180 @@ class AppRouter {
                   );
                 },
                 branches: [
-                  // ─────────────────────────────────────────────────────
-                  // DASHBOARD (todos podem acessar)
-                  // ─────────────────────────────────────────────────────
+                  // Dashboard
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'dashboard',
-                        pageBuilder:
-                            (_, state) =>
-                                const NoTransitionPage(child: DashboardPage()),
+                        pageBuilder: (_, state) =>
+                        const NoTransitionPage(child: DashboardPage()),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // ANALYTICS (todos podem acessar)
-                  // ─────────────────────────────────────────────────────
+                  // Analytics
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'analytics',
-                        pageBuilder:
-                            (_, state) =>
-                                const NoTransitionPage(child: AnalyticsPage()),
+                        pageBuilder: (_, state) =>
+                        const NoTransitionPage(child: AnalyticsPage()),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // PERFORMANCE (guard: OWNER ou MANAGER)
-                  // ─────────────────────────────────────────────────────
+                  // Performance
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'performance',
-                        redirect:
-                            (context, state) => applyGuards(
-                              context,
-                              state,
-                              [ManagerGuard()], // ✅ OWNER ou MANAGER
+                        pageBuilder: (context, state) => NoTransitionPage(
+                          child: BlocProvider<PerformanceCubit>(
+                            create: (context) => PerformanceCubit(
+                              getIt<AnalyticsRepository>(),
+                              int.parse(state.pathParameters['storeId']!),
                             ),
-                        pageBuilder:
-                            (context, state) => NoTransitionPage(
-                              child: BlocProvider<PerformanceCubit>(
-                                create:
-                                    (context) => PerformanceCubit(
-                                      getIt<AnalyticsRepository>(),
-                                      int.parse(
-                                        state.pathParameters['storeId']!,
-                                      ),
-                                    ),
-                                child: const PerformancePage(),
-                              ),
-                            ),
-                      ),
-                    ],
-                  ),
-
-                  // ─────────────────────────────────────────────────────
-                  // PEDIDOS (todos podem acessar)
-                  // ─────────────────────────────────────────────────────
-                  StatefulShellBranch(
-                    routes: [
-                      GoRoute(
-                        path: 'orders',
-                        pageBuilder:
-                            (_, state) =>
-                                const NoTransitionPage(child: OrdersPage()),
-                        routes: [
-                          GoRoute(
-                            path: ':id',
-                            name: 'order-details',
-                            builder: (context, state) {
-                              final extra =
-                                  state.extra as Map<String, dynamic>?;
-                              final order = extra?['order'] as OrderDetails?;
-                              final store = extra?['store'] as Store?;
-                              if (order != null && store != null) {
-                                return OrderDetailsPageMobile(
-                                  order: order,
-                                  store: store,
-                                );
-                              }
-                              return const Scaffold(
-                                body: Center(
-                                  child: Text(
-                                    "Erro: Dados do pedido não encontrados.",
-                                  ),
-                                ),
-                              );
-                            },
+                            child: const PerformancePage(),
                           ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // PRODUTOS (guard: OWNER ou MANAGER)
-                  // ─────────────────────────────────────────────────────
+
+                  // Products
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'products',
                         name: 'products',
-                        redirect:
-                            (context, state) => applyGuards(
-                              context,
-                              state,
-                              [ManagerGuard()], // ✅ OWNER ou MANAGER
+                        pageBuilder: (context, state) => NoTransitionPage(
+                          child: BlocProvider<ProductsCubit>(
+                            create: (context) => getIt<ProductsCubit>(),
+                            child: CategoryProductPage(
+                              storeId: state.storeId,
                             ),
-                        pageBuilder:
-                            (context, state) => NoTransitionPage(
-                              child: BlocProvider<ProductsCubit>(
-                                create: (context) => getIt<ProductsCubit>(),
-                                child: CategoryProductPage(
-                                  storeId: state.storeId,
-                                ),
-                              ),
-                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // MÉTODOS DE PAGAMENTO (guard: OWNER ou MANAGER)
-                  // ─────────────────────────────────────────────────────
+                  // Payment Methods
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'payment-methods',
-                        redirect:
-                            (context, state) =>
-                                applyGuards(context, state, [ManagerGuard()]),
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: PaymentMethodsPage(storeId: state.storeId),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: PaymentMethodsPage(storeId: state.storeId),
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // MÉTODOS DA PLATAFORMA (guard: OWNER)
-                  // ─────────────────────────────────────────────────────
+                  // Platform Payment Methods
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'platform-payment-methods',
-                        redirect:
-                            (context, state) => applyGuards(
-                              context,
-                              state,
-                              [OwnerGuard()], // ✅ Só OWNER
-                            ),
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: PlatformPaymentMethodsPage(
-                                storeId: state.storeId,
-                              ),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: PlatformPaymentMethodsPage(
+                            storeId: state.storeId,
+                          ),
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // CUPONS (guard: OWNER ou MANAGER)
-                  // ─────────────────────────────────────────────────────
+                  // Coupons
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'coupons',
-                        redirect:
-                            (context, state) =>
-                                applyGuards(context, state, [ManagerGuard()]),
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: CouponsPage(storeId: state.storeId),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: CouponsPage(storeId: state.storeId),
+                        ),
                         routes: [
                           GoRoute(
                             path: 'new',
-                            redirect:
-                                (context, state) => applyGuards(
-                                  context,
-                                  state,
-                                  [ManagerGuard()],
-                                ),
-                            builder:
-                                (_, state) =>
-                                    EditCouponPage(storeId: state.storeId),
+                            builder: (_, state) =>
+                                EditCouponPage(storeId: state.storeId),
                           ),
                           GoRoute(
                             path: ':id',
-                            redirect:
-                                (context, state) => applyGuards(
-                                  context,
-                                  state,
-                                  [ManagerGuard()],
-                                ),
-                            builder:
-                                (_, state) => EditCouponPage(
-                                  storeId: state.storeId,
-                                  id: state.id,
-                                  coupon: state.extra as Coupon?,
-                                ),
+                            builder: (_, state) => EditCouponPage(
+                              storeId: state.storeId,
+                              id: state.id,
+                              coupon: state.extra as Coupon?,
+                            ),
                           ),
                         ],
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // CAIXA (todos podem acessar)
-                  // ─────────────────────────────────────────────────────
+                  // Cash
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'cash',
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: CashPage(storeId: state.storeId),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: CashPage(storeId: state.storeId),
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // ACESSOS (guard: OWNER)
-                  // ─────────────────────────────────────────────────────
+                  // Accesses
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'accesses',
-                        redirect:
-                            (context, state) => applyGuards(
-                              context,
-                              state,
-                              [OwnerGuard()], // ✅ Só OWNER
-                            ),
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: AccessesPage(storeId: state.storeId),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: AccessesPage(storeId: state.storeId),
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // SESSÕES (todos podem acessar)
-                  // ─────────────────────────────────────────────────────
+                  // Sessions
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'sessions',
-                        pageBuilder:
-                            (_, state) => const NoTransitionPage(
-                              child: SessionManagerPage(),
-                            ),
+                        pageBuilder: (_, state) => const NoTransitionPage(
+                          child: SessionManagerPage(),
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // CHATBOT (guard: OWNER ou MANAGER)
-                  // ─────────────────────────────────────────────────────
+                  // Chatbot
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'chatbot',
-                        redirect:
-                            (context, state) =>
-                                applyGuards(context, state, [ManagerGuard()]),
                         pageBuilder: (context, state) {
-                          final storeId = int.parse(
-                            state.pathParameters['storeId']!,
-                          );
+                          final storeId =
+                          int.parse(state.pathParameters['storeId']!);
                           final storesCubit =
-                              context.read<StoresManagerCubit>();
+                          context.read<StoresManagerCubit>();
                           final activeStore =
                               (storesCubit.state as StoresManagerLoaded)
                                   .activeStore;
                           return NoTransitionPage(
                             child: BlocProvider<ChatbotCubit>(
-                              create:
-                                  (context) => ChatbotCubit(
-                                    storeId: storeId,
-                                    chatbotRepository:
-                                        getIt<ChatbotRepository>(),
-                                    realtimeRepository:
-                                        getIt<RealtimeRepository>(),
-                                    storesManagerCubit: storesCubit,
-                                  )..initialize(
-                                    activeStore?.relations.chatbotConfig,
-                                    activeStore?.relations.chatbotMessages ??
-                                        [],
-                                  ),
+                              create: (context) => ChatbotCubit(
+                                storeId: storeId,
+                                chatbotRepository:
+                                getIt<ChatbotRepository>(),
+                                realtimeRepository:
+                                getIt<RealtimeRepository>(),
+                                storesManagerCubit: storesCubit,
+                              )..initialize(
+                                activeStore?.relations.chatbotConfig,
+                                activeStore?.relations.chatbotMessages ?? [],
+                              ),
                               child: ChatbotPage(
                                 storeId: storeId,
                                 phoneStore: activeStore?.core.phone ?? "",
@@ -731,48 +623,32 @@ class AppRouter {
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // CONFIGURAÇÕES (guard: OWNER ou MANAGER)
-                  // ─────────────────────────────────────────────────────
+                  // Settings
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'settings',
-                        redirect:
-                            (context, state) =>
-                                applyGuards(context, state, [ManagerGuard()]),
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: StoreProfilePage(storeId: state.storeId),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: StoreProfilePage(storeId: state.storeId),
+                        ),
                         routes: [
                           GoRoute(
                             path: 'hours',
-                            redirect:
-                                (context, state) => applyGuards(
-                                  context,
-                                  state,
-                                  [ManagerGuard()],
-                                ),
                             builder: (context, state) {
                               return BlocProvider<OpeningHoursCubit>(
-                                create: (context) => getIt<OpeningHoursCubit>(),
-                                child: OpeningHoursPage(storeId: state.storeId),
+                                create: (context) =>
+                                    getIt<OpeningHoursCubit>(),
+                                child:
+                                OpeningHoursPage(storeId: state.storeId),
                               );
                             },
                           ),
                           GoRoute(
                             path: 'shipping',
-                            redirect:
-                                (context, state) => applyGuards(
-                                  context,
-                                  state,
-                                  [ManagerGuard()],
-                                ),
                             builder: (context, state) {
                               return BlocProvider<OperationConfigCubit>(
-                                create:
-                                    (context) => getIt<OperationConfigCubit>(),
+                                create: (context) =>
+                                    getIt<OperationConfigCubit>(),
                                 child: OperationConfigurationPage(
                                   storeId: state.storeId,
                                 ),
@@ -781,104 +657,62 @@ class AppRouter {
                           ),
                           GoRoute(
                             path: 'locations',
-                            redirect:
-                                (context, state) => applyGuards(
-                                  context,
-                                  state,
-                                  [ManagerGuard()],
-                                ),
-                            builder:
-                                (_, state) => CityNeighborhoodPage(
-                                  storeId: state.storeId,
-                                  isInWizard: false,
-                                ),
+                            builder: (_, state) => CityNeighborhoodPage(
+                              storeId: state.storeId,
+                              isInWizard: false,
+                            ),
                           ),
                         ],
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // MAIS (todos podem acessar)
-                  // ─────────────────────────────────────────────────────
+                  // More
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'more',
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: MorePage(storeId: state.storeId),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: MorePage(storeId: state.storeId),
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // RELATÓRIOS (guard: OWNER, MANAGER ou CASHIER)
-                  // ─────────────────────────────────────────────────────
+                  // Reports
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'reports',
-                        redirect:
-                            (context, state) => applyGuards(context, state, [
-                              RoleGuard(
-                                allowedRoles: [
-                                  StoreAccessRole.owner,
-                                  StoreAccessRole.manager,
-                                  StoreAccessRole.cashier,
-                                ],
-                              ),
-                            ]),
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: ReportsPage(storeId: state.storeId),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: ReportsPage(storeId: state.storeId),
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // ESTOQUE (guard: OWNER, MANAGER ou STOCK_MANAGER)
-                  // ─────────────────────────────────────────────────────
+                  // Inventory
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'inventory',
-                        redirect:
-                            (context, state) => applyGuards(context, state, [
-                              RoleGuard(
-                                allowedRoles: [
-                                  StoreAccessRole.owner,
-                                  StoreAccessRole.manager,
-                                  StoreAccessRole.stockManager,
-                                ],
-                              ),
-                            ]),
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: InventoryPage(storeId: state.storeId),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: InventoryPage(storeId: state.storeId),
+                        ),
                       ),
                     ],
                   ),
 
-                  // ─────────────────────────────────────────────────────
-                  // MANAGER (guard: OWNER)
-                  // ─────────────────────────────────────────────────────
+                  // Manager
                   StatefulShellBranch(
                     routes: [
                       GoRoute(
                         path: 'manager',
-                        redirect:
-                            (context, state) =>
-                                applyGuards(context, state, [OwnerGuard()]),
-                        pageBuilder:
-                            (_, state) => NoTransitionPage(
-                              child: SubscriptionManagerPage(
-                                storeId: state.storeId,
-                              ),
-                            ),
+                        pageBuilder: (_, state) => NoTransitionPage(
+                          child: SubscriptionManagerPage(
+                            storeId: state.storeId,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -890,6 +724,8 @@ class AppRouter {
       ),
     ],
   );
+
+
 }
 
 // ═══════════════════════════════════════════════════════════

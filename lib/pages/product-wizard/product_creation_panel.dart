@@ -7,6 +7,8 @@ import 'package:totem_pro_admin/models/products/prodcut_category_links.dart';
 import 'package:totem_pro_admin/pages/product-wizard/steps/step1_product_type.dart';
 import 'package:totem_pro_admin/pages/product-wizard/steps/step2_product_details.dart';
 import 'package:totem_pro_admin/pages/product-wizard/steps/step3_complements.dart';
+import 'package:totem_pro_admin/pages/product-wizard/tabs/wizard_complements_tab.dart';
+import 'package:totem_pro_admin/pages/product-wizard/tabs/wizard_pricing_tab.dart';
 
 import 'package:totem_pro_admin/widgets/ds_primary_button.dart';
 
@@ -71,10 +73,13 @@ class _ProductWizardView extends StatelessWidget {
       case 2:
         return const Step2ProductDetails();
       case 3:
-      // O passo 3 é omitido para produtos INDUSTRIALIZED
-        return type == ProductType.PREPARED ? const Step3Complements() : const ProductPricingTab();
+      // ✅ USA A TAB DO WIZARD
+        return type == ProductType.PREPARED
+            ? const WizardComplementsTab()  // ← MUDANÇA AQUI
+            : const WizardPricingTab();     // ← MUDANÇA AQUI
       case 4:
-        return const ProductPricingTab();
+      // ✅ USA A TAB DO WIZARD
+        return const WizardPricingTab();     // ← MUDANÇA AQUI
       default:
         return const Step1ProductType();
     }

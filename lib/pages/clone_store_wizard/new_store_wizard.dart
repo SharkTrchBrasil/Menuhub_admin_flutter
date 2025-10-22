@@ -8,11 +8,27 @@ class NewStoreOptionsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Criar Nova Loja'),
+
         backgroundColor: Colors.white,
-        elevation: 1,
+        elevation: 0,
+        actions: [
+          // Botão X para fechar - visível em todos os dispositivos
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () {
+              // Fecha a página atual
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                // Fallback caso não possa fazer pop
+                context.go('/');
+              }
+            },
+            tooltip: 'Fechar', // Acessibilidade
+          ),
+        ],
       ),
-      backgroundColor: Colors.grey[50],
+
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -21,6 +37,7 @@ class NewStoreOptionsPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Título principal
                 Text(
                   'Como você quer começar?',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -29,6 +46,8 @@ class NewStoreOptionsPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+
+                // Descrição
                 Text(
                   'Escolha uma das opções abaixo para configurar sua nova loja.',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -36,32 +55,45 @@ class NewStoreOptionsPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 40),
+
+                // Opção 1 - Criar do Zero
                 _buildOptionCard(
                   context,
                   icon: Icons.add_business_outlined,
                   title: 'Criar do Zero',
                   description: 'Comece uma loja novinha em folha, configurando cada detalhe do seu jeito.',
                   onTap: () {
-                    // Navega para o wizard no modo 'fromScratch'
                     context.go('/stores/new/wizard');
                   },
                 ),
                 const SizedBox(height: 24),
+
+                // Opção 2 - Clonar Loja Existente
                 _buildOptionCard(
                   context,
                   icon: Icons.copy_all_outlined,
                   title: 'Clonar Loja Existente',
                   description: 'Economize tempo clonando produtos, configurações e mais de uma loja que você já gerencia.',
                   onTap: () {
-                    // Navega para o wizard no modo 'clone'
                     context.go('/stores/new/clone');
                   },
                 ),
+
+                // Botão de Cancelar adicional para mobile (opcional)
+                if (MediaQuery.of(context).size.width < 600) ...[
+                  const SizedBox(height: 32),
+                  _buildCancelButton(context),
+                ],
               ],
             ),
           ),
         ),
       ),
+
+      // Botão de cancelar no footer para desktop (opcional)
+      bottomNavigationBar: MediaQuery.of(context).size.width >= 600
+          ? _buildBottomCancelButton(context)
+          : null,
     );
   }
 
@@ -81,17 +113,23 @@ class NewStoreOptionsPage extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.all(
+            MediaQuery.of(context).size.width < 600 ? 20.0 : 24.0,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Ícone responsivo
               Icon(
                 icon,
-                size: 40,
+                size: MediaQuery.of(context).size.width < 600 ? 32 : 40,
                 color: Theme.of(context).primaryColor,
               ),
-              const SizedBox(width: 20),
+              SizedBox(width: MediaQuery.of(context).size.width < 600 ? 16 : 20),
+
+              // Conteúdo de texto
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,6 +138,9 @@ class NewStoreOptionsPage extends StatelessWidget {
                       title,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
+                        fontSize: MediaQuery.of(context).size.width < 600
+                            ? Theme.of(context).textTheme.titleLarge!.fontSize! * 0.9
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -108,14 +149,67 @@ class NewStoreOptionsPage extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.grey[700],
                         height: 1.5,
+                        fontSize: MediaQuery.of(context).size.width < 600
+                            ? Theme.of(context).textTheme.bodyMedium!.fontSize! * 0.9
+                            : null,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+
+              // Seta indicadora
+              Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.grey,
+                  size: MediaQuery.of(context).size.width < 600 ? 14 : 16
+              ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Botão de cancelar para o footer (desktop)
+  Widget _buildBottomCancelButton(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildCancelButton(context),
+        ],
+      ),
+    );
+  }
+
+  // Botão de cancelar reutilizável
+  Widget _buildCancelButton(BuildContext context) {
+    return SizedBox(
+      width: MediaQuery.of(context).size.width < 600 ? double.infinity : null,
+      child: OutlinedButton(
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/');
+          }
+        },
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+          side: BorderSide(color: Colors.grey.shade400),
+        ),
+        child: Text(
+          'Cancelar',
+          style: TextStyle(
+            color: Colors.grey[700],
+            fontSize: MediaQuery.of(context).size.width < 600 ? 16 : null,
           ),
         ),
       ),

@@ -49,7 +49,7 @@ class CategoryPanel extends StatelessWidget {
                   backgroundColor: Colors.green,
                 ),
               );
-            onSaveSuccess(); // Notifica o pai para fechar e atualizar
+         //   onSaveSuccess(); // Notifica o pai para fechar e atualizar
           } else if (state.status == FormStatus.error) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()

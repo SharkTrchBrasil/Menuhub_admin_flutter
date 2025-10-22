@@ -78,6 +78,11 @@ class AuthRepository {
     return refreshResult.isRight;
   }
 
+// ✅ ADICIONAR: Alias para compatibilidade
+  Future<Either<String, void>> refreshToken() async {
+    return refreshAccessToken();
+  }
+
   Future<Either<SignInError, void>> signIn({
     required String email,
     required String password,
@@ -137,12 +142,9 @@ class AuthRepository {
     }
   }
 
-  // ✅ MÉTODO PÚBLICO: refreshToken (nome usado pelo código)
-  Future<Either<String, void>> refreshToken() async {
-    return refreshAccessToken();
-  }
 
-  // ✅ MÉTODO CORRIGIDO: Aguarda renovações em andamento
+
+
   Future<Either<String, void>> refreshAccessToken() async {
     // ✅ Se já está renovando, retorna a mesma Future para evitar duplicação
     if (_isRefreshing && _refreshFuture != null) {
@@ -163,7 +165,7 @@ class AuthRepository {
     }
   }
 
-  // ✅ Método privado que executa o refresh
+
   Future<Either<String, void>> _performRefresh() async {
     try {
       final refreshTokenValue = await _secureStorage.read(key: SecureStorageKeys.refreshToken);

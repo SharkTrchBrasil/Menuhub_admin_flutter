@@ -16,14 +16,14 @@ import '../../../cubits/store_manager_cubit.dart';
 import '../../../cubits/store_manager_state.dart';
 import '../../commands/cubit/standalone_commands_cubit.dart'; // ✅ NOVO IMPORT
 
-class OrdersDesktopLayout extends StatefulWidget {
+class OrdersDesktopLayout1 extends StatefulWidget {
   final Store? activeStore;
   final String? warningMessage;
   final List<OrderDetails> orders;
   final bool isLoading;
   final Function(OrderDetails) onOrderSelected;
 
-  const OrdersDesktopLayout({
+  const OrdersDesktopLayout1({
     super.key,
     required this.activeStore,
     this.warningMessage,
@@ -33,10 +33,10 @@ class OrdersDesktopLayout extends StatefulWidget {
   });
 
   @override
-  State<OrdersDesktopLayout> createState() => _OrdersDesktopLayoutState();
+  State<OrdersDesktopLayout1> createState() => _OrdersDesktopLayout1State();
 }
 
-class _OrdersDesktopLayoutState extends State<OrdersDesktopLayout> {
+class _OrdersDesktopLayout1State extends State<OrdersDesktopLayout1> {
   String? _selectedTabKey = 'balcao'; // 'balcao', 'delivery', 'mesa', 'comandas'
   int _selectedStatusFilterIndex = 0;
 

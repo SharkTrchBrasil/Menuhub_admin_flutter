@@ -129,7 +129,8 @@ dependencies:
 
   recase: ^4.1.0
   flutter_speed_dial: ^7.0.0
-
+  flutter_map: ^6.1.0        # ✅ Funciona em TODAS plataformas (mobile, web, desktop)
+  latlong2: ^0.9.0
 
 
 dev_dependencies:

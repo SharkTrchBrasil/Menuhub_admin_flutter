@@ -8,6 +8,9 @@ class Address {
   final String street;
   final String number;
   final String complement;
+  // ✅ NOVOS CAMPOS
+  final double? latitude;
+  final double? longitude;
 
   Address({
     required this.zipcode,
@@ -17,6 +20,8 @@ class Address {
     required this.street,
     this.number = '',
     this.complement = '',
+    this.latitude,
+    this.longitude,
   });
 
   // ✅ CORREÇÃO APLICADA AQUI
@@ -29,6 +34,8 @@ class Address {
       neighborhood: json['bairro'] ?? '',
       street: json['logradouro'] ?? '',
       complement: json['complemento'] ?? '',
+      latitude: json['latitude'] as double?,   // ✅ NOVO
+      longitude: json['longitude'] as double?, // ✅ NOVO
     );
   }
 
@@ -40,6 +47,8 @@ class Address {
     String? street,
     String? number,
     String? complement,
+    double? latitude,
+    double? longitude,
   }) {
     return Address(
       zipcode: zipcode ?? this.zipcode,
@@ -49,10 +58,11 @@ class Address {
       street: street ?? this.street,
       number: number ?? this.number,
       complement: complement ?? this.complement,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
     );
   }
 
-// Em lib/models/address.dart
 
   Map<String, dynamic> toJson() {
     return {
@@ -66,6 +76,8 @@ class Address {
       'zipcode': (zipcode != null && zipcode!.isNotEmpty)
           ? UtilBrasilFields.removeCaracteres(zipcode!)
           : null,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 }

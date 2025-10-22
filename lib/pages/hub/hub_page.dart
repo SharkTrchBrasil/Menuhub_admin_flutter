@@ -3,17 +3,57 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totem_pro_admin/cubits/store_manager_cubit.dart';
 import 'package:totem_pro_admin/cubits/store_manager_state.dart';
+import 'package:totem_pro_admin/services/preference_service.dart';
+import 'package:totem_pro_admin/core/di.dart';
 
-class HubPage extends StatelessWidget {
+class HubPage extends StatefulWidget {
   const HubPage({super.key});
+
+  @override
+  State<HubPage> createState() => _HubPageState();
+}
+
+class _HubPageState extends State<HubPage> {
+  bool _skipNextTime = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSkipPreference();
+  }
+
+  Future<void> _loadSkipPreference() async {
+    try {
+      final shouldSkip = await getIt<PreferenceService>().getSkipHubPreference();
+      setState(() {
+        _skipNextTime = shouldSkip;
+      });
+    } catch (e) {
+      print('Erro ao carregar preferência: $e');
+    }
+  }
+
+  void _handleSkipChange(bool? value) {
+    if (value == null) return;
+
+    final storeId = context.read<StoresManagerCubit>().state.activeStore?.core.id;
+
+    if (storeId != null) {
+      setState(() {
+        _skipNextTime = value;
+      });
+
+      getIt<PreferenceService>().saveSkipHubPreference(value, storeId).catchError((e) {
+        print('Erro ao salvar preferência: $e');
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final storeId = context.read<StoresManagerCubit>().state.activeStore?.core.id;
 
     if (storeId == null) {
-      // Caso de segurança: se nenhuma loja estiver ativa, mostra um erro.
-      // A lógica de redirect deve prevenir isso, mas é bom ter.
       return const Scaffold(
         body: Center(
           child: Text('Nenhuma loja ativa selecionada.'),
@@ -22,7 +62,6 @@ class HubPage extends StatelessWidget {
     }
 
     return Scaffold(
-
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -64,8 +103,32 @@ class HubPage extends StatelessWidget {
                   title: 'Gerenciar Pedidos',
                   subtitle: 'Acompanhe e gerencie os pedidos em tempo real',
                   icon: Icons.receipt_long_outlined,
-                  onTap: () => context.go('/stores/$storeId/orders'),
+                  onTap: () => context.go('/orders'),
                   color: Colors.orange,
+                ),
+                const SizedBox(height: 40),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: _skipNextTime,
+                        onChanged: _handleSkipChange,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Pular tela de hub na próxima vez',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -76,7 +139,6 @@ class HubPage extends StatelessWidget {
   }
 }
 
-// Widget auxiliar para os cartões de opção
 class _HubCard extends StatelessWidget {
   final String title;
   final String subtitle;

@@ -91,6 +91,8 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
 
 
+// Em: cubits/store_manager_cubit.dart
+
   Future<void> loadInitialData() async {
     if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
       log('[CUBIT] loadInitialData já está em andamento. Aguardando...');
@@ -103,57 +105,26 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     _initialLoadCompleter = Completer<void>();
 
-    log('[CUBIT] Orchestrating initial data load...');
+    log('[CUBIT] Orchestrating initial data load (Socket-First)...');
     emit(const StoresManagerLoading());
 
     try {
+      // 1. Espera o socket conectar (ele já foi inicializado pelo AuthCubit com o token novo)
       await _waitForSocketConnection();
 
+      // 2. Inicia os listeners (incluindo o de 'admin_stores_list')
       if (_adminStoresListSubscription == null) {
         _startRealtimeListeners();
       }
 
-      // 1. Busca os dados básicos de TODAS as lojas via HTTP
-      final result = await _storeRepository.getStores();
+      log('[CUBIT] Socket connected. Listeners started. Aguardando admin_stores_list...');
+      // 3. A mágica agora acontece em _onAdminStoresListReceived.
+      //    Não fazemos mais a chamada HTTP aqui.
 
-      await result.fold(
-            (failure) {
-          log('❌ [CUBIT] Failed to load initial stores via HTTP: ');
-          emit(const StoresManagerError(message: 'Não foi possível carregar suas lojas.'));
-          if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
-        },
-            (stores) async {
-          final validStores = stores.where((s) => s.store.core.id != null).toList();
+      // O completer será finalizado quando _onFullMenuUpdated for chamado,
+      // que por sua vez é disparado depois de _onAdminStoresListReceived
+      // emitir o estado Synchronizing e entrar na sala.
 
-          if (validStores.isEmpty) {
-            log("🔵 [CUBIT] No stores found. Emitting StoresManagerEmpty.");
-            emit(const StoresManagerEmpty());
-            if (!_initialLoadCompleter!.isCompleted) _initialLoadCompleter!.complete();
-            return;
-          }
-
-          // 2. Cria o mapa com os dados básicos (já incluem subscription!)
-          final storesMap = {for (var s in validStores) s.store.core.id!: s};
-          final firstStoreId = validStores.first.store.core.id!;
-
-          log("✅ [CUBIT] HTTP load complete with ${validStores.length} stores.");
-          log("📋 [CUBIT] Todas as lojas têm dados básicos (nome, endereço, subscription).");
-          log("🔄 [CUBIT] Iniciando carregamento dos dados operacionais da loja $firstStoreId...");
-
-          // 3. Emite um estado temporário com dados básicos
-          emit(StoresManagerSynchronizing(
-            stores: storesMap,
-            activeStoreId: firstStoreId,
-          ));
-
-          // 4. Entra na sala da PRIMEIRA loja para carregar dados operacionais
-          await _realtimeRepository.joinStoreRoom(firstStoreId);
-          log("✅ [CUBIT] Joined WebSocket room for store ID: $firstStoreId. Aguardando dados operacionais...");
-
-          // 5. O completer será finalizado quando _onFullMenuUpdated for chamado
-          // (isso já está implementado corretamente)
-        },
-      );
     } catch (e, st) {
       log('❌ [CUBIT] Critical error during initial data load: $e', stackTrace: st);
       emit(const StoresManagerError(message: 'Falha na conexão com o servidor. Tente novamente.'));
@@ -164,8 +135,6 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
 
     return _initialLoadCompleter!.future;
   }
-
-
 
 
 
@@ -800,62 +769,88 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     final validStores = stores.where((s) => s.store.core.id != null).toList();
 
 
+    // ✅ LÓGICA ATUALIZADA: Se estamos em Loading/Synchronizing, este é o NOSSO SINAL para prosseguir.
     if (currentState is StoresManagerLoading || currentState is StoresManagerSynchronizing) {
-      log("🟡 [CUBIT] 'admin_stores_list' received during initial load. Ignoring to prevent race condition.");
-      return;
-    }
-
-
-
-    if (currentState is! StoresManagerLoaded) {
-
-      if (validStores.isEmpty && currentState is StoresManagerLoading) {
-        log("🟡 [CUBIT] Ignorando lista de lojas vazia recebida durante o carregamento inicial. Aguardando dados definitivos.");
-        return; // Não faz nada e continua esperando.
-      }
 
       if (validStores.isEmpty) {
         log("🔵 [CUBIT] Initial socket data: No stores. Emitting StoresManagerEmpty.");
-        if (currentState is! StoresManagerEmpty) emit(const StoresManagerEmpty());
-      } else {
-        log("🚀 [CUBIT] First valid store list from socket. Emitting StoresManagerLoaded with ${validStores.length} stores.");
-        final firstStoreId = validStores.first.store.core.id!;
-
-        emit(
-          StoresManagerLoaded(
-            stores: {for (var s in validStores) s.store.core.id!: s},
-            activeStoreId: firstStoreId,
-            connectivityStatus: ConnectivityStatus.synchronizing,
-            consolidatedStores: const [],
-            lastUpdate: DateTime.now(),
-            notificationCounts: const {},
-            stuckOrderIds: const {},
-            conversations: const [],
-          ),
-        );
+        emit(const StoresManagerEmpty());
+        if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+          _initialLoadCompleter!.complete();
+        }
+        return;
       }
 
+      final firstStoreId = validStores.first.store.core.id!;
+      final storesMap = {for (var s in validStores) s.store.core.id!: s};
 
-      if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
-        _initialLoadCompleter!.complete();
-      }
+      log("🚀 [CUBIT] First valid store list from socket (loja ID: $firstStoreId). Emitting StoresManagerSynchronizing.");
+
+      // Emite o estado de Sincronização, que fará o app pedir para
+      // entrar na sala da 'firstStoreId' (que agora está correta).
+      emit(StoresManagerSynchronizing(
+        stores: storesMap,
+        activeStoreId: firstStoreId,
+      ));
+
+      // Agora, entramos na sala.
+      // Usamos um future para não bloquear o listener
+      Future(() async {
+        if (isClosed) return;
+        try {
+          await _realtimeRepository.joinStoreRoom(firstStoreId);
+          log("✅ [CUBIT] Joined WebSocket room for store ID: $firstStoreId. Aguardando dados operacionais...");
+        } catch (e) {
+          log("❌ [CUBIT] Falha ao tentar entrar na sala $firstStoreId após receber lista.", error: e);
+          if (_initialLoadCompleter != null && !_initialLoadCompleter!.isCompleted) {
+            _initialLoadCompleter!.completeError(e);
+          }
+        }
+        // O _initialLoadCompleter será completado por _onFullMenuUpdated, como antes.
+      });
+
+      // NÃO complete o completer aqui. Deixe _onFullMenuUpdated fazer isso.
+      return;
     }
+
     // Cenário 2: App já carregado, isto é uma atualização da lista de lojas.
-    else {
-      // Esta lógica existente já ignora listas vazias se já tivermos dados, o que está correto.
+    if (currentState is StoresManagerLoaded) {
       if (validStores.isEmpty && currentState.stores.isNotEmpty) {
         log("🔵 [CUBIT] Ignoring empty store list from socket because we already have data.");
         return;
       }
       log("🔄 [CUBIT] Socket update received. Refreshing store list with ${validStores.length} items.");
+
+      // ✅ ADIÇÃO: Verifica se a loja ativa ainda existe
+      int newActiveStoreId = currentState.activeStoreId;
+      final currentActiveExists = validStores.any((s) => s.store.core.id == newActiveStoreId);
+
+      // Se a loja ativa foi removida (ou o usuário perdeu acesso),
+      // seleciona a primeira da nova lista.
+      if (!currentActiveExists && validStores.isNotEmpty) {
+        newActiveStoreId = validStores.first.store.core.id!;
+        log("⚠️ [CUBIT] Loja ativa ${currentState.activeStoreId} não está mais na lista. Trocando para $newActiveStoreId.");
+        // Entra na sala da nova loja
+        Future(() async {
+          await _realtimeRepository.leaveStoreRoom(currentState.activeStoreId);
+          await _realtimeRepository.joinStoreRoom(newActiveStoreId);
+        });
+      } else if (validStores.isEmpty) {
+        log("🔵 [CUBIT] Nenhuma loja restante. Emitindo StoresManagerEmpty.");
+        emit(const StoresManagerEmpty());
+        return;
+      }
+
       emit(
         currentState.copyWith(
           stores: {for (var s in validStores) s.store.core.id!: s},
+          activeStoreId: newActiveStoreId,
           lastUpdate: DateTime.now(),
         ),
       );
     }
   }
+
 
   void addNewStore(StoreWithRole newStore) {
     if (isClosed) return;
@@ -863,18 +858,16 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
     final currentState = state;
     Map<int, StoreWithRole> currentStores = {};
 
-    // Se já tínhamos lojas, pegamos o mapa atual
+
     if (currentState is StoresManagerLoaded) {
       currentStores = Map.from(currentState.stores);
     }
 
-    // Adiciona a nova loja ao mapa
     currentStores[newStore.store.core.id!] = newStore;
 
     log("✅ [CUBIT] Adicionando nova loja (ID: ${newStore.store.core.id}) ao estado. Transicionando para StoresManagerLoaded.");
 
-    // Emite o estado `Loaded` com a nova loja, definindo-a como ativa.
-    // Isso funciona tanto se o estado anterior era `Empty` quanto `Loaded`.
+
     emit(
       StoresManagerLoaded(
         stores: currentStores,
@@ -1269,7 +1262,7 @@ class StoresManagerCubit extends Cubit<StoresManagerState> {
       _initialLoadCompleter!.completeError('Cubit closed before completion');
     }
 
-    _realtimeRepository.dispose();
+ //   _realtimeRepository.dispose();
 
     return super.close();
   }

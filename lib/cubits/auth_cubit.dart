@@ -18,6 +18,7 @@ class AuthCubit extends Cubit<AuthState> {
   final AuthService _authService;
   StreamSubscription? _sessionRevokedSubscription;
   bool _hasInitialized = false; // ✅ Flag para evitar re-inicialização
+  bool _isLoggingOut = false;
 
   AuthCubit({
     required AuthService authService,
@@ -57,8 +58,24 @@ class AuthCubit extends Cubit<AuthState> {
 
 
   Future<void> signIn(String email, String password) async {
+    // ✅ PROTEÇÃO: Aguarda logout completar
+    if (_isLoggingOut) {
+      log('[AuthCubit] ⏳ Aguardando logout anterior completar...');
+
+      int attempts = 0;
+      while (_isLoggingOut && attempts < 20) {
+        await Future.delayed(Duration(milliseconds: 100));
+        attempts++;
+      }
+
+      if (_isLoggingOut) {
+        log('[AuthCubit] ❌ Timeout aguardando logout. Forçando novo login.');
+      }
+    }
+
     log('[AuthCubit] Tentando login para $email...');
     final result = await _authService.signIn(email: email, password: password);
+
     result.fold(
           (error) {
         if (error == SignInError.emailNotVerified) {
@@ -108,7 +125,6 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-// ✅ ATUALIZADO: _listenToSessionRevoked agora chama logout com reason
   void _listenToSessionRevoked() {
     _sessionRevokedSubscription?.cancel();
 
@@ -128,7 +144,7 @@ class AuthCubit extends Cubit<AuthState> {
       log('🚨 [AuthCubit] Fazendo logout automático...');
       log('🚨 [AuthCubit] ========================================');
 
-      // ✅ CORRIGIDO: Passa reason e message para o logout
+      // ✅ CORRETO: Passa reason e message
       logout(reason: 'session_revoked', message: message);
     });
 
@@ -137,7 +153,7 @@ class AuthCubit extends Cubit<AuthState> {
 
 
 
-// ✅ MÉTODO CORRIGIDO: Logout com reason
+
   Future<void> logout({String? reason, String? message}) async {
     log('[AuthCubit] Iniciando processo de logout... Reason: ${reason ?? 'manual'}');
 
@@ -146,6 +162,9 @@ class AuthCubit extends Cubit<AuthState> {
       log('[AuthCubit] Já está deslogado. Ignorando.');
       return;
     }
+
+    // ✅ NOVO: Define a flag para prevenir race conditions no login
+    _isLoggingOut = true;
 
     // Mostra loading (exceto se vier de sessão revogada)
     if (reason != 'session_revoked') {
@@ -159,26 +178,28 @@ class AuthCubit extends Cubit<AuthState> {
       _sessionRevokedSubscription = null;
 
       // 2. Limpa o estado do StoresManagerCubit
+      //    (Isso chama internamente o _realtimeRepository.reset())
       if (getIt.isRegistered<StoresManagerCubit>()) {
         log('[AuthCubit] Resetando StoresManagerCubit...');
         await getIt<StoresManagerCubit>().resetState();
       }
 
       // 3. Desregistra serviços de escopo de usuário
+      //    (Isso chama o .close() do StoresManagerCubit, que agora é seguro)
       log('[AuthCubit] Desregistrando singletons de escopo de usuário...');
       await unregisterUserScopeSingletons();
 
-      // 4. Faz reset do RealtimeRepository
-      if (getIt.isRegistered<RealtimeRepository>()) {
-        log('[AuthCubit] Fazendo reset do RealtimeRepository...');
-        getIt<RealtimeRepository>().reset();
-      }
+      // 4. ✅ REMOVIDO: Bloco redundante
+      // if (getIt.isRegistered<RealtimeRepository>()) {
+      //   log('[AuthCubit] Fazendo reset do RealtimeRepository...');
+      //   getIt<RealtimeRepository>().reset();
+      // }
 
       // 5. Chama o serviço de autenticação para limpar tokens
       log('[AuthCubit] Limpando tokens via AuthService...');
       await _authService.logout();
 
-      // 6. ✅ CORRIGIDO: Emite o estado final COM reason e message
+      // 6. ✅ Emite o estado final COM reason e message
       emit(AuthUnauthenticated(
         reason: reason,
         message: message ?? _getLogoutMessage(reason),
@@ -187,13 +208,14 @@ class AuthCubit extends Cubit<AuthState> {
       log('[AuthCubit] ✅ Logout completo. Reason: ${reason ?? 'manual'}');
     } catch (e, st) {
       log('[AuthCubit] ❌ Erro durante o logout: $e', error: e, stackTrace: st);
-      // Mesmo em caso de erro, força o estado de deslogado
       emit(AuthUnauthenticated(reason: reason, message: message));
+    } finally {
+      // ✅ NOVO: Garante que a flag seja liberada
+      _isLoggingOut = false;
     }
-
   }
 
-  // ✅ NOVO: Helper para gerar mensagens de logout
+
   String _getLogoutMessage(String? reason) {
     switch (reason) {
       case 'session_expired':
@@ -208,6 +230,10 @@ class AuthCubit extends Cubit<AuthState> {
         return '';
     }
   }
+
+
+
+
 
   Future<void> signUp({
     required String name,

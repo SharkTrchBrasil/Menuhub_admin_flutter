@@ -1210,36 +1210,40 @@ class RealtimeRepository {
 
 
 
-// SUBSTITUA o método dispose completo por este:
-  void dispose() {
+  // ✅ VERSÃO MELHORADA: Dispose é awaitable
+  Future<void> dispose() async {
+    if (_isDisposed || _isDisposing) {
+      log('⚠️ [RealtimeRepository] Dispose já foi chamado. Ignorando.');
+      return;
+    }
+
+    _isDisposing = true;
     log('[RealtimeRepository] Iniciando processo de dispose...');
 
-    // 1. Define flag de disposing PRIMEIRO
-    _isDisposing = true;
-
-    // 2. Aguarda um microtask para garantir que eventos em processamento terminem
-    Future.microtask(() {
-      // 3. Desconecta e limpa o socket ANTES de fechar os streams
+    try {
+      // 1. Desconecta socket PRIMEIRO
       if (_socket != null) {
-        _socket!.clearListeners(); // Remove listeners IMEDIATAMENTE
+        _socket!.clearListeners();
         _socket!.disconnect();
         _socket!.dispose();
         _socket = null;
+        log('[RealtimeRepository] ✅ Socket desconectado');
       }
 
-      // 4. Cancela subscription de conectividade
-      _deviceConnectivitySubscription?.cancel();
+      // 2. Cancela subscription de conectividade
+      await _deviceConnectivitySubscription?.cancel();
       _deviceConnectivitySubscription = null;
 
-      // 5. Agora fecha todos os streams de forma segura
+      // 3. Fecha streams de forma síncrona (sem await)
       _safeCloseStream(_productsStreams.values);
       _safeCloseStream(_variantsStreams.values);
       _safeCloseStream(_categoriesStreams.values);
       _safeCloseStream(_ordersStreams.values);
-
       _safeCloseStream(_fullMenuStreams.values);
+      _safeCloseStream(_saloonsStreams.values);
+      _safeCloseStream(_standaloneCommandsStreams.values);
 
-      // Fecha os controllers principais
+      // Fecha controllers principais
       _safeClose(_chatbotConfigController);
       _safeClose(_payablesDashboardController);
       _safeClose(_activeStoreController);
@@ -1259,25 +1263,26 @@ class RealtimeRepository {
       _safeClose(_dashboardDataController);
       _safeClose(_deviceLimitReachedController);
       _safeClose(_sessionRevokedController);
-      _safeCloseStream(_standaloneCommandsStreams.values); // ✅ ADICIONE
 
+      // Limpa mapas
       _productsStreams.clear();
       _ordersStreams.clear();
       _fullMenuStreams.clear();
       _variantsStreams.clear();
       _categoriesStreams.clear();
+      _saloonsStreams.clear();
+      _standaloneCommandsStreams.clear();
       _joinedStores.clear();
       _joiningInProgress.clear();
       _lastJoinedStoreId = null;
 
+      log('[RealtimeRepository] ✅ Dispose completo.');
 
+    } finally {
       _isDisposed = true;
       _isDisposing = false;
-
-      log('[RealtimeRepository] Dispose completo.');
-    });
+    }
   }
-
 
 // Métodos auxiliares para fechamento seguro
   void _safeClose(StreamController controller) {

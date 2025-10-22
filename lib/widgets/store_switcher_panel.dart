@@ -45,11 +45,11 @@ class StoreSwitcherPanel extends StatelessWidget {
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) {
-          context.go('/stores/new');
+          context.go('/stores/new/wizard');
         }
       });
     } else {
-      context.go('/stores/new');
+      context.go('/stores/new/wizard');
     }
   }
 
@@ -212,11 +212,11 @@ class StoreSwitcherPanel extends StatelessWidget {
               title: 'Trocar de Loja',
               subtitle: 'Selecione uma loja para gerenciar',
               actions: [
-                DsButton(
-                  label: 'Nova Loja',
-                  style: DsButtonStyle.secondary,
-                  onPressed: () => _createNewStore(context),
-                )
+                // DsButton(
+                //   label: 'Nova Loja',
+                //   style: DsButtonStyle.secondary,
+                //   onPressed: () => _createNewStore(context),
+                // )
               ],
             ),
             const SizedBox(height: 12),
