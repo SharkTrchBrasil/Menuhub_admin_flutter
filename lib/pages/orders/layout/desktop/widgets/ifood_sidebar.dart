@@ -1,14 +1,18 @@
+// [Arquivo: ifood_sidebar.dart]
+
 import 'package:flutter/material.dart';
+// Remova a importação do go_router, não é mais necessária aqui
 
-class IfoodSidebar extends StatefulWidget {
-  const IfoodSidebar({super.key});
+class IfoodSidebar extends StatelessWidget {
+  // 1. Receba o estado e o callback
+  final int selectedIndex;
+  final ValueChanged<int> onItemTapped;
 
-  @override
-  State<IfoodSidebar> createState() => _IfoodSidebarState();
-}
-
-class _IfoodSidebarState extends State<IfoodSidebar> {
-  int _selectedIndex = 0;
+   IfoodSidebar({
+    super.key,
+    required this.selectedIndex,
+    required this.onItemTapped,
+  });
 
   final List<SidebarItem> _items = [
     SidebarItem(Icons.receipt_long, 'Pedidos', isActive: true),
@@ -20,6 +24,8 @@ class _IfoodSidebarState extends State<IfoodSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    // 2. Remova toda a lógica de _getSelectedIndex e _onItemTapped
+
     return Container(
       width: 80,
       decoration: BoxDecoration(
@@ -40,11 +46,11 @@ class _IfoodSidebarState extends State<IfoodSidebar> {
             return _SidebarButton(
               icon: item.icon,
               label: item.label,
-              isActive: index == _selectedIndex,
+              // 3. Use o selectedIndex recebido por parâmetro
+              isActive: index == selectedIndex,
               onTap: () {
-                setState(() {
-                  _selectedIndex = index;
-                });
+                // 4. Chame o callback informando o índice
+                onItemTapped(index);
               },
             );
           }).toList(),
@@ -59,7 +65,9 @@ class _IfoodSidebarState extends State<IfoodSidebar> {
             icon: Icons.business_center,
             label: 'Portal',
             isActive: false,
-            onTap: () {},
+            onTap: () {
+              // TODO: Adicionar navegação para o portal (isso sim pode usar context.go)
+            },
           ),
 
           const SizedBox(height: 20),
@@ -68,6 +76,8 @@ class _IfoodSidebarState extends State<IfoodSidebar> {
     );
   }
 }
+
+// ... (Classes SidebarItem e _SidebarButton permanecem exatamente iguais) ...
 
 class SidebarItem {
   final IconData icon;

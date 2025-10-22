@@ -77,6 +77,11 @@ import 'package:totem_pro_admin/widgets/app_shell.dart';
 import '../pages/create_store/cubit/store_setup_cubit.dart';
 import '../pages/edit_settings/hours/cubit/opening_hours_cubit.dart';
 import '../pages/operation_configuration/cubit/operation_config_cubit.dart';
+import '../pages/orders/layout/desktop/views/orders_helper_page.dart';
+import '../pages/orders/layout/desktop/views/orders_list_page.dart';
+import '../pages/orders/layout/desktop/views/orders_menu_page.dart';
+import '../pages/orders/layout/desktop/views/orders_settings_page.dart';
+import '../pages/orders/layout/desktop/views/orders_shipping_page.dart';
 import '../pages/plans/manage_subscription_page.dart';
 import '../pages/plans/reactivate_subscription_page.dart';
 
@@ -268,75 +273,11 @@ class AppRouter {
                   lazy: true,
                 ),
               ],
-              child: OrdersPage(storeId: storeId),
+              child: OrdersPage(),
             ),
           );
         },
-        routes: [
-          // ✅ Pedidos (rota padrão)
-          GoRoute(
-            path: 'list',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: OrdersListPage(),
-            ),
-          ),
 
-          // ✅ Expedição
-          GoRoute(
-            path: 'shipping',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: OrdersShippingPage(),
-            ),
-          ),
-
-          // ✅ Cardápio
-          GoRoute(
-            path: 'menu',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: OrdersMenuPage(),
-            ),
-          ),
-
-          // ✅ Ajuda
-          GoRoute(
-            path: 'help',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: OrdersHelpPage(),
-            ),
-          ),
-
-          // ✅ Configurações
-          GoRoute(
-            path: 'settings',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: OrdersSettingsPage(),
-            ),
-          ),
-
-          // Detalhes do pedido
-          GoRoute(
-            path: 'details/:id',
-            name: 'order-details',
-            builder: (context, state) {
-              final extra = state.extra as Map<String, dynamic>?;
-              final order = extra?['order'] as OrderDetails?;
-              final store = extra?['store'] as Store?;
-
-              if (order != null && store != null) {
-                return OrderDetailsPageMobile(
-                  order: order,
-                  store: store,
-                );
-              }
-
-              return const Scaffold(
-                body: Center(
-                  child: Text("Erro: Dados do pedido não encontrados."),
-                ),
-              );
-            },
-          ),
-        ],
       ),
 
 

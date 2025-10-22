@@ -178,13 +178,11 @@ class OrdersDrawerLayout extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
               child: _DrawerButton(
                 icon: Icons.business_center,
-                label: 'Portal',
+                label: 'Loja',
                 isActive: false,
                 onTap: () {
-                  // Ação customizada
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Portal do Parceiro')),
-                  );
+                  context.go('/stores/$storeId/dashboard');
+                  Navigator.pop(context); // Fecha o drawer após navegar
                 },
               ),
             ),

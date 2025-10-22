@@ -11,8 +11,7 @@ import 'package:totem_pro_admin/models/order_details.dart';
 
 import 'package:totem_pro_admin/pages/base/BasePage.dart';
 
-import 'package:totem_pro_admin/pages/orders/layout/mobile_order_layout.dart';
-import 'package:totem_pro_admin/pages/table/tables.dart'; // Import do widget de mesas
+
 import 'package:totem_pro_admin/widgets/dot_loading.dart';
 
 import '../../services/chat_visibility_service.dart';
@@ -26,7 +25,9 @@ import '../product_groups/helper/side_panel_helper.dart';
 
 import 'cubit/order_page_cubit.dart';
 import 'cubit/order_page_state.dart';
-import 'layout/desktop/orders_desktop_layout.dart';
+
+import 'layout/desktop/orders_page_desktop.dart';
+import 'layout/mobile/mobile_order_layout.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});

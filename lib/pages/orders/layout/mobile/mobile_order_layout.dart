@@ -8,14 +8,14 @@ import 'package:totem_pro_admin/models/order_details.dart';
 import 'package:totem_pro_admin/models/store/store.dart';
 import 'package:totem_pro_admin/pages/orders/widgets/responsive_order_view.dart';
 
-import '../../../core/enums/order_view.dart';
-import '../../../widgets/app_shell.dart';
-import '../../operation_configuration/cubit/operation_config_cubit.dart';
-import '../cubit/order_page_state.dart';
-import '../settings/orders_settings.dart';
-import '../widgets/management_switcher.dart';
-import '../widgets/operational_shortcuts.dart';
-import '../widgets/order_search_delegate.dart';
+import '../../../../core/enums/order_view.dart';
+import '../../../../widgets/app_shell.dart';
+import '../../../operation_configuration/cubit/operation_config_cubit.dart';
+import '../../cubit/order_page_state.dart';
+import '../../settings/orders_settings.dart';
+import '../../widgets/management_switcher.dart';
+import '../../widgets/operational_shortcuts.dart';
+import '../../widgets/order_search_delegate.dart';
 
 class MobileOrderLayout extends StatefulWidget {
   final void Function(BuildContext, OrderDetails) onOpenOrderDetailsPage;
