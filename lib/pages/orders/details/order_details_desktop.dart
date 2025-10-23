@@ -491,7 +491,7 @@ class OrderDetailsPanel extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
                       image: DecorationImage(
-                        image: NetworkImage(product.image!.url!),
+                        image: NetworkImage(product.image!.url ?? ''),
                         fit: BoxFit.cover,
                       ),
                     ),

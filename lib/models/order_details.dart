@@ -61,6 +61,7 @@ class OrderDetails {
   final List<OrderPrintLog> printLogs;
 
 
+
   OrderDetails({
     required this.id,
     required this.sequentialId,

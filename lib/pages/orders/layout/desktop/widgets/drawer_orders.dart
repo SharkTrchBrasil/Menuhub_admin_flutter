@@ -1,47 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totem_pro_admin/models/store/store.dart';
+
+import '../../../../../cubits/store_manager_cubit.dart';
 
 class OrdersDrawerLayout extends StatelessWidget {
   final int storeId;
   final Store? activeStore;
-  final String currentRoute;
+  final int selectedIndex; // ✅ Índice selecionado (ao invés de rota)
+  final ValueChanged<int> onItemTapped; // ✅ Callback para mudança de índice
   final Widget child;
 
   const OrdersDrawerLayout({
     super.key,
     required this.storeId,
     required this.activeStore,
-    required this.currentRoute,
+    required this.selectedIndex,
+    required this.onItemTapped,
     required this.child,
   });
 
-  // ✅ Mapear cada item do drawer para sua rota
+  // ✅ Lista de itens do drawer (sem rotas, apenas dados)
   List<DrawerItem> get _drawerItems => [
     DrawerItem(
       label: 'Pedidos',
       icon: Icons.receipt_long,
-      route: '/stores/$storeId/orders/list',
     ),
     DrawerItem(
       label: 'Expedição',
       icon: Icons.shopping_bag_outlined,
-      route: '/stores/$storeId/orders/shipping',
     ),
     DrawerItem(
       label: 'Cardápio',
       icon: Icons.restaurant_menu,
-      route: '/stores/$storeId/orders/menu',
     ),
     DrawerItem(
       label: 'Ajuda',
       icon: Icons.help_outline,
-      route: '/stores/$storeId/orders/help',
     ),
     DrawerItem(
       label: 'Configurações',
       icon: Icons.settings,
-      route: '/stores/$storeId/orders/settings',
     ),
   ];
 
@@ -130,11 +130,14 @@ class OrdersDrawerLayout extends StatelessWidget {
 
           const SizedBox(width: 16),
 
-          // ✅ Botões de ação
+          // ✅ Botão Voltar para Dashboard (esse SIM usa navegação)
           IconButton(
             icon: const Icon(Icons.arrow_back_outlined),
-            onPressed: () => context.go('/hub'),
-            tooltip: 'Voltar',
+            onPressed: () {
+              // Navega para o dashboard da loja (sai da área de pedidos)
+              context.go('/stores/$storeId/dashboard');
+            },
+            tooltip: 'Voltar para Dashboard',
           ),
         ],
       ),
@@ -142,6 +145,8 @@ class OrdersDrawerLayout extends StatelessWidget {
   }
 
   Widget _buildDrawer(BuildContext context) {
+
+    final storeId = context.read<StoresManagerCubit>().state.activeStore?.core.id;
     return Drawer(
       width: 80,
       child: Container(
@@ -150,19 +155,22 @@ class OrdersDrawerLayout extends StatelessWidget {
           children: [
             const SizedBox(height: 20),
 
-            // ✅ Itens do drawer
-            ..._drawerItems.map((item) {
-              final isActive = currentRoute.contains(item.route.split('/').last);
+            // ✅ Itens do drawer com navegação por índice
+            ..._drawerItems.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
 
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                 child: _DrawerButton(
                   icon: item.icon,
                   label: item.label,
-                  isActive: isActive,
+                  isActive: index == selectedIndex,
                   onTap: () {
-                    context.go(item.route);
-                    Navigator.pop(context); // Fecha o drawer
+                    // ✅ Fecha o drawer
+                    Navigator.pop(context);
+                    // ✅ Chama o callback com o índice
+                    onItemTapped(index);
                   },
                 ),
               );
@@ -173,16 +181,18 @@ class OrdersDrawerLayout extends StatelessWidget {
             // ✅ Divisor
             const Divider(height: 1),
 
-            // ✅ Portal do Parceiro
+            // ✅ Botão Voltar para Dashboard
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
               child: _DrawerButton(
-                icon: Icons.business_center,
-                label: 'Loja',
+                icon: Icons.dashboard,
+                label: 'Dashboard',
                 isActive: false,
                 onTap: () {
+                  // Fecha o drawer
+                  Navigator.pop(context);
+                  // Navega para o dashboard (sai da área de pedidos)
                   context.go('/stores/$storeId/dashboard');
-                  Navigator.pop(context); // Fecha o drawer após navegar
                 },
               ),
             ),
@@ -247,15 +257,13 @@ class _DrawerButton extends StatelessWidget {
   }
 }
 
-// ✅ Model simples
+// ✅ Model simplificado (sem rotas)
 class DrawerItem {
   final String label;
   final IconData icon;
-  final String route;
 
   DrawerItem({
     required this.label,
     required this.icon,
-    required this.route,
   });
 }

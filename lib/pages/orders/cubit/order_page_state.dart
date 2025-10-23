@@ -1,4 +1,4 @@
-// Em: pages/orders/order_page_state.dart
+// lib/pages/orders/cubit/order_page_state.dart
 
 import 'package:equatable/equatable.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
@@ -24,9 +24,6 @@ class OrdersLoaded extends OrderState {
   final String? lastNotifiedOrderId;
   final OrderFilter filter;
   final bool isConnected;
-
-  // ✅ 1. NOVO CAMPO ADICIONADO
-  // Conta quantos pedidos estão aguardando impressão manual.
   final int pendingManualPrintsCount;
 
   const OrdersLoaded({
@@ -35,9 +32,11 @@ class OrdersLoaded extends OrderState {
     this.lastNotifiedOrderId,
     required this.filter,
     this.isConnected = true,
-    // ✅ 2. ADICIONADO AO CONSTRUTOR
-    this.pendingManualPrintsCount = 0, // Valor padrão é 0
+    this.pendingManualPrintsCount = 0,
   });
+
+  // ✅ NOVO: Getter para retornar os pedidos já filtrados
+  List<OrderDetails> get filteredOrders => orders;
 
   OrdersLoaded copyWith({
     List<OrderDetails>? orders,
@@ -45,7 +44,6 @@ class OrdersLoaded extends OrderState {
     String? lastNotifiedOrderId,
     OrderFilter? filter,
     bool? isConnected,
-    // ✅ 3. ADICIONADO AO MÉTODO copyWith
     int? pendingManualPrintsCount,
   }) {
     return OrdersLoaded(
@@ -54,9 +52,7 @@ class OrdersLoaded extends OrderState {
       lastNotifiedOrderId: lastNotifiedOrderId ?? this.lastNotifiedOrderId,
       filter: filter ?? this.filter,
       isConnected: isConnected ?? this.isConnected,
-      // ✅ 4. ATRIBUÍDO NO copyWith
-      pendingManualPrintsCount:
-      pendingManualPrintsCount ?? this.pendingManualPrintsCount,
+      pendingManualPrintsCount: pendingManualPrintsCount ?? this.pendingManualPrintsCount,
     );
   }
 
@@ -67,7 +63,6 @@ class OrdersLoaded extends OrderState {
     lastNotifiedOrderId,
     filter,
     isConnected,
-    // ✅ 5. ADICIONADO AOS PROPS PARA COMPARAÇÃO
     pendingManualPrintsCount,
   ];
 }

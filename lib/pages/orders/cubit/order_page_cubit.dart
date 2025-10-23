@@ -1,3 +1,5 @@
+// lib/pages/orders/cubit/order_page_cubit.dart
+
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:totem_pro_admin/models/order_details.dart';
@@ -30,7 +32,9 @@ class OrderCubit extends Cubit<OrderState> {
   OrderFilter _currentFilter = OrderFilter.all;
   String? _lastNotifiedOrderId;
 
-  // Construtor simplificado, sem dependências de outros Cubits.
+  // Referência ao StoresManagerCubit (necessário para refreshOrders)
+  StoresManagerCubit? _storesManagerCubit;
+
   OrderCubit({
     required RealtimeRepository realtimeRepository,
     required PrintManager printManager,
@@ -38,9 +42,9 @@ class OrderCubit extends Cubit<OrderState> {
         _printManager = printManager,
         super(const OrdersInitial());
 
-  // Novo método de inicialização que será chamado após a criação do Cubit.
   void init(StoresManagerCubit storesManagerCubit) {
     print('[OrderCubit] Inicializando e se inscrevendo no StoresManagerCubit...');
+    _storesManagerCubit = storesManagerCubit; // ✅ Salva referência
     _listenToConnectionStatus();
     _subscribeToStoresManager(storesManagerCubit);
   }
@@ -70,7 +74,6 @@ class OrderCubit extends Cubit<OrderState> {
       }
     });
 
-    // Processa o estado inicial do StoresManagerCubit
     final initialState = storesManagerCubit.state;
     if (initialState is StoresManagerLoaded) {
       _subscribeToOrdersForStore(initialState.activeStoreId, storesManagerCubit);
@@ -80,12 +83,12 @@ class OrderCubit extends Cubit<OrderState> {
   void _subscribeToOrdersForStore(int storeId, StoresManagerCubit storesManagerCubit) {
     final currentState = state;
     if (currentState is OrdersLoaded && currentState.activeStoreId == storeId) {
-      return; // Já está ouvindo a loja correta.
+      return;
     }
 
     emit(const OrdersLoading());
     _ordersSubscription?.cancel();
-    _ordersCache = []; // Limpa o cache ao trocar de loja
+    _ordersCache = [];
 
     _ordersSubscription = _realtimeRepository.listenToOrders(storeId).listen(
           (orders) => _onOrdersReceived(orders, storeId, storesManagerCubit),
@@ -199,6 +202,19 @@ class OrderCubit extends Cubit<OrderState> {
     final currentState = state;
     if (currentState is OrdersLoaded) {
       _emitFilteredOrders(currentState.activeStoreId!);
+    }
+  }
+
+  // ✅ NOVO: Método para atualizar manualmente os pedidos
+  Future<void> refreshOrders() async {
+    final currentState = state;
+    if (currentState is OrdersLoaded && _storesManagerCubit != null) {
+      final storeState = _storesManagerCubit!.state;
+      if (storeState is StoresManagerLoaded) {
+        print('[OrderCubit] Forçando atualização dos pedidos...');
+        // Força uma nova emissão com os dados do cache
+        _emitFilteredOrders(storeState.activeStoreId);
+      }
     }
   }
 
